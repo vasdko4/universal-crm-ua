@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { runSetup } from '@/app/actions/setup'
+import { TEMPLATES, type TemplateId } from '@/lib/shop/templates'
 import { getDatabaseStatus, type DatabaseStatus } from '@/app/actions/db-config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +14,7 @@ import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import {
   Store,
+  Palette,
   ShieldCheck,
   Truck,
   Sparkles,
@@ -28,13 +30,14 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 
-type StepId = 'welcome' | 'db' | 'admin' | 'store' | 'seo' | 'finish'
+type StepId = 'welcome' | 'db' | 'admin' | 'store' | 'design' | 'seo' | 'finish'
 
 const STEPS: { id: StepId; label: string }[] = [
   { id: 'welcome', label: 'Начало' },
   { id: 'db', label: 'База данных' },
   { id: 'admin', label: 'Администратор' },
   { id: 'store', label: 'Магазин' },
+  { id: 'design', label: 'Дизайн' },
   { id: 'seo', label: 'SEO' },
   { id: 'finish', label: 'Готово' },
 ]
@@ -52,6 +55,8 @@ export function SetupWizard() {
   const [storeName, setStoreName] = useState('')
   const [storeDescription, setStoreDescription] = useState('')
   const [novaPoshtaApiKey, setNovaPoshtaApiKey] = useState('')
+
+  const [templateId, setTemplateId] = useState<TemplateId>('classic')
 
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
@@ -115,6 +120,7 @@ export function SetupWizard() {
         description: storeDescription.trim(),
         novaPoshtaApiKey: novaPoshtaApiKey.trim(),
       },
+      design: { templateId },
       seo: {
         metaTitle: metaTitle.trim(),
         metaDescription: metaDescription.trim(),
@@ -286,6 +292,58 @@ export function SetupWizard() {
             </StepShell>
           )}
 
+          {step === 'design' && (
+            <StepShell
+              icon={<Palette className="size-6" />}
+              title="Дизайн магазина"
+              subtitle="Выберите оформление витрины. Его можно сменить в любой момент в настройках."
+            >
+              <div className="mt-2 grid max-h-[50svh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
+                {TEMPLATES.map((t) => {
+                  const active = templateId === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setTemplateId(t.id)}
+                      className={
+                        'relative flex flex-col gap-2 rounded-xl border-2 p-2 text-left transition-colors ' +
+                        (active ? 'border-primary' : 'border-border hover:border-primary/40')
+                      }
+                    >
+                      {active && (
+                        <span className="absolute right-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                          <Check className="size-3" />
+                        </span>
+                      )}
+                      <div
+                        className="flex flex-col gap-1.5 p-2"
+                        style={{ backgroundColor: t.swatches.bg, borderRadius: t.radius }}
+                      >
+                        <span className="h-1.5 w-10 rounded-full" style={{ backgroundColor: t.swatches.primary }} />
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[0, 1].map((i) => (
+                            <div
+                              key={i}
+                              className="flex flex-col gap-1 p-1.5"
+                              style={{ backgroundColor: t.swatches.card, borderRadius: t.radius }}
+                            >
+                              <span className="h-1 w-full rounded-full" style={{ backgroundColor: t.swatches.accent }} />
+                              <span className="h-1 w-2/3 rounded-full" style={{ backgroundColor: t.swatches.primary }} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-xs font-medium text-foreground">{t.name}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </StepShell>
+          )}
+
           {step === 'seo' && (
             <StepShell
               icon={<Globe className="size-6" />}
@@ -391,6 +449,7 @@ export function SetupWizard() {
                 <dl className="mt-2 flex flex-col gap-1 text-muted-foreground">
                   <Row label="Администратор" value={`${name} (${email})`} />
                   <Row label="Магазин" value={storeName} />
+                  <Row label="Дизайн" value={TEMPLATES.find((t) => t.id === templateId)?.name ?? templateId} />
                   <Row label="Домен" value="определится автоматически" />
                   <Row label="Индексация Google" value={indexingEnabled ? 'включена' : 'выключена'} />
                   <Row label="Нова Пошта" value={novaPoshtaApiKey ? 'ключ указан' : 'не указан'} />

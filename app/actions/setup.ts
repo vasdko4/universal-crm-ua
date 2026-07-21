@@ -8,6 +8,7 @@ import { getAuth } from '@/lib/auth'
 import { pool } from '@/lib/db'
 import { revalidateTag } from 'next/cache'
 import { normalizeOrigin } from '@/lib/seo'
+import { TEMPLATES } from '@/lib/shop/templates'
 
 // Essential operational data every fresh install needs to function: admin/staff
 // roles (permissions live here), plus the default delivery and payment methods.
@@ -71,6 +72,7 @@ export async function isSetupNeeded(): Promise<boolean> {
 export type SetupInput = {
   admin: { name: string; email: string; password: string }
   store: { name: string; description: string; novaPoshtaApiKey: string }
+  design: { templateId: string }
   seo: {
     metaTitle: string
     metaDescription: string
@@ -146,15 +148,25 @@ export async function runSetup(input: SetupInput) {
       googleVerification: input.seo.googleVerification.trim(),
       indexingEnabled: input.seo.indexingEnabled,
     })
+    // Storefront template: only accept known preset ids.
+    const templateId = TEMPLATES.some((t) => t.id === input.design?.templateId)
+      ? input.design.templateId
+      : 'classic'
     await pool.query(
-      `INSERT INTO "store_settings" ("id","store_name","store_description","seo","updated_at")
-       VALUES (1,$1,$2,$3::jsonb,now())
+      `INSERT INTO "store_settings" ("id","store_name","store_description","active_template","seo","updated_at")
+       VALUES (1,$1,$2,$3,$4::jsonb,now())
        ON CONFLICT ("id") DO UPDATE SET
          "store_name" = EXCLUDED."store_name",
          "store_description" = EXCLUDED."store_description",
+         "active_template" = EXCLUDED."active_template",
          "seo" = EXCLUDED."seo",
          "updated_at" = now()`,
-      [input.store.name.trim() || 'Мой магазин', input.store.description.trim() || null, seoJson],
+      [
+        input.store.name.trim() || 'Мой магазин',
+        input.store.description.trim() || null,
+        templateId,
+        seoJson,
+      ],
     )
     revalidateTag('store-settings', 'max')
     const npKey = input.store.novaPoshtaApiKey.trim()

@@ -1,0 +1,93 @@
+# Release pipeline with SLSA provenance.
+#
+# On every version tag (v1.0.0, v2.3.4, ...):
+#   1. Builds the production Docker image and pushes it to GitHub Container
+#      Registry: ghcr.io/<owner>/techno-store:<version> (+ :latest).
+#   2. Generates SLSA v1.0 build provenance for the image digest with the
+#      official SLSA generic generator (slsa-framework/slsa-github-generator)
+#      and uploads the .intoto.jsonl attestation to the GitHub release.
+#
+# Verifying a release on your server before deploying:
+#   slsa-verifier verify-artifact --provenance-path techno-store.intoto.jsonl \
+#     --source-uri github.com/<owner>/techno-store <artifact>
+#
+# Creating a release:
+#   git tag v1.0.0 && git push origin v1.0.0
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: read-all
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      digest: ${{ steps.push.outputs.digest }}
+      hashes: ${{ steps.hashes.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Image metadata
+        id: meta
+        run: |
+          IMAGE="${IMAGE_NAME@L}"   # registry paths must be lowercase
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Compute provenance subjects
+        id: hashes
+        run: |
+          # Subject = the pushed image digest, named after the image reference.
+          DIGEST="${{ steps.push.outputs.digest }}"
+          echo "${DIGEST#sha256:}  ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" > subjects.txt
+          echo "hashes=$(base64 -w0 < subjects.txt)" >> "$GITHUB_OUTPUT"
+
+  # SLSA generic generator: builds the signed provenance attestation in an
+  # isolated, trusted workflow (this is why it must be referenced by tag, not
+  # commit) and uploads it to the GitHub release for this tag.
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read     # read the workflow path
+      id-token: write   # sign the provenance (Sigstore)
+      contents: write   # upload the attestation to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: true
+      provenance-name: techno-store.intoto.jsonl
