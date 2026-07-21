@@ -11,17 +11,20 @@ export async function PhoneGuard() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) return null
 
+  // Keep JSX construction out of the try/catch — only the DB lookup can
+  // throw, and errors from rendering <PhoneRequiredDialog /> itself would
+  // never be caught here anyway (React renders components asynchronously).
+  let shouldShowDialog = false
   try {
     const { rows } = await pool.query<{ role: string | null; phone: string | null }>(
       `SELECT role, phone FROM "user" WHERE id = $1 LIMIT 1`,
       [session.user.id],
     )
     const row = rows[0]
-    if (!row) return null
-    if (row.role !== 'customer') return null
-    if (row.phone && row.phone.trim() !== '') return null
-    return <PhoneRequiredDialog />
+    shouldShowDialog = Boolean(row && row.role === 'customer' && !row.phone?.trim())
   } catch {
-    return null
+    shouldShowDialog = false
   }
+
+  return shouldShowDialog ? <PhoneRequiredDialog /> : null
 }
