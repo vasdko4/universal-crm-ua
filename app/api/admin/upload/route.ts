@@ -1,6 +1,5 @@
 import { put, del } from '@vercel/blob'
 import { type NextRequest, NextResponse } from 'next/server'
-import sharp from 'sharp'
 import { writeFile, unlink, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -19,8 +18,25 @@ const WEBP_QUALITY = 82
 // mounted at that path. Vercel deployments keep using Blob automatically
 // once BLOB_READ_WRITE_TOKEN is set in the project's environment variables.
 const USE_BLOB = Boolean(process.env.BLOB_READ_WRITE_TOKEN)
+// On Vercel the function filesystem is read-only and ephemeral, so the local
+// fallback can never work there — Blob is the only real storage option.
+const ON_VERCEL = Boolean(process.env.VERCEL)
 const LOCAL_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const LOCAL_URL_PREFIX = '/uploads/products/'
+
+// sharp is a native module; importing it at module scope crashed the whole
+// route on Vercel (every request — even unauthenticated ones — returned a
+// bare 500 before any handler code ran). Load it lazily and treat it as an
+// optional optimization instead: if it can't be loaded, store the original
+// image untouched rather than failing the upload.
+async function loadSharp(): Promise<(typeof import('sharp'))['default'] | null> {
+  try {
+    return (await import('sharp')).default
+  } catch (error) {
+    console.error('[upload] sharp unavailable, storing original image:', error)
+    return null
+  }
+}
 
 function safeFileName(originalName: string, contentType: string): string {
   const ext = contentType === 'image/webp' ? 'webp' : contentType === 'image/gif' ? 'gif' : originalName.match(/\.[a-zA-Z0-9]+$/)?.[0] || '.jpg'
@@ -60,6 +76,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Файл больше 8 МБ' }, { status: 400 })
     }
 
+    // Fail early with an actionable message instead of throwing on a
+    // read-only filesystem write further down.
+    if (ON_VERCEL && !USE_BLOB) {
+      return NextResponse.json(
+        {
+          error:
+            'Хранилище изображений не настроено. Подключите Vercel Blob к проекту ' +
+            '(Vercel → Storage → Create → Blob), чтобы переменная BLOB_READ_WRITE_TOKEN ' +
+            'появилась в окружении, и передеплойте.',
+        },
+        { status: 503 },
+      )
+    }
+
     // Compress to WebP before storing: strips metadata, caps dimensions and
     // typically shrinks a phone photo 5-10x. Animated GIFs are kept as-is so
     // the animation survives.
@@ -67,17 +97,25 @@ export async function POST(request: NextRequest) {
     let fileName = file.name
     let contentType = file.type
     if (file.type !== 'image/gif') {
-      const original = body
-      const compressed = await sharp(original)
-        .rotate() // apply EXIF orientation before stripping metadata
-        .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: WEBP_QUALITY })
-        .toBuffer()
-      // Fall back to the original when WebP somehow ends up bigger (rare, tiny files).
-      if (compressed.length < original.length) {
-        body = compressed
-        fileName = file.name.replace(/\.[^.]+$/, '') + '.webp'
-        contentType = 'image/webp'
+      const sharp = await loadSharp()
+      if (sharp) {
+        try {
+          const original = body
+          const compressed = await sharp(original)
+            .rotate() // apply EXIF orientation before stripping metadata
+            .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: WEBP_QUALITY })
+            .toBuffer()
+          // Fall back to the original when WebP somehow ends up bigger (rare, tiny files).
+          if (compressed.length < original.length) {
+            body = compressed
+            fileName = file.name.replace(/\.[^.]+$/, '') + '.webp'
+            contentType = 'image/webp'
+          }
+        } catch (error) {
+          // Corrupt/unsupported image data for sharp — keep the original bytes.
+          console.error('[upload] compression failed, storing original image:', error)
+        }
       }
     }
 
