@@ -51,7 +51,12 @@ export function SignInForm({
     const { error } = await authClient.signIn.email({ email, password })
     setLoading(false)
     if (error) {
-      setError('Неверный email или пароль')
+      // 429 = сработала защита от перебора пароля (5 попыток / 2 минуты).
+      setError(
+        error.status === 429
+          ? 'Слишком много попыток входа. Подождите 2 минуты и попробуйте снова.'
+          : 'Неверный email или пароль',
+      )
       return
     }
     router.push('/admin')

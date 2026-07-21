@@ -25,7 +25,12 @@ export function LoginForm() {
     const { error } = await authClient.signIn.email({ email: email.trim().toLowerCase(), password })
     setLoading(false)
     if (error) {
-      setError('Неверная почта или пароль')
+      // 429 = сработала защита от перебора пароля (5 попыток / 2 минуты).
+      setError(
+        error.status === 429
+          ? 'Слишком много попыток входа. Подождите 2 минуты и попробуйте снова.'
+          : 'Неверная почта или пароль',
+      )
       return
     }
     // Honor ?redirect= but only allow same-site paths to prevent open redirects.

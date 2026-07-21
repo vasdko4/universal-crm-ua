@@ -113,12 +113,14 @@ function buildAuth(google: GoogleCreds) {
     },
     // Brute-force protection: per-IP rate limiting on auth endpoints.
     // Sign-in/sign-up/OTP get a stricter budget than the rest of the API.
+    // Sign-in: максимум 5 попыток, затем блокировка на 2 минуты (окно
+    // сбрасывается через 120 секунд) — защита от перебора пароля.
     rateLimit: {
       enabled: true,
       window: 60,
       max: 60,
       customRules: {
-        '/sign-in/email': { window: 60, max: 5 },
+        '/sign-in/email': { window: 120, max: 5 },
         '/sign-up/email': { window: 60, max: 5 },
         '/email-otp/send-verification-otp': { window: 300, max: 3 },
         '/email-otp/verify-otp': { window: 300, max: 5 },
