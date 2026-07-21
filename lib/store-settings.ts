@@ -89,6 +89,24 @@ export type GoogleAuthSettings = {
   clientSecret: string
 }
 
+// Hero-блок главной страницы (бейдж, заголовок, текст, кнопка, картинка).
+// Настраивается в Настройки → Главная страница. Пустая строка = использовать
+// встроенный текст по умолчанию для соответствующего языка, поэтому свежая
+// установка выглядит как раньше, пока админ ничего не менял.
+export type HomeHeroLocaleContent = {
+  badge: string
+  title: string
+  text: string
+  buttonText: string
+}
+
+export type HomeHeroSettings = {
+  /** URL картинки hero-блока. Пусто = стандартная /hero-electronics.png. */
+  imageUrl: string
+  uk: HomeHeroLocaleContent
+  ru: HomeHeroLocaleContent
+}
+
 export type StoreSettingsData = {
   storeName: string
   storeDescription: string | null
@@ -129,6 +147,7 @@ export type StoreSettingsData = {
   contact: ContactData
   notifications: NotificationSettings
   googleAuth: GoogleAuthSettings
+  homeHero: HomeHeroSettings
 }
 
 export const DEFAULTS: StoreSettingsData = {
@@ -178,6 +197,11 @@ export const DEFAULTS: StoreSettingsData = {
     enabled: false,
     clientId: '',
     clientSecret: '',
+  },
+  homeHero: {
+    imageUrl: '',
+    uk: { badge: '', title: '', text: '', buttonText: '' },
+    ru: { badge: '', title: '', text: '', buttonText: '' },
   },
   contact: {
     phones: [''],
@@ -245,6 +269,18 @@ export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
       ...DEFAULTS.googleAuth,
       ...((row.googleAuth ?? {}) as Partial<GoogleAuthSettings>),
     },
+    homeHero: mergeHomeHero(row.homeHero as Partial<HomeHeroSettings> | null),
+  }
+}
+
+// Deep-merge stored hero content over defaults so partially saved objects
+// (e.g. only the uk block filled) always resolve to a complete shape.
+function mergeHomeHero(stored: Partial<HomeHeroSettings> | null | undefined): HomeHeroSettings {
+  if (!stored) return DEFAULTS.homeHero
+  return {
+    imageUrl: stored.imageUrl ?? '',
+    uk: { ...DEFAULTS.homeHero.uk, ...(stored.uk ?? {}) },
+    ru: { ...DEFAULTS.homeHero.ru, ...(stored.ru ?? {}) },
   }
 }
 

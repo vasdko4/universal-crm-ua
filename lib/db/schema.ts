@@ -547,6 +547,8 @@ export const storeSettings = pgTable('store_settings', {
   notifications: jsonb('notifications').notNull().default({}),
   // Вход через Google: OAuth Client ID/Secret, настраивается в админ-центре.
   googleAuth: jsonb('google_auth').notNull().default({}),
+  // Hero-блок главной страницы (тексты uk/ru + картинка), Настройки → Главная.
+  homeHero: jsonb('home_hero').notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 

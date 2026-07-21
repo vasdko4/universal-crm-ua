@@ -76,6 +76,18 @@ export default async function HomePage() {
   const topCategories = categories.filter((cat) => !cat.parentId).slice(0, 8)
   const template = getTemplate(settings?.activeTemplate ?? 'classic')
 
+  // Admin-configured hero content (Настройки → Главная страница) overrides
+  // the built-in defaults per field; empty values fall back to HOME_CONTENT.
+  const heroOverride = settings?.homeHero?.[locale]
+  const hero = {
+    badge: heroOverride?.badge?.trim() || c.badge,
+    heroTitle: heroOverride?.title?.trim() || c.heroTitle,
+    heroText: heroOverride?.text?.trim() || c.heroText,
+    toCatalog: heroOverride?.buttonText?.trim() || c.toCatalog,
+    heroAlt: c.heroAlt,
+  }
+  const heroImageUrl = settings?.homeHero?.imageUrl?.trim() || undefined
+
   const benefitIcons = [Truck, ShieldCheck, CreditCard, Headphones]
   const benefits = c.benefits.map((b, i) => ({ ...b, icon: benefitIcons[i] }))
 
@@ -109,13 +121,8 @@ export default async function HomePage() {
       {/* Hero — layout depends on the active storefront template */}
       <HomeHero
         layout={template.layout}
-        content={{
-          badge: c.badge,
-          heroTitle: c.heroTitle,
-          heroText: c.heroText,
-          toCatalog: c.toCatalog,
-          heroAlt: c.heroAlt,
-        }}
+        content={hero}
+        imageUrl={heroImageUrl}
         categories={topCategories.map((cat) => ({ id: cat.id, name: cat.name, image: cat.image }))}
         locale={locale}
       />

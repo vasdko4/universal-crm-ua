@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { submitReview } from '@/app/actions/shop'
+import { useI18n } from '@/lib/i18n/client'
 import { cn } from '@/lib/utils'
 
 type Review = {
@@ -35,6 +36,8 @@ function Stars({ value, size = 'size-4' }: { value: number; size?: string }) {
 }
 
 export function ProductReviews({ productId, reviews }: { productId: number; reviews: Review[] }) {
+  const { dict } = useI18n()
+  const tp = dict.product
   const [open, setOpen] = useState(false)
   const [rating, setRating] = useState(5)
   const [name, setName] = useState('')
@@ -49,7 +52,7 @@ export function ProductReviews({ productId, reviews }: { productId: number; revi
     const res = await submitReview({ productId, rating, body, pros, cons, authorName: name })
     setBusy(false)
     if (res.success) {
-      toast.success('Спасибо! Отзыв отправлен на модерацию')
+      toast.success(tp.reviewSent)
       setBody('')
       setPros('')
       setCons('')
@@ -57,57 +60,57 @@ export function ProductReviews({ productId, reviews }: { productId: number; revi
       setRating(5)
       setOpen(false)
     } else {
-      toast.error(res.error ?? 'Ошибка')
+      toast.error(res.error ?? tp.error)
     }
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-foreground">Отзывы ({reviews.length})</h3>
+        <h3 className="text-xl font-semibold text-foreground">{tp.reviews} ({reviews.length})</h3>
         <Button variant="outline" onClick={() => setOpen((v) => !v)}>
-          {open ? 'Отмена' : 'Оставить отзыв'}
+          {open ? tp.cancel : tp.writeReview}
         </Button>
       </div>
 
       {open && (
         <form onSubmit={submit} className="space-y-4 rounded-xl border border-border bg-card p-5">
           <div className="space-y-2">
-            <Label>Оценка</Label>
+            <Label>{tp.rating}</Label>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" onClick={() => setRating(n)} aria-label={`${n} звёзд`}>
+                <button key={n} type="button" onClick={() => setRating(n)} aria-label={`${n}/5`}>
                   <Star className={cn('size-7', n <= rating ? 'fill-warning text-warning' : 'text-muted-foreground')} />
                 </button>
               ))}
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="rev-name">Имя</Label>
-            <Input id="rev-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ваше имя" />
+            <Label htmlFor="rev-name">{tp.yourName}</Label>
+            <Input id="rev-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={tp.yourNamePlaceholder} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="rev-pros">Достоинства</Label>
+              <Label htmlFor="rev-pros">{tp.pros}</Label>
               <Input id="rev-pros" value={pros} onChange={(e) => setPros(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rev-cons">Недостатки</Label>
+              <Label htmlFor="rev-cons">{tp.cons}</Label>
               <Input id="rev-cons" value={cons} onChange={(e) => setCons(e.target.value)} />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="rev-body">Комментарий *</Label>
+            <Label htmlFor="rev-body">{tp.comment} *</Label>
             <Textarea id="rev-body" value={body} onChange={(e) => setBody(e.target.value)} required rows={4} />
           </div>
           <Button type="submit" disabled={busy}>
-            {busy ? 'Отправка...' : 'Отправить отзыв'}
+            {busy ? tp.sending : tp.submitReview}
           </Button>
         </form>
       )}
 
       {reviews.length === 0 ? (
-        <p className="text-muted-foreground">Отзывов пока нет. Будьте первым!</p>
+        <p className="text-muted-foreground">{tp.noReviewsYet}</p>
       ) : (
         <div className="space-y-4">
           {reviews.map((r) => (
@@ -121,7 +124,7 @@ export function ProductReviews({ productId, reviews }: { productId: number; revi
               {r.cons && <p className="text-sm text-destructive">− {r.cons}</p>}
               {r.adminReply && (
                 <div className="mt-3 rounded-lg bg-muted p-3 text-sm">
-                  <span className="font-medium text-foreground">Ответ магазина:</span>{' '}
+                  <span className="font-medium text-foreground">{tp.storeReply}</span>{' '}
                   <span className="text-muted-foreground">{r.adminReply}</span>
                 </div>
               )}
