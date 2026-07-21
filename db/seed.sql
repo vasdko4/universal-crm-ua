@@ -41,7 +41,7 @@ INSERT INTO "customers" ("id", "first_name", "last_name", "phone", "email", "rel
 
 -- delivery_methods (2 rows)
 INSERT INTO "delivery_methods" ("id", "code", "name", "is_active", "is_removable", "config", "sort_order", "created_at", "updated_at") VALUES (2, 'ukrposhta', 'Укрпошта', false, true, '{}'::jsonb, 2, '2026-07-09T18:28:52.957Z', '2026-07-09T18:28:52.957Z') ON CONFLICT DO NOTHING;
-INSERT INTO "delivery_methods" ("id", "code", "name", "is_active", "is_removable", "config", "sort_order", "created_at", "updated_at") VALUES (1, 'nova_poshta', 'Нова Пошта', true, false, '{"apiKey":"f7018b97d24ab182a9666a9153b3fe35"}'::jsonb, 1, '2026-07-09T18:28:52.957Z', '2026-07-09T18:28:52.957Z') ON CONFLICT DO NOTHING;
+INSERT INTO "delivery_methods" ("id", "code", "name", "is_active", "is_removable", "config", "sort_order", "created_at", "updated_at") VALUES (1, 'nova_poshta', 'Нова Пошта', true, false, '{"apiKey":""}'::jsonb, 1, '2026-07-09T18:28:52.957Z', '2026-07-09T18:28:52.957Z') ON CONFLICT DO NOTHING;
 
 -- discounts (2 rows)
 INSERT INTO "discounts" ("id", "name_uk", "name_ru", "type", "value", "start_date", "end_date", "is_active", "created_at", "updated_at") VALUES (1, 'Знижка 10%', 'Скидка 10%', 'percentage', '10.00', NULL, NULL, true, '2026-07-09T17:24:05.735Z', '2026-07-09T17:24:05.735Z') ON CONFLICT DO NOTHING;

@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  clearSiteCache,
   updateStoreSettings,
   type StoreSettingsData,
   type WeekDay,
@@ -63,6 +64,7 @@ type Section =
   | 'notifications'
   | 'ads'
   | 'googleAuth'
+  | 'system'
 
 const SECTIONS: { key: Section; label: string; icon: typeof Store }[] = [
   { key: 'general', label: 'Основные', icon: Store },
@@ -76,6 +78,7 @@ const SECTIONS: { key: Section; label: string; icon: typeof Store }[] = [
   { key: 'notifications', label: 'Уведомления', icon: Bell },
   { key: 'ads', label: 'Google Ads / Analytics', icon: BarChart3 },
   { key: 'googleAuth', label: 'Вход через Google', icon: KeyRound },
+  { key: 'system', label: 'Система', icon: Power },
 ]
 
 const WEEK_DAYS: { key: WeekDay; label: string }[] = [
@@ -144,6 +147,7 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
           {section === 'notifications' && <NotificationsSection data={data} setData={setData} />}
           {section === 'ads' && <AdsSection data={data} setData={setData} />}
           {section === 'googleAuth' && <GoogleAuthSection data={data} setData={setData} />}
+          {section === 'system' && <SystemSection />}
         </div>
       </div>
     </div>
@@ -153,6 +157,46 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
 type SectionProps = {
   data: StoreSettingsData
   setData: React.Dispatch<React.SetStateAction<StoreSettingsData>>
+}
+
+function SystemSection() {
+  const [clearing, startClearing] = useTransition()
+
+  function handleClearCache() {
+    startClearing(async () => {
+      try {
+        await clearSiteCache()
+        toast.success('Кеш очищен — витрина обновится при следующем открытии страниц')
+      } catch {
+        toast.error('Не удалось очистить кеш')
+      }
+    })
+  }
+
+  return (
+    <div className="flex max-w-xl flex-col gap-5">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Кеш сайта</h2>
+        <p className="text-sm text-muted-foreground">
+          Витрина кеширует каталог, страницы товаров, настройки и отзывы, чтобы работать быстро.
+          Если после изменений (импорт товаров, правки напрямую в базе) на сайте видны старые
+          данные — очистите кеш вручную.
+        </p>
+      </div>
+      <div className="flex items-center justify-between rounded-lg border border-border p-4">
+        <div>
+          <p className="text-sm font-medium text-foreground">Очистить кеш</p>
+          <p className="text-xs text-muted-foreground">
+            Сбрасывает кеш каталога, товаров, категорий, отзывов и настроек
+          </p>
+        </div>
+        <Button variant="outline" onClick={handleClearCache} disabled={clearing}>
+          {clearing ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+          Очистить кеш
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 function GeneralSection({ data, setData }: SectionProps) {

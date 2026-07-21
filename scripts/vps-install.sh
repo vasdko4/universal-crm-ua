@@ -9,7 +9,8 @@
 #
 # What it does:
 #   1. Installs Node.js 22, pnpm, PostgreSQL, nginx
-#   2. Creates a Postgres database and restores db/dump.sql (full store)
+#   2. Creates a Postgres database and applies db/schema.sql (empty store —
+#      configure it via the web setup wizard on first visit)
 #   3. Generates .env.production with secure secrets
 #   4. Builds the app and registers a systemd service (auto-restart, boot)
 #   5. Configures nginx as a reverse proxy on port 80
@@ -87,18 +88,14 @@ sudo -u postgres psql -c "ALTER ROLE ${DB_USER} PASSWORD '${DB_PASS}'" >/dev/nul
 if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
   sudo -u postgres createdb -O "$DB_USER" "$DB_NAME"
   ok "Database ${DB_NAME} created"
-  if [ -f db/dump.sql ]; then
-    say "Restoring full store snapshot (db/dump.sql)"
-    sudo -u postgres psql -d "$DB_NAME" -q -f db/dump.sql >/dev/null
-    sudo -u postgres psql -d "$DB_NAME" -q -c "
-      GRANT ALL ON ALL TABLES IN SCHEMA public TO ${DB_USER};
-      GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${DB_USER};
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${DB_USER};" >/dev/null
-    ok "Snapshot restored (products, categories, orders, settings, admin)"
-  else
-    err "db/dump.sql not found — the database is empty; apply db/schema.sql manually"
-  fi
+  say "Applying database schema (db/schema.sql)"
+  sudo -u postgres psql -d "$DB_NAME" -q -f db/schema.sql >/dev/null
+  sudo -u postgres psql -d "$DB_NAME" -q -c "
+    GRANT ALL ON ALL TABLES IN SCHEMA public TO ${DB_USER};
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${DB_USER};
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${DB_USER};" >/dev/null
+  ok "Schema applied — the store is configured via the web setup wizard on first visit"
 else
   ok "Database ${DB_NAME} already exists — keeping data"
 fi

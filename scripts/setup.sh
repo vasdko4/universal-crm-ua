@@ -4,17 +4,17 @@
 #
 #   bash scripts/setup.sh
 #
-# What it does (default — clean-server install of the FULL current store):
+# What it does (default — clean install configured via the web wizard):
 #   1. Creates .env.local (with a generated BETTER_AUTH_SECRET) if missing
 #   2. Installs npm dependencies with pnpm
 #   3. Starts a local Postgres via Docker (docker compose)
-#   4. Restores the FULL current-store snapshot from db/dump.sql — schema + ALL
-#      current data (100+ products, categories, galleries, articles, orders,
-#      settings, admin account). An exact copy of the live demo, ready to run.
+#   4. Applies db/schema.sql (empty store — the setup wizard opens on first
+#      visit). If a local db/dump.sql snapshot exists (created with
+#      `pnpm db:dump`, gitignored), it is restored instead.
 #
 # Flags:
-#   --schema   Apply ONLY the empty schema and configure via the web wizard.
-#   --seed     Apply schema + the built-in demo seed (instead of the snapshot).
+#   --schema   (default) Apply ONLY the empty schema, configure via the wizard.
+#   --seed     Apply schema + the built-in demo seed (fake products/orders).
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -91,24 +91,26 @@ for arg in "$@"; do
   [ "$arg" = "--seed" ] && SEED_FLAG="--seed"
 done
 
-if [ -n "$SCHEMA_ONLY" ]; then
-  say "Applying database schema (empty — configure via the web wizard)"
-  node --env-file=.env.local scripts/db-setup.mjs
-elif [ -n "$SEED_FLAG" ]; then
+if [ -n "$SEED_FLAG" ]; then
   say "Applying schema + demo seed"
   node --env-file=.env.local scripts/db-setup.mjs --seed
-else
-  # Default: full snapshot of the current store (schema + ALL current data).
-  say "Restoring full current-store snapshot (db/dump.sql)"
+elif [ -f db/dump.sql ]; then
+  # A local snapshot exists (created with `pnpm db:dump`) — restore it.
+  # Note: db/dump.sql is gitignored, it never ships with the repo.
+  say "Restoring local snapshot (db/dump.sql)"
   node --env-file=.env.local scripts/db-restore.mjs --reset
+else
+  # Default: empty schema; the store is configured via the web setup wizard.
+  say "Applying database schema (empty — configure via the web wizard)"
+  node --env-file=.env.local scripts/db-setup.mjs
 fi
 
 say "Setup complete!"
 echo "  Start the app with:  pnpm dev"
 echo "  Storefront:          http://localhost:3000"
-if [ -n "$SCHEMA_ONLY" ]; then
-  echo "  On first visit you'll see the setup wizard to create your admin account."
-else
+if [ -n "$SEED_FLAG" ]; then
   echo "  Admin panel:         http://localhost:3000/admin"
-  echo "  Admin login:         admin@techno.store  /  Admin12345"
+  echo "  Admin login:         admin@techno.store  /  Admin12345  (demo — change it!)"
+else
+  echo "  On first visit you'll see the setup wizard to create your admin account."
 fi

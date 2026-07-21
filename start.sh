@@ -36,13 +36,26 @@ say "Проверка Docker"
 
 if ! command -v docker &>/dev/null; then
   err "Docker не найден!"
-  echo ""
-  echo "  Установите Docker:"
-  echo "    • Linux:  curl -fsSL https://get.docker.com | sh"
-  echo "    • macOS:  https://docs.docker.com/desktop/mac/install/"
-  echo "    • Windows: https://docs.docker.com/desktop/windows/install/"
-  echo ""
-  exit 1
+  if [ "$(uname -s)" = "Linux" ] && [ -t 0 ]; then
+    read -r -p "  Установить Docker автоматически? [Y/n] " REPLY_DOCKER
+    case "${REPLY_DOCKER:-y}" in
+      [Yy]*|"")
+        say "Установка Docker (get.docker.com)"
+        curl -fsSL https://get.docker.com | sh
+        command -v systemctl &>/dev/null && systemctl enable --now docker || true
+        ok "Docker установлен"
+        ;;
+      *) exit 1 ;;
+    esac
+  else
+    echo ""
+    echo "  Установите Docker:"
+    echo "    • Linux:  curl -fsSL https://get.docker.com | sh"
+    echo "    • macOS:  https://docs.docker.com/desktop/mac/install/"
+    echo "    • Windows: https://docs.docker.com/desktop/windows/install/"
+    echo ""
+    exit 1
+  fi
 fi
 
 if ! docker info &>/dev/null; then
@@ -61,29 +74,65 @@ ok "Docker $(docker --version | grep -oP '\d+\.\d+\.\d+') готов"
 say "Настройка окружения"
 
 if [ ! -f .env ]; then
-  # Generate secure secrets
-  if command -v openssl &>/dev/null; then
-    AUTH_SECRET=$(openssl rand -base64 32)
-    CRON_SECRET_VAL=$(openssl rand -base64 32)
+  # ── Domain ─────────────────────────────────────────────────────────
+  # The domain configures Better Auth callbacks AND storefront SEO
+  # (canonical links, sitemap.xml, robots.txt, OG tags). It can be passed
+  # non-interactively: DOMAIN=shop.example.com ./start.sh
+  if [ -z "${DOMAIN:-}" ] && [ -t 0 ]; then
+    echo ""
+    echo "  Укажите домен, на котором будет работать магазин"
+    echo "  (например: shop.example.com). Оставьте пустым для localhost."
+    read -r -p "  Домен: " DOMAIN || DOMAIN=""
+  fi
+  DOMAIN="${DOMAIN:-}"
+  # Strip protocol/trailing slash if the user pasted a full URL.
+  DOMAIN="${DOMAIN#https://}"; DOMAIN="${DOMAIN#http://}"; DOMAIN="${DOMAIN%/}"
+  if [ -n "$DOMAIN" ]; then
+    PUBLIC_URL="https://${DOMAIN}"
   else
-    # Fallback: use /dev/urandom
-    AUTH_SECRET=$(head -c 32 /dev/urandom | base64)
-    CRON_SECRET_VAL=$(head -c 32 /dev/urandom | base64)
+    PUBLIC_URL="http://localhost:3000"
   fi
 
-  cat > .env <<EOF
+  # ── Secrets ────────────────────────────────────────────────────────
+  gen_secret() {
+    if command -v openssl &>/dev/null; then openssl rand -base64 32; else head -c 32 /dev/urandom | base64; fi
+  }
+  gen_password() {
+    if command -v openssl &>/dev/null; then openssl rand -hex 16; else head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi
+  }
+  AUTH_SECRET=$(gen_secret)
+  CRON_SECRET_VAL=$(gen_secret)
+  DB_PASSWORD=$(gen_password)
+  FTP_USER_VAL="techno"
+  FTP_PASSWORD_VAL=$(gen_password)
+
+  cat > .env <<ENVEOF
 # Сгенерировано автоматически скриптом start.sh
 # Не редактируйте вручную, если не знаете что делаете.
 
+# Публичный адрес магазина (авторизация + SEO: canonical, sitemap, robots).
+BETTER_AUTH_URL=${PUBLIC_URL}
+NEXT_PUBLIC_SITE_URL=${PUBLIC_URL}
+
+# Секреты (сгенерированы автоматически).
 BETTER_AUTH_SECRET=${AUTH_SECRET}
-BETTER_AUTH_URL=http://localhost:3000
 CRON_SECRET=${CRON_SECRET_VAL}
 
-# Раскомментируйте и укажите ваш домен для продакшена:
-# BETTER_AUTH_URL=https://your-domain.com
-# NEXT_PUBLIC_SITE_URL=https://your-domain.com
-EOF
-  ok "Файл .env создан с безопасными секретами"
+# Пользователь БД: techno / пароль ниже (создаётся при первом запуске).
+POSTGRES_PASSWORD=${DB_PASSWORD}
+
+# FTP-доступ к папке загрузок (фото товаров): порт 21, пассивные 21000-21010.
+FTP_USER=${FTP_USER_VAL}
+FTP_PASSWORD=${FTP_PASSWORD_VAL}
+# Для доступа к FTP извне укажите внешний IP или домен сервера:
+FTP_ADDRESS=${DOMAIN}
+
+# Домен магазина. Если указан — запускается встроенный реверс-прокси Caddy:
+# он сам получает и продлевает SSL-сертификат Let's Encrypt (nginx не нужен).
+DOMAIN=${DOMAIN}
+ENVEOF
+  chmod 600 .env
+  ok "Файл .env создан: адрес ${PUBLIC_URL}, секреты и пароли сгенерированы"
 else
   ok "Файл .env уже существует — используем его"
 fi
@@ -91,7 +140,18 @@ fi
 # ── 3. Build & Start ────────────────────────────────────────────────
 say "Запуск контейнеров (первая сборка может занять 2-5 минут)"
 
-docker compose up -d --build 2>&1 | tail -5
+# Optional services are enabled by what's in .env:
+#   • ftp   — only when FTP credentials exist (fresh installs);
+#   • proxy — Caddy with automatic HTTPS, only when a domain is set.
+# Older .env files without these values keep working without the services.
+PROFILES=""
+if grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null; then
+  PROFILES="ftp"
+fi
+if grep -qE '^DOMAIN=.+' .env 2>/dev/null; then
+  PROFILES="${PROFILES:+${PROFILES},}proxy"
+fi
+COMPOSE_PROFILES="$PROFILES" docker compose up -d --build 2>&1 | tail -5
 
 # Wait for the app to be healthy
 printf "Ожидание готовности"
@@ -111,19 +171,39 @@ for i in $(seq 1 60); do
 done
 
 # ── Done ────────────────────────────────────────────────────────────
+SITE_URL="$(grep -E '^BETTER_AUTH_URL=' .env | cut -d= -f2- || true)"
+SITE_URL="${SITE_URL:-http://localhost:3000}"
+FTP_USER_SHOW="$(grep -E '^FTP_USER=' .env | cut -d= -f2- || true)"
+FTP_PASS_SHOW="$(grep -E '^FTP_PASSWORD=' .env | cut -d= -f2- || true)"
+DOMAIN_SHOW="$(grep -E '^DOMAIN=' .env | cut -d= -f2- || true)"
 echo ""
 printf "${GREEN}${BOLD}"
 echo "  ╔══════════════════════════════════════════════╗"
 echo "  ║       🎉 МАГАЗИН УСПЕШНО ЗАПУЩЕН! 🎉        ║"
-echo "  ╠══════════════════════════════════════════════╣"
-echo "  ║                                              ║"
-echo "  ║  Откройте:  http://localhost:3000            ║"
-echo "  ║                                              ║"
-echo "  ║  При первом заходе вас автоматически         ║"
-echo "  ║  перенаправит на мастер установки — там вы   ║"
-echo "  ║  создадите магазин и свой admin-логин/пароль.║"
 echo "  ╚══════════════════════════════════════════════╝"
 printf "${NC}"
+echo ""
+echo "  Откройте:  ${SITE_URL}"
+echo ""
+echo "  При первом заходе вас автоматически перенаправит на мастер"
+echo "  установки — там вы создадите магазин и admin-логин/пароль."
+if [ -n "${DOMAIN_SHOW}" ]; then
+  echo ""
+  echo "  HTTPS: встроенный прокси Caddy сам получит SSL-сертификат"
+  echo "  Let's Encrypt для ${DOMAIN_SHOW} (nginx настраивать не нужно)."
+  echo "  Убедитесь, что A-запись домена указывает на IP этого сервера"
+  echo "  и порты 80/443 открыты — сертификат выпустится за ~1 минуту."
+fi
+if [ -n "${FTP_PASS_SHOW}" ]; then
+  echo ""
+  echo "  FTP-доступ к загрузкам (фото товаров):"
+  echo "    Хост:         порт 21 этого сервера (пассивные 21000-21010)"
+  echo "    Пользователь: ${FTP_USER_SHOW:-techno}"
+  echo "    Пароль:       ${FTP_PASS_SHOW}"
+fi
+echo ""
+echo "  Все данные (БД + загрузки) хранятся на этой машине в Docker-томах."
+echo "  Пароли и секреты — в файле .env (не удаляйте его)."
 echo ""
 echo "  Полезные команды:"
 echo "    docker compose logs -f app   — логи приложения"

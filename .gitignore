@@ -20,3 +20,7 @@ public/uploads/
 # Build caches / generated files (should never be committed)
 *.tsbuildinfo
 next-env.d.ts
+# Database dumps may contain live secrets and customer data — never commit them.
+db/dump.sql
+db/*.dump
+backups/

@@ -101,6 +101,28 @@ export async function updateAppearance(data: { activeTemplate?: string; defaultL
   return updateStoreSettings(data)
 }
 
+// Admin "Clear cache" button (Настройки → Система). Busts every server-side
+// cache the storefront uses: catalog/category/product/review/checkout query
+// caches, the store-settings cache and the full page cache. Useful after
+// direct DB edits, imports, or when a stale page just won't go away.
+export async function clearSiteCache() {
+  const user = await assertPermission('settings')
+  const { CACHE_TAGS } = await import('@/lib/shop/queries')
+  revalidateTag(CACHE_TAGS.catalog, 'max')
+  revalidateTag(CACHE_TAGS.categories, 'max')
+  revalidateTag(CACHE_TAGS.reviews, 'max')
+  revalidateTag(CACHE_TAGS.checkout, 'max')
+  revalidateTag(STORE_SETTINGS_TAG, 'max')
+  revalidatePath('/', 'layout')
+  const { auditLog } = await import('@/lib/audit-log')
+  void auditLog({
+    userId: user.id, userName: user.name, userEmail: user.email,
+    action: 'settings', entity: 'settings',
+    details: 'Очищен кеш сайта',
+  })
+  return { success: true as const }
+}
+
 // Whether the "Sign in with Google" button should be shown on the storefront.
 // DB settings (admin center) take priority; env vars remain as a fallback so
 // existing deployments configured through Vercel env keep working.
