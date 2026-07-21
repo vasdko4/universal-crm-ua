@@ -75,6 +75,29 @@ services:
     volumes:
       - techno_store_uploads:/ftp/uploads
 
+  # Reverse proxy with automatic HTTPS (Let's Encrypt) for a custom domain.
+  # No nginx/certbot setup needed: Caddy obtains and renews the certificate
+  # itself. Started only with the "proxy" profile — start.sh enables it
+  # automatically when a domain was entered. Requirements: the domain's DNS
+  # A-record points to this server and ports 80/443 are free.
+  caddy:
+    image: caddy:2-alpine
+    container_name: techno-store-caddy
+    restart: unless-stopped
+    profiles: ["proxy"]
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${DOMAIN:?set DOMAIN in .env to use the proxy} --to app:3000
+    depends_on:
+      - app
+    volumes:
+      # Persist certificates so restarts don't re-request them (rate limits).
+      - techno_store_caddy_data:/data
+      - techno_store_caddy_config:/config
+
 volumes:
   techno_store_pgdata:
   techno_store_uploads:
+  techno_store_caddy_data:
+  techno_store_caddy_config:

@@ -126,6 +126,10 @@ FTP_USER=${FTP_USER_VAL}
 FTP_PASSWORD=${FTP_PASSWORD_VAL}
 # Для доступа к FTP извне укажите внешний IP или домен сервера:
 FTP_ADDRESS=${DOMAIN}
+
+# Домен магазина. Если указан — запускается встроенный реверс-прокси Caddy:
+# он сам получает и продлевает SSL-сертификат Let's Encrypt (nginx не нужен).
+DOMAIN=${DOMAIN}
 ENVEOF
   chmod 600 .env
   ok "Файл .env создан: адрес ${PUBLIC_URL}, секреты и пароли сгенерированы"
@@ -136,13 +140,18 @@ fi
 # ── 3. Build & Start ────────────────────────────────────────────────
 say "Запуск контейнеров (первая сборка может занять 2-5 минут)"
 
-# FTP is only started when credentials exist in .env (fresh installs);
-# older .env files without FTP_PASSWORD keep working without the FTP service.
+# Optional services are enabled by what's in .env:
+#   • ftp   — only when FTP credentials exist (fresh installs);
+#   • proxy — Caddy with automatic HTTPS, only when a domain is set.
+# Older .env files without these values keep working without the services.
+PROFILES=""
 if grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null; then
-  COMPOSE_PROFILES=ftp docker compose up -d --build 2>&1 | tail -5
-else
-  docker compose up -d --build 2>&1 | tail -5
+  PROFILES="ftp"
 fi
+if grep -qE '^DOMAIN=.+' .env 2>/dev/null; then
+  PROFILES="${PROFILES:+${PROFILES},}proxy"
+fi
+COMPOSE_PROFILES="$PROFILES" docker compose up -d --build 2>&1 | tail -5
 
 # Wait for the app to be healthy
 printf "Ожидание готовности"
@@ -166,6 +175,7 @@ SITE_URL="$(grep -E '^BETTER_AUTH_URL=' .env | cut -d= -f2- || true)"
 SITE_URL="${SITE_URL:-http://localhost:3000}"
 FTP_USER_SHOW="$(grep -E '^FTP_USER=' .env | cut -d= -f2- || true)"
 FTP_PASS_SHOW="$(grep -E '^FTP_PASSWORD=' .env | cut -d= -f2- || true)"
+DOMAIN_SHOW="$(grep -E '^DOMAIN=' .env | cut -d= -f2- || true)"
 echo ""
 printf "${GREEN}${BOLD}"
 echo "  ╔══════════════════════════════════════════════╗"
@@ -177,6 +187,13 @@ echo "  Откройте:  ${SITE_URL}"
 echo ""
 echo "  При первом заходе вас автоматически перенаправит на мастер"
 echo "  установки — там вы создадите магазин и admin-логин/пароль."
+if [ -n "${DOMAIN_SHOW}" ]; then
+  echo ""
+  echo "  HTTPS: встроенный прокси Caddy сам получит SSL-сертификат"
+  echo "  Let's Encrypt для ${DOMAIN_SHOW} (nginx настраивать не нужно)."
+  echo "  Убедитесь, что A-запись домена указывает на IP этого сервера"
+  echo "  и порты 80/443 открыты — сертификат выпустится за ~1 минуту."
+fi
 if [ -n "${FTP_PASS_SHOW}" ]; then
   echo ""
   echo "  FTP-доступ к загрузкам (фото товаров):"

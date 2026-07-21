@@ -70,24 +70,41 @@ docker compose down -v        # Удалить вместе с данными
 |-----------|------|----------|
 | `techno-store-app` | 3000 | Next.js приложение |
 | `techno-store-db` | 5433 | PostgreSQL 16 |
+| `techno-store-caddy` | 80/443 | Реверс-прокси + авто-HTTPS (профиль `proxy`, если указан домен) |
+| `techno-store-ftp` | 21, 21000-21010 | FTP-доступ к загрузкам (профиль `ftp`) |
 
 ## Продакшен-настройка
 
-### 1. Настройте домен
+### 1. Домен и HTTPS — уже встроены (nginx не нужен)
 
-Отредактируйте `.env`:
-```env
-BETTER_AUTH_URL=https://your-domain.com
-NEXT_PUBLIC_SITE_URL=https://your-domain.com
+Если при установке вы указали домен, `start.sh` автоматически запускает
+встроенный реверс-прокси **Caddy** (профиль `proxy` в docker-compose): он сам
+получает и продлевает SSL-сертификат Let's Encrypt. Ничего настраивать не надо.
+
+Требования:
+- A-запись домена указывает на IP этого сервера;
+- порты **80** и **443** свободны и открыты в файрволе.
+
+Добавить домен к уже работающей установке:
+```bash
+# 1. Впишите домен в .env:
+#    DOMAIN=shop.example.com
+#    BETTER_AUTH_URL=https://shop.example.com
+#    NEXT_PUBLIC_SITE_URL=https://shop.example.com
+# 2. Перезапустите с профилем proxy:
+COMPOSE_PROFILES=proxy docker compose up -d
 ```
 
-### 2. Поставьте обратный прокси (nginx)
+<details>
+<summary>Хотите свой nginx вместо Caddy? (не обязательно)</summary>
+
+Не включайте профиль `proxy` и проксируйте на порт 3000:
 
 ```nginx
 server {
     listen 80;
     server_name your-domain.com;
-    
+
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -99,15 +116,10 @@ server {
 }
 ```
 
-### 3. Включите HTTPS
+HTTPS: `apt install certbot python3-certbot-nginx && certbot --nginx -d your-domain.com`
+</details>
 
-```bash
-# С certbot:
-apt install certbot python3-certbot-nginx
-certbot --nginx -d your-domain.com
-```
-
-### 4. Настройте бэкапы
+### 2. Настройте бэкапы
 
 ```bash
 # Добавьте в crontab:
