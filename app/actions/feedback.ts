@@ -107,13 +107,13 @@ export async function createReview(input: {
   const rating = Math.min(5, Math.max(1, Math.round(input.rating || 5)))
   await db.insert(productReviews).values({
     productId: input.productId,
-    authorName: input.authorName.trim(),
-    authorEmail: input.authorEmail?.trim() || null,
+    authorName: input.authorName.trim().slice(0, 120),
+    authorEmail: input.authorEmail?.trim().slice(0, 255) || null,
     rating,
-    title: input.title?.trim() || null,
-    body: input.body.trim(),
-    pros: input.pros?.trim() || null,
-    cons: input.cons?.trim() || null,
+    title: input.title?.trim().slice(0, 300) || null,
+    body: input.body.trim().slice(0, 5000),
+    pros: input.pros?.trim().slice(0, 2000) || null,
+    cons: input.cons?.trim().slice(0, 2000) || null,
     status: 'pending',
   })
   revalidatePath('/admin/reviews')
@@ -220,9 +220,9 @@ export async function createQuestion(input: {
   if (!input.question?.trim()) return { success: false, error: 'Текст вопроса обязателен' }
   await db.insert(productQuestions).values({
     productId: input.productId,
-    authorName: input.authorName.trim(),
-    authorEmail: input.authorEmail?.trim() || null,
-    question: input.question.trim(),
+    authorName: input.authorName.trim().slice(0, 120),
+    authorEmail: input.authorEmail?.trim().slice(0, 255) || null,
+    question: input.question.trim().slice(0, 3000),
     status: 'pending',
   })
   revalidatePath('/admin/reviews')

@@ -1,5 +1,6 @@
 import { getPublicPublishedPages, createPage, type PageInput } from '@/app/actions/pages'
 import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
+import { getAdminUserWithPermission } from '@/lib/session'
 
 export async function GET(req: Request) {
   const { page, pageSize, search } = parseListParams(req.url)
@@ -20,6 +21,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // Check auth here for a clean 403 — the action's own assertPermission()
+  // would still block the write, but it throws (500 + noisy error log).
+  if (!(await getAdminUserWithPermission('pages'))) return fail('Не авторизовано', 403)
   const body = await readJson<PageInput>(req)
   if (!body) return fail('Некорректный JSON')
   const result = await createPage(body)

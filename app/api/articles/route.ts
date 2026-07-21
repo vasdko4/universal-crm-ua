@@ -1,5 +1,6 @@
 import { getPublicPublishedArticles, createArticle, type ArticleInput } from '@/app/actions/articles'
 import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
+import { getAdminUserWithPermission } from '@/lib/session'
 
 export async function GET(req: Request) {
   const { page, pageSize, search, searchParams } = parseListParams(req.url)
@@ -22,6 +23,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // Check auth here for a clean 403 — the action's own assertPermission()
+  // would still block the write, but it throws (500 + noisy error log).
+  if (!(await getAdminUserWithPermission('articles'))) return fail('Не авторизовано', 403)
   const body = await readJson<ArticleInput>(req)
   if (!body) return fail('Некорректный JSON')
   const result = await createArticle(body)

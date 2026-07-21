@@ -28,6 +28,7 @@ import { evaluatePromoCode } from '@/app/actions/promotions'
 import { applyOrderFulfillment, finalizePaidOrder } from '@/lib/shop/order-fulfillment'
 import { notifyNewOrder } from '@/lib/notifications'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
+import { isRateLimited } from '@/lib/api/rate-limit'
 
 function variantLabel(options: VariantOptions): string {
   return Object.entries(options)
@@ -652,17 +653,21 @@ export async function submitReview(input: {
   authorName?: string
   authorEmail?: string
 }) {
+  // Public, unauthenticated write — rate-limit per IP to stop spam floods.
+  if (await isFeedbackRateLimited('reviews')) {
+    return { success: false, error: 'Слишком много запросов, попробуйте позже' }
+  }
   const user = await getShopUser()
-  const name = input.authorName?.trim() || user?.name || 'Аноним'
+  const name = (input.authorName?.trim() || user?.name || 'Аноним').slice(0, 120)
   if (!input.body?.trim()) return { success: false, error: 'Введите текст отзыва' }
   await db.insert(productReviews).values({
     productId: input.productId,
     authorName: name,
-    authorEmail: input.authorEmail?.trim() || user?.email || null,
+    authorEmail: (input.authorEmail?.trim() || user?.email || null)?.slice(0, 255) ?? null,
     rating: Math.min(5, Math.max(1, input.rating)),
-    body: input.body.trim(),
-    pros: input.pros?.trim() || null,
-    cons: input.cons?.trim() || null,
+    body: input.body.trim().slice(0, 5000),
+    pros: input.pros?.trim().slice(0, 2000) || null,
+    cons: input.cons?.trim().slice(0, 2000) || null,
     status: 'pending',
   })
   return { success: true }
@@ -674,15 +679,27 @@ export async function submitQuestion(input: {
   authorName?: string
   authorEmail?: string
 }) {
+  // Public, unauthenticated write — rate-limit per IP to stop spam floods.
+  if (await isFeedbackRateLimited('questions')) {
+    return { success: false, error: 'Слишком много запросов, попробуйте позже' }
+  }
   const user = await getShopUser()
-  const name = input.authorName?.trim() || user?.name || 'Аноним'
+  const name = (input.authorName?.trim() || user?.name || 'Аноним').slice(0, 120)
   if (!input.question?.trim()) return { success: false, error: 'Введите вопрос' }
   await db.insert(productQuestions).values({
     productId: input.productId,
     authorName: name,
-    authorEmail: input.authorEmail?.trim() || user?.email || null,
-    question: input.question.trim(),
+    authorEmail: (input.authorEmail?.trim() || user?.email || null)?.slice(0, 255) ?? null,
+    question: input.question.trim().slice(0, 3000),
     status: 'pending',
   })
   return { success: true }
+}
+
+// Shared per-IP limiter for the storefront review/question forms (server
+// actions can't read the IP from a Request object, so resolve it via headers).
+async function isFeedbackRateLimited(scope: string): Promise<boolean> {
+  const h = await headers()
+  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  return isRateLimited(scope, ip, 5)
 }
