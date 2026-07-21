@@ -31,21 +31,29 @@ export const pool = new Pool({
   // Recycle a connection after this many queries to avoid long-lived leaks.
   maxUses: toInt(process.env.DB_POOL_MAX_USES, 7_500),
   keepAlive: true,
-  // Pooled providers (Neon pgbouncer etc.) can hand out connections with a
-  // stale search_path from a previous session, making unqualified table
-  // names fail with "relation does not exist". Setting it as a libpq startup
-  // option applies it before the connection is handed back to the pool, so
-  // it can never race with the borrower's first query — unlike firing a
-  // `client.query('SET search_path ...')` from a `pool.on('connect', ...)`
-  // handler, which doesn't block checkout and triggered a
-  // "Calling client.query() when the client is already executing a query"
-  // deprecation warning under load.
-  options: '-c search_path=public',
 })
 
 // Never let an unexpected idle-client error crash the whole process.
 pool.on('error', (err) => {
   console.error('[db] idle pool client error:', err.message)
+})
+
+// Pooled providers (Neon pgbouncer etc.) can hand out connections with a
+// stale search_path from a previous session, making unqualified table names
+// fail with "relation does not exist". Pin it to public on every connect.
+//
+// NOTE: setting this via the pg `options` startup parameter instead (so it
+// applies before checkout, avoiding the client.query() race below) broke
+// production entirely — Neon's pooled connection endpoint doesn't accept
+// arbitrary startup options, so every query failed and the app fell back to
+// showing the setup wizard. Reverted to this pattern; the "Calling
+// client.query() when the client is already executing a query" deprecation
+// warning it causes is cosmetic (pg queues commands per-client under the
+// hood) and not worth risking breakage over again.
+pool.on('connect', (client) => {
+  client.query('SET search_path TO public').catch((err) => {
+    console.error('[db] failed to set search_path:', err.message)
+  })
 })
 
 export const db = drizzle(pool, { schema })
