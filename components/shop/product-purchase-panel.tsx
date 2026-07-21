@@ -67,6 +67,11 @@ export function ProductPurchasePanel({
 
   const discount = oldPrice && oldPrice > price ? Math.round((1 - price / oldPrice) * 100) : 0
 
+  // Displayed price follows the chosen quantity (unit price × qty), so the
+  // shopper always sees the actual amount for the selection.
+  const displayPrice = price * qty
+  const displayOldPrice = oldPrice ? oldPrice * qty : null
+
   const galleryImages =
     product.images.length > 0 ? product.images : [product.image].filter((v): v is string => Boolean(v))
 
@@ -167,16 +172,23 @@ export function ProductPurchasePanel({
           )}
         </div>
 
-        <div className="flex items-end gap-3">
-          {oldPrice && (
-            <span className="text-xl text-muted-foreground line-through">
-              {formatPrice(oldPrice, product.currency)}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-end gap-3">
+            {displayOldPrice && (
+              <span className="text-xl text-muted-foreground line-through">
+                {formatPrice(displayOldPrice, product.currency)}
+              </span>
+            )}
+            <span className="text-4xl font-bold text-foreground">
+              {!selectedVariant && product.variants.length > 1 ? `${tp.priceFrom} ` : ''}
+              {formatPrice(displayPrice, product.currency)}
+            </span>
+          </div>
+          {qty > 1 && (
+            <span className="text-sm text-muted-foreground">
+              {formatPrice(price, product.currency)} × {qty} {tp.unitsShort}
             </span>
           )}
-          <span className="text-4xl font-bold text-foreground">
-            {!selectedVariant && product.variants.length > 1 ? `${tp.priceFrom} ` : ''}
-            {formatPrice(price, product.currency)}
-          </span>
         </div>
 
         {hasVariants && (
