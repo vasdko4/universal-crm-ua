@@ -1,6 +1,6 @@
 'use client'
 
-import DOMPurify from 'isomorphic-dompurify'
+import { sanitizeContent } from '@/lib/shop/sanitize'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ProductReviews } from '@/components/shop/product-reviews'
 import { ProductQuestions } from '@/components/shop/product-questions'
@@ -35,7 +35,7 @@ export function ProductTabs({
         {description ? (
           <div
             className="prose prose-sm max-w-none text-sm leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_li]:my-1 [&_p]:my-3 [&_strong]:font-semibold [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5"
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(description) }}
+            dangerouslySetInnerHTML={{ __html: sanitizeContent(description) }}
           />
         ) : (
           <p className="text-muted-foreground">Описание отсутствует.</p>
