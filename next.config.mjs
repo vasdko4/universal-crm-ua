@@ -20,6 +20,13 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
+  // isomorphic-dompurify pulls in jsdom, which does dynamic/optional
+  // requires (canvas, xml parsers, etc.) that the bundler can't fully
+  // trace. Bundling it caused a runtime crash (500) on every page that
+  // sanitizes HTML (/p/[slug], /articles/[slug]) in production even
+  // though `next build` succeeded. Marking it external makes Next load
+  // it from node_modules at runtime instead of bundling it.
+  serverExternalPackages: ['isomorphic-dompurify', 'jsdom'],
   // Long-lived caching for hashed static assets + security headers.
   async headers() {
     return [
