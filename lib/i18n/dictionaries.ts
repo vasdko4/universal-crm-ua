@@ -114,6 +114,25 @@ export type Dictionary = {
     addedToCartVariant: string
     deliveryUkraine: string
     officialWarranty: string
+    cancel: string
+    noDescription: string
+    rating: string
+    yourName: string
+    yourNamePlaceholder: string
+    pros: string
+    cons: string
+    comment: string
+    submitReview: string
+    submitQuestion: string
+    sending: string
+    reviewSent: string
+    questionSent: string
+    questionLabel: string
+    noReviewsYet: string
+    noQuestionsYet: string
+    storeReply: string
+    answer: string
+    error: string
   }
   favorites: {
     title: string
@@ -438,6 +457,25 @@ const uk: Dictionary = {
     addedToCartVariant: 'Додано в кошик',
     deliveryUkraine: 'Доставка по всій Україні',
     officialWarranty: 'Офіційна гарантія',
+    cancel: 'Скасувати',
+    noDescription: 'Опис відсутній.',
+    rating: 'Оцінка',
+    yourName: "Ім'я",
+    yourNamePlaceholder: "Ваше ім'я",
+    pros: 'Переваги',
+    cons: 'Недоліки',
+    comment: 'Коментар',
+    submitReview: 'Надіслати відгук',
+    submitQuestion: 'Надіслати питання',
+    sending: 'Надсилання...',
+    reviewSent: 'Дякуємо! Відгук надіслано на модерацію',
+    questionSent: 'Питання надіслано! Ми відповімо після перевірки',
+    questionLabel: 'Питання',
+    noReviewsYet: 'Відгуків поки немає. Будьте першим!',
+    noQuestionsYet: 'Питань поки немає. Поставте першим!',
+    storeReply: 'Відповідь магазину:',
+    answer: 'Відповідь:',
+    error: 'Помилка',
   },
   favorites: {
     title: 'Обране',
@@ -763,6 +801,25 @@ const ru: Dictionary = {
     addedToCartVariant: 'Добавлено в корзину',
     deliveryUkraine: 'Доставка по всей Украине',
     officialWarranty: 'Официальная гарантия',
+    cancel: 'Отмена',
+    noDescription: 'Описание отсутствует.',
+    rating: 'Оценка',
+    yourName: 'Имя',
+    yourNamePlaceholder: 'Ваше имя',
+    pros: 'Достоинства',
+    cons: 'Недостатки',
+    comment: 'Комментарий',
+    submitReview: 'Отправить отзыв',
+    submitQuestion: 'Отправить вопрос',
+    sending: 'Отправка...',
+    reviewSent: 'Спасибо! Отзыв отправлен на модерацию',
+    questionSent: 'Вопрос отправлен! Мы ответим после проверки',
+    questionLabel: 'Вопрос',
+    noReviewsYet: 'Отзывов пока нет. Будьте первым!',
+    noQuestionsYet: 'Вопросов пока нет. Задайте первым!',
+    storeReply: 'Ответ магазина:',
+    answer: 'Ответ:',
+    error: 'Ошибка',
   },
   favorites: {
     title: 'Избранное',

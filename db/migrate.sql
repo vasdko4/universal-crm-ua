@@ -37,6 +37,8 @@ ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "contact" jsonb DEFAULT '{
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "seo" jsonb DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "notifications" jsonb DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "google_auth" jsonb DEFAULT '{}'::jsonb NOT NULL;
+-- Hero-блок главной страницы (тексты uk/ru + картинка), Настройки → Главная.
+ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "home_hero" jsonb DEFAULT '{}'::jsonb NOT NULL;
 
 -- Email-настройки: дополняем существующий JSON полями DKIM (не трогая
 -- уже сохранённые значения SMTP).

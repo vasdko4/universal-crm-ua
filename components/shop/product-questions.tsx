@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { submitQuestion } from '@/app/actions/shop'
+import { useI18n } from '@/lib/i18n/client'
 
 type Question = {
   id: number
@@ -18,6 +19,8 @@ type Question = {
 }
 
 export function ProductQuestions({ productId, questions }: { productId: number; questions: Question[] }) {
+  const { dict } = useI18n()
+  const tp = dict.product
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [question, setQuestion] = useState('')
@@ -29,42 +32,42 @@ export function ProductQuestions({ productId, questions }: { productId: number; 
     const res = await submitQuestion({ productId, question, authorName: name })
     setBusy(false)
     if (res.success) {
-      toast.success('Вопрос отправлен! Мы ответим после проверки')
+      toast.success(tp.questionSent)
       setQuestion('')
       setName('')
       setOpen(false)
     } else {
-      toast.error(res.error ?? 'Ошибка')
+      toast.error(res.error ?? tp.error)
     }
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-foreground">Вопросы ({questions.length})</h3>
+        <h3 className="text-xl font-semibold text-foreground">{tp.questions} ({questions.length})</h3>
         <Button variant="outline" onClick={() => setOpen((v) => !v)}>
-          {open ? 'Отмена' : 'Задать вопрос'}
+          {open ? tp.cancel : tp.askQuestion}
         </Button>
       </div>
 
       {open && (
         <form onSubmit={submit} className="space-y-4 rounded-xl border border-border bg-card p-5">
           <div className="space-y-2">
-            <Label htmlFor="q-name">Имя</Label>
-            <Input id="q-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ваше имя" />
+            <Label htmlFor="q-name">{tp.yourName}</Label>
+            <Input id="q-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={tp.yourNamePlaceholder} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="q-body">Вопрос *</Label>
+            <Label htmlFor="q-body">{tp.questionLabel} *</Label>
             <Textarea id="q-body" value={question} onChange={(e) => setQuestion(e.target.value)} required rows={3} />
           </div>
           <Button type="submit" disabled={busy}>
-            {busy ? 'Отправка...' : 'Отправить вопрос'}
+            {busy ? tp.sending : tp.submitQuestion}
           </Button>
         </form>
       )}
 
       {questions.length === 0 ? (
-        <p className="text-muted-foreground">Вопросов пока нет. Задайте первым!</p>
+        <p className="text-muted-foreground">{tp.noQuestionsYet}</p>
       ) : (
         <div className="space-y-4">
           {questions.map((q) => (
@@ -78,7 +81,7 @@ export function ProductQuestions({ productId, questions }: { productId: number; 
               </div>
               {q.answer && (
                 <div className="mt-3 rounded-lg bg-muted p-3 text-sm">
-                  <span className="font-medium text-foreground">Ответ:</span>{' '}
+                  <span className="font-medium text-foreground">{tp.answer}</span>{' '}
                   <span className="text-muted-foreground">{q.answer}</span>
                 </div>
               )}

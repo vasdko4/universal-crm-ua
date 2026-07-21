@@ -29,6 +29,7 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  LayoutTemplate,
 } from 'lucide-react'
 import { TEMPLATES } from '@/lib/shop/templates'
 import { cn } from '@/lib/utils'
@@ -47,6 +48,7 @@ import {
 import {
   clearSiteCache,
   updateStoreSettings,
+  type HomeHeroLocaleContent,
   type StoreSettingsData,
   type WeekDay,
   type WidgetChannelKey,
@@ -54,6 +56,7 @@ import {
 
 type Section =
   | 'general'
+  | 'homepage'
   | 'seo'
   | 'design'
   | 'branding'
@@ -68,6 +71,7 @@ type Section =
 
 const SECTIONS: { key: Section; label: string; icon: typeof Store }[] = [
   { key: 'general', label: 'Основные', icon: Store },
+  { key: 'homepage', label: 'Главная страница', icon: LayoutTemplate },
   { key: 'seo', label: 'SEO', icon: Search },
   { key: 'design', label: 'Дизайн', icon: Palette },
   { key: 'branding', label: 'Логотип', icon: ImageIcon },
@@ -137,6 +141,7 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
 
         <div className="rounded-xl border border-border bg-card p-6">
           {section === 'general' && <GeneralSection data={data} setData={setData} />}
+          {section === 'homepage' && <HomepageSection data={data} setData={setData} />}
           {section === 'seo' && <SeoSection data={data} setData={setData} />}
           {section === 'design' && <DesignSection data={data} setData={setData} />}
           {section === 'branding' && <BrandingSection data={data} setData={setData} />}
@@ -231,6 +236,92 @@ function GeneralSection({ data, setData }: SectionProps) {
           onCheckedChange={(v) => setData((d) => ({ ...d, openCartAfterAdd: v }))}
         />
       </div>
+    </div>
+  )
+}
+
+// Hero-блок главной страницы: бейдж, заголовок, описание, текст кнопки для
+// каждого языка + картинка. Пустое поле = встроенный текст по умолчанию.
+function HomepageSection({ data, setData }: SectionProps) {
+  const [heroLocale, setHeroLocale] = useState<'uk' | 'ru'>('uk')
+
+  function setHero(field: keyof HomeHeroLocaleContent, value: string) {
+    setData((d) => ({
+      ...d,
+      homeHero: {
+        ...d.homeHero,
+        [heroLocale]: { ...d.homeHero[heroLocale], [field]: value },
+      },
+    }))
+  }
+
+  const hero = data.homeHero[heroLocale]
+  const ph =
+    heroLocale === 'uk'
+      ? {
+          badge: 'Преміум електроніка',
+          title: 'Техніка, яка працює на вас',
+          text: 'Смартфони, навушники, аудіо та аксесуари від перевірених брендів…',
+          buttonText: 'Перейти до каталогу',
+        }
+      : {
+          badge: 'Премиум электроника',
+          title: 'Техника, которая работает на вас',
+          text: 'Смартфоны, наушники, аудио и аксессуары от проверенных брендов…',
+          buttonText: 'Перейти в каталог',
+        }
+
+  return (
+    <div className="flex max-w-xl flex-col gap-6">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Hero-блок главной страницы</h2>
+        <p className="text-sm text-muted-foreground">
+          Большой баннер вверху главной страницы: бейдж, заголовок, описание, кнопка и картинка.
+          Пустые поля показывают стандартный текст. Тексты задаются отдельно для каждого языка.
+        </p>
+      </div>
+
+      <div className="flex gap-1 rounded-lg bg-muted p-1">
+        {(['uk', 'ru'] as const).map((l) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => setHeroLocale(l)}
+            className={cn(
+              'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              heroLocale === l ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {l === 'uk' ? 'Українська' : 'Русский'}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="hero-badge">Бейдж</Label>
+        <p className="text-xs text-muted-foreground">Маленькая надпись над заголовком.</p>
+        <Input id="hero-badge" value={hero.badge} onChange={(e) => setHero('badge', e.target.value)} placeholder={ph.badge} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="hero-title">Заголовок</Label>
+        <Input id="hero-title" value={hero.title} onChange={(e) => setHero('title', e.target.value)} placeholder={ph.title} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="hero-text">Описание</Label>
+        <Textarea id="hero-text" rows={3} value={hero.text} onChange={(e) => setHero('text', e.target.value)} placeholder={ph.text} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="hero-btn">Текст кнопки</Label>
+        <p className="text-xs text-muted-foreground">Кнопка всегда ведёт в каталог.</p>
+        <Input id="hero-btn" value={hero.buttonText} onChange={(e) => setHero('buttonText', e.target.value)} placeholder={ph.buttonText} />
+      </div>
+
+      <ImageField
+        label="Картинка hero-блока"
+        hint="Загрузите изображение с устройства или вставьте ссылку. Пусто — стандартная картинка. Общая для обоих языков, рекомендуемое соотношение 4:3."
+        value={data.homeHero.imageUrl || null}
+        onChange={(v) => setData((d) => ({ ...d, homeHero: { ...d.homeHero, imageUrl: v } }))}
+      />
     </div>
   )
 }

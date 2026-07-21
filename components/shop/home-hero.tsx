@@ -23,25 +23,32 @@ export type HeroCategory = {
  * Home page hero. Renders a different layout depending on the active
  * storefront template, so templates differ structurally — not only in colors.
  */
+const DEFAULT_HERO_IMAGE = '/hero-electronics.png'
+
 export function HomeHero({
   layout,
   content,
   categories,
   locale = 'uk',
+  imageUrl,
 }: {
   layout: TemplateLayout
   content: HeroContent
   categories: HeroCategory[]
   locale?: Locale
+  /** Admin-configured hero image (Настройки → Главная); empty = default. */
+  imageUrl?: string
 }) {
-  if (layout === 'marketplace') return <MarketplaceHero content={content} categories={categories} locale={locale} />
-  if (layout === 'boutique') return <BoutiqueHero content={content} locale={locale} />
+  const image = imageUrl || DEFAULT_HERO_IMAGE
+  if (layout === 'marketplace')
+    return <MarketplaceHero content={content} categories={categories} locale={locale} image={image} />
+  if (layout === 'boutique') return <BoutiqueHero content={content} locale={locale} image={image} />
   if (layout === 'minimal') return <MinimalHero content={content} locale={locale} />
-  return <StandardHero content={content} locale={locale} />
+  return <StandardHero content={content} locale={locale} image={image} />
 }
 
 /* Classic side-by-side hero with photo. */
-function StandardHero({ content: c, locale }: { content: HeroContent; locale: Locale }) {
+function StandardHero({ content: c, locale, image }: { content: HeroContent; locale: Locale; image: string }) {
   return (
     <section className="border-b border-border bg-secondary">
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-8 px-4 py-12 lg:flex-row lg:px-8 lg:py-20">
@@ -63,7 +70,7 @@ function StandardHero({ content: c, locale }: { content: HeroContent; locale: Lo
         </div>
         <div className="relative aspect-[4/3] w-full max-w-lg flex-1 overflow-hidden rounded-2xl">
           <Image
-            src="/hero-electronics.png"
+            src={image}
             alt={c.heroAlt}
             fill
             priority
@@ -81,12 +88,18 @@ function MarketplaceHero({
   content: c,
   categories,
   locale,
+  image,
 }: {
   content: HeroContent
   categories: HeroCategory[]
   locale: Locale
+  image: string
 }) {
   const tiles = categories.slice(0, 8)
+  const benefits =
+    locale === 'ru'
+      ? ['Быстрая доставка по Украине', 'Гарантия на каждый товар', 'Регулярные акции и скидки']
+      : ['Швидка доставка по Україні', 'Гарантія на кожен товар', 'Регулярні акції та знижки']
   return (
     <section className="border-b border-border bg-background">
       <div className="mx-auto grid max-w-7xl gap-4 px-4 py-6 lg:grid-cols-[2fr_1fr] lg:px-8">
@@ -106,7 +119,7 @@ function MarketplaceHero({
             </Button>
           </div>
           <Image
-            src="/hero-electronics.png"
+            src={image}
             alt=""
             width={360}
             height={270}
@@ -120,19 +133,19 @@ function MarketplaceHero({
             <span className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Truck className="size-4" />
             </span>
-            <p className="text-sm font-medium text-foreground">Швидка доставка по Україні</p>
+            <p className="text-sm font-medium text-foreground">{benefits[0]}</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
               <ShieldCheck className="size-4" />
             </span>
-            <p className="text-sm font-medium text-foreground">Гарантія на кожен товар</p>
+            <p className="text-sm font-medium text-foreground">{benefits[1]}</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Tag className="size-4" />
             </span>
-            <p className="text-sm font-medium text-foreground">Регулярні акції та знижки</p>
+            <p className="text-sm font-medium text-foreground">{benefits[2]}</p>
           </div>
         </div>
       </div>
@@ -168,12 +181,12 @@ function MarketplaceHero({
 }
 
 /* Editorial full-width hero with overlaid text. */
-function BoutiqueHero({ content: c, locale }: { content: HeroContent; locale: Locale }) {
+function BoutiqueHero({ content: c, locale, image }: { content: HeroContent; locale: Locale; image: string }) {
   return (
     <section className="relative border-b border-border">
       <div className="relative min-h-[420px] w-full overflow-hidden lg:min-h-[520px]">
         <Image
-          src="/hero-electronics.png"
+          src={image}
           alt={c.heroAlt}
           fill
           priority

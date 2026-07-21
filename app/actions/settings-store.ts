@@ -24,6 +24,8 @@ export type {
   SeoSettings,
   NotificationSettings,
   GoogleAuthSettings,
+  HomeHeroLocaleContent,
+  HomeHeroSettings,
   StoreSettingsData,
 } from '@/lib/store-settings'
 
@@ -69,6 +71,7 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
     contact: merged.contact,
     notifications: merged.notifications,
     googleAuth: merged.googleAuth,
+    homeHero: merged.homeHero,
     updatedAt: new Date(),
   }
   await db

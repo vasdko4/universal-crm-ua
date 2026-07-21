@@ -1,6 +1,7 @@
 'use client'
 
 import { sanitizeContent } from '@/lib/shop/sanitize'
+import { useI18n } from '@/lib/i18n/client'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ProductReviews } from '@/components/shop/product-reviews'
 import { ProductQuestions } from '@/components/shop/product-questions'
@@ -22,13 +23,15 @@ export function ProductTabs({
   reviews: Review[]
   questions: Question[]
 }) {
+  const { dict } = useI18n()
+  const tp = dict.product
   return (
     <Tabs defaultValue="description" className="w-full">
       <TabsList className="flex w-full flex-wrap justify-start">
-        <TabsTrigger value="description">Описание</TabsTrigger>
-        {characteristics.length > 0 && <TabsTrigger value="specs">Характеристики</TabsTrigger>}
-        <TabsTrigger value="reviews">Отзывы ({reviews.length})</TabsTrigger>
-        <TabsTrigger value="questions">Вопросы ({questions.length})</TabsTrigger>
+        <TabsTrigger value="description">{tp.description}</TabsTrigger>
+        {characteristics.length > 0 && <TabsTrigger value="specs">{tp.characteristics}</TabsTrigger>}
+        <TabsTrigger value="reviews">{tp.reviews} ({reviews.length})</TabsTrigger>
+        <TabsTrigger value="questions">{tp.questions} ({questions.length})</TabsTrigger>
       </TabsList>
 
       <TabsContent value="description" className="pt-6">
@@ -38,7 +41,7 @@ export function ProductTabs({
             dangerouslySetInnerHTML={{ __html: sanitizeContent(description) }}
           />
         ) : (
-          <p className="text-muted-foreground">Описание отсутствует.</p>
+          <p className="text-muted-foreground">{tp.noDescription}</p>
         )}
       </TabsContent>
 
