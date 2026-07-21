@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shop>
+    <offers>
+        <offer id="TEST001" available="true">
+            <name>Бездротові навушники Premium Sound</name>
+            <price>1299.00</price>
+            <oldprice>1599.00</oldprice>
+            <currencyId>UAH</currencyId>
+            <quantity>15</quantity>
+            <description>Якісні бездротові навушники з активним шумозаглушенням. Час роботи до 30 годин.</description>
+            <picture>https://example.com/images/headphones1.jpg</picture>
+            <picture>https://example.com/images/headphones2.jpg</picture>
+            <barcode>4820000000001</barcode>
+            <weight>0.250</weight>
+        </offer>
+        <offer id="TEST002" available="true">
+            <name>Смарт-годинник Pro 5</name>
+            <price>2499.00</price>
+            <currencyId>UAH</currencyId>
+            <quantity>8</quantity>
+            <description>Розумний годинник з GPS, пульсометром та водозахистом IP68.</description>
+            <picture>https://example.com/images/watch1.jpg</picture>
+            <barcode>4820000000002</barcode>
+            <weight>0.045</weight>
+        </offer>
+        <offer id="TEST003" available="true">
+            <name>Портативна колонка Bass Master</name>
+            <price>899.00</price>
+            <oldprice>1199.00</oldprice>
+            <currencyId>UAH</currencyId>
+            <quantity>25</quantity>
+            <description>Потужна портативна колонка з басом. Водонепроникна, 20 годин роботи.</description>
+            <picture>https://example.com/images/speaker1.jpg</picture>
+            <barcode>4820000000003</barcode>
+            <weight>0.680</weight>
+        </offer>
+        <offer id="TEST004" available="false">
+            <name>Клавіатура механічна RGB</name>
+            <price>1799.00</price>
+            <currencyId>UAH</currencyId>
+            <quantity>0</quantity>
+            <description>Механічна ігрова клавіатура з RGB підсвічуванням та програмованими клавішами.</description>
+            <picture>https://example.com/images/keyboard1.jpg</picture>
+            <barcode>4820000000004</barcode>
+            <weight>1.200</weight>
+        </offer>
+        <offer id="TEST005" available="true">
+            <name>Миша бездротова Ergo</name>
+            <price>549.00</price>
+            <currencyId>UAH</currencyId>
+            <quantity>50</quantity>
+            <description>Ергономічна бездротова миша для роботи та ігор. 6 програмованих кнопок.</description>
+            <picture>https://example.com/images/mouse1.jpg</picture>
+            <picture>https://example.com/images/mouse2.jpg</picture>
+            <barcode>4820000000005</barcode>
+            <weight>0.095</weight>
+        </offer>
+    </offers>
+</shop>

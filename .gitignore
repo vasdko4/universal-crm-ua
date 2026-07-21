@@ -1,0 +1,22 @@
+# v0 runtime files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+
+# Common ignores
+node_modules
+.next/
+.env
+.env*.local
+.DS_Store
+
+# Docker backup folder
+backups/
+
+# Locally-stored product photo uploads (Blob-storage fallback for self-hosted
+# Docker installs) — never committed, persisted via a Docker named volume.
+public/uploads/
+
+# Build caches / generated files (should never be committed)
+*.tsbuildinfo
+next-env.d.ts

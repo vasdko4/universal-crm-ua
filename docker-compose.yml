@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: techno-store-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: techno
+      POSTGRES_PASSWORD: techno
+      POSTGRES_DB: techno_store
+    ports:
+      # Host 5433 -> container 5432 (5433 to avoid clashing with a local Postgres).
+      - "5433:5432"
+    volumes:
+      - techno_store_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techno -d techno_store"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: jastindle/magazineuakraine:latest
+    container_name: techno-store-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist admin-uploaded product photos across restarts/rebuilds.
+      # Only used when BLOB_READ_WRITE_TOKEN is unset (the default for
+      # self-hosted Docker installs); on Vercel this path is simply unused.
+      - techno_store_uploads:/app/public/uploads
+    environment:
+      DATABASE_URL: postgres://techno:techno@db:5432/techno_store
+      # Generate your own: `openssl rand -base64 32`. Required, no default.
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+      # Public URL the app is served from (used by Better Auth callbacks).
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      # Protects /api/cron/delivery-sync from anonymous access.
+      CRON_SECRET: ${CRON_SECRET:-}
+      # Optional: public URL for SEO (sitemap, canonical links, OG tags).
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+    # First run only: applies db/schema.sql (+ optional demo seed) before
+    # starting the server. Safe to leave in — db-setup.mjs is idempotent
+    # against an already-migrated schema.
+    command: >
+      sh -c "node scripts/db-setup.mjs && node server.js"
+
+volumes:
+  techno_store_pgdata:
+  techno_store_uploads:

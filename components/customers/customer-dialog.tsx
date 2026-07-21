@@ -1,0 +1,271 @@
+'use client'
+
+import { useEffect, useState, useTransition } from 'react'
+import { toast } from 'sonner'
+import {
+  createCustomer,
+  updateCustomer,
+  type CustomerListItem,
+} from '@/app/actions/customers'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Plus, Trash2 } from 'lucide-react'
+
+const CHANNEL_OPTIONS = [
+  { value: 'viber', label: 'Viber' },
+  { value: 'skype', label: 'Skype' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'email', label: 'Доп. email' },
+  { value: 'phone', label: 'Доп. телефон' },
+]
+
+type ContactRow = { key: string; type: string; value: string }
+
+let rowCounter = 0
+function newRow(type = 'viber', value = ''): ContactRow {
+  rowCounter += 1
+  return { key: `row-${rowCounter}`, type, value }
+}
+
+export function CustomerDialog({
+  open,
+  onOpenChange,
+  customer,
+  onSaved,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  customer: CustomerListItem | null
+  onSaved: () => void
+}) {
+  const [isPending, startTransition] = useTransition()
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [score, setScore] = useState('100')
+  const [note, setNote] = useState('')
+  const [contacts, setContacts] = useState<ContactRow[]>([])
+
+  const isEdit = !!customer
+
+  useEffect(() => {
+    if (!open) return
+    if (customer) {
+      setFirstName(customer.firstName)
+      setLastName(customer.lastName ?? '')
+      setPhone(customer.phone)
+      setEmail(customer.email ?? '')
+      setScore(String(customer.reliabilityScore))
+      setNote(customer.note ?? '')
+      setContacts(customer.contacts.map((c) => newRow(c.type, c.value)))
+    } else {
+      setFirstName('')
+      setLastName('')
+      setPhone('')
+      setEmail('')
+      setScore('100')
+      setNote('')
+      setContacts([])
+    }
+  }, [open, customer])
+
+  function addRow() {
+    setContacts((prev) => [...prev, newRow()])
+  }
+
+  function updateRow(key: string, patch: Partial<ContactRow>) {
+    setContacts((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)))
+  }
+
+  function removeRow(key: string) {
+    setContacts((prev) => prev.filter((r) => r.key !== key))
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const input = {
+      firstName,
+      lastName,
+      phone,
+      email,
+      reliabilityScore: Number(score) || 0,
+      note,
+      contacts: contacts.map((c) => ({ type: c.type, value: c.value })),
+    }
+    startTransition(async () => {
+      const res = customer
+        ? await updateCustomer(customer.id, input)
+        : await createCustomer(input)
+      if (res.success) {
+        toast.success(isEdit ? 'Клиент обновлён' : 'Клиент создан')
+        onOpenChange(false)
+        onSaved()
+      } else {
+        toast.error(res.error ?? 'Ошибка сохранения')
+      }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Редактирование клиента' : 'Новый клиент'}</DialogTitle>
+          <DialogDescription>
+            Основная информация и дополнительные каналы связи.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="cust-first">Имя *</Label>
+              <Input
+                id="cust-first"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Олександр"
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="cust-last">Фамилия</Label>
+              <Input
+                id="cust-last"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Коваленко"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="cust-phone">Основной телефон *</Label>
+              <Input
+                id="cust-phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+380671234567"
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="cust-email">Email</Label>
+              <Input
+                id="cust-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="client@example.com"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="cust-score">Оценка надежности (0–100)</Label>
+            <Input
+              id="cust-score"
+              type="number"
+              min={0}
+              max={100}
+              value={score}
+              onChange={(e) => setScore(e.target.value)}
+              className="sm:w-40"
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <Label>Каналы связи</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                <Plus className="size-4" />
+                Добавить канал связи
+              </Button>
+            </div>
+
+            {contacts.length === 0 ? (
+              <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+                Нет дополнительных каналов связи
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {contacts.map((row) => (
+                  <div key={row.key} className="flex items-center gap-2">
+                    <Select value={row.type} onValueChange={(v) => updateRow(row.key, { type: v })}>
+                      <SelectTrigger className="w-40 shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CHANNEL_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={row.value}
+                      onChange={(e) => updateRow(row.key, { value: e.target.value })}
+                      placeholder="Значение"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeRow(row.key)}
+                      aria-label="Удалить канал"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="cust-note">Заметка</Label>
+            <Textarea
+              id="cust-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Комментарий о клиенте..."
+              rows={2}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Отмена
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? 'Сохранение...' : isEdit ? 'Сохранить' : 'Создать клиента'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

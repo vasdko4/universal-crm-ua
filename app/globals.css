@@ -1,0 +1,311 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.985 0.002 90);
+  --foreground: oklch(0.21 0.01 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.01 260);
+  --primary: oklch(0.48 0.11 190);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.955 0.005 90);
+  --secondary-foreground: oklch(0.3 0.01 260);
+  --muted: oklch(0.955 0.005 90);
+  --muted-foreground: oklch(0.52 0.01 260);
+  --accent: oklch(0.94 0.02 190);
+  --accent-foreground: oklch(0.3 0.05 190);
+  --destructive: oklch(0.577 0.215 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.912 0.005 90);
+  --input: oklch(0.912 0.005 90);
+  --ring: oklch(0.48 0.11 190);
+  --success: oklch(0.6 0.13 150);
+  --warning: oklch(0.75 0.15 75);
+  --info: oklch(0.6 0.12 250);
+  --sidebar: oklch(0.235 0.015 260);
+  --sidebar-foreground: oklch(0.9 0.005 90);
+  --sidebar-muted: oklch(0.65 0.01 260);
+  --sidebar-accent: oklch(0.3 0.02 260);
+  --sidebar-primary: oklch(0.7 0.11 190);
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'Geist', 'Geist Fallback', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ============================================================
+   Storefront templates (multi-theme)
+   Applied on the shop wrapper via [data-template="..."].
+   "classic" is the default (:root) and needs no overrides.
+   ============================================================ */
+
+/* Warm — тёплая палитра, крупные скругления */
+[data-template='warm'] {
+  --background: oklch(0.99 0.012 85);
+  --foreground: oklch(0.28 0.03 55);
+  --card: oklch(1 0.004 85);
+  --card-foreground: oklch(0.28 0.03 55);
+  --popover: oklch(1 0.004 85);
+  --popover-foreground: oklch(0.28 0.03 55);
+  --primary: oklch(0.66 0.16 45);
+  --primary-foreground: oklch(0.99 0.01 85);
+  --secondary: oklch(0.95 0.02 75);
+  --secondary-foreground: oklch(0.35 0.04 55);
+  --muted: oklch(0.955 0.015 75);
+  --muted-foreground: oklch(0.52 0.03 55);
+  --accent: oklch(0.93 0.045 60);
+  --accent-foreground: oklch(0.35 0.08 45);
+  --border: oklch(0.9 0.02 70);
+  --input: oklch(0.9 0.02 70);
+  --ring: oklch(0.66 0.16 45);
+  --radius: 1rem;
+}
+
+/* Dark Tech — тёмная тема, синий акцент, острые углы */
+[data-template='dark-tech'] {
+  --background: oklch(0.19 0.02 260);
+  --foreground: oklch(0.95 0.01 260);
+  --card: oklch(0.24 0.025 260);
+  --card-foreground: oklch(0.95 0.01 260);
+  --popover: oklch(0.24 0.025 260);
+  --popover-foreground: oklch(0.95 0.01 260);
+  --primary: oklch(0.62 0.18 250);
+  --primary-foreground: oklch(0.98 0.01 260);
+  --secondary: oklch(0.3 0.03 260);
+  --secondary-foreground: oklch(0.9 0.01 260);
+  --muted: oklch(0.3 0.02 260);
+  --muted-foreground: oklch(0.7 0.02 260);
+  --accent: oklch(0.34 0.05 250);
+  --accent-foreground: oklch(0.92 0.02 250);
+  --border: oklch(0.34 0.02 260);
+  --input: oklch(0.34 0.02 260);
+  --ring: oklch(0.62 0.18 250);
+  --radius: 0.25rem;
+}
+
+/* Elegant — монохром с золотым акцентом, тонкие линии, премиальный вид */
+[data-template='elegant'] {
+  --background: oklch(0.975 0.003 80);
+  --foreground: oklch(0.24 0.01 60);
+  --card: oklch(0.995 0.002 80);
+  --card-foreground: oklch(0.24 0.01 60);
+  --popover: oklch(0.995 0.002 80);
+  --popover-foreground: oklch(0.24 0.01 60);
+  --primary: oklch(0.55 0.09 80);
+  --primary-foreground: oklch(0.99 0.005 80);
+  --secondary: oklch(0.945 0.008 80);
+  --secondary-foreground: oklch(0.32 0.02 70);
+  --muted: oklch(0.945 0.008 80);
+  --muted-foreground: oklch(0.5 0.015 70);
+  --accent: oklch(0.93 0.025 85);
+  --accent-foreground: oklch(0.38 0.06 80);
+  --border: oklch(0.9 0.01 80);
+  --input: oklch(0.9 0.01 80);
+  --ring: oklch(0.55 0.09 80);
+  --radius: 0.125rem;
+}
+
+/* Marketplace — плотная витрина в стиле Prom: синий + оранжевый акцент */
+[data-template='marketplace'] {
+  --background: oklch(0.97 0.005 250);
+  --foreground: oklch(0.22 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 260);
+  --primary: oklch(0.55 0.2 262);
+  --primary-foreground: oklch(0.98 0.005 250);
+  --secondary: oklch(0.93 0.02 255);
+  --secondary-foreground: oklch(0.3 0.05 260);
+  --muted: oklch(0.94 0.01 250);
+  --muted-foreground: oklch(0.5 0.02 255);
+  --accent: oklch(0.72 0.19 40);
+  --accent-foreground: oklch(0.99 0.005 40);
+  --border: oklch(0.88 0.01 250);
+  --input: oklch(0.88 0.01 250);
+  --ring: oklch(0.55 0.2 262);
+  --radius: 0.5rem;
+}
+
+/* Boutique — editorial, глубокий зелёный с кремовым */
+[data-template='boutique'] {
+  --background: oklch(0.97 0.008 90);
+  --foreground: oklch(0.25 0.02 150);
+  --card: oklch(0.99 0.005 90);
+  --card-foreground: oklch(0.25 0.02 150);
+  --popover: oklch(0.99 0.005 90);
+  --popover-foreground: oklch(0.25 0.02 150);
+  --primary: oklch(0.38 0.06 155);
+  --primary-foreground: oklch(0.97 0.01 90);
+  --secondary: oklch(0.93 0.02 95);
+  --secondary-foreground: oklch(0.32 0.04 150);
+  --muted: oklch(0.93 0.015 92);
+  --muted-foreground: oklch(0.48 0.02 140);
+  --accent: oklch(0.85 0.06 85);
+  --accent-foreground: oklch(0.34 0.05 150);
+  --border: oklch(0.88 0.015 92);
+  --input: oklch(0.88 0.015 92);
+  --ring: oklch(0.38 0.06 155);
+  --radius: 0.75rem;
+}
+
+/* Nordic — чёрно-белый минимализм без скруглений */
+[data-template='nordic'] {
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.2 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.955 0 0);
+  --secondary-foreground: oklch(0.25 0 0);
+  --muted: oklch(0.955 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.93 0 0);
+  --accent-foreground: oklch(0.2 0 0);
+  --border: oklch(0.89 0 0);
+  --input: oklch(0.89 0 0);
+  --ring: oklch(0.2 0 0);
+  --radius: 0rem;
+}
+
+/* Berry — ягідно-рожевий акцент, м'які скругления, дружелюбный вид */
+[data-template='berry'] {
+  --background: oklch(0.98 0.006 350);
+  --foreground: oklch(0.26 0.03 350);
+  --card: oklch(1 0.003 350);
+  --card-foreground: oklch(0.26 0.03 350);
+  --popover: oklch(1 0.003 350);
+  --popover-foreground: oklch(0.26 0.03 350);
+  --primary: oklch(0.5 0.19 350);
+  --primary-foreground: oklch(0.99 0.005 350);
+  --secondary: oklch(0.94 0.02 350);
+  --secondary-foreground: oklch(0.34 0.05 350);
+  --muted: oklch(0.95 0.015 350);
+  --muted-foreground: oklch(0.52 0.02 350);
+  --accent: oklch(0.92 0.04 350);
+  --accent-foreground: oklch(0.36 0.08 350);
+  --border: oklch(0.9 0.02 350);
+  --input: oklch(0.9 0.02 350);
+  --ring: oklch(0.5 0.19 350);
+  --radius: 0.85rem;
+}
+
+/* Ocean — синьо-бірюзовий акцент, щільна вітрина маркетплейсу */
+[data-template='ocean'] {
+  --background: oklch(0.97 0.01 220);
+  --foreground: oklch(0.24 0.03 225);
+  --card: oklch(1 0.004 220);
+  --card-foreground: oklch(0.24 0.03 225);
+  --popover: oklch(1 0.004 220);
+  --popover-foreground: oklch(0.24 0.03 225);
+  --primary: oklch(0.52 0.15 220);
+  --primary-foreground: oklch(0.98 0.005 220);
+  --secondary: oklch(0.93 0.02 215);
+  --secondary-foreground: oklch(0.3 0.04 220);
+  --muted: oklch(0.94 0.012 218);
+  --muted-foreground: oklch(0.5 0.02 220);
+  --accent: oklch(0.85 0.08 200);
+  --accent-foreground: oklch(0.28 0.06 210);
+  --border: oklch(0.89 0.012 218);
+  --input: oklch(0.89 0.012 218);
+  --ring: oklch(0.52 0.15 220);
+  --radius: 0.5rem;
+}
+
+/* Forest — тёмная смарагдово-зелёная тема, editorial-баннер */
+[data-template='forest'] {
+  --background: oklch(0.16 0.02 150);
+  --foreground: oklch(0.94 0.01 150);
+  --card: oklch(0.22 0.025 150);
+  --card-foreground: oklch(0.94 0.01 150);
+  --popover: oklch(0.22 0.025 150);
+  --popover-foreground: oklch(0.94 0.01 150);
+  --primary: oklch(0.6 0.14 150);
+  --primary-foreground: oklch(0.16 0.02 150);
+  --secondary: oklch(0.27 0.03 150);
+  --secondary-foreground: oklch(0.9 0.01 150);
+  --muted: oklch(0.26 0.02 150);
+  --muted-foreground: oklch(0.68 0.02 150);
+  --accent: oklch(0.3 0.04 150);
+  --accent-foreground: oklch(0.9 0.03 150);
+  --border: oklch(0.3 0.02 150);
+  --input: oklch(0.3 0.02 150);
+  --ring: oklch(0.6 0.14 150);
+  --radius: 0.4rem;
+}
+
+/* Mint — свежий мятный фон с коралловым акцентом, крупная типографика */
+[data-template='mint'] {
+  --background: oklch(0.985 0.01 165);
+  --foreground: oklch(0.27 0.02 165);
+  --card: oklch(1 0.005 165);
+  --card-foreground: oklch(0.27 0.02 165);
+  --popover: oklch(1 0.005 165);
+  --popover-foreground: oklch(0.27 0.02 165);
+  --primary: oklch(0.72 0.13 165);
+  --primary-foreground: oklch(0.2 0.03 165);
+  --secondary: oklch(0.95 0.02 165);
+  --secondary-foreground: oklch(0.32 0.03 165);
+  --muted: oklch(0.95 0.015 165);
+  --muted-foreground: oklch(0.5 0.02 165);
+  --accent: oklch(0.78 0.14 30);
+  --accent-foreground: oklch(0.99 0.01 30);
+  --border: oklch(0.91 0.015 165);
+  --input: oklch(0.91 0.015 165);
+  --ring: oklch(0.72 0.13 165);
+  --radius: 1.25rem;
+}
+
+[data-template] {
+  background-color: var(--background);
+  color: var(--foreground);
+}

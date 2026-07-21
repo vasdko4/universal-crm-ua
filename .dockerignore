@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env
+.env.local
+.env*.local
+npm-debug.log*
+*.log
+.DS_Store
+db/dump.sql
+Dockerfile
+docker-compose.yml
+README*.md
+CLAUDE.md
+УСТАНОВКА.txt
