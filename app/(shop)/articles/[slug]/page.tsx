@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, User } from 'lucide-react'
-import DOMPurify from 'isomorphic-dompurify'
+import { sanitizeContent } from '@/lib/shop/sanitize'
 import { getArticleBySlug, getRelatedArticles } from '@/lib/shop/articles'
 import { getServerDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -149,7 +149,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
 
         <div
           className="prose prose-neutral mt-6 max-w-none text-pretty leading-relaxed text-foreground [&_a]:text-primary [&_h2]:mt-6 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mt-5 [&_h3]:text-lg [&_h3]:font-semibold [&_img]:rounded-xl [&_li]:my-1 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6"
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.content || '') }}
+          dangerouslySetInnerHTML={{ __html: sanitizeContent(article.content || '') }}
         />
 
         {tags.length > 0 && (
