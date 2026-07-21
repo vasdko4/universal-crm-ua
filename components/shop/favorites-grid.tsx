@@ -46,8 +46,6 @@ export function FavoritesGrid() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-foreground md:text-3xl">{t.title}</h1>
-
       {!isReady || loading ? (
         <div className="flex items-center justify-center py-24">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
