@@ -1,5 +1,10 @@
 # Release pipeline with SLSA provenance.
 #
+# ⚠️ HOW TO ENABLE: GitHub-приложения не могут создавать workflow-файлы, поэтому
+# файл лежит в .github/workflows-available/. Чтобы включить, выполните:
+#     git mv .github/workflows-available/release.yml .github/workflows/release.yml
+#     git commit -m "Enable SLSA release workflow" && git push
+#
 # On every version tag (v1.0.0, v2.3.4, ...):
 #   1. Builds the production Docker image and pushes it to GitHub Container
 #      Registry: ghcr.io/<owner>/techno-store:<version> (+ :latest).
