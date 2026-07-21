@@ -5,5 +5,9 @@ export const dynamic = 'force-dynamic'
 
 export default async function DeliveryPage() {
   const methods = await getDeliveryMethods()
-  return <DeliveryManager methods={methods} />
+  return (
+    <div className="p-4 md:p-8">
+      <DeliveryManager methods={methods} />
+    </div>
+  )
 }

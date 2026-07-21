@@ -93,7 +93,7 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 md:p-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Корзина</h1>
         <p className="text-sm text-muted-foreground">

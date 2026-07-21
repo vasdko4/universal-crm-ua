@@ -64,7 +64,11 @@ export function AdminSidebar({
 
   return (
     <aside className="sticky top-0 flex h-screen w-16 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:w-60">
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-accent px-4">
+      <Link
+        href="/"
+        className="flex h-16 items-center gap-3 border-b border-sidebar-accent px-4 transition-colors hover:bg-sidebar-accent/50"
+        title="Перейти на сайт"
+      >
         <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sidebar-primary text-sidebar">
           {logoUrl ? (
             <Image src={logoUrl || '/placeholder.svg'} alt={storeName} width={32} height={32} className="size-full object-cover" />
@@ -76,7 +80,7 @@ export function AdminSidebar({
           <p className="line-clamp-1 text-sm font-semibold leading-tight">{storeName}</p>
           <p className="text-xs text-sidebar-muted">Админ-центр</p>
         </div>
-      </div>
+      </Link>
 
       <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-2" aria-label="Основная навигация">
         {visibleSections.map((section) => (
