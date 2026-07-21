@@ -1,3 +1,23 @@
+## Установка в одну команду (готовый образ с Docker Hub)
+
+Исходный код не нужен — на чистом Linux-сервере выполните:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vasdko4/techno-store/main/install.sh | bash
+```
+
+Скрипт спросит домен (Enter — пропустить), сам установит Docker при
+необходимости, сгенерирует секреты, скачает образ
+`jastindle/magazineuakraine:latest` и запустит магазин. При указанном
+домене автоматически поднимается HTTPS (Caddy + Let's Encrypt).
+После запуска откройте сайт — попадёте в мастер установки.
+
+Обновление до новой версии:
+
+```bash
+cd ~/techno-store && docker compose pull && docker compose up -d
+```
+
 # 🐳 Techno Store — установка через Docker
 
 Самый простой способ запустить CRM-магазин. Нужен только Docker.
