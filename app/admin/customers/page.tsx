@@ -1,11 +1,13 @@
 import { getCustomers } from '@/app/actions/customers'
 import { CustomersManager } from '@/components/customers/customers-manager'
+import { requirePermission } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
 export default async function CustomersPage(props: {
   searchParams: Promise<{ q?: string; page?: string; score?: string }>
 }) {
+  await requirePermission('customers')
   const sp = await props.searchParams
   const data = await getCustomers({
     search: sp.q,

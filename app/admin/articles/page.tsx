@@ -1,5 +1,6 @@
 import { getArticles, getArticleCategories } from '@/app/actions/articles'
 import { ArticlesManager } from '@/components/articles/articles-manager'
+import { requirePermission } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +9,7 @@ export default async function ArticlesPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; category?: string; page?: string }>
 }) {
+  await requirePermission('articles')
   const sp = await searchParams
   const [data, categories] = await Promise.all([
     getArticles({

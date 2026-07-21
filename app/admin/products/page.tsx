@@ -1,6 +1,7 @@
 import { getProducts, type ProductFilters } from '@/app/actions/products'
 import { getCategories } from '@/app/actions/categories'
 import { ProductsTable } from '@/components/products/products-table'
+import { requirePermission } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,7 @@ type SearchParams = Promise<{
 }>
 
 export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePermission('products')
   const params = await searchParams
 
   const filters: ProductFilters = {

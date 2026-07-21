@@ -1,5 +1,6 @@
 import { getPages } from '@/app/actions/pages'
 import { PagesManager } from '@/components/pages/pages-manager'
+import { requirePermission } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +9,7 @@ export default async function PagesPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; page?: string }>
 }) {
+  await requirePermission('pages')
   const sp = await searchParams
   const data = await getPages({
     search: sp.q ?? '',

@@ -14,6 +14,7 @@ import {
   getAbandonedCartStats,
 } from '@/app/actions/analytics'
 import { StatsDashboard } from '@/components/statistics/stats-dashboard'
+import { requirePermission } from '@/lib/session'
 
 export const metadata = { title: 'Статистика · Админ-центр' }
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,7 @@ export const dynamic = 'force-dynamic'
 export default async function StatisticsPage(props: {
   searchParams: Promise<{ days?: string }>
 }) {
+  await requirePermission('statistics')
   const sp = await props.searchParams
   const days = Number(sp.days ?? '30') || 30
 
