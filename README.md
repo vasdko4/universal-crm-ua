@@ -1,33 +1,126 @@
-# project-setup
+# 🛒 Techno Store — интернет-магазин + CRM
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Готовая платформа интернет-магазина с полноценной CRM-панелью для украинского рынка.
+Ставится на чистый сервер **одной командой** и работает полностью на вашей машине:
+база данных, файлы, загрузки — всё хранится у вас, без внешних сервисов.
 
-## Built with v0
+**Демо:** https://techno-store-chi.vercel.app
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+---
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_4KqWuZP3o9Y5Je4QZDawKf5El8iV)
+## ⚡ Установка с нуля на чистом Ubuntu
 
-## Getting Started
-
-First, run the development server:
+Нужен только чистый сервер (VPS/VDS) с **Ubuntu 22.04 / 24.04** (рекомендуется), 2 ГБ RAM и root-доступ. Выполните одну команду:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+curl -fsSL https://raw.githubusercontent.com/vasdko4/techno-store/main/install.sh | bash
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Скрипт всё сделает сам:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Проверит Docker** — если его нет, предложит установить автоматически;
+2. **Спросит домен** (например `shop.example.com`; Enter — пропустить, магазин будет доступен по `http://IP-сервера:3000`);
+3. **Сгенерирует секреты** — пароль базы данных, FTP-логин/пароль, ключи авторизации (файл `.env` в `~/techno-store`);
+4. **Скачает готовый образ** `jastindle/magazineuakraine` с Docker Hub — без исходников и без сборки;
+5. **Запустит всё**: PostgreSQL, магазин, FTP-доступ к фото товаров и — если указан домен — встроенный HTTPS-прокси Caddy, который **сам получает и продлевает SSL-сертификат Let's Encrypt** (nginx и certbot не нужны).
 
-## Learn More
+После запуска откройте сайт — вас автоматически перенаправит на **мастер установки**: выбор «чистая CRM или демо-данные», название и описание магазина, ключ Новой Почты, дизайн, логин/пароль администратора. После завершения мастер больше недоступен.
 
-To learn more, take a look at the following resources:
+### Если домен указан — что нужно от вас
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+- A-запись домена указывает на IP сервера;
+- порты **80** и **443** открыты (плюс **21** и **21000-21010**, если нужен FTP снаружи).
+
+### Ubuntu 20.04 (focal) и старее
+
+Эта версия снята с поддержки — лучше переустановить сервер на Ubuntu 24.04 (в панели хостинга это одна кнопка «Reinstall OS»). Если переустановка невозможна, поставьте Docker вручную до запуска установщика:
+
+```bash
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu focal stable" > /etc/apt/sources.list.d/docker.list
+apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl enable --now docker
+```
+
+### Обновление до новой версии
+
+```bash
+cd ~/techno-store && docker compose pull && docker compose up -d
+```
+
+Данные (база, загрузки, сертификаты) при обновлении сохраняются — они лежат в Docker-томах.
+
+### Демо-данные
+
+Хотите посмотреть магазин с товарами, категориями и тестовыми заказами? До первого захода на сайт выполните:
+
+```bash
+cd ~/techno-store && docker compose exec app node scripts/db-setup.mjs --seed
+```
+
+Демо-администратор: `admin@techno.store / Admin12345` (смените пароль после входа).
+
+---
+
+## 🧩 Что умеет CRM
+
+### Витрина магазина
+- Каталог с категориями, группами и фильтрами, поиск, страница товара;
+- Два языка — украинский и русский;
+- Корзина, оформление заказа, отслеживание доставки, личный кабинет, избранное;
+- Отзывы и вопросы о товарах;
+- Блог/статьи и произвольные страницы;
+- SEO из коробки: sitemap.xml, robots.txt, canonical, Open Graph, товарный фид для Google Merchant Center.
+
+### Админ-панель (`/admin`)
+- **Заказы** — статусы, история, брошенные корзины;
+- **Товары** — карточки на двух языках, фото, импорт, бестселлеры, акции и промокоды;
+- **Категории и группы** товаров;
+- **Клиенты** и пользователи с ролями и правами доступа;
+- **Доставка** — интеграция с Новой Почтой (отделения, трекинг, автосинхронизация статусов);
+- **Оплата** — Monobank и WayForPay (подключаются своими ключами в настройках);
+- **Контент** — статьи, страницы, модальные объявления/баннеры, настройка главной;
+- **Статистика** продаж, журнал действий администраторов, корзина удалённых записей;
+- Кнопка **«Очистить кеш»** в настройках.
+
+### Технологии
+Next.js 16 (App Router) · PostgreSQL 16 · Better Auth · Tailwind CSS + Radix UI · Docker Compose · Caddy (авто-HTTPS).
+
+---
+
+## 🗂 Что где хранится
+
+| Что | Где |
+|---|---|
+| Файлы установки и пароли | `~/techno-store` (`.env` — не удаляйте) |
+| База данных | Docker-том `techno_store_pgdata` |
+| Фото товаров и загрузки | Docker-том `techno_store_uploads` (доступен по FTP) |
+| SSL-сертификаты | Docker-том `techno_store_caddy_data` |
+
+Полезные команды (выполнять из `~/techno-store`):
+
+```bash
+docker compose logs -f app      # логи приложения
+docker compose restart app      # перезапуск
+docker compose down             # остановить
+docker compose exec db pg_dump -U techno techno_store > backup.sql   # бэкап БД
+```
+
+---
+
+## 📚 Подробная документация
+
+- **[README.docker.md](README.docker.md)** — установка из исходников, Makefile, бэкапы по расписанию, FTP, Google Merchant/Ads/Analytics, переменные окружения, устранение неполадок;
+- **[README.local.md](README.local.md)** — локальная разработка без Docker;
+- **[УСТАНОВКА.txt](УСТАНОВКА.txt)** — краткая памятка по установке.
+
+## 🛠 Разработка
+
+```bash
+pnpm install
+pnpm db:setup        # применить схему БД (нужен PostgreSQL и .env.local)
+pnpm dev             # http://localhost:3000
+pnpm test            # тесты
+```
+
+Релизы: тег `v*` собирает Docker-образ и публикует его в GHCR и Docker Hub с SLSA-подписью (workflow в `.github/workflows-available/release.yml`).
