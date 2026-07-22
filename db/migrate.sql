@@ -59,5 +59,9 @@ CREATE INDEX IF NOT EXISTS idx_product_questions_status_created ON product_quest
 -- ---------- Заказы: флаг возврата остатков при отмене ----------
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "stock_restored" boolean DEFAULT false NOT NULL;
 
+-- ---------- Админ-центр: язык интерфейса на пользователя ----------
+-- Хранится в БД (user.locale), выбор не спрашивается повторно при входе.
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "locale" varchar(5) DEFAULT 'ru'::character varying NOT NULL;
+
 -- ---------- Готово ----------
 DO $$ BEGIN RAISE NOTICE 'Миграция применена успешно.'; END $$;

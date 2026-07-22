@@ -626,6 +626,7 @@ CREATE TABLE IF NOT EXISTS "user" (
   "createdAt" timestamptz DEFAULT now() NOT NULL,
   "updatedAt" timestamptz DEFAULT now() NOT NULL,
   "phone" varchar(50),
+  "locale" varchar(5) DEFAULT 'ru'::character varying NOT NULL,
   PRIMARY KEY ("id")
 );
 
