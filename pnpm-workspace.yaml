@@ -1,3 +1,4 @@
+minimumReleaseAge: 0
 allowBuilds:
   '@sentry/cli': true
   sharp: true
