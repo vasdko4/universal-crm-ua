@@ -221,7 +221,7 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
           <Input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://prom.ua/c4207182-powerfox.html"
+            placeholder="https://prom.ua/example.html"
             disabled={running}
             className="max-w-md"
           />

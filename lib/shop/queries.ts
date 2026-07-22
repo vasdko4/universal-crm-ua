@@ -200,14 +200,40 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   if (params.inStockOnly) conditions.push(sql`${products.quantity} > 0`)
   if (params.discountOnly)
     conditions.push(sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`)
-  if (params.popularOnly) conditions.push(eq(products.isPopular, true))
+
+  // "Popular" is meant to be manually curated (admin center), but imports
+  // (e.g. Prom.ua) never set this flag, so a strict filter here would leave
+  // the "Популярные" link on the homepage pointing at an empty page even
+  // though the homepage widget itself always shows something (it falls back
+  // to newest products — see _getPopularProducts below). Mirror that same
+  // fallback here so the two stay consistent: only apply the strict filter
+  // if at least one product is actually marked popular.
+  let popularFallback = false
+  if (params.popularOnly) {
+    const anyPopular = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(baseWhere, eq(products.isPopular, true)))
+      .limit(1)
+    if (anyPopular.length > 0) {
+      conditions.push(eq(products.isPopular, true))
+    } else {
+      popularFallback = true
+    }
+  }
 
   let idFilter: number[] | null = null
   if (params.categoryId) {
+    // A category page should also include products filed under any of its
+    // descendant (sub)categories — the Prom.ua import (and manual category
+    // creation) only ever attaches products to the leaf category of a
+    // breadcrumb chain, so a parent category would otherwise always render
+    // empty even though it visibly "contains" those products in the UI.
+    const categoryIds = await getCategoryAndDescendantIds(params.categoryId)
     const rows = await db
       .select({ pid: productCategory.productId })
       .from(productCategory)
-      .where(eq(productCategory.categoryId, params.categoryId))
+      .where(inArray(productCategory.categoryId, categoryIds))
     idFilter = rows.map((r) => r.pid)
     if (idFilter.length === 0) return { items: [], total: 0, page, perPage }
     conditions.push(inArray(products.id, idFilter))
@@ -221,10 +247,12 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
         ? desc(products.price)
         : params.sort === 'new'
           ? desc(products.createdAt)
-          : [
-              desc(products.isPopular),
-              desc(sql`${products.ordersCount} + ${products.purchasesBoost}`),
-            ]
+          : popularFallback
+            ? desc(products.createdAt)
+            : [
+                desc(products.isPopular),
+                desc(sql`${products.ordersCount} + ${products.purchasesBoost}`),
+              ]
 
   const [rows, countRes] = await Promise.all([
     db
@@ -500,6 +528,40 @@ async function _getShopCategories(locale: Locale = 'uk') {
     .from(categories)
     .where(eq(categories.isVisible, true))
     .orderBy(asc(categories.sortOrder), asc(name))
+}
+
+/**
+ * Returns [categoryId, ...all descendant category ids] — the category tree
+ * is flat (just parentId) so this walks it in app code (BFS) rather than a
+ * recursive SQL CTE, which is plenty fast for a shop-sized category count.
+ */
+export function getCategoryAndDescendantIds(categoryId: number) {
+  return unstable_cache(
+    () => _getCategoryAndDescendantIds(categoryId),
+    ['category-descendants', String(categoryId)],
+    { tags: [CACHE_TAGS.categories], revalidate: 300 },
+  )()
+}
+
+async function _getCategoryAndDescendantIds(categoryId: number): Promise<number[]> {
+  const all = await db.select({ id: categories.id, parentId: categories.parentId }).from(categories)
+  const childrenOf = new Map<number, number[]>()
+  for (const row of all) {
+    if (row.parentId == null) continue
+    const list = childrenOf.get(row.parentId) ?? []
+    list.push(row.id)
+    childrenOf.set(row.parentId, list)
+  }
+  const result: number[] = [categoryId]
+  const queue = [categoryId]
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    for (const child of childrenOf.get(current) ?? []) {
+      result.push(child)
+      queue.push(child)
+    }
+  }
+  return result
 }
 
 export function getCategoryById(id: number, locale: Locale = 'uk') {
