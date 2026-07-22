@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: jastindle/magazineuakraine:latest
+    image: ghcr.io/vasdko4/universal-crm-ua:latest
     container_name: techno-store-app
     restart: unless-stopped
     depends_on:
