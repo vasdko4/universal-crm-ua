@@ -111,7 +111,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <script dangerouslySetInnerHTML={{ __html: devPerfPatch }} />
         )}
         {children}
-        <Toaster position="bottom-right" richColors />
+        {/* On mobile Sonner ignores `position` and always renders toasts
+            full-width at the bottom of the viewport, which otherwise sits on
+            top of the fixed mobile bottom nav bar (`MobileBottomNav`, h-16 +
+            safe-area) and blocks its cart/checkout tap targets right after
+            "added to cart" fires. `mobileOffset` lifts toasts above it. */}
+        <Toaster
+          position="bottom-right"
+          richColors
+          mobileOffset={{ bottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px)' }}
+        />
       </body>
     </html>
   )
