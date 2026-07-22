@@ -49,7 +49,12 @@ export type PromProduct = {
 
 /** Fetch a URL as a signed-out browser would, following redirects, with retries. */
 async function fetchHtml(url: string, lang = 'uk,ru;q=0.9'): Promise<{ html: string; finalUrl: string } | null> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  // 5 attempts (was 3) with longer backoff — a small share of product pages
+  // (~1-3%) were coming back as transient network/5xx failures against
+  // Prom.ua from some hosts, permanently failing that item for the whole
+  // import even though the page loads fine seconds later. Failed items are
+  // safe to retry here since nothing has been written to the DB yet.
+  for (let attempt = 1; attempt <= 5; attempt++) {
     try {
       const res = await fetch(url, {
         headers: { 'user-agent': USER_AGENT, 'accept-language': lang },
@@ -60,7 +65,7 @@ async function fetchHtml(url: string, lang = 'uk,ru;q=0.9'): Promise<{ html: str
     } catch {
       // fall through to retry
     }
-    await new Promise((r) => setTimeout(r, 1200 * attempt))
+    await new Promise((r) => setTimeout(r, 1500 * attempt))
   }
   return null
 }

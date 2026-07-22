@@ -1,4 +1,4 @@
-## Установка в одну команду (готовый образ с Docker Hub)
+## Установка в одну команду (готовый образ из GitHub Container Registry)
 
 Исходный код не нужен — на чистом Linux-сервере выполните:
 
@@ -8,7 +8,7 @@ curl -fsSL https://raw.githubusercontent.com/vasdko4/techno-store/main/install.s
 
 Скрипт спросит домен (Enter — пропустить), сам установит Docker при
 необходимости, сгенерирует секреты, скачает образ
-`jastindle/magazineuakraine:latest` и запустит магазин. При указанном
+`ghcr.io/vasdko4/universal-crm-ua:latest` и запустит магазин. При указанном
 домене автоматически поднимается HTTPS (Caddy + Let's Encrypt).
 После запуска откройте сайт — попадёте в мастер установки.
 

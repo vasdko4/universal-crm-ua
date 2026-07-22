@@ -9,15 +9,23 @@
 #   1. Проверяет Docker (на Linux предложит установить автоматически)
 #   2. Спрашивает домен (Enter — пропустить, будет http://IP:3000)
 #   3. Генерирует .env с секретами и паролями (БД, FTP, auth)
-#   4. Скачивает образ jastindle/magazineuakraine:latest и запускает всё
+#   4. Скачивает образ ghcr.io/vasdko4/universal-crm-ua:latest и запускает всё
 #   5. При указанном домене поднимает Caddy с автоматическим HTTPS
 #
 # Неинтерактивно: DOMAIN=shop.example.com bash install.sh
-# Другая версия:  IMAGE=jastindle/magazineuakraine:1.2.0 bash install.sh
+# Другая версия:  IMAGE=ghcr.io/vasdko4/universal-crm-ua:1.2.0 bash install.sh
+#
+# ПОЧЕМУ ghcr.io, А НЕ Docker Hub: release.yml (CI) публикует каждый
+# релиз в GitHub Container Registry всегда; в Docker Hub — только если
+# в секретах репозитория заданы DOCKERHUB_USERNAME/DOCKERHUB_TOKEN. Без
+# них jastindle/magazineuakraine на Docker Hub просто не обновляется, и
+# сервер годами тянет один и тот же старый образ, хотя `docker compose
+# pull` не сообщает об этом никакой ошибкой. ghcr.io/vasdko4/... гарантированно
+# в ногу с последним тегом версии.
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-IMAGE="${IMAGE:-jastindle/magazineuakraine:latest}"
+IMAGE="${IMAGE:-ghcr.io/vasdko4/universal-crm-ua:latest}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/magazine}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
