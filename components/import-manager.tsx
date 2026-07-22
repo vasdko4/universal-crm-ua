@@ -451,7 +451,7 @@ export function ImportManager({
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {t.createdAt ? new Date(t.createdAt).toLocaleString("ru-RU") : "—"}
+                        {t.createdAt ? new Date(t.createdAt).toLocaleString("ru-RU", { timeZone: "Europe/Kyiv" }) : "—"}
                       </TableCell>
                     </TableRow>
                   )
