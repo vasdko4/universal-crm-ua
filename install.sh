@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# Techno Store — установка готового образа с Docker Hub в одну команду.
+# Magazine — установка готового образа с Docker Hub в одну команду.
 # Исходный код и сборка НЕ нужны: скрипт сам скачает образ и всё настроит.
 #
-#   curl -fsSL https://raw.githubusercontent.com/vasdko4/techno-store/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
 #
 # Что делает:
 #   1. Проверяет Docker (на Linux предложит установить автоматически)
@@ -18,7 +18,7 @@
 set -euo pipefail
 
 IMAGE="${IMAGE:-jastindle/magazineuakraine:latest}"
-INSTALL_DIR="${INSTALL_DIR:-$HOME/techno-store}"
+INSTALL_DIR="${INSTALL_DIR:-$HOME/magazine}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 say()  { printf "\n${CYAN}${BOLD}── %s${NC}\n" "$1"; }
@@ -106,23 +106,23 @@ cat > docker-compose.yml <<COMPOSEEOF
 services:
   db:
     image: postgres:16-alpine
-    container_name: techno-store-db
+    container_name: magazine-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: techno
       POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:-techno}
-      POSTGRES_DB: techno_store
+      POSTGRES_DB: magazine
     volumes:
-      - techno_store_pgdata:/var/lib/postgresql/data
+      - magazine_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U techno -d techno_store"]
+      test: ["CMD-SHELL", "pg_isready -U techno -d magazine"]
       interval: 3s
       timeout: 3s
       retries: 20
 
   app:
     image: ${IMAGE}
-    container_name: techno-store-app
+    container_name: magazine-app
     restart: unless-stopped
     depends_on:
       db:
@@ -130,9 +130,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - techno_store_uploads:/app/public/uploads
+      - magazine_uploads:/app/public/uploads
     environment:
-      DATABASE_URL: postgres://techno:\${POSTGRES_PASSWORD:-techno}@db:5432/techno_store
+      DATABASE_URL: postgres://techno:\${POSTGRES_PASSWORD:-techno}@db:5432/magazine
       BETTER_AUTH_SECRET: \${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
       BETTER_AUTH_URL: \${BETTER_AUTH_URL:-http://localhost:3000}
       CRON_SECRET: \${CRON_SECRET:-}
@@ -142,7 +142,7 @@ services:
 
   ftp:
     image: delfer/alpine-ftp-server:latest
-    container_name: techno-store-ftp
+    container_name: magazine-ftp
     restart: unless-stopped
     profiles: ["ftp"]
     ports:
@@ -154,11 +154,11 @@ services:
       MIN_PORT: "21000"
       MAX_PORT: "21010"
     volumes:
-      - techno_store_uploads:/ftp/uploads
+      - magazine_uploads:/ftp/uploads
 
   caddy:
     image: caddy:2-alpine
-    container_name: techno-store-caddy
+    container_name: magazine-caddy
     restart: unless-stopped
     profiles: ["proxy"]
     ports:
@@ -168,14 +168,14 @@ services:
     depends_on:
       - app
     volumes:
-      - techno_store_caddy_data:/data
-      - techno_store_caddy_config:/config
+      - magazine_caddy_data:/data
+      - magazine_caddy_config:/config
 
 volumes:
-  techno_store_pgdata:
-  techno_store_uploads:
-  techno_store_caddy_data:
-  techno_store_caddy_config:
+  magazine_pgdata:
+  magazine_uploads:
+  magazine_caddy_data:
+  magazine_caddy_config:
 COMPOSEEOF
 ok "docker-compose.yml создан (образ: ${IMAGE})"
 
