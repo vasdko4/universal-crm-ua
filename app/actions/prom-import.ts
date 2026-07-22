@@ -185,6 +185,42 @@ async function ensureCategoryPath(
 // ProductOption.type so imported products get the same swatch UI.
 const COLOR_AXIS_NAMES = ['колір', 'цвет', 'color']
 
+// Common Ukrainian/Russian color-value names -> hex, so Prom.ua imports get
+// real swatches instead of the generic grey placeholder the admin editor
+// falls back to when a color option has no `swatches` entry. Prom.ua sends
+// free-text color names (not hex), often with light-/dark- prefixes, so we
+// match by substring against a base-color dictionary rather than exact value.
+const COLOR_NAME_TO_HEX: [string, string][] = [
+  ['чорн', '#1a1a1a'], ['черн', '#1a1a1a'], ['black', '#1a1a1a'],
+  ['біл', '#f5f5f5'], ['бел', '#f5f5f5'], ['white', '#f5f5f5'],
+  ['червон', '#c62828'], ['красн', '#c62828'], ['red', '#c62828'],
+  ['бордов', '#7b1e2b'], ['вишнев', '#7b1e2b'],
+  ['рожев', '#ec8fb0'], ['розов', '#ec8fb0'], ['pink', '#ec8fb0'],
+  ['фіолетов', '#7e57c2'], ['фиолетов', '#7e57c2'], ['лавандов', '#b9a2e0'], ['purple', '#7e57c2'],
+  ['син', '#2455a4'], ['blue', '#2455a4'],
+  ['голуб', '#5fb3d9'],
+  ['бірюзов', '#1fab8f'], ['бирюзов', '#1fab8f'], ['turquoise', '#1fab8f'],
+  ['зелен', '#3c8a3c'], ['green', '#3c8a3c'],
+  ['салатов', '#8bc34a'], ['лайм', '#8bc34a'],
+  ['хакі', '#6b6d3a'], ['хаки', '#6b6d3a'], ['khaki', '#6b6d3a'],
+  ['жовт', '#e8c93a'], ['желт', '#e8c93a'], ['yellow', '#e8c93a'],
+  ['оранжев', '#ea7a2c'], ['orange', '#ea7a2c'],
+  ['коричнев', '#6b4a30'], ['brown', '#6b4a30'],
+  ['бежев', '#d8c5a3'], ['beige', '#d8c5a3'],
+  ['сір', '#9a9a9a'], ['сер', '#9a9a9a'], ['gray', '#9a9a9a'], ['grey', '#9a9a9a'],
+  ['срібн', '#c0c0c8'], ['серебр', '#c0c0c8'], ['silver', '#c0c0c8'],
+  ['золот', '#c9a94a'], ['gold', '#c9a94a'],
+]
+
+/** Best-effort hex for a free-text Prom.ua color name; undefined if unrecognized. */
+function guessColorHex(value: string): string | undefined {
+  const v = value.toLowerCase()
+  for (const [needle, hex] of COLOR_NAME_TO_HEX) {
+    if (v.includes(needle)) return hex
+  }
+  return undefined
+}
+
 type BuiltVariant = { options: VariantOptions; isInStock: boolean; sortOrder: number }
 
 /**
@@ -227,11 +263,19 @@ function buildVariants(
     }
   }
 
-  const options: ProductOption[] = axisNames.map((name) => ({
-    name,
-    type: COLOR_AXIS_NAMES.some((c) => name.toLowerCase().includes(c)) ? 'color' : 'text',
-    values: valuesByAxis.get(name) ?? [],
-  }))
+  const options: ProductOption[] = axisNames.map((name) => {
+    const isColor = COLOR_AXIS_NAMES.some((c) => name.toLowerCase().includes(c))
+    const values = valuesByAxis.get(name) ?? []
+    if (!isColor) return { name, type: 'text' as const, values }
+    // Best-effort hex per value so the storefront shows real color swatches
+    // instead of the generic grey placeholder used when none is set.
+    const swatches: Record<string, string> = {}
+    for (const value of values) {
+      const hex = guessColorHex(value)
+      if (hex) swatches[value] = hex
+    }
+    return { name, type: 'color' as const, values, swatches }
+  })
 
   const variants: BuiltVariant[] = all
     .filter((v) => v.attributes.length > 0)
@@ -318,7 +362,9 @@ export async function continuePromImport(taskId: number) {
         price: String(p.price ?? 0),
         oldPrice: p.oldPrice != null ? String(p.oldPrice) : null,
         currency: 'UAH',
-        quantity: isInStock ? 100 : 0,
+        // Prom.ua doesn't expose exact stock counts, only in-stock/out-of-stock,
+        // so 1 (not a made-up large number) is the honest quantity per variant.
+        quantity: isInStock ? 1 : 0,
         stockStatus: isInStock ? 'В наличии' : 'Нет в наличии',
         isInStock,
         image: p.images[0] || null,
@@ -346,7 +392,7 @@ export async function continuePromImport(taskId: number) {
             options: v.options,
             price: values.price,
             oldPrice: values.oldPrice,
-            quantity: v.isInStock ? 100 : 0,
+            quantity: v.isInStock ? 1 : 0,
             isInStock: v.isInStock,
             sortOrder: v.sortOrder,
           })),
