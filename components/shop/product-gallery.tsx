@@ -87,7 +87,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
       {hasThumbs && (
         <div
           className={cn(
-            'order-2 flex gap-2 overflow-x-auto pb-1 lg:order-1 lg:max-h-[500px] lg:w-[70px] lg:flex-col lg:justify-start lg:overflow-y-auto lg:pb-0',
+            'order-2 flex gap-2 overflow-x-auto pb-1 lg:order-1 lg:max-h-[620px] lg:w-[70px] lg:flex-col lg:justify-start lg:overflow-y-auto lg:pb-0',
           )}
         >
           {gallery.map((src, i) => (
@@ -114,14 +114,14 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         </div>
       )}
 
-      {/* Main image — capped at 320x320 on mobile and 500x500 on desktop */}
+      {/* Main image — capped at 440x440 on mobile and 620x620 on desktop */}
       <div
         role="region"
         aria-label={alt}
         aria-roledescription="carousel"
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="group relative order-1 mx-auto aspect-square w-full overflow-hidden rounded-2xl border border-border bg-card outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:max-w-[440px] lg:order-2 lg:max-w-[500px]"
+        className="group relative order-1 mx-auto aspect-square w-full overflow-hidden rounded-2xl border border-border bg-card outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:max-w-[440px] lg:order-2 lg:max-w-[620px]"
       >
         {current ? (
           <button
@@ -137,7 +137,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               alt={alt}
               fill
               priority
-              sizes="(max-width: 640px) 100vw, 500px"
+              sizes="(max-width: 640px) 100vw, 620px"
               className="object-contain p-4"
             />
             <span className="absolute bottom-3 right-3 hidden rounded-full bg-background/80 p-2 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 lg:block">

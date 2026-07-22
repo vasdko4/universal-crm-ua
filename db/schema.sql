@@ -418,6 +418,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   "sales_type" varchar(20) DEFAULT 'retail'::character varying,
   "sku" varchar(100),
   "barcode" varchar(100),
+  "prom_id" integer,
   "price" numeric(10,2) DEFAULT 0 NOT NULL,
   "price_from" boolean DEFAULT false,
   "currency" varchar(10) DEFAULT 'UAH'::character varying,

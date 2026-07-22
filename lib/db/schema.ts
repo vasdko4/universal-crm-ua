@@ -32,6 +32,11 @@ export const products = pgTable('products', {
   salesType: varchar('sales_type', { length: 20 }).default('retail'),
   sku: varchar('sku', { length: 100 }),
   barcode: varchar('barcode', { length: 100 }),
+  // Stable numeric id of the source Prom.ua listing (from its product URL,
+  // e.g. /ua/p123456789-slug.html). Prom.ua pages don't always show a SKU,
+  // so SKU alone isn't a reliable re-import match key — this is. Null for
+  // products not created via the Prom.ua importer.
+  promId: integer('prom_id'),
   price: numeric('price', { precision: 10, scale: 2 }).notNull().default('0'),
   priceFrom: boolean('price_from').default(false),
   currency: varchar('currency', { length: 10 }).default('UAH'),
