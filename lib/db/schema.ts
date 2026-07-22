@@ -4,6 +4,7 @@ import {
   varchar,
   text,
   integer,
+  bigint,
   numeric,
   boolean,
   timestamp,
@@ -36,7 +37,10 @@ export const products = pgTable('products', {
   // e.g. /ua/p123456789-slug.html). Prom.ua pages don't always show a SKU,
   // so SKU alone isn't a reliable re-import match key — this is. Null for
   // products not created via the Prom.ua importer.
-  promId: integer('prom_id'),
+  // bigint, not integer: Prom.ua's ids are ~10 digits (e.g. 3113652930),
+  // which overflows a 32-bit integer (max 2,147,483,647) — every insert/
+  // update used to fail with "value out of range for type integer".
+  promId: bigint('prom_id', { mode: 'number' }),
   price: numeric('price', { precision: 10, scale: 2 }).notNull().default('0'),
   priceFrom: boolean('price_from').default(false),
   currency: varchar('currency', { length: 10 }).default('UAH'),

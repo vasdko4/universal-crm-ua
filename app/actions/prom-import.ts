@@ -66,7 +66,12 @@ async function ensurePromImportColumns() {
   await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "state" jsonb`)
   // Stable Prom.ua listing id used to match products on re-import even when
   // the source page has no SKU (see the promId comment in lib/db/schema.ts).
-  await pool.query(`ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "prom_id" integer`)
+  // bigint: Prom.ua ids (~10 digits) overflow a 32-bit integer. The column
+  // was originally created as integer, so widen it too on installs that
+  // already have the old, too-small column (ALTER ... TYPE is a no-op once
+  // it's already bigint).
+  await pool.query(`ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "prom_id" bigint`)
+  await pool.query(`ALTER TABLE "products" ALTER COLUMN "prom_id" TYPE bigint`)
   columnsReady = true
 }
 
