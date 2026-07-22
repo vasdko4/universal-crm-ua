@@ -555,7 +555,7 @@ export type AbandonedCartStats = { count: number; total: number }
 export async function getAbandonedCartStats(days = 30): Promise<AbandonedCartStats> {
   await assertPermission('statistics')
   const res = await pool.query(
-    `SELECT COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
+    `SELECT COUNT(*)::int AS count, COALESCE(SUM(items_total), 0)::float AS total
      FROM abandoned_carts
      WHERE created_at >= NOW() - ($1 || ' days')::interval`,
     [days],
