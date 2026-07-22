@@ -40,20 +40,50 @@ pool.on('error', (err) => {
 
 // Pooled providers (Neon pgbouncer etc.) can hand out connections with a
 // stale search_path from a previous session, making unqualified table names
-// fail with "relation does not exist". Pin it to public on every connect.
+// fail with "relation does not exist". Pin it to public on new connections.
 //
-// NOTE: setting this via the pg `options` startup parameter instead (so it
-// applies before checkout, avoiding the client.query() race below) broke
-// production entirely — Neon's pooled connection endpoint doesn't accept
-// arbitrary startup options, so every query failed and the app fell back to
-// showing the setup wizard. Reverted to this pattern; the "Calling
-// client.query() when the client is already executing a query" deprecation
-// warning it causes is cosmetic (pg queues commands per-client under the
-// hood) and not worth risking breakage over again.
-pool.on('connect', (client) => {
-  client.query('SET search_path TO public').catch((err) => {
-    console.error('[db] failed to set search_path:', err.message)
+// Implementation history (do not "simplify" this back):
+// - `options: '-c search_path=public'` startup parameter: broke production
+//   entirely — Neon's pooled endpoint rejects arbitrary startup options.
+// - `pool.on('connect', client => client.query(...))`: worked, but raced with
+//   the first real query on the same client, spamming every Vercel log with
+//   "(node:4) DeprecationWarning: Calling client.query() when the client is
+//   already executing a query" (removal slated for pg@9).
+// Current approach: wrap pool.connect() so the SET completes BEFORE the
+// client is handed to the caller. A WeakSet skips clients that were already
+// initialized, so reused pool connections pay no extra round-trip.
+const initializedClients = new WeakSet<object>()
+
+async function initClient(client: import('pg').PoolClient): Promise<void> {
+  if (initializedClients.has(client)) return
+  try {
+    await client.query('SET search_path TO public')
+    initializedClients.add(client)
+  } catch (err) {
+    console.error('[db] failed to set search_path:', (err as Error).message)
+  }
+}
+
+const originalConnect = pool.connect.bind(pool) as () => Promise<import('pg').PoolClient>
+
+// Support both call styles: pg's own pool.query() uses the callback form,
+// drizzle/manual code uses the promise form.
+;(pool as Pool).connect = ((cb?: (err: Error | undefined, client: import('pg').PoolClient | undefined, done: (release?: Error | boolean) => void) => void) => {
+  if (typeof cb === 'function') {
+    originalConnect().then(
+      (client) => {
+        void initClient(client).then(() =>
+          cb(undefined, client, (release?: Error | boolean) => client.release(release)),
+        )
+      },
+      (err: Error) => cb(err, undefined, () => {}),
+    )
+    return undefined
+  }
+  return originalConnect().then(async (client) => {
+    await initClient(client)
+    return client
   })
-})
+}) as Pool['connect']
 
 export const db = drizzle(pool, { schema })
