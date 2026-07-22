@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/session'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { AdminSidebar } from '@/components/admin-sidebar'
+import { AdminHeader } from '@/components/admin-header'
 import { permissionForPath, hasPermission, NAV_SECTIONS } from '@/lib/permissions'
 import { AdminLocaleProvider } from '@/lib/i18n/admin/context'
 
@@ -47,7 +48,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           storeName={settings?.storeName ?? 'Админ-центр'}
           logoUrl={settings?.logoUrl ?? null}
         />
-        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+        <main className="flex min-w-0 flex-1 flex-col">
+          <AdminHeader />
+          <div className="flex-1">{children}</div>
+        </main>
       </div>
     </AdminLocaleProvider>
   )
