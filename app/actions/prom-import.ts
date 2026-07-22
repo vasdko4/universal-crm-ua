@@ -319,6 +319,25 @@ export async function continuePromImport(taskId: number) {
       const p = await fetchProduct(state.origin, item)
       if (!p) throw new Error('не удалось загрузить страницу товара')
 
+      // Some Prom.ua shops publish each size/color choice as its own
+      // standalone product page instead of one page with a selector —
+      // ProductVariationQuery still lists every sibling's promId in
+      // `variationItems`, which is exactly the family buildVariants() below
+      // turns into this product's options/variants. Without this check we
+      // imported every sibling page as its own separate product (three
+      // "identical shirt, different size" entries cluttering the catalog
+      // and each other's "Похожие товары"). The lowest promId in the family
+      // is always the base listing (no size suffix in its name) in every
+      // case observed so far, so it's used as the one canonical product;
+      // siblings are skipped entirely — the canonical page's own fetch
+      // already captured their size/stock via variationItems.
+      const family = [item.id, ...p.variationItems.map((v) => v.promId)]
+      const canonicalId = Math.min(...family)
+      if (family.length > 1 && canonicalId !== item.id) {
+        success++
+        continue
+      }
+
       const leafCatId = p.breadcrumbsUk.length
         ? await ensureCategoryPath(p.breadcrumbsUk, p.breadcrumbsRu)
         : null
