@@ -26,13 +26,23 @@ const nextConfig = {
   // compression in /api/admin/upload silently fell back to "store original"
   // on Docker/self-hosted builds. Force-include the whole libvips lib dir for
   // every platform variant (glibc and musl).
-  outputFileTracingIncludes: {
-    '/api/admin/upload': [
-      './node_modules/.pnpm/@img+sharp-libvips-*/node_modules/@img/**',
-      './node_modules/.pnpm/@img+sharp-linux*/node_modules/@img/**',
-      './node_modules/.pnpm/@img+sharp-linuxmusl*/node_modules/@img/**',
-    ],
-  },
+  //
+  // ONLY off-Vercel: these globs point into pnpm's symlinked .pnpm store, and
+  // Vercel's packager rejects symlinked dirs in a Serverless Function
+  // ("The framework produced an invalid deployment package", patch_build_4xx
+  // on every deploy). On Vercel uploads go to Blob storage, so sharp's
+  // native libs are resolved by Vercel's own tracing there anyway.
+  ...(process.env.VERCEL
+    ? {}
+    : {
+        outputFileTracingIncludes: {
+          '/api/admin/upload': [
+            './node_modules/.pnpm/@img+sharp-libvips-*/node_modules/@img/**',
+            './node_modules/.pnpm/@img+sharp-linux*/node_modules/@img/**',
+            './node_modules/.pnpm/@img+sharp-linuxmusl*/node_modules/@img/**',
+          ],
+        },
+      }),
   // The runtime-uploads route reads public/uploads with fs at request time.
   // Turbopack's tracing saw the dynamic path and traced the WHOLE project
   // into that route's output ("Encountered unexpected file in NFT list"),
