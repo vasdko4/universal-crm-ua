@@ -1,10 +1,21 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { db } from '@/lib/db'
 import { deliveryMethods } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { isRateLimited } from '@/lib/api/rate-limit'
 
 const NP_URL = 'https://api.novaposhta.ua/v2.0/json/'
+
+// SECURITY: these are public server actions that proxy to the Nova Poshta API
+// with the store's key. Rate-limit per IP so a script cannot burn the API
+// quota (NP throttles/blocks keys that flood requests).
+async function isNpSearchRateLimited(): Promise<boolean> {
+  const h = await headers()
+  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  return isRateLimited('np-search', ip, 30)
+}
 
 async function getApiKey(): Promise<string | null> {
   const [row] = await db
@@ -37,6 +48,7 @@ export type NpCity = { ref: string; name: string; area: string; deliveryCityRef:
 
 export async function searchCities(query: string): Promise<NpCity[]> {
   if (!query || query.trim().length < 2) return []
+  if (await isNpSearchRateLimited()) return []
   const res = await npRequest('Address', 'searchSettlements', {
     CityName: query.trim(),
     Limit: 15,
@@ -56,6 +68,7 @@ export type NpWarehouse = { ref: string; name: string; number: string }
 
 export async function searchWarehouses(cityRef: string, query = ''): Promise<NpWarehouse[]> {
   if (!cityRef) return []
+  if (await isNpSearchRateLimited()) return []
   const props: Record<string, unknown> = { CityRef: cityRef, Limit: 50, Page: 1 }
   if (query.trim()) props.FindByString = query.trim()
   const res = await npRequest('AddressGeneral', 'getWarehouses', props)

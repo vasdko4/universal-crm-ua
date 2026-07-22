@@ -1,10 +1,12 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { db } from '@/lib/db'
 import { promotions, promotionUsages, productGroups, productGroupItems, products } from '@/lib/db/schema'
 import { and, asc, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
+import { isRateLimited } from '@/lib/api/rate-limit'
 
 export type PromotionInput = {
   type: 'promocode' | 'discount'
@@ -197,7 +199,15 @@ export type PromoEvaluation =
 // Core promo-code logic shared by the checkout UI (preview) and order creation
 // (authoritative). Never trusts client prices — callers pass DB-derived lines.
 export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[]): Promise<PromoEvaluation> {
-  const code = rawCode.trim().toUpperCase()
+  // SECURITY: public server action (called from the storefront checkout with
+  // no auth) — rate-limit per IP so promo codes cannot be brute-forced by
+  // scripting this action directly.
+  const h = await headers()
+  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  if (isRateLimited('promo-eval', ip, 15)) {
+    return { ok: false, error: 'Слишком много попыток, попробуйте позже' }
+  }
+  const code = rawCode.trim().toUpperCase().slice(0, 64)
   if (!code) return { ok: false, error: 'Введите промокод' }
   if (!lines.length) return { ok: false, error: 'Корзина пуста' }
 

@@ -5,6 +5,7 @@ import { pool } from '@/lib/db'
 import { getShopUser } from '@/lib/session'
 import { sendMail } from '@/lib/mailer'
 import { normalizeUaPhone } from '@/lib/shop/phone'
+import { isRateLimited } from '@/lib/api/rate-limit'
 
 // The phone number is the stable customer identifier: it must be unique
 // across accounts. Comparison uses the last 9 digits (operator + subscriber),
@@ -128,6 +129,12 @@ export async function requestEmailChange(newEmailRaw: string) {
   const user = await getShopUser()
   if (!user) return { success: false, error: 'Не авторизован' }
 
+  // SECURITY: each request emails a code to an arbitrary address — without a
+  // limit a logged-in account could be scripted into an email-bombing tool.
+  if (isRateLimited('email-change-req', user.id, 3, 900_000)) {
+    return { success: false, error: 'Слишком много запросов. Попробуйте через 15 минут.' }
+  }
+
   if (await isGoogleLinked(user.id)) {
     return { success: false, error: 'Вход выполнен через Google — сменить email нельзя' }
   }
@@ -165,6 +172,12 @@ export async function requestEmailChange(newEmailRaw: string) {
 export async function confirmEmailChange(codeRaw: string) {
   const user = await getShopUser()
   if (!user) return { success: false, error: 'Не авторизован' }
+
+  // SECURITY: the code is 6 digits with a 15-minute TTL — cap verification
+  // attempts so it cannot be brute-forced (10 tries per 15 minutes).
+  if (isRateLimited('email-change-confirm', user.id, 10, 900_000)) {
+    return { success: false, error: 'Слишком много попыток. Запросите новый код.' }
+  }
 
   if (await isGoogleLinked(user.id)) {
     return { success: false, error: 'Вход выполнен через Google — сменить email нельзя' }
