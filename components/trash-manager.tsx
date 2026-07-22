@@ -198,7 +198,7 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{p.quantity}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {p.deletedAt ? new Date(p.deletedAt).toLocaleDateString("ru-RU") : "—"}
+                    {p.deletedAt ? new Date(p.deletedAt).toLocaleDateString("ru-RU", { timeZone: "Europe/Kyiv" }) : "—"}
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">

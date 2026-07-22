@@ -12,6 +12,7 @@ function formatDate(iso: string, locale: string) {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'Europe/Kyiv',
   })
 }
 
