@@ -83,6 +83,19 @@ if [ ! -f .env ]; then
   gen_secret()   { if command -v openssl &>/dev/null; then openssl rand -base64 32; else head -c 32 /dev/urandom | base64; fi; }
   gen_password() { if command -v openssl &>/dev/null; then openssl rand -hex 16; else head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi; }
 
+  # FTP passive mode needs the server's real public IP, not the domain: most
+  # domains are proxied (Cloudflare etc.), and FTP data connections can't
+  # traverse an HTTP(S) reverse proxy the way the app's own traffic does.
+  # Using DOMAIN here silently breaks FTP for anyone behind such a proxy.
+  FTP_ADDRESS="$(curl -fsS4 --max-time 5 https://api.ipify.org 2>/dev/null || true)"
+  if [ -z "$FTP_ADDRESS" ]; then
+    FTP_ADDRESS="$(curl -fsS4 --max-time 5 https://ifconfig.me 2>/dev/null || true)"
+  fi
+  if [ -z "$FTP_ADDRESS" ]; then
+    FTP_ADDRESS="$DOMAIN"
+    [ -n "$DOMAIN" ] && echo "  ⚠ Не удалось определить публичный IP сервера — FTP_ADDRESS временно указывает на домен ${DOMAIN}. Если домен проксируется (например, через Cloudflare), FTP не будет работать: замените FTP_ADDRESS в .env на реальный IP сервера и перезапустите контейнер ftp."
+  fi
+
   cat > .env <<ENVEOF
 # Сгенерировано автоматически скриптом install.sh
 BETTER_AUTH_URL=${PUBLIC_URL}
@@ -92,7 +105,7 @@ CRON_SECRET=$(gen_secret)
 POSTGRES_PASSWORD=$(gen_password)
 FTP_USER=techno
 FTP_PASSWORD=$(gen_password)
-FTP_ADDRESS=${DOMAIN}
+FTP_ADDRESS=${FTP_ADDRESS}
 DOMAIN=${DOMAIN}
 ENVEOF
   chmod 600 .env
