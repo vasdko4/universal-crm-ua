@@ -21,6 +21,19 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react'],
   },
 
+  // Next's file tracing copies sharp's JS into the standalone output but
+  // misses the native libvips shared library (lib/libvips-cpp.so.*), so image
+  // compression in /api/admin/upload silently fell back to "store original"
+  // on Docker/self-hosted builds. Force-include the whole libvips lib dir for
+  // every platform variant (glibc and musl).
+  outputFileTracingIncludes: {
+    '/api/admin/upload': [
+      './node_modules/.pnpm/@img+sharp-libvips-*/node_modules/@img/**',
+      './node_modules/.pnpm/@img+sharp-linux*/node_modules/@img/**',
+      './node_modules/.pnpm/@img+sharp-linuxmusl*/node_modules/@img/**',
+    ],
+  },
+
   // Long-lived caching for hashed static assets + security headers.
   async headers() {
     return [
