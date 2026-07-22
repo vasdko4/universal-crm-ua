@@ -3,7 +3,15 @@
 import { revalidatePath } from 'next/cache'
 import { and, desc, eq, isNull } from 'drizzle-orm'
 import { db, pool } from '@/lib/db'
-import { categories, importTasks, productCategory, productCharacteristics, products } from '@/lib/db/schema'
+import {
+  categories,
+  importTasks,
+  productCategory,
+  productCharacteristics,
+  productVariants,
+  products,
+} from '@/lib/db/schema'
+import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { assertPermission } from '@/lib/session'
 import {
   fetchListingPage,
@@ -11,6 +19,7 @@ import {
   slugify,
   withPage,
   type PromListItem,
+  type PromVariationItem,
 } from '@/lib/prom-import/scraper'
 
 // Safety cap: a Prom.ua shop can have thousands of listings. Importing that
@@ -55,6 +64,9 @@ async function ensurePromImportColumns() {
   `)
   await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "source_url" text`)
   await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "state" jsonb`)
+  // Stable Prom.ua listing id used to match products on re-import even when
+  // the source page has no SKU (see the promId comment in lib/db/schema.ts).
+  await pool.query(`ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "prom_id" integer`)
   columnsReady = true
 }
 
@@ -163,6 +175,70 @@ async function ensureCategoryPath(
   return leafId
 }
 
+// Ukrainian/Russian attribute names that mean this choice axis is a color
+// swatch rather than plain text (e.g. size), matching the admin editor's
+// ProductOption.type so imported products get the same swatch UI.
+const COLOR_AXIS_NAMES = ['колір', 'цвет', 'color']
+
+type BuiltVariant = { options: VariantOptions; isInStock: boolean; sortOrder: number }
+
+/**
+ * Turns a product's size/color siblings (from ProductVariationQuery, each a
+ * separate Prom.ua product id with its own stock) into this store's
+ * options/variants shape. Returns empty arrays when there's nothing to
+ * choose (most products), so the storefront falls back to the plain
+ * single-price/stock display instead of an empty selector.
+ */
+function buildVariants(
+  fetchedPromId: number,
+  fetchedInStock: boolean,
+  fetchedAttributesUk: { group: string; name: string; value: string }[],
+  siblings: PromVariationItem[],
+): { options: ProductOption[]; variants: BuiltVariant[]; anyInStock: boolean } {
+  if (siblings.length === 0) return { options: [], variants: [], anyInStock: fetchedInStock }
+
+  // Siblings only carry the choice axis (e.g. size) that actually varies
+  // between them (color etc. stays out since it's identical across sizes).
+  const axisNames = Array.from(new Set(siblings.flatMap((v) => v.attributes.map((a) => a.name))))
+  if (axisNames.length === 0) return { options: [], variants: [], anyInStock: fetchedInStock }
+
+  // The scraped page is itself one choice in the group but doesn't repeat
+  // its own axis value in `siblings` — it's on the page's own attribute
+  // list instead (e.g. "Міжнародний розмір: XL" alongside "Колір: Зелений").
+  const selfAttributes = axisNames
+    .map((name) => {
+      const found = fetchedAttributesUk.find((a) => a.name === name)
+      return found ? { name, value: found.value } : null
+    })
+    .filter((a): a is { name: string; value: string } => a !== null)
+  const all = [{ promId: fetchedPromId, inStock: fetchedInStock, attributes: selfAttributes }, ...siblings]
+
+  const valuesByAxis = new Map<string, string[]>()
+  for (const v of all) {
+    for (const a of v.attributes) {
+      const list = valuesByAxis.get(a.name) ?? []
+      if (!list.includes(a.value)) list.push(a.value)
+      valuesByAxis.set(a.name, list)
+    }
+  }
+
+  const options: ProductOption[] = axisNames.map((name) => ({
+    name,
+    type: COLOR_AXIS_NAMES.some((c) => name.toLowerCase().includes(c)) ? 'color' : 'text',
+    values: valuesByAxis.get(name) ?? [],
+  }))
+
+  const variants: BuiltVariant[] = all
+    .filter((v) => v.attributes.length > 0)
+    .map((v, i) => ({
+      options: Object.fromEntries(v.attributes.map((a) => [a.name, a.value])),
+      isInStock: v.inStock,
+      sortOrder: i,
+    }))
+
+  return { options, variants, anyInStock: all.some((v) => v.inStock) }
+}
+
 /** Processes the next small batch of a Prom.ua import job. Call repeatedly until `done: true`. */
 export async function continuePromImport(taskId: number) {
   await assertPermission('import')
@@ -199,13 +275,33 @@ export async function continuePromImport(taskId: number) {
         : null
 
       const sku = p.sku?.trim() || null
-      const existing: { id: number }[] = sku
-        ? await db
-            .select({ id: products.id })
-            .from(products)
-            .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
-            .limit(1)
-        : []
+      // Prom.ua listing pages don't always show a SKU, so matching on SKU
+      // alone missed products that had none — every re-import silently
+      // inserted a fresh duplicate for them instead of updating the
+      // existing row. item.id (the numeric id in the Prom.ua product URL)
+      // is always present, so it's tried first and is the reliable key;
+      // SKU is kept as a fallback for rows imported before this field
+      // existed.
+      const existing: { id: number }[] = await db
+        .select({ id: products.id })
+        .from(products)
+        .where(and(eq(products.promId, item.id), isNull(products.deletedAt)))
+        .limit(1)
+      if (existing.length === 0 && sku) {
+        const bySku = await db
+          .select({ id: products.id })
+          .from(products)
+          .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
+          .limit(1)
+        existing.push(...bySku)
+      }
+
+      // A product with a size/color choice is only "out of stock" if every
+      // choice is — otherwise it showed as unavailable just because the one
+      // size/color Prom.ua happened to serve us was sold out (see the
+      // buildVariants comment).
+      const { options, variants, anyInStock } = buildVariants(item.id, p.inStock, p.attributesUk, p.variationItems)
+      const isInStock = anyInStock
 
       const values = {
         nameUk: p.nameUk || null,
@@ -213,26 +309,43 @@ export async function continuePromImport(taskId: number) {
         descriptionUk: p.descriptionUk || null,
         descriptionRu: p.descriptionRu || null,
         sku,
+        promId: item.id,
         price: String(p.price ?? 0),
         oldPrice: p.oldPrice != null ? String(p.oldPrice) : null,
         currency: 'UAH',
-        quantity: p.inStock ? 100 : 0,
-        stockStatus: p.inStock ? 'В наличии' : 'Нет в наличии',
-        isInStock: p.inStock,
+        quantity: isInStock ? 100 : 0,
+        stockStatus: isInStock ? 'В наличии' : 'Нет в наличии',
+        isInStock,
         image: p.images[0] || null,
         images: p.images,
+        options,
       }
 
       let productId: number
       if (existing.length > 0) {
         await db.update(products).set(values).where(eq(products.id, existing[0].id))
         productId = existing[0].id
-        // Re-imports refresh characteristics from the source rather than
-        // appending duplicates.
+        // Re-imports refresh characteristics/variants from the source
+        // rather than appending duplicates.
         await db.delete(productCharacteristics).where(eq(productCharacteristics.productId, productId))
+        await db.delete(productVariants).where(eq(productVariants.productId, productId))
       } else {
         const insertedRows: { id: number }[] = await db.insert(products).values(values).returning({ id: products.id })
         productId = insertedRows[0].id
+      }
+
+      if (variants.length > 0) {
+        await db.insert(productVariants).values(
+          variants.map((v) => ({
+            productId,
+            options: v.options,
+            price: values.price,
+            oldPrice: values.oldPrice,
+            quantity: v.isInStock ? 100 : 0,
+            isInStock: v.isInStock,
+            sortOrder: v.sortOrder,
+          })),
+        )
       }
 
       if (leafCatId) {

@@ -19,6 +19,15 @@ const USER_AGENT =
 
 export type PromListItem = { id: number; urlText: string }
 
+// One sibling of a size/color choice group, e.g. the "XL" or "Blue" listing
+// of the same shirt — each is a *separate* Prom.ua product id, not an
+// attribute on the page we fetched.
+export type PromVariationItem = {
+  promId: number
+  inStock: boolean
+  attributes: { name: string; value: string }[]
+}
+
 export type PromProduct = {
   promId: number
   nameUk: string
@@ -33,6 +42,9 @@ export type PromProduct = {
   breadcrumbsUk: { alias: string; caption: string }[]
   breadcrumbsRu: { alias: string; caption: string }[]
   attributesUk: { group: string; name: string; value: string }[]
+  // Sibling size/color choices for this product (from ProductVariationQuery),
+  // excluding this product itself. Empty when the product has no variants.
+  variationItems: PromVariationItem[]
 }
 
 /** Fetch a URL as a signed-out browser would, following redirects, with retries. */
@@ -123,6 +135,35 @@ function getProductCard(state: Record<string, unknown>) {
   return key ? fc[key]?.result?.product : null
 }
 
+// Reads the size/color siblings from `window.ApolloCacheState`'s
+// ProductVariationQuery, embedded on every product page that has a choice
+// (e.g. clothing sizes). Each sibling is its own Prom.ua product id with its
+// own `presence.isAvailable` — the base ProductCardPageQuery only reflects
+// stock for the *one* size/color that happened to be fetched, which is why
+// products with a choice looked "out of stock" when just one variant was.
+function getVariationItems(state: Record<string, unknown>): PromVariationItem[] {
+  const fc = fastCache(state)
+  const key = Object.keys(fc).find((k) => k.startsWith('ProductVariationQuery'))
+  const items: any[] = key ? fc[key]?.result?.variationItems ?? [] : []
+  return items
+    .map((it) => {
+      const product = it?.productItem?.product
+      if (!product || typeof product.id !== 'number') return null
+      const attributes = (it.attributes || [])
+        .filter((a: any) => a?.name)
+        .map((a: any) => ({
+          name: a.name as string,
+          value: (a.values || []).map((v: any) => v.value).join(', '),
+        }))
+      return {
+        promId: product.id as number,
+        inStock: product.presence?.isAvailable !== false,
+        attributes,
+      }
+    })
+    .filter((v): v is PromVariationItem => v !== null)
+}
+
 function parseProductCard(p: any) {
   if (!p) return null
   const images: string[] = (p.images || []).filter((im: unknown) => typeof im === 'string' && im)
@@ -162,8 +203,10 @@ export function productPath(item: PromListItem): string {
 export async function fetchProduct(origin: string, item: PromListItem): Promise<PromProduct | null> {
   const urlUk = `${origin}${productPath(item)}`
   const fetchedUk = await fetchHtml(urlUk)
-  const pUk = fetchedUk ? parseProductCard(getProductCard(extractApolloState(fetchedUk.html) ?? {})) : null
+  const stateUk = fetchedUk ? extractApolloState(fetchedUk.html) : null
+  const pUk = stateUk ? parseProductCard(getProductCard(stateUk)) : null
   if (!pUk) return null
+  const variationItems = stateUk ? getVariationItems(stateUk).filter((v) => v.promId !== pUk.promId) : []
 
   const urlRu = `${origin}${productPath(item).replace(/^\/ua/, '')}`
   const fetchedRu = await fetchHtml(urlRu, 'ru,uk;q=0.8')
@@ -183,6 +226,7 @@ export async function fetchProduct(origin: string, item: PromListItem): Promise<
     breadcrumbsUk: pUk.breadcrumbs,
     breadcrumbsRu: pRu?.breadcrumbs || pUk.breadcrumbs,
     attributesUk: pUk.attributes,
+    variationItems,
   }
 }
 
