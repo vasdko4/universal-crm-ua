@@ -3,10 +3,11 @@
 import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Upload, FileSpreadsheet, FileCode, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { Upload, FileSpreadsheet, FileCode, CheckCircle2, XCircle, Loader2, Link2, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -16,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { runImport, type ImportRow } from "@/app/actions/import"
+import { startPromImport, continuePromImport } from "@/app/actions/prom-import"
 
 type ImportTask = {
   id: number
@@ -139,7 +141,140 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   pending: { label: "Ожидание", variant: "outline" },
 }
 
-export function ImportManager({ tasks }: { tasks: ImportTask[] }) {
+/**
+ * Import an entire Prom.ua shop by URL: scrapes every product (photos,
+ * descriptions, categories, characteristics) straight from the public
+ * storefront pages, no API key needed. Runs as small polled batches
+ * (continuePromImport) instead of one long request, so it can't hit a
+ * serverless function timeout on large catalogs and survives the admin
+ * navigating away — an unfinished job just shows a "Продолжить" button.
+ */
+function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; fileName: string; totalItems: number | null; processedItems: number | null }[] }) {
+  const router = useRouter()
+  const [url, setUrl] = useState("")
+  const [taskId, setTaskId] = useState<number | null>(null)
+  const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null)
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const cancelledRef = useRef(false)
+
+  async function runLoop(id: number) {
+    cancelledRef.current = false
+    setRunning(true)
+    setTaskId(id)
+    try {
+      let done = false
+      while (!done && !cancelledRef.current) {
+        const res = await continuePromImport(id)
+        if (!res.success) {
+          toast.error(res.error || "Ошибка импорта")
+          break
+        }
+        done = res.done
+        setProgress({ processed: res.processed, total: res.total })
+      }
+      if (done && !cancelledRef.current) {
+        toast.success("Импорт с Prom.ua завершён")
+        router.refresh()
+      }
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  async function handleStart() {
+    setError(null)
+    if (!url.trim()) return
+    setRunning(true)
+    try {
+      const res = await startPromImport(url.trim())
+      if (!res.success) {
+        setError(res.error)
+        setRunning(false)
+        return
+      }
+      setProgress({ processed: 0, total: res.total })
+      toast.message(
+        res.capped
+          ? `Найдено ${res.shopTotal} товаров, будут импортированы первые ${res.total}`
+          : `Найдено ${res.total} товаров, начинаю импорт`,
+      )
+      await runLoop(res.taskId)
+    } catch {
+      setError("Не удалось начать импорт")
+      setRunning(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Импорт с Prom.ua</CardTitle>
+        <CardDescription>
+          Вставьте ссылку на страницу магазина на Prom.ua — все товары, фото, описания и категории
+          будут импортированы в ваш каталог. Товары с уже существующим артикулом обновятся, а не
+          задублируются.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://prom.ua/c4207182-powerfox.html"
+            disabled={running}
+            className="max-w-md"
+          />
+          <Button onClick={handleStart} disabled={running || !url.trim()}>
+            {running ? <Loader2 className="size-4 animate-spin" /> : <Link2 className="size-4" />}
+            Начать импорт
+          </Button>
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {progress && (
+          <div className="flex flex-col gap-1.5">
+            <div className="h-2 w-full max-w-md overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${progress.total > 0 ? Math.min(100, (progress.processed / progress.total) * 100) : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {progress.processed} из {progress.total} товаров{running ? " — идёт импорт, не закрывайте страницу" : taskId ? " — готово" : ""}
+            </p>
+          </div>
+        )}
+        {resumableTasks.length > 0 && !running && (
+          <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+            <p className="text-xs font-medium text-muted-foreground">Незавершённые импорты с Prom.ua</p>
+            {resumableTasks.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate">{t.fileName}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {t.processedItems ?? 0}/{t.totalItems ?? 0}
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => runLoop(t.id)}>
+                    <Play className="size-3.5" />
+                    Продолжить
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+export function ImportManager({
+  tasks,
+  resumablePromTasks = [],
+}: {
+  tasks: ImportTask[]
+  resumablePromTasks?: { id: number; fileName: string; totalItems: number | null; processedItems: number | null }[]
+}) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<{ fileName: string; type: "csv" | "xml"; rows: ImportRow[] } | null>(null)
@@ -264,6 +399,8 @@ export function ImportManager({ tasks }: { tasks: ImportTask[] }) {
           )}
         </CardContent>
       </Card>
+
+      <PromImportCard resumableTasks={resumablePromTasks} />
 
       <Card>
         <CardHeader>

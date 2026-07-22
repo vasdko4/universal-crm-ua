@@ -165,6 +165,12 @@ export const importTasks = pgTable('import_tasks', {
   completedAt: timestamp('completed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  // Added for sourceType: 'prom' (Prom.ua shop import, app/actions/prom-import.ts).
+  // Nullable/self-healed via ALTER TABLE IF NOT EXISTS so older installs don't
+  // need a manual migration — see ensurePromImportColumns() there.
+  sourceUrl: text('source_url'),
+  // Resumable job state for a Prom.ua import: { shopUrl, origin, pending, capped }.
+  state: jsonb('state'),
 })
 
 export const productCharacteristics = pgTable('product_characteristics', {
