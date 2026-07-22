@@ -588,13 +588,18 @@ export function CheckoutFlow({
             { step: 2, icon: Truck, label: t.delivery },
             { step: 3, icon: CreditCard, label: t.payment },
           ].map((s, i, arr) => {
-            // Step is "done" if its required fields are filled, "active" otherwise
-            const done =
-              s.step === 1
-                ? !!firstName.trim() && !!lastName.trim() && phone.replace(/\D/g, '').length >= 12
-                : s.step === 2
-                  ? !!delivery && (isNova ? !!city && !!branchQuery.trim() : isUkr ? !!upCity.trim() && !!upIndex.trim() : true)
-                  : !!payment
+            // A step is "done" only when its own fields are filled AND every
+            // previous step is done. Delivery/payment have preselected
+            // defaults, so without the sequential gate step 3 showed a
+            // checkmark before the visitor had entered anything at all.
+            const step1Done =
+              !!firstName.trim() && !!lastName.trim() && phone.replace(/\D/g, '').length >= 12
+            const step2Done =
+              step1Done &&
+              !!delivery &&
+              (isNova ? !!city && !!branchQuery.trim() : isUkr ? !!upCity.trim() && !!upIndex.trim() : true)
+            const step3Done = step2Done && !!payment
+            const done = s.step === 1 ? step1Done : s.step === 2 ? step2Done : step3Done
             return (
               <div key={s.step} className="flex flex-1 items-center">
                 <div className="flex items-center gap-2">
