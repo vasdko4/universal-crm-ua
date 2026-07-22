@@ -137,7 +137,7 @@ async function ensureCategoryPath(
     // Match by name within the same parent (categories has no unique
     // constraint on name/slug, so we look it up manually to avoid creating
     // duplicate categories on every re-import).
-    const match = await db
+    const match: { id: number }[] = await db
       .select({ id: categories.id })
       .from(categories)
       .where(
@@ -152,11 +152,11 @@ async function ensureCategoryPath(
       leafId = match[0].id
     } else {
       const slug = slugify(breadcrumbsUk[i].alias || nameUk) || `cat-${Date.now()}-${i}`
-      const [inserted] = await db
+      const insertedRows: { id: number }[] = await db
         .insert(categories)
         .values({ nameUk, nameRu, slug, parentId, isVisible: true })
         .returning({ id: categories.id })
-      leafId = inserted.id
+      leafId = insertedRows[0].id
     }
     parentId = leafId
   }
@@ -199,7 +199,7 @@ export async function continuePromImport(taskId: number) {
         : null
 
       const sku = p.sku?.trim() || null
-      const existing = sku
+      const existing: { id: number }[] = sku
         ? await db
             .select({ id: products.id })
             .from(products)
@@ -231,12 +231,12 @@ export async function continuePromImport(taskId: number) {
         // appending duplicates.
         await db.delete(productCharacteristics).where(eq(productCharacteristics.productId, productId))
       } else {
-        const [inserted] = await db.insert(products).values(values).returning({ id: products.id })
-        productId = inserted.id
+        const insertedRows: { id: number }[] = await db.insert(products).values(values).returning({ id: products.id })
+        productId = insertedRows[0].id
       }
 
       if (leafCatId) {
-        const linked = await db
+        const linked: { id: number }[] = await db
           .select({ id: productCategory.id })
           .from(productCategory)
           .where(and(eq(productCategory.productId, productId), eq(productCategory.categoryId, leafCatId)))
