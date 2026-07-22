@@ -21,7 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/insta
 
 1. **Проверит Docker** — если его нет, предложит установить автоматически;
 2. **Спросит домен** (например `shop.example.com`; Enter — пропустить, магазин будет доступен по `http://IP-сервера:3000`);
-3. **Сгенерирует секреты** — пароль базы данных, FTP-логин/пароль, ключи авторизации (файл `.env` в `~/techno-store`);
+3. **Сгенерирует секреты** — пароль базы данных, FTP-логин/пароль, ключи авторизации (файл `.env` в `~/magazine`);
 4. **Скачает готовый образ** `jastindle/magazineuakraine` с Docker Hub — без исходников и без сборки;
 5. **Запустит всё**: PostgreSQL, магазин, FTP-доступ к фото товаров и — если указан домен — встроенный HTTPS-прокси Caddy, который **сам получает и продлевает SSL-сертификат Let's Encrypt** (nginx и certbot не нужны).
 
@@ -46,7 +46,7 @@ systemctl enable --now docker
 ### Обновление до новой версии
 
 ```bash
-cd ~/techno-store && docker compose pull && docker compose up -d
+cd ~/magazine && docker compose pull && docker compose up -d
 ```
 
 Данные (база, загрузки, сертификаты) при обновлении сохраняются — они лежат в Docker-томах.
@@ -56,7 +56,7 @@ cd ~/techno-store && docker compose pull && docker compose up -d
 Хотите посмотреть магазин с товарами, категориями и тестовыми заказами? До первого захода на сайт выполните:
 
 ```bash
-cd ~/techno-store && docker compose exec app node scripts/db-setup.mjs --seed
+cd ~/magazine && docker compose exec app node scripts/db-setup.mjs --seed
 ```
 
 Демо-администратор: `admin@techno.store / Admin12345` (смените пароль после входа).
@@ -93,18 +93,18 @@ Next.js 16 (App Router) · PostgreSQL 16 · Better Auth · Tailwind CSS + Radix 
 
 | Что | Где |
 |---|---|
-| Файлы установки и пароли | `~/techno-store` (`.env` — не удаляйте) |
-| База данных | Docker-том `techno_store_pgdata` |
-| Фото товаров и загрузки | Docker-том `techno_store_uploads` (доступен по FTP) |
-| SSL-сертификаты | Docker-том `techno_store_caddy_data` |
+| Файлы установки и пароли | `~/magazine` (`.env` — не удаляйте) |
+| База данных | Docker-том `magazine_pgdata` |
+| Фото товаров и загрузки | Docker-том `magazine_uploads` (доступен по FTP) |
+| SSL-сертификаты | Docker-том `magazine_caddy_data` |
 
-Полезные команды (выполнять из `~/techno-store`):
+Полезные команды (выполнять из `~/magazine`):
 
 ```bash
 docker compose logs -f app      # логи приложения
 docker compose restart app      # перезапуск
 docker compose down             # остановить
-docker compose exec db pg_dump -U techno techno_store > backup.sql   # бэкап БД
+docker compose exec db pg_dump -U techno magazine > backup.sql   # бэкап БД
 ```
 
 ---
