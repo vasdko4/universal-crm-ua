@@ -90,12 +90,24 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
 
 export async function updateStoreSettings(data: Partial<StoreSettingsData>) {
   const user = await assertPermission('settings')
+  // The settings UI keeps one big object in state and always submits it in
+  // full on save, so `Object.keys(data)` lists every field regardless of
+  // what the admin actually touched. Diff against the current row first so
+  // the audit log only names fields whose value really changed.
+  const before = await getStoreSettingsInternal()
+  const changedKeys = Object.keys(data).filter((key) => {
+    const k = key as keyof StoreSettingsData
+    return JSON.stringify(before[k]) !== JSON.stringify(data[k])
+  })
   const result = await writeStoreSettings(data)
   const { auditLog } = await import('@/lib/audit-log')
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'settings', entity: 'settings',
-    details: `Обновлены настройки: ${Object.keys(data).join(', ')}`,
+    details:
+      changedKeys.length > 0
+        ? `Обновлены настройки: ${changedKeys.join(', ')}`
+        : 'Настройки сохранены (без изменений)',
   })
   return result
 }

@@ -110,6 +110,22 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
+      {/*
+        Decoy username/password pair. Chrome/Firefox/password managers pattern-match
+        "a text field followed by a password field" as a login form and silently
+        autofill it with the admin's own saved site credentials — which is exactly
+        what happened to the Google OAuth Client ID/Secret and SMTP login/password
+        fields below, despite them having autoComplete="off". Giving the browser a
+        decoy pair to latch onto first stops it from touching the real fields.
+      */}
+      <div
+        style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}
+        aria-hidden="true"
+      >
+        <input type="text" name="username" autoComplete="username" tabIndex={-1} readOnly />
+        <input type="password" name="password" autoComplete="current-password" tabIndex={-1} readOnly />
+      </div>
+
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Настройки</h1>
@@ -945,12 +961,27 @@ function EmailSection({ data, setData }: SectionProps) {
         </div>
         <div className="flex flex-col gap-2">
           <Label>SMTP логин</Label>
-          <Input value={e.smtpUser} onChange={(ev) => set({ smtpUser: ev.target.value })} />
+          <Input
+            name="smtp-username"
+            autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
+            value={e.smtpUser}
+            onChange={(ev) => set({ smtpUser: ev.target.value })}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label>SMTP пароль</Label>
           <Input
             type="password"
+            name="smtp-password"
+            autoComplete="new-password"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
             value={e.smtpPassword}
             onChange={(ev) => set({ smtpPassword: ev.target.value })}
           />
@@ -982,6 +1013,12 @@ function EmailSection({ data, setData }: SectionProps) {
             <Label>DKIM приватный ключ (PEM)</Label>
             <Input
               type="password"
+              name="dkim-private-key"
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
+              data-bwignore
+              data-form-type="other"
               placeholder="-----BEGIN PRIVATE KEY-----"
               value={e.dkimPrivateKey}
               onChange={(ev) => set({ dkimPrivateKey: ev.target.value })}
@@ -1103,6 +1140,12 @@ function NotificationsSection({ data, setData }: SectionProps) {
               <Label>Токен бота</Label>
               <Input
                 type="password"
+                name="telegram-bot-token"
+                autoComplete="new-password"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
+                data-form-type="other"
                 value={n.telegramBotToken}
                 placeholder="123456789:AAF..."
                 onChange={(ev) => set({ telegramBotToken: ev.target.value })}
@@ -1284,9 +1327,14 @@ function GoogleAuthSection({ data, setData }: SectionProps) {
         <Label htmlFor="ga-client-id">Client ID</Label>
         <Input
           id="ga-client-id"
+          name="google-oauth-client-id"
           value={g.clientId}
           placeholder="1234567890-xxxxxxxx.apps.googleusercontent.com"
           autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
+          data-form-type="other"
           onChange={(e) => set({ clientId: e.target.value })}
         />
       </div>
@@ -1296,10 +1344,15 @@ function GoogleAuthSection({ data, setData }: SectionProps) {
         <div className="flex items-center gap-2">
           <Input
             id="ga-client-secret"
+            name="google-oauth-client-secret"
             type={showSecret ? 'text' : 'password'}
             value={g.clientSecret}
             placeholder="GOCSPX-..."
-            autoComplete="off"
+            autoComplete="new-password"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
             onChange={(e) => set({ clientSecret: e.target.value })}
           />
           <Button
