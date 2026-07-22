@@ -33,6 +33,14 @@ const nextConfig = {
       './node_modules/.pnpm/@img+sharp-linuxmusl*/node_modules/@img/**',
     ],
   },
+  // The runtime-uploads route reads public/uploads with fs at request time.
+  // Turbopack's tracing saw the dynamic path and traced the WHOLE project
+  // into that route's output ("Encountered unexpected file in NFT list"),
+  // which blew up the Vercel deployment (patch_build_4xx). Those files are
+  // runtime data on a Docker volume — nothing needs to be traced for them.
+  outputFileTracingExcludes: {
+    '/uploads/[...path]': ['./public/**', './node_modules/**'],
+  },
 
   // Long-lived caching for hashed static assets + security headers.
   async headers() {
