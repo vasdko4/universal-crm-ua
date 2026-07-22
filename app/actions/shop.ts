@@ -29,6 +29,13 @@ import { applyOrderFulfillment, finalizePaidOrder } from '@/lib/shop/order-fulfi
 import { notifyNewOrder } from '@/lib/notifications'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { isRateLimited } from '@/lib/api/rate-limit'
+import { validateCheckoutInput } from '@/lib/shop/checkout-validation'
+
+/** Client IP for server actions (no Request object available — use headers). */
+async function actionClientIp(): Promise<string> {
+  const h = await headers()
+  return h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+}
 
 function variantLabel(options: VariantOptions): string {
   return Object.entries(options)
@@ -108,10 +115,23 @@ export type CheckoutResult =
 // client prices), decrements inventory, links the customer + account, records
 // history, and prepares payment info depending on the chosen method.
 export async function createStorefrontOrder(input: CheckoutInput): Promise<CheckoutResult> {
-  if (!input.items?.length) return { success: false, error: 'Корзина пуста' }
-  if (!input.firstName?.trim() || !input.phone?.trim()) {
-    return { success: false, error: 'Укажите имя и телефон' }
+  // SECURITY: public, unauthenticated server action — rate-limit per IP to
+  // stop order-spam floods (every order writes DB rows, upserts a customer and
+  // fires admin/customer notifications). Two buckets: burst + sustained.
+  const ip = await actionClientIp()
+  if (isRateLimited('checkout', ip, 5) || isRateLimited('checkout-hourly', ip, 30, 3_600_000)) {
+    return { success: false, error: 'Слишком много заказов подряд. Попробуйте позже.' }
   }
+
+  // Strict validation of hostile input: caps every string, requires a
+  // plausible phone/email, rejects NaN / non-integer / oversized quantities
+  // (NaN used to slip past the stock check: `p.quantity < NaN` is false) and
+  // caps the number of cart lines. See lib/shop/checkout-validation.ts.
+  const validated = validateCheckoutInput(input)
+  if (!validated.ok) return { success: false, error: validated.error }
+  // Sanitized values are already trimmed/capped; null vs undefined is
+  // equivalent for every downstream `?.` / `||` use in this function.
+  input = validated.value as unknown as CheckoutInput
 
   // Load real products to compute authoritative prices and check availability.
   const ids = input.items.map((i) => i.productId)
@@ -553,6 +573,11 @@ export async function getOrderByNumber(orderNumber: string) {
 export async function checkOrderPaymentStatus(
   orderNumber: string,
 ): Promise<{ ok: boolean; status: string; message?: string }> {
+  // Public action that triggers outbound gateway API calls — rate-limit so it
+  // cannot be scripted to hammer WayForPay/Monobank with our credentials.
+  if (isRateLimited('payment-status', await actionClientIp(), 10)) {
+    return { ok: false, status: 'unknown', message: 'Слишком много запросов, попробуйте позже' }
+  }
   const [payment] = await db
     .select()
     .from(payments)
