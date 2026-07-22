@@ -5,6 +5,8 @@ import { getAuth } from '@/lib/auth'
 import { db, pool } from '@/lib/db'
 import { roles } from '@/lib/db/schema'
 import { hasPermission, type PermissionKey } from '@/lib/permissions'
+import type { Locale } from '@/lib/i18n/config'
+import { isLocale } from '@/lib/i18n/config'
 
 export type AdminUser = {
   id: string
@@ -13,6 +15,7 @@ export type AdminUser = {
   role: string
   isActive: boolean
   permissions: string[]
+  locale: Locale
 }
 
 export async function getAdminUser(): Promise<AdminUser | null> {
@@ -36,6 +39,26 @@ export async function getAdminUser(): Promise<AdminUser | null> {
   const [roleRow] = await db.select().from(roles).where(eq(roles.code, roleCode)).limit(1)
   const permissions = (roleRow?.permissions as string[]) ?? []
 
+  // Read the admin's chosen interface language straight from the DB rather
+  // than trusting the Better Auth session payload: it's not refreshed after
+  // the language switcher updates it, so a stale session would keep showing
+  // the old language until the next sign-in. Same pattern as getShopUser().
+  let locale: Locale = 'ru'
+  try {
+    const { rows } = await pool.query<{ locale: string | null }>(
+      'SELECT locale FROM "user" WHERE id = $1',
+      [u.id],
+    )
+    const raw = rows[0]?.locale
+    // Admin default is 'ru' (the historical, only-language behavior), unlike
+    // the storefront default 'uk' — so this deliberately doesn't reuse the
+    // shop's normalizeLocale(), which falls back to 'uk'.
+    if (isLocale(raw)) locale = raw
+  } catch {
+    // Column may not exist yet on an un-migrated DB — fall back to 'ru'
+    // (the historical, only-language behavior).
+  }
+
   return {
     id: u.id,
     name: u.name,
@@ -43,6 +66,7 @@ export async function getAdminUser(): Promise<AdminUser | null> {
     role: roleCode,
     isActive: true,
     permissions,
+    locale,
   }
 }
 
