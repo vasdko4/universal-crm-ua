@@ -28,6 +28,17 @@ async function ensureImportTable() {
       "updated_at" timestamptz DEFAULT now()
     )
   `)
+  // schema.sql (used on first container boot) predates the Prom.ua import
+  // feature and doesn't create these two columns; ensurePromImportColumns()
+  // in prom-import.ts adds them via ALTER TABLE IF NOT EXISTS, but that only
+  // ran from that file's own functions. On a fresh container start,
+  // /admin/import calls getImportTasks() and getUnfinishedPromImports() in
+  // parallel (Promise.all) — if this file's select ran before the other
+  // file's ALTER committed, it crashed with "column source_url does not
+  // exist" (a one-time startup race, confirmed in production logs). Self-heal
+  // the columns here too so this function no longer depends on that race.
+  await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "source_url" text`)
+  await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "state" jsonb`)
   importTableReady = true
 }
 
