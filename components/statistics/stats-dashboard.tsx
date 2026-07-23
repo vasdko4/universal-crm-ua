@@ -46,20 +46,26 @@ import type {
   WeekdayRow,
   AbandonedCartStats,
 } from '@/app/actions/analytics'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
-const DAY_OPTIONS = [
-  { value: 7, label: '7 дней' },
-  { value: 30, label: '30 дней' },
-  { value: 90, label: '90 дней' },
-]
+function dayOptions(t: AdminDictionary) {
+  return [
+    { value: 7, label: t.statistics.days7 },
+    { value: 30, label: t.statistics.days30 },
+    { value: 90, label: t.statistics.days90 },
+  ]
+}
 
-const STATUS_LABELS: Record<string, string> = {
-  new: 'Новый',
-  processing: 'В обработке',
-  shipped: 'Отправлен',
-  done: 'Выполнен',
-  cancelled: 'Отменён',
-  pending_payment: 'Ждёт оплаты',
+function statusLabels(t: AdminDictionary): Record<string, string> {
+  return {
+    new: t.statistics.statusNew,
+    processing: t.statistics.statusProcessing,
+    shipped: t.statistics.statusShipped,
+    done: t.statistics.statusDone,
+    cancelled: t.statistics.statusCancelled,
+    pending_payment: t.statistics.statusPendingPayment,
+  }
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -71,19 +77,31 @@ const STATUS_COLORS: Record<string, string> = {
   pending_payment: 'var(--color-muted-foreground)',
 }
 
-const METHOD_LABELS: Record<string, string> = {
-  nova_poshta: 'Нова Пошта',
-  ukrposhta: 'Укрпошта',
-  pickup: 'Самовывоз',
-  courier: 'Курьер',
-  cod: 'Наложенный платёж',
-  card: 'Карта онлайн',
-  cash: 'Наличные',
-  bank_transfer: 'Банковский перевод',
-  requisites: 'По реквизитам',
+function methodLabels(t: AdminDictionary): Record<string, string> {
+  return {
+    nova_poshta: t.statistics.methodNovaPoshta,
+    ukrposhta: t.statistics.methodUkrposhta,
+    pickup: t.statistics.methodPickup,
+    courier: t.statistics.methodCourier,
+    cod: t.statistics.methodCod,
+    card: t.statistics.methodCard,
+    cash: t.statistics.methodCash,
+    bank_transfer: t.statistics.methodBankTransfer,
+    requisites: t.statistics.methodRequisites,
+  }
 }
 
-const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+function weekdayLabels(t: AdminDictionary): string[] {
+  return [
+    t.statistics.weekdayMon,
+    t.statistics.weekdayTue,
+    t.statistics.weekdayWed,
+    t.statistics.weekdayThu,
+    t.statistics.weekdayFri,
+    t.statistics.weekdaySat,
+    t.statistics.weekdaySun,
+  ]
+}
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -92,10 +110,6 @@ function formatDate(iso: string) {
 
 function money(n: number) {
   return `${Math.round(n).toLocaleString('ru-RU')} ₴`
-}
-
-function methodLabel(m: string) {
-  return METHOD_LABELS[m] ?? m
 }
 
 function TrendBadge({ value }: { value: number | null }) {
@@ -151,8 +165,16 @@ export function StatsDashboard({
   abandoned: AbandonedCartStats
   days: number
 }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const STATUS_LABELS = statusLabels(t)
+  const METHOD_LABELS = methodLabels(t)
+  const WEEKDAY_LABELS = weekdayLabels(t)
+
+  function methodLabel(m: string) {
+    return METHOD_LABELS[m] ?? m
+  }
 
   function setDays(value: number) {
     const params = new URLSearchParams(searchParams.toString())
@@ -161,11 +183,11 @@ export function StatsDashboard({
   }
 
   const cards = [
-    { label: 'Посетители', value: summary.visitors.toLocaleString('ru-RU'), icon: Users, tone: 'text-primary', trend: summary.trends.visitors },
-    { label: 'Просмотры страниц', value: summary.pageViews.toLocaleString('ru-RU'), icon: Eye, tone: 'text-info', trend: summary.trends.pageViews },
-    { label: 'Просмотры товаров', value: summary.productViews.toLocaleString('ru-RU'), icon: Package, tone: 'text-primary', trend: null },
-    { label: 'В корзину', value: summary.addToCarts.toLocaleString('ru-RU'), icon: ShoppingCart, tone: 'text-warning', trend: null },
-    { label: 'Заказы', value: summary.orders.toLocaleString('ru-RU'), icon: TrendingUp, tone: 'text-success', trend: summary.trends.orders },
+    { label: t.statistics.cardVisitors, value: summary.visitors.toLocaleString('ru-RU'), icon: Users, tone: 'text-primary', trend: summary.trends.visitors },
+    { label: t.statistics.cardPageViews, value: summary.pageViews.toLocaleString('ru-RU'), icon: Eye, tone: 'text-info', trend: summary.trends.pageViews },
+    { label: t.statistics.cardProductViews, value: summary.productViews.toLocaleString('ru-RU'), icon: Package, tone: 'text-primary', trend: null },
+    { label: t.statistics.cardAddToCart, value: summary.addToCarts.toLocaleString('ru-RU'), icon: ShoppingCart, tone: 'text-warning', trend: null },
+    { label: t.statistics.cardOrders, value: summary.orders.toLocaleString('ru-RU'), icon: TrendingUp, tone: 'text-success', trend: summary.trends.orders },
   ]
 
   const maxViews = Math.max(...topPaths.map((p) => p.views), 1)
@@ -176,10 +198,10 @@ export function StatsDashboard({
 
   // Sales funnel steps derived from the summary counters.
   const funnel = [
-    { label: 'Посетители', value: summary.visitors, icon: Users },
-    { label: 'Просмотры товаров', value: summary.productViews, icon: Package },
-    { label: 'Добавили в корзину', value: summary.addToCarts, icon: ShoppingCart },
-    { label: 'Оформили заказ', value: summary.orders, icon: Receipt },
+    { label: t.statistics.funnelVisitors, value: summary.visitors, icon: Users },
+    { label: t.statistics.funnelProductViews, value: summary.productViews, icon: Package },
+    { label: t.statistics.funnelAddToCart, value: summary.addToCarts, icon: ShoppingCart },
+    { label: t.statistics.funnelOrders, value: summary.orders, icon: Receipt },
   ]
   const maxFunnel = Math.max(...funnel.map((f) => f.value), 1)
 
@@ -193,13 +215,11 @@ export function StatsDashboard({
     <div className="flex flex-col">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-5">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground text-balance">Статистика</h1>
-          <p className="text-sm text-muted-foreground">
-            Трафик, продажи, клиенты и эффективность магазина
-          </p>
+          <h1 className="text-2xl font-semibold text-foreground text-balance">{t.statistics.pageTitle}</h1>
+          <p className="text-sm text-muted-foreground">{t.statistics.pageSubtitle}</p>
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
-          {DAY_OPTIONS.map((opt) => (
+          {dayOptions(t).map((opt) => (
             <button
               key={opt.value}
               onClick={() => setDays(opt.value)}
@@ -235,19 +255,19 @@ export function StatsDashboard({
         {/* Money counters */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-sm text-muted-foreground">Выручка за период</p>
+            <p className="text-sm text-muted-foreground">{t.statistics.cardRevenuePeriod}</p>
             <div className="mt-2 flex items-center gap-2">
               <p className="text-2xl font-semibold text-foreground">{money(summary.revenue)}</p>
               <TrendBadge value={summary.trends.revenue} />
             </div>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-sm text-muted-foreground">Закупка (себестоимость)</p>
+            <p className="text-sm text-muted-foreground">{t.statistics.cardCost}</p>
             <p className="mt-2 text-2xl font-semibold text-foreground">{money(summary.costTotal)}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Чистая прибыль</p>
+              <p className="text-sm text-muted-foreground">{t.statistics.cardNetProfit}</p>
               <Wallet className="size-5 text-success" />
             </div>
             <div className="mt-2 flex items-center gap-2">
@@ -255,38 +275,38 @@ export function StatsDashboard({
               <TrendBadge value={summary.trends.profit} />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Маржа: {summary.profitMargin.toFixed(1)}%
+              {t.statistics.marginLabel}: {summary.profitMargin.toFixed(1)}%
             </p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Средний чек</p>
+              <p className="text-sm text-muted-foreground">{t.statistics.cardAvgCheck}</p>
               <Receipt className="size-5 text-primary" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">
               {money(customers.avgOrderValue)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              В среднем {customers.avgItemsPerOrder.toFixed(1)} тов./заказ
+              {t.statistics.avgItemsPerOrderPrefix} {customers.avgItemsPerOrder.toFixed(1)} {t.statistics.avgItemsPerOrderSuffix}
             </p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Брошенные корзины</p>
+              <p className="text-sm text-muted-foreground">{t.statistics.cardAbandonedCarts}</p>
               <ShoppingBag className="size-5 text-warning" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">
               {abandoned.count.toLocaleString('ru-RU')}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Потенциально {money(abandoned.total)}
+              {t.statistics.potentialPrefix} {money(abandoned.total)}
             </p>
           </div>
         </div>
 
         {/* Revenue & profit chart */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">Выручка и прибыль по дням</h2>
+          <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.chartRevenueProfitTitle}</h2>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueSeries} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
@@ -307,11 +327,11 @@ export function StatsDashboard({
                   contentStyle={tooltipStyle}
                   labelFormatter={(l) => formatDate(String(l))}
                   formatter={(value, name) =>
-                    name === 'Заказы' ? [Number(value ?? 0), name] : [money(Number(value ?? 0)), name]
+                    name === t.statistics.seriesOrders ? [Number(value ?? 0), name] : [money(Number(value ?? 0)), name]
                   }
                 />
-                <Area type="monotone" dataKey="revenue" name="Выручка" stroke="var(--color-primary)" fill="url(#rev)" strokeWidth={2} />
-                <Area type="monotone" dataKey="profit" name="Прибыль" stroke="var(--color-success)" fill="url(#prof)" strokeWidth={2} />
+                <Area type="monotone" dataKey="revenue" name={t.statistics.seriesRevenue} stroke="var(--color-primary)" fill="url(#rev)" strokeWidth={2} />
+                <Area type="monotone" dataKey="profit" name={t.statistics.seriesProfit} stroke="var(--color-success)" fill="url(#prof)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -320,7 +340,7 @@ export function StatsDashboard({
         {/* Funnel + order statuses */}
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Воронка продаж</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.funnelTitle}</h2>
             <div className="flex flex-col gap-4">
               {funnel.map((step, i) => {
                 const prevValue = i > 0 ? funnel[i - 1].value : null
@@ -354,14 +374,14 @@ export function StatsDashboard({
                 )
               })}
               <p className="mt-1 text-xs text-muted-foreground">
-                Общая конверсия посетителя в заказ: {summary.conversionRate.toFixed(2)}% · Конверсия
-                корзины: {summary.cartConversion.toFixed(1)}%
+                {t.statistics.conversionOverallPrefix}: {summary.conversionRate.toFixed(2)}% ·{' '}
+                {t.statistics.conversionCartPrefix}: {summary.cartConversion.toFixed(1)}%
               </p>
             </div>
           </div>
 
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Статусы заказов</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.orderStatusesTitle}</h2>
             <div className="flex flex-col items-center gap-4 sm:flex-row">
               <div className="h-48 w-48 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -413,7 +433,7 @@ export function StatsDashboard({
                   </div>
                 ))}
                 {orderStatuses.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Нет заказов за период</p>
+                  <p className="text-sm text-muted-foreground">{t.statistics.noOrdersPeriod}</p>
                 )}
               </div>
             </div>
@@ -423,7 +443,7 @@ export function StatsDashboard({
         {/* Top products + categories */}
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Топ товаров за период</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.topProductsTitle}</h2>
             <div className="flex flex-col gap-3">
               {topProducts.map((p, i) => (
                 <div key={`${p.productId}-${i}`} className="flex items-center gap-3">
@@ -449,19 +469,19 @@ export function StatsDashboard({
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold text-foreground">{money(p.revenue)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {p.unitsSold} шт · прибыль {money(p.profit)}
+                      {p.unitsSold} {t.statistics.unitsSoldSuffix} {money(p.profit)}
                     </p>
                   </div>
                 </div>
               ))}
               {topProducts.length === 0 && (
-                <p className="text-sm text-muted-foreground">Нет продаж за выбранный период</p>
+                <p className="text-sm text-muted-foreground">{t.statistics.noSalesPeriod}</p>
               )}
             </div>
           </div>
 
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Продажи по категориям</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.categorySalesTitle}</h2>
             <div className="flex flex-col gap-3">
               {categorySales.map((c) => (
                 <div key={c.name} className="flex items-center gap-3">
@@ -478,11 +498,11 @@ export function StatsDashboard({
                 </div>
               ))}
               {categorySales.length === 0 && (
-                <p className="text-sm text-muted-foreground">Нет данных за выбранный период</p>
+                <p className="text-sm text-muted-foreground">{t.statistics.noDataPeriod}</p>
               )}
             </div>
 
-            <h2 className="mb-4 mt-8 text-lg font-semibold text-foreground">Заказы по дням недели</h2>
+            <h2 className="mb-4 mt-8 text-lg font-semibold text-foreground">{t.statistics.weekdayOrdersTitle}</h2>
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weekdayData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
@@ -492,10 +512,10 @@ export function StatsDashboard({
                   <Tooltip
                     contentStyle={tooltipStyle}
                     formatter={(value, name) =>
-                      name === 'Выручка' ? [money(Number(value ?? 0)), name] : [Number(value ?? 0), name]
+                      name === t.statistics.seriesRevenue ? [money(Number(value ?? 0)), name] : [Number(value ?? 0), name]
                     }
                   />
-                  <Bar dataKey="orders" name="Заказы" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="orders" name={t.statistics.seriesOrders} fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -505,12 +525,12 @@ export function StatsDashboard({
         {/* Customers + delivery/payment */}
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Клиенты</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.customersTitle}</h2>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-border p-3">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Users className="size-4" />
-                  <span className="text-xs">Уникальных</span>
+                  <span className="text-xs">{t.statistics.uniqueLabel}</span>
                 </div>
                 <p className="mt-1 text-xl font-semibold text-foreground">
                   {customers.uniqueCustomers.toLocaleString('ru-RU')}
@@ -519,7 +539,7 @@ export function StatsDashboard({
               <div className="rounded-lg border border-border p-3">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <UserPlus className="size-4" />
-                  <span className="text-xs">Новых</span>
+                  <span className="text-xs">{t.statistics.newLabel}</span>
                 </div>
                 <p className="mt-1 text-xl font-semibold text-success">
                   {customers.newCustomers.toLocaleString('ru-RU')}
@@ -528,7 +548,7 @@ export function StatsDashboard({
               <div className="col-span-2 rounded-lg border border-border p-3">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Repeat className="size-4" />
-                  <span className="text-xs">Повторные покупатели</span>
+                  <span className="text-xs">{t.statistics.returningLabel}</span>
                 </div>
                 <p className="mt-1 text-xl font-semibold text-primary">
                   {customers.returningCustomers.toLocaleString('ru-RU')}
@@ -536,18 +556,18 @@ export function StatsDashboard({
               </div>
             </div>
 
-            <h3 className="mb-2 mt-5 text-sm font-semibold text-foreground">Топ покупателей</h3>
+            <h3 className="mb-2 mt-5 text-sm font-semibold text-foreground">{t.statistics.topCustomersTitle}</h3>
             <div className="flex flex-col gap-2">
               {customers.topCustomers.map((c, i) => (
                 <div key={`${c.phone}-${i}`} className="flex items-center justify-between gap-2 text-sm">
                   <span className="min-w-0 truncate text-foreground">{c.name}</span>
                   <span className="shrink-0 text-muted-foreground">
-                    {c.orders} зак. · {money(c.total)}
+                    {c.orders} {t.statistics.ordersShortSuffix} · {money(c.total)}
                   </span>
                 </div>
               ))}
               {customers.topCustomers.length === 0 && (
-                <p className="text-sm text-muted-foreground">Нет данных</p>
+                <p className="text-sm text-muted-foreground">{t.statistics.noData}</p>
               )}
             </div>
           </div>
@@ -555,7 +575,7 @@ export function StatsDashboard({
           <div className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
               <Truck className="size-5 text-muted-foreground" />
-              Способы доставки
+              {t.statistics.deliveryMethodsTitle}
             </h2>
             <div className="flex flex-col gap-3">
               {deliveryBreakdown.map((d) => {
@@ -578,7 +598,7 @@ export function StatsDashboard({
                 )
               })}
               {deliveryBreakdown.length === 0 && (
-                <p className="text-sm text-muted-foreground">Нет данных</p>
+                <p className="text-sm text-muted-foreground">{t.statistics.noData}</p>
               )}
             </div>
           </div>
@@ -586,7 +606,7 @@ export function StatsDashboard({
           <div className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
               <CreditCard className="size-5 text-muted-foreground" />
-              Способы оплаты
+              {t.statistics.paymentMethodsTitle}
             </h2>
             <div className="flex flex-col gap-3">
               {paymentBreakdown.map((p) => {
@@ -609,7 +629,7 @@ export function StatsDashboard({
                 )
               })}
               {paymentBreakdown.length === 0 && (
-                <p className="text-sm text-muted-foreground">Нет данных</p>
+                <p className="text-sm text-muted-foreground">{t.statistics.noData}</p>
               )}
             </div>
           </div>
@@ -617,7 +637,7 @@ export function StatsDashboard({
 
         {/* Traffic chart */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">Динамика просмотров и заказов</h2>
+          <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.trafficDynamicsTitle}</h2>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={timeseries} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -643,7 +663,7 @@ export function StatsDashboard({
                 <Area
                   type="monotone"
                   dataKey="pageViews"
-                  name="Просмотры"
+                  name={t.statistics.seriesViews}
                   stroke="var(--color-primary)"
                   fill="url(#views)"
                   strokeWidth={2}
@@ -651,7 +671,7 @@ export function StatsDashboard({
                 <Area
                   type="monotone"
                   dataKey="visitors"
-                  name="Посетители"
+                  name={t.statistics.seriesVisitors}
                   stroke="var(--color-info)"
                   fill="transparent"
                   strokeWidth={2}
@@ -660,7 +680,7 @@ export function StatsDashboard({
                 <Area
                   type="monotone"
                   dataKey="orders"
-                  name="Заказы"
+                  name={t.statistics.seriesOrders}
                   stroke="var(--color-success)"
                   fill="url(#orders)"
                   strokeWidth={2}
@@ -673,7 +693,7 @@ export function StatsDashboard({
         {/* Pages + referrers */}
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Популярные страницы</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.topPagesTitle}</h2>
             <div className="flex flex-col gap-3">
               {topPaths.map((p) => (
                 <div key={p.path} className="flex items-center gap-3">
@@ -690,7 +710,7 @@ export function StatsDashboard({
                 </div>
               ))}
               {topPaths.length === 0 && (
-                <p className="text-sm text-muted-foreground">Нет данных за выбранный период</p>
+                <p className="text-sm text-muted-foreground">{t.statistics.noDataPeriod}</p>
               )}
             </div>
           </div>
@@ -698,7 +718,7 @@ export function StatsDashboard({
           <div className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
               <Globe className="size-5 text-muted-foreground" />
-              Источники трафика
+              {t.statistics.trafficSourcesTitle}
             </h2>
             <div className="flex flex-col gap-3">
               {referrers.map((r) => (
@@ -716,7 +736,7 @@ export function StatsDashboard({
                 </div>
               ))}
               {referrers.length === 0 && (
-                <p className="text-sm text-muted-foreground">Нет данных за выбранный период</p>
+                <p className="text-sm text-muted-foreground">{t.statistics.noDataPeriod}</p>
               )}
             </div>
           </div>

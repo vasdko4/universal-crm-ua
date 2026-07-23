@@ -500,6 +500,309 @@ export type AdminDictionary = {
     updateErrorDesc: string
     updaterNotConfigured: string
   }
+  delivery: {
+    pageTitle: string
+    pageSubtitle: string
+    npDesc: string
+    npApiKeyLabel: string
+    npApiKeyPlaceholder: string
+    npApiKeyHintReal: string
+    npApiKeyHintDemo: string
+    npCheckTitle: string
+    ukrDesc: string
+    ukrToggleLabel: string
+    ukrToggleDesc: string
+    toastUkrEnabled: string
+    toastUkrDisabled: string
+    badgeActive: string
+    badgeRequired: string
+    badgeDisabled: string
+    searchDemoBadge: string
+    searchStep1Label: string
+    searchCityPlaceholder: string
+    searchFindButton: string
+    searchRegionSuffix: string
+    searchStep2LabelPrefix: string
+    searchTabBranch: string
+    searchTabPostomat: string
+    searchWhFilterPlaceholder: string
+    searchLoading: string
+    searchNothingFound: string
+    searchMaxWeightPrefix: string
+    searchMaxWeightSuffix: string
+  }
+  payments: {
+    pageTitle: string
+    pageSubtitle: string
+    tabProcessing: string
+    tabMethods: string
+    tabGateways: string
+    statusCreated: string
+    statusPending: string
+    statusPaid: string
+    statusPartiallyRefunded: string
+    statusRefunded: string
+    statusFailed: string
+    statusExpired: string
+    statTotal: string
+    statPaid: string
+    statRefunded: string
+    statPending: string
+    createButton: string
+    colOrder: string
+    colGateway: string
+    colAmount: string
+    colStatus: string
+    colCustomer: string
+    colDate: string
+    colActions: string
+    emptyPayments: string
+    refundedPrefix: string
+    openPayment: string
+    refreshStatus: string
+    markPaid: string
+    refundAction: string
+    newPaymentTitle: string
+    newPaymentDesc: string
+    noActiveGateways: string
+    gatewayLabel: string
+    gatewaySelectPlaceholder: string
+    currencyLabel: string
+    amountLabel: string
+    descLabel: string
+    descPlaceholder: string
+    customerLabel: string
+    phoneLabel: string
+    emailLabel: string
+    createInvoiceButton: string
+    refundDialogTitle: string
+    refundDialogDescPrefix: string
+    refundDialogAlreadyRefunded: string
+    refundAmountLabel: string
+    refundHintPrefix: string
+    refundHintSuffix: string
+    confirmRefundButton: string
+    toastSelectGateway: string
+    toastInvalidAmount: string
+    toastRefundAmount: string
+    wfpMerchantLoginHint: string
+    wfpSecretKeyHint: string
+    wfpDomainHint: string
+    wfpPasswordHint: string
+    monobankTokenLabel: string
+    monobankTokenHint: string
+    optionalLabel: string
+    copiedToast: string
+    copyFailedToast: string
+    copyAria: string
+    serviceUrlLabel: string
+    approvedUrlLabel: string
+    webhookUrlLabel: string
+    redirectUrlLabel: string
+    urlsSectionTitlePrefix: string
+    urlsHintPrefix: string
+    urlsHintWfpSuffix: string
+    urlsHintMonoSuffix: string
+    urlsHintEnd: string
+    wfpDesc: string
+    monoDesc: string
+    badgeActiveGateway: string
+    badgeDisabledGateway: string
+    badgeTestMode: string
+    toastFillFields: string
+    activeSwitchLabel: string
+    activeSwitchDesc: string
+    testSwitchLabel: string
+    testSwitchDesc: string
+    statusEnabled: string
+    statusDisabledMethod: string
+    availableAtCheckoutLabel: string
+    customerCanChooseDesc: string
+    codHint: string
+    onlineHint: string
+    activeGatewaysPrefix: string
+    noActiveGatewaysHint: string
+    requisitesDesc: string
+    requisitesTypeLabel: string
+    tabCard: string
+    tabRequisites: string
+    cardNumberLabel: string
+    cardHolderLabel: string
+    edrpouLabel: string
+    recipientNameLabel: string
+    ibanLabel: string
+    toastCardFieldsRequired: string
+    toastRequisitesFieldsRequired: string
+    toastMethodEnabledSuffix: string
+    toastMethodDisabledSuffix: string
+  }
+  promotions: {
+    tabAll: string
+    tabActive: string
+    tabInactive: string
+    searchPlaceholder: string
+    emptyTitle: string
+    emptyDesc: string
+    addButton: string
+    pageTitle: string
+    pageSubtitle: string
+    noResults: string
+    deleteDialogTitle: string
+    deleteDialogDesc: string
+    toastActivated: string
+    toastDeactivated: string
+    toastDeleted: string
+    toastCodeCopied: string
+    targetAll: string
+    targetGroups: string
+    targetProducts: string
+    noEndDate: string
+    usedLabel: string
+    totalDiscountLabel: string
+    statusSr: string
+    actionsAria: string
+    copyCodeAction: string
+    formSubtitle: string
+    backAria: string
+    formTitleNew: string
+    saveButtonSaving: string
+    saveButtonDefault: string
+    sectionMainInfo: string
+    typePromoTitle: string
+    typePromoDesc: string
+    typeDiscountTitle: string
+    typeDiscountDesc: string
+    nameLabel: string
+    namePlaceholder: string
+    discountTypeLabel: string
+    discountTypePercent: string
+    discountTypeFixed: string
+    discountValueLabel: string
+    promoCodeLabel: string
+    generateButton: string
+    sectionScope: string
+    scopeAllTitle: string
+    scopeAllDesc: string
+    scopeGroupsTitle: string
+    scopeGroupsDesc: string
+    scopeProductsTitle: string
+    scopeProductsDesc: string
+    noGroups: string
+    noProducts: string
+    sectionLimits: string
+    limitUsageTitle: string
+    limitUsagePlaceholder: string
+    limitMinOrderTitle: string
+    limitMinOrderPlaceholder: string
+    noStackingTitle: string
+    excludeWholesaleTitle: string
+    sectionDates: string
+    startDateLabel: string
+    endDateLabel: string
+    setEndDateLabel: string
+    sectionSummary: string
+    summaryTypeLabel: string
+    summaryTypePromo: string
+    summaryTypeDiscount: string
+    summaryNameLabel: string
+    summaryDiscountLabel: string
+    summaryPromoCodeLabel: string
+    summaryScopeLabel: string
+    summaryGroupsPrefix: string
+    summaryProductsPrefix: string
+    summaryLimitsLabel: string
+    summaryLimitUsagePrefix: string
+    summaryLimitMinOrderPrefix: string
+    summaryNoStacking: string
+    summaryExcludeWholesale: string
+    summaryNone: string
+    summaryDatesLabel: string
+    summaryFromNoEnd: string
+    sectionUsageStats: string
+    statAppliedCount: string
+    statOrdersTotal: string
+    statDiscountTotal: string
+    statsHint: string
+    toastCreated: string
+    toastCreateError: string
+  }
+  statistics: {
+    days7: string
+    days30: string
+    days90: string
+    statusNew: string
+    statusProcessing: string
+    statusShipped: string
+    statusDone: string
+    statusCancelled: string
+    statusPendingPayment: string
+    methodNovaPoshta: string
+    methodUkrposhta: string
+    methodPickup: string
+    methodCourier: string
+    methodCod: string
+    methodCard: string
+    methodCash: string
+    methodBankTransfer: string
+    methodRequisites: string
+    weekdayMon: string
+    weekdayTue: string
+    weekdayWed: string
+    weekdayThu: string
+    weekdayFri: string
+    weekdaySat: string
+    weekdaySun: string
+    pageTitle: string
+    pageSubtitle: string
+    cardVisitors: string
+    cardPageViews: string
+    cardProductViews: string
+    cardAddToCart: string
+    cardOrders: string
+    cardRevenuePeriod: string
+    cardCost: string
+    cardNetProfit: string
+    marginLabel: string
+    cardAvgCheck: string
+    avgItemsPerOrderPrefix: string
+    avgItemsPerOrderSuffix: string
+    cardAbandonedCarts: string
+    potentialPrefix: string
+    chartRevenueProfitTitle: string
+    seriesRevenue: string
+    seriesProfit: string
+    seriesOrders: string
+    funnelTitle: string
+    funnelVisitors: string
+    funnelProductViews: string
+    funnelAddToCart: string
+    funnelOrders: string
+    conversionOverallPrefix: string
+    conversionCartPrefix: string
+    orderStatusesTitle: string
+    noOrdersPeriod: string
+    topProductsTitle: string
+    unitsSoldSuffix: string
+    profitSuffix: string
+    noSalesPeriod: string
+    categorySalesTitle: string
+    noDataPeriod: string
+    weekdayOrdersTitle: string
+    customersTitle: string
+    uniqueLabel: string
+    newLabel: string
+    returningLabel: string
+    topCustomersTitle: string
+    ordersShortSuffix: string
+    noData: string
+    deliveryMethodsTitle: string
+    paymentMethodsTitle: string
+    trafficDynamicsTitle: string
+    seriesViews: string
+    seriesVisitors: string
+    topPagesTitle: string
+    trafficSourcesTitle: string
+  }
 }
 
 const uk: AdminDictionary = {
@@ -1041,6 +1344,309 @@ const uk: AdminDictionary = {
     updateErrorDesc: 'Спробуйте ще раз або оновіть вручну на сервері.',
     updaterNotConfigured: 'Автооновлення не налаштоване на цьому сервері. Зверніться до Viktor або оновіть вручну.',
   },
+  delivery: {
+    pageTitle: 'Методи доставки',
+    pageSubtitle: 'Налаштування служб доставки для інтернет-магазину',
+    npDesc: 'Пошук відділень і поштоматів через API',
+    npApiKeyLabel: 'API-ключ Нова Пошта',
+    npApiKeyPlaceholder: 'Введіть ключ з особистого кабінету',
+    npApiKeyHintReal: 'Пошук виконується через реальний API Нова Пошта.',
+    npApiKeyHintDemo: 'Без ключа доступний демо-режим із прикладами відділень.',
+    npCheckTitle: 'Перевірка отримання: відділення і поштомати',
+    ukrDesc: 'Доставка поштовими відділеннями Укрпошти',
+    ukrToggleLabel: 'Доставка Укрпоштою',
+    ukrToggleDesc: 'Клієнти зможуть обрати доставку Укрпоштою під час оформлення',
+    toastUkrEnabled: 'Укрпошту увімкнено',
+    toastUkrDisabled: 'Укрпошту вимкнено',
+    badgeActive: 'Активна',
+    badgeRequired: 'Обов\'язкова',
+    badgeDisabled: 'Вимкнена',
+    searchDemoBadge: 'Демо-режим (вкажіть API-ключ для реальних даних)',
+    searchStep1Label: '1. Місто отримання',
+    searchCityPlaceholder: 'Почніть вводити місто, наприклад Київ',
+    searchFindButton: 'Знайти',
+    searchRegionSuffix: 'обл.',
+    searchStep2LabelPrefix: '2. Пункт видачі в місті',
+    searchTabBranch: 'Відділення',
+    searchTabPostomat: 'Поштомати',
+    searchWhFilterPlaceholder: 'Фільтр за номером або адресою',
+    searchLoading: 'Завантаження...',
+    searchNothingFound: 'Нічого не знайдено',
+    searchMaxWeightPrefix: 'до',
+    searchMaxWeightSuffix: 'кг',
+  },
+  payments: {
+    pageTitle: 'Платежі',
+    pageSubtitle: 'Приймання оплат і повернення коштів через WayForPay і Monobank',
+    tabProcessing: 'Обробка',
+    tabMethods: 'Способи оплати',
+    tabGateways: 'Шлюзи',
+    statusCreated: 'Створено',
+    statusPending: 'Очікує оплати',
+    statusPaid: 'Оплачено',
+    statusPartiallyRefunded: 'Часткове повернення',
+    statusRefunded: 'Повернуто',
+    statusFailed: 'Помилка',
+    statusExpired: 'Прострочено',
+    statTotal: 'Усього платежів',
+    statPaid: 'Оплачено',
+    statRefunded: 'Повернуто',
+    statPending: 'В очікуванні',
+    createButton: 'Створити платіж',
+    colOrder: 'Замовлення',
+    colGateway: 'Шлюз',
+    colAmount: 'Сума',
+    colStatus: 'Статус',
+    colCustomer: 'Клієнт',
+    colDate: 'Дата',
+    colActions: 'Дії',
+    emptyPayments: 'Платежів поки немає',
+    refundedPrefix: 'повернення',
+    openPayment: 'Відкрити оплату',
+    refreshStatus: 'Оновити статус',
+    markPaid: 'Позначити оплаченим',
+    refundAction: 'Повернення коштів',
+    newPaymentTitle: 'Новий платіж',
+    newPaymentDesc: 'Створюється рахунок у вибраному шлюзі та формується посилання на оплату.',
+    noActiveGateways: 'Немає активних шлюзів. Активуйте WayForPay або Monobank на вкладці «Шлюзи».',
+    gatewayLabel: 'Шлюз *',
+    gatewaySelectPlaceholder: 'Виберіть шлюз',
+    currencyLabel: 'Валюта',
+    amountLabel: 'Сума *',
+    descLabel: 'Призначення платежу',
+    descPlaceholder: 'Оплата замовлення №...',
+    customerLabel: 'Клієнт',
+    phoneLabel: 'Телефон',
+    emailLabel: 'Email',
+    createInvoiceButton: 'Створити рахунок',
+    refundDialogTitle: 'Повернення коштів',
+    refundDialogDescPrefix: 'Платіж',
+    refundDialogAlreadyRefunded: 'Уже повернуто',
+    refundAmountLabel: 'Сума повернення',
+    refundHintPrefix: 'Повернення виконується через API',
+    refundHintSuffix: 'Можливе часткове повернення.',
+    confirmRefundButton: 'Повернути кошти',
+    toastSelectGateway: 'Виберіть платіжний шлюз',
+    toastInvalidAmount: 'Вкажіть коректну суму',
+    toastRefundAmount: 'Вкажіть суму повернення',
+    wfpMerchantLoginHint: 'Логін мерчанта з особистого кабінету WayForPay (напр. test_skycrms_pp_ua)',
+    wfpSecretKeyHint: 'Секретний ключ для підпису запитів (HMAC-MD5)',
+    wfpDomainHint: 'Домен сайту, наприклад shop.example.com',
+    wfpPasswordHint: 'Необов\'язково. Пароль мерчанта з кабінету — для операцій, де він потрібен. У підписі платіжного API не використовується.',
+    monobankTokenLabel: 'Токен еквайрингу (X-Token)',
+    monobankTokenHint: 'Токен з кабінету Monobank Acquiring',
+    optionalLabel: '(необов\'язково)',
+    copiedToast: 'Скопійовано',
+    copyFailedToast: 'Не вдалося скопіювати',
+    copyAria: 'Скопіювати',
+    serviceUrlLabel: 'Service URL (сповіщення про платежі)',
+    approvedUrlLabel: 'approvedUrl / declinedUrl (повернення клієнта)',
+    webhookUrlLabel: 'Webhook URL (сповіщення про платежі)',
+    redirectUrlLabel: 'Redirect URL (повернення клієнта)',
+    urlsSectionTitlePrefix: 'Посилання для особистого кабінету',
+    urlsHintPrefix: 'Заповнювати необов\'язково: магазин передає ці адреси автоматично з кожним платежем. Вкажіть їх у кабінеті',
+    urlsHintWfpSuffix: 'WayForPay (розділ «Сповіщення»)',
+    urlsHintMonoSuffix: 'Monobank',
+    urlsHintEnd: 'як запасний варіант.',
+    wfpDesc: 'Оплата карткою, Apple Pay, Google Pay',
+    monoDesc: 'Еквайринг Monobank для бізнесу',
+    badgeActiveGateway: 'Активний',
+    badgeDisabledGateway: 'Вимкнений',
+    badgeTestMode: 'Тест',
+    toastFillFields: 'Заповніть усі поля перед активацією шлюзу',
+    activeSwitchLabel: 'Активний',
+    activeSwitchDesc: 'Доступний для приймання оплат',
+    testSwitchLabel: 'Тестовий режим',
+    testSwitchDesc: 'Дозволити ручну позначку оплати',
+    statusEnabled: 'Увімкнено',
+    statusDisabledMethod: 'Вимкнено',
+    availableAtCheckoutLabel: 'Доступний під час оформлення',
+    customerCanChooseDesc: 'Клієнт зможе обрати цей спосіб',
+    codHint: 'Оплата під час отримання товару',
+    onlineHint: 'Оплата через підключені платіжні шлюзи',
+    activeGatewaysPrefix: 'Активні шлюзи:',
+    noActiveGatewaysHint: 'Немає активних шлюзів — увімкніть їх на вкладці «Шлюзи».',
+    requisitesDesc: 'Оплата на картку або за банківськими реквізитами',
+    requisitesTypeLabel: 'Тип реквізитів',
+    tabCard: 'Оплата на картку',
+    tabRequisites: 'За реквізитами',
+    cardNumberLabel: 'Номер картки',
+    cardHolderLabel: 'ПІБ отримувача',
+    edrpouLabel: 'ЄДРПОУ або РНОКПП',
+    recipientNameLabel: 'Назва отримувача',
+    ibanLabel: 'Рахунок IBAN',
+    toastCardFieldsRequired: 'Вкажіть номер картки і ПІБ отримувача',
+    toastRequisitesFieldsRequired: 'Заповніть ЄДРПОУ/РНОКПП, отримувача та IBAN',
+    toastMethodEnabledSuffix: 'увімкнено',
+    toastMethodDisabledSuffix: 'вимкнено',
+  },
+  promotions: {
+    tabAll: 'Усі',
+    tabActive: 'Активні',
+    tabInactive: 'Неактивні',
+    searchPlaceholder: 'Пошук за назвою…',
+    emptyTitle: 'Тут поки що нічого немає',
+    emptyDesc: 'Створіть першу акцію або промокод, щоб залучати покупців та збільшувати продажі.',
+    addButton: 'Додати акцію',
+    pageTitle: 'Акції та промокоди',
+    pageSubtitle: 'Керування знижками, промокодами та таргетингом',
+    noResults: 'За вашим запитом нічого не знайдено.',
+    deleteDialogTitle: 'Видалити акцію?',
+    deleteDialogDesc: 'Дію не можна скасувати. Статистику використання також буде видалено.',
+    toastActivated: 'Акцію активовано',
+    toastDeactivated: 'Акцію вимкнено',
+    toastDeleted: 'Акцію видалено',
+    toastCodeCopied: 'Промокод скопійовано',
+    targetAll: 'Усі товари',
+    targetGroups: 'Обрані групи',
+    targetProducts: 'Конкретні позиції',
+    noEndDate: 'безстроково',
+    usedLabel: 'Використано',
+    totalDiscountLabel: 'Сума знижок',
+    statusSr: 'Статус акції',
+    actionsAria: 'Дії',
+    copyCodeAction: 'Копіювати код',
+    formSubtitle: 'Налаштуйте знижку, таргетинг та обмеження',
+    backAria: 'Назад',
+    formTitleNew: 'Нова акція',
+    saveButtonSaving: 'Збереження…',
+    saveButtonDefault: 'Зберегти акцію',
+    sectionMainInfo: 'Основна інформація',
+    typePromoTitle: 'Промокод',
+    typePromoDesc: 'Код для покупця',
+    typeDiscountTitle: 'Знижка',
+    typeDiscountDesc: 'Автоматична',
+    nameLabel: 'Назва акції',
+    namePlaceholder: 'Наприклад, Весняний розпродаж',
+    discountTypeLabel: 'Тип знижки',
+    discountTypePercent: 'Відсоток %',
+    discountTypeFixed: 'Сума ₴',
+    discountValueLabel: 'Розмір знижки',
+    promoCodeLabel: 'Промокод',
+    generateButton: 'Згенерувати',
+    sectionScope: 'Область дії',
+    scopeAllTitle: 'На всі товари',
+    scopeAllDesc: 'Акція застосовується до всього каталогу',
+    scopeGroupsTitle: 'На обрані групи',
+    scopeGroupsDesc: 'Тільки товари вказаних груп',
+    scopeProductsTitle: 'На конкретні позиції',
+    scopeProductsDesc: 'Тільки обрані товари',
+    noGroups: 'Немає груп товарів',
+    noProducts: 'Немає товарів',
+    sectionLimits: 'Обмеження',
+    limitUsageTitle: 'Ліміт на кількість використань',
+    limitUsagePlaceholder: 'Наприклад, 500',
+    limitMinOrderTitle: 'Мінімальна сума замовлення',
+    limitMinOrderPlaceholder: 'Наприклад, 1000',
+    noStackingTitle: 'Заборонити поєднання з іншими знижками',
+    excludeWholesaleTitle: 'Не застосовувати до оптових цін',
+    sectionDates: 'Строк дії',
+    startDateLabel: 'Дата старту',
+    endDateLabel: 'Дата завершення',
+    setEndDateLabel: 'Задати дату завершення',
+    sectionSummary: 'Резюме акції',
+    summaryTypeLabel: 'Тип',
+    summaryTypePromo: 'Промокод',
+    summaryTypeDiscount: 'Знижка',
+    summaryNameLabel: 'Назва',
+    summaryDiscountLabel: 'Знижка',
+    summaryPromoCodeLabel: 'Промокод',
+    summaryScopeLabel: 'Область дії',
+    summaryGroupsPrefix: 'Групи',
+    summaryProductsPrefix: 'Позиції',
+    summaryLimitsLabel: 'Обмеження',
+    summaryLimitUsagePrefix: 'ліміт',
+    summaryLimitMinOrderPrefix: 'від',
+    summaryNoStacking: 'без стекінгу',
+    summaryExcludeWholesale: 'без опту',
+    summaryNone: 'немає',
+    summaryDatesLabel: 'Строки',
+    summaryFromNoEnd: 'з {date}, безстроково',
+    sectionUsageStats: 'Статистика використання',
+    statAppliedCount: 'Застосовано разів',
+    statOrdersTotal: 'Сума замовлень',
+    statDiscountTotal: 'Сума знижок',
+    statsHint: 'Статистика почне заповнюватися після першого застосування акції.',
+    toastCreated: 'Акцію створено',
+    toastCreateError: 'Не вдалося зберегти акцію',
+  },
+  statistics: {
+    days7: '7 днів',
+    days30: '30 днів',
+    days90: '90 днів',
+    statusNew: 'Новий',
+    statusProcessing: 'В обробці',
+    statusShipped: 'Відправлено',
+    statusDone: 'Виконано',
+    statusCancelled: 'Скасовано',
+    statusPendingPayment: 'Очікує оплати',
+    methodNovaPoshta: 'Нова Пошта',
+    methodUkrposhta: 'Укрпошта',
+    methodPickup: 'Самовивіз',
+    methodCourier: 'Кур\'єр',
+    methodCod: 'Накладений платіж',
+    methodCard: 'Картка онлайн',
+    methodCash: 'Готівка',
+    methodBankTransfer: 'Банківський переказ',
+    methodRequisites: 'За реквізитами',
+    weekdayMon: 'Пн',
+    weekdayTue: 'Вт',
+    weekdayWed: 'Ср',
+    weekdayThu: 'Чт',
+    weekdayFri: 'Пт',
+    weekdaySat: 'Сб',
+    weekdaySun: 'Нд',
+    pageTitle: 'Статистика',
+    pageSubtitle: 'Трафік, продажі, клієнти та ефективність магазину',
+    cardVisitors: 'Відвідувачі',
+    cardPageViews: 'Перегляди сторінок',
+    cardProductViews: 'Перегляди товарів',
+    cardAddToCart: 'У кошик',
+    cardOrders: 'Замовлення',
+    cardRevenuePeriod: 'Виручка за період',
+    cardCost: 'Закупівля (собівартість)',
+    cardNetProfit: 'Чистий прибуток',
+    marginLabel: 'Маржа',
+    cardAvgCheck: 'Середній чек',
+    avgItemsPerOrderPrefix: 'У середньому',
+    avgItemsPerOrderSuffix: 'тов./замовлення',
+    cardAbandonedCarts: 'Покинуті кошики',
+    potentialPrefix: 'Потенційно',
+    chartRevenueProfitTitle: 'Виручка і прибуток за днями',
+    seriesRevenue: 'Виручка',
+    seriesProfit: 'Прибуток',
+    seriesOrders: 'Замовлення',
+    funnelTitle: 'Воронка продажів',
+    funnelVisitors: 'Відвідувачі',
+    funnelProductViews: 'Перегляди товарів',
+    funnelAddToCart: 'Додали в кошик',
+    funnelOrders: 'Оформили замовлення',
+    conversionOverallPrefix: 'Загальна конверсія відвідувача в замовлення',
+    conversionCartPrefix: 'Конверсія кошика',
+    orderStatusesTitle: 'Статуси замовлень',
+    noOrdersPeriod: 'Немає замовлень за період',
+    topProductsTitle: 'Топ товарів за період',
+    unitsSoldSuffix: 'шт · прибуток',
+    profitSuffix: 'прибуток',
+    noSalesPeriod: 'Немає продажів за обраний період',
+    categorySalesTitle: 'Продажі за категоріями',
+    noDataPeriod: 'Немає даних за обраний період',
+    weekdayOrdersTitle: 'Замовлення за днями тижня',
+    customersTitle: 'Клієнти',
+    uniqueLabel: 'Унікальних',
+    newLabel: 'Нових',
+    returningLabel: 'Повторні покупці',
+    topCustomersTitle: 'Топ покупців',
+    ordersShortSuffix: 'зам.',
+    noData: 'Немає даних',
+    deliveryMethodsTitle: 'Способи доставки',
+    paymentMethodsTitle: 'Способи оплати',
+    trafficDynamicsTitle: 'Динаміка переглядів і замовлень',
+    seriesViews: 'Перегляди',
+    seriesVisitors: 'Відвідувачі',
+    topPagesTitle: 'Популярні сторінки',
+    trafficSourcesTitle: 'Джерела трафіку',
+  },
 }
 
 const ru: AdminDictionary = {
@@ -1581,6 +2187,309 @@ const ru: AdminDictionary = {
     updateErrorTitle: 'Не удалось запустить обновление',
     updateErrorDesc: 'Попробуйте ещё раз или обновите вручную на сервере.',
     updaterNotConfigured: 'Автообновление не настроено на этом сервере. Обратитесь к Viktor или обновите вручную.',
+  },
+  delivery: {
+    pageTitle: 'Методы доставки',
+    pageSubtitle: 'Настройка служб доставки для интернет-магазина',
+    npDesc: 'Поиск отделений и почтоматов через API',
+    npApiKeyLabel: 'API-ключ Нова Пошта',
+    npApiKeyPlaceholder: 'Введите ключ из личного кабинета',
+    npApiKeyHintReal: 'Поиск выполняется через реальный API Нова Пошта.',
+    npApiKeyHintDemo: 'Без ключа доступен демо-режим с примерами отделений.',
+    npCheckTitle: 'Проверка получения: отделения и почтоматы',
+    ukrDesc: 'Доставка почтовыми отделениями Укрпошты',
+    ukrToggleLabel: 'Доставка Укрпоштой',
+    ukrToggleDesc: 'Клиенты смогут выбрать доставку Укрпоштой при оформлении',
+    toastUkrEnabled: 'Укрпошта включена',
+    toastUkrDisabled: 'Укрпошта отключена',
+    badgeActive: 'Активна',
+    badgeRequired: 'Обязательная',
+    badgeDisabled: 'Отключена',
+    searchDemoBadge: 'Демо-режим (укажите API-ключ для реальных данных)',
+    searchStep1Label: '1. Город получения',
+    searchCityPlaceholder: 'Начните вводить город, например Київ',
+    searchFindButton: 'Найти',
+    searchRegionSuffix: 'обл.',
+    searchStep2LabelPrefix: '2. Пункт выдачи в городе',
+    searchTabBranch: 'Отделения',
+    searchTabPostomat: 'Почтоматы',
+    searchWhFilterPlaceholder: 'Фильтр по номеру или адресу',
+    searchLoading: 'Загрузка...',
+    searchNothingFound: 'Ничего не найдено',
+    searchMaxWeightPrefix: 'до',
+    searchMaxWeightSuffix: 'кг',
+  },
+  payments: {
+    pageTitle: 'Платежи',
+    pageSubtitle: 'Приём оплат и возврат средств через WayForPay и Monobank',
+    tabProcessing: 'Обработка',
+    tabMethods: 'Способы оплаты',
+    tabGateways: 'Шлюзы',
+    statusCreated: 'Создан',
+    statusPending: 'Ожидает оплаты',
+    statusPaid: 'Оплачен',
+    statusPartiallyRefunded: 'Частичный возврат',
+    statusRefunded: 'Возвращён',
+    statusFailed: 'Ошибка',
+    statusExpired: 'Истёк',
+    statTotal: 'Всего платежей',
+    statPaid: 'Оплачено',
+    statRefunded: 'Возвращено',
+    statPending: 'В ожидании',
+    createButton: 'Создать платёж',
+    colOrder: 'Заказ',
+    colGateway: 'Шлюз',
+    colAmount: 'Сумма',
+    colStatus: 'Статус',
+    colCustomer: 'Клиент',
+    colDate: 'Дата',
+    colActions: 'Действия',
+    emptyPayments: 'Платежей пока нет',
+    refundedPrefix: 'возврат',
+    openPayment: 'Открыть оплату',
+    refreshStatus: 'Обновить статус',
+    markPaid: 'Отметить оплаченным',
+    refundAction: 'Возврат средств',
+    newPaymentTitle: 'Новый платёж',
+    newPaymentDesc: 'Создаётся счёт в выбранном шлюзе и формируется ссылка на оплату.',
+    noActiveGateways: 'Нет активных шлюзов. Активируйте WayForPay или Monobank во вкладке «Шлюзы».',
+    gatewayLabel: 'Шлюз *',
+    gatewaySelectPlaceholder: 'Выберите шлюз',
+    currencyLabel: 'Валюта',
+    amountLabel: 'Сумма *',
+    descLabel: 'Назначение платежа',
+    descPlaceholder: 'Оплата заказа №...',
+    customerLabel: 'Клиент',
+    phoneLabel: 'Телефон',
+    emailLabel: 'Email',
+    createInvoiceButton: 'Создать счёт',
+    refundDialogTitle: 'Возврат средств',
+    refundDialogDescPrefix: 'Платёж',
+    refundDialogAlreadyRefunded: 'Уже возвращено',
+    refundAmountLabel: 'Сумма возврата',
+    refundHintPrefix: 'Возврат выполняется через API',
+    refundHintSuffix: 'Возможен частичный возврат.',
+    confirmRefundButton: 'Вернуть средства',
+    toastSelectGateway: 'Выберите платёжный шлюз',
+    toastInvalidAmount: 'Укажите корректную сумму',
+    toastRefundAmount: 'Укажите сумму возврата',
+    wfpMerchantLoginHint: 'Логин мерчанта из личного кабинета WayForPay (напр. test_skycrms_pp_ua)',
+    wfpSecretKeyHint: 'Секретный ключ для подписи запросов (HMAC-MD5)',
+    wfpDomainHint: 'Домен сайта, например shop.example.com',
+    wfpPasswordHint: 'Необязательно. Пароль мерчанта из кабинета — для операций, где он требуется. В подписи платёжного API не используется.',
+    monobankTokenLabel: 'Токен эквайринга (X-Token)',
+    monobankTokenHint: 'Токен из кабинета Monobank Acquiring',
+    optionalLabel: '(необязательно)',
+    copiedToast: 'Скопировано',
+    copyFailedToast: 'Не удалось скопировать',
+    copyAria: 'Скопировать',
+    serviceUrlLabel: 'Service URL (уведомления о платежах)',
+    approvedUrlLabel: 'approvedUrl / declinedUrl (возврат клиента)',
+    webhookUrlLabel: 'Webhook URL (уведомления о платежах)',
+    redirectUrlLabel: 'Redirect URL (возврат клиента)',
+    urlsSectionTitlePrefix: 'Ссылки для личного кабинета',
+    urlsHintPrefix: 'Заполнять необязательно: магазин передаёт эти адреса автоматически с каждым платежом. Укажите их в кабинете',
+    urlsHintWfpSuffix: 'WayForPay (раздел «Уведомления»)',
+    urlsHintMonoSuffix: 'Monobank',
+    urlsHintEnd: 'как запасной вариант.',
+    wfpDesc: 'Оплата картой, Apple Pay, Google Pay',
+    monoDesc: 'Эквайринг Monobank для бизнеса',
+    badgeActiveGateway: 'Активен',
+    badgeDisabledGateway: 'Отключён',
+    badgeTestMode: 'Тест',
+    toastFillFields: 'Заполните все поля перед активацией шлюза',
+    activeSwitchLabel: 'Активен',
+    activeSwitchDesc: 'Доступен для приёма оплат',
+    testSwitchLabel: 'Тестовый режим',
+    testSwitchDesc: 'Разрешить ручную отметку оплаты',
+    statusEnabled: 'Включён',
+    statusDisabledMethod: 'Отключён',
+    availableAtCheckoutLabel: 'Доступен при оформлении',
+    customerCanChooseDesc: 'Клиент сможет выбрать этот способ',
+    codHint: 'Оплата при получении товара',
+    onlineHint: 'Оплата через подключённые платёжные шлюзы',
+    activeGatewaysPrefix: 'Активные шлюзы:',
+    noActiveGatewaysHint: 'Нет активных шлюзов — включите их на вкладке «Шлюзы».',
+    requisitesDesc: 'Оплата на карту или по банковским реквизитам',
+    requisitesTypeLabel: 'Тип реквизитов',
+    tabCard: 'Оплата на карту',
+    tabRequisites: 'По реквизитам',
+    cardNumberLabel: 'Номер карты',
+    cardHolderLabel: 'ФИО получателя',
+    edrpouLabel: 'ЕГРПОУ или РНУКПН',
+    recipientNameLabel: 'Название получателя',
+    ibanLabel: 'Счёт IBAN',
+    toastCardFieldsRequired: 'Укажите номер карты и ФИО получателя',
+    toastRequisitesFieldsRequired: 'Заполните ЕГРПОУ/РНУКПН, получателя и IBAN',
+    toastMethodEnabledSuffix: 'включён',
+    toastMethodDisabledSuffix: 'отключён',
+  },
+  promotions: {
+    tabAll: 'Все',
+    tabActive: 'Активные',
+    tabInactive: 'Неактивные',
+    searchPlaceholder: 'Поиск по названию…',
+    emptyTitle: 'Тут пока ничего нет',
+    emptyDesc: 'Создайте первую акцию или промокод, чтобы привлекать покупателей и увеличивать продажи.',
+    addButton: 'Добавить акцию',
+    pageTitle: 'Акции и промокоды',
+    pageSubtitle: 'Управление скидками, промокодами и таргетингом',
+    noResults: 'По вашему запросу ничего не найдено.',
+    deleteDialogTitle: 'Удалить акцию?',
+    deleteDialogDesc: 'Действие нельзя отменить. Статистика использования также будет удалена.',
+    toastActivated: 'Акция активирована',
+    toastDeactivated: 'Акция отключена',
+    toastDeleted: 'Акция удалена',
+    toastCodeCopied: 'Промокод скопирован',
+    targetAll: 'Все товары',
+    targetGroups: 'Выбранные группы',
+    targetProducts: 'Конкретные позиции',
+    noEndDate: 'бессрочно',
+    usedLabel: 'Использовано',
+    totalDiscountLabel: 'Сумма скидок',
+    statusSr: 'Статус акции',
+    actionsAria: 'Действия',
+    copyCodeAction: 'Копировать код',
+    formSubtitle: 'Настройте скидку, таргетинг и ограничения',
+    backAria: 'Назад',
+    formTitleNew: 'Новая акция',
+    saveButtonSaving: 'Сохранение…',
+    saveButtonDefault: 'Сохранить акцию',
+    sectionMainInfo: 'Основная информация',
+    typePromoTitle: 'Промокод',
+    typePromoDesc: 'Код для покупателя',
+    typeDiscountTitle: 'Скидка',
+    typeDiscountDesc: 'Автоматическая',
+    nameLabel: 'Название акции',
+    namePlaceholder: 'Например, Весенний розпродаж',
+    discountTypeLabel: 'Тип скидки',
+    discountTypePercent: 'Процент %',
+    discountTypeFixed: 'Сумма ₴',
+    discountValueLabel: 'Размер скидки',
+    promoCodeLabel: 'Промокод',
+    generateButton: 'Сгенерировать',
+    sectionScope: 'Область действия',
+    scopeAllTitle: 'На все товары',
+    scopeAllDesc: 'Акция применяется ко всему каталогу',
+    scopeGroupsTitle: 'На выбранные группы',
+    scopeGroupsDesc: 'Только товары указанных групп',
+    scopeProductsTitle: 'На конкретные позиции',
+    scopeProductsDesc: 'Только выбранные товары',
+    noGroups: 'Нет групп товаров',
+    noProducts: 'Нет товаров',
+    sectionLimits: 'Ограничения',
+    limitUsageTitle: 'Лимит на количество использований',
+    limitUsagePlaceholder: 'Например, 500',
+    limitMinOrderTitle: 'Минимальная сумма заказа',
+    limitMinOrderPlaceholder: 'Например, 1000',
+    noStackingTitle: 'Запретить совмещение с другими скидками',
+    excludeWholesaleTitle: 'Не применять к оптовым ценам',
+    sectionDates: 'Сроки действия',
+    startDateLabel: 'Дата старта',
+    endDateLabel: 'Дата окончания',
+    setEndDateLabel: 'Задать дату окончания',
+    sectionSummary: 'Резюме акции',
+    summaryTypeLabel: 'Тип',
+    summaryTypePromo: 'Промокод',
+    summaryTypeDiscount: 'Скидка',
+    summaryNameLabel: 'Название',
+    summaryDiscountLabel: 'Скидка',
+    summaryPromoCodeLabel: 'Промокод',
+    summaryScopeLabel: 'Область действия',
+    summaryGroupsPrefix: 'Группы',
+    summaryProductsPrefix: 'Позиции',
+    summaryLimitsLabel: 'Ограничения',
+    summaryLimitUsagePrefix: 'лимит',
+    summaryLimitMinOrderPrefix: 'от',
+    summaryNoStacking: 'без стекинга',
+    summaryExcludeWholesale: 'без опта',
+    summaryNone: 'нет',
+    summaryDatesLabel: 'Сроки',
+    summaryFromNoEnd: 'с {date}, бессрочно',
+    sectionUsageStats: 'Статистика использования',
+    statAppliedCount: 'Применено раз',
+    statOrdersTotal: 'Сумма заказов',
+    statDiscountTotal: 'Сумма скидок',
+    statsHint: 'Статистика начнёт заполняться после первого применения акции.',
+    toastCreated: 'Акция создана',
+    toastCreateError: 'Не удалось сохранить акцию',
+  },
+  statistics: {
+    days7: '7 дней',
+    days30: '30 дней',
+    days90: '90 дней',
+    statusNew: 'Новый',
+    statusProcessing: 'В обработке',
+    statusShipped: 'Отправлен',
+    statusDone: 'Выполнен',
+    statusCancelled: 'Отменён',
+    statusPendingPayment: 'Ждёт оплаты',
+    methodNovaPoshta: 'Нова Пошта',
+    methodUkrposhta: 'Укрпошта',
+    methodPickup: 'Самовывоз',
+    methodCourier: 'Курьер',
+    methodCod: 'Наложенный платёж',
+    methodCard: 'Карта онлайн',
+    methodCash: 'Наличные',
+    methodBankTransfer: 'Банковский перевод',
+    methodRequisites: 'По реквизитам',
+    weekdayMon: 'Пн',
+    weekdayTue: 'Вт',
+    weekdayWed: 'Ср',
+    weekdayThu: 'Чт',
+    weekdayFri: 'Пт',
+    weekdaySat: 'Сб',
+    weekdaySun: 'Вс',
+    pageTitle: 'Статистика',
+    pageSubtitle: 'Трафик, продажи, клиенты и эффективность магазина',
+    cardVisitors: 'Посетители',
+    cardPageViews: 'Просмотры страниц',
+    cardProductViews: 'Просмотры товаров',
+    cardAddToCart: 'В корзину',
+    cardOrders: 'Заказы',
+    cardRevenuePeriod: 'Выручка за период',
+    cardCost: 'Закупка (себестоимость)',
+    cardNetProfit: 'Чистая прибыль',
+    marginLabel: 'Маржа',
+    cardAvgCheck: 'Средний чек',
+    avgItemsPerOrderPrefix: 'В среднем',
+    avgItemsPerOrderSuffix: 'тов./заказ',
+    cardAbandonedCarts: 'Брошенные корзины',
+    potentialPrefix: 'Потенциально',
+    chartRevenueProfitTitle: 'Выручка и прибыль по дням',
+    seriesRevenue: 'Выручка',
+    seriesProfit: 'Прибыль',
+    seriesOrders: 'Заказы',
+    funnelTitle: 'Воронка продаж',
+    funnelVisitors: 'Посетители',
+    funnelProductViews: 'Просмотры товаров',
+    funnelAddToCart: 'Добавили в корзину',
+    funnelOrders: 'Оформили заказ',
+    conversionOverallPrefix: 'Общая конверсия посетителя в заказ',
+    conversionCartPrefix: 'Конверсия корзины',
+    orderStatusesTitle: 'Статусы заказов',
+    noOrdersPeriod: 'Нет заказов за период',
+    topProductsTitle: 'Топ товаров за период',
+    unitsSoldSuffix: 'шт · прибыль',
+    profitSuffix: 'прибыль',
+    noSalesPeriod: 'Нет продаж за выбранный период',
+    categorySalesTitle: 'Продажи по категориям',
+    noDataPeriod: 'Нет данных за выбранный период',
+    weekdayOrdersTitle: 'Заказы по дням недели',
+    customersTitle: 'Клиенты',
+    uniqueLabel: 'Уникальных',
+    newLabel: 'Новых',
+    returningLabel: 'Повторные покупатели',
+    topCustomersTitle: 'Топ покупателей',
+    ordersShortSuffix: 'зак.',
+    noData: 'Нет данных',
+    deliveryMethodsTitle: 'Способы доставки',
+    paymentMethodsTitle: 'Способы оплаты',
+    trafficDynamicsTitle: 'Динамика просмотров и заказов',
+    seriesViews: 'Просмотры',
+    seriesVisitors: 'Посетители',
+    topPagesTitle: 'Популярные страницы',
+    trafficSourcesTitle: 'Источники трафика',
   },
 }
 

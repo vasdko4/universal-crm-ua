@@ -13,12 +13,14 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Banknote, CreditCard, Landmark, Loader2, Save } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 function StatusBadge({ active }: { active: boolean }) {
+  const { dict: t } = useAdminI18n()
   return active ? (
-    <Badge className="bg-success/15 text-success hover:bg-success/25">Включён</Badge>
+    <Badge className="bg-success/15 text-success hover:bg-success/25">{t.payments.statusEnabled}</Badge>
   ) : (
-    <Badge variant="secondary">Отключён</Badge>
+    <Badge variant="secondary">{t.payments.statusDisabledMethod}</Badge>
   )
 }
 
@@ -35,6 +37,7 @@ function ToggleMethodCard({
   hint: string
   extra?: React.ReactNode
 }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isActive, setIsActive] = useState(method.isActive ?? false)
@@ -44,7 +47,9 @@ function ToggleMethodCard({
     startTransition(async () => {
       const result = await updatePaymentMethod(method.code, { isActive: next, config: {} })
       if (result.ok) {
-        toast.success(next ? `${method.name}: включён` : `${method.name}: отключён`)
+        toast.success(
+          `${method.name}: ${next ? t.payments.toastMethodEnabledSuffix : t.payments.toastMethodDisabledSuffix}`,
+        )
         router.refresh()
       } else {
         toast.error(result.message)
@@ -70,8 +75,8 @@ function ToggleMethodCard({
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-center justify-between rounded-lg border p-3">
           <div>
-            <Label htmlFor={`${method.code}-active`}>Доступен при оформлении</Label>
-            <p className="text-xs text-muted-foreground">Клиент сможет выбрать этот способ</p>
+            <Label htmlFor={`${method.code}-active`}>{t.payments.availableAtCheckoutLabel}</Label>
+            <p className="text-xs text-muted-foreground">{t.payments.customerCanChooseDesc}</p>
           </div>
           <div className="flex items-center gap-2">
             {isPending && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
@@ -92,6 +97,7 @@ function ToggleMethodCard({
 /* ------------------------------ Оплата по реквизитам ------------------------------ */
 
 function RequisitesCard({ method }: { method: PaymentMethod }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const initial = (method.config ?? {}) as Record<string, string>
@@ -109,11 +115,11 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
   function handleSave() {
     if (isActive) {
       if (mode === 'card' && (!cardNumber.trim() || !cardHolder.trim())) {
-        toast.error('Укажите номер карты и ФИО получателя')
+        toast.error(t.payments.toastCardFieldsRequired)
         return
       }
       if (mode === 'requisites' && (!edrpou.trim() || !recipientName.trim() || !iban.trim())) {
-        toast.error('Заполните ЕГРПОУ/РНУКПН, получателя и IBAN')
+        toast.error(t.payments.toastRequisitesFieldsRequired)
         return
       }
     }
@@ -146,9 +152,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
           </div>
           <div>
             <CardTitle className="text-base">{method.name}</CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Оплата на карту или по банковским реквизитам
-            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t.payments.requisitesDesc}</p>
           </div>
         </div>
         <StatusBadge active={isActive} />
@@ -156,21 +160,21 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-center justify-between rounded-lg border p-3">
           <div>
-            <Label htmlFor="requisites-active">Доступен при оформлении</Label>
-            <p className="text-xs text-muted-foreground">Клиент сможет выбрать этот способ</p>
+            <Label htmlFor="requisites-active">{t.payments.availableAtCheckoutLabel}</Label>
+            <p className="text-xs text-muted-foreground">{t.payments.customerCanChooseDesc}</p>
           </div>
           <Switch id="requisites-active" checked={isActive} onCheckedChange={setIsActive} />
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label className="text-xs">Тип реквизитов</Label>
+          <Label className="text-xs">{t.payments.requisitesTypeLabel}</Label>
           <Tabs value={mode} onValueChange={(v) => setMode(v as 'card' | 'requisites')}>
             <TabsList>
               <TabsTrigger value="card" className="gap-1.5">
-                <CreditCard className="size-4" /> Оплата на карту
+                <CreditCard className="size-4" /> {t.payments.tabCard}
               </TabsTrigger>
               <TabsTrigger value="requisites" className="gap-1.5">
-                <Landmark className="size-4" /> По реквизитам
+                <Landmark className="size-4" /> {t.payments.tabRequisites}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -179,7 +183,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
         {mode === 'card' ? (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="req-card">Номер карты</Label>
+              <Label htmlFor="req-card">{t.payments.cardNumberLabel}</Label>
               <Input
                 id="req-card"
                 inputMode="numeric"
@@ -189,7 +193,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="req-card-holder">ФИО получателя</Label>
+              <Label htmlFor="req-card-holder">{t.payments.cardHolderLabel}</Label>
               <Input
                 id="req-card-holder"
                 value={cardHolder}
@@ -201,7 +205,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="req-edrpou">ЕГРПОУ или РНУКПН</Label>
+              <Label htmlFor="req-edrpou">{t.payments.edrpouLabel}</Label>
               <Input
                 id="req-edrpou"
                 inputMode="numeric"
@@ -211,7 +215,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="req-name">Название получателя</Label>
+              <Label htmlFor="req-name">{t.payments.recipientNameLabel}</Label>
               <Input
                 id="req-name"
                 value={recipientName}
@@ -220,7 +224,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
               />
             </div>
             <div className="flex flex-col gap-2 sm:col-span-2">
-              <Label htmlFor="req-iban">Счёт IBAN</Label>
+              <Label htmlFor="req-iban">{t.payments.ibanLabel}</Label>
               <Input
                 id="req-iban"
                 value={iban}
@@ -234,7 +238,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={isPending}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            Сохранить
+            {t.common.save}
           </Button>
         </div>
       </CardContent>
@@ -249,6 +253,7 @@ export function PaymentMethodsTab({
   methods: PaymentMethod[]
   gateways: PaymentGateway[]
 }) {
+  const { dict: t } = useAdminI18n()
   const cod = methods.find((m) => m.code === 'cod')
   const online = methods.find((m) => m.code === 'online')
   const requisites = methods.find((m) => m.code === 'requisites')
@@ -260,25 +265,25 @@ export function PaymentMethodsTab({
         <ToggleMethodCard
           method={cod}
           icon={Banknote}
-          hint="Оплата при получении товара"
+          hint={t.payments.codHint}
         />
       )}
       {online && (
         <ToggleMethodCard
           method={online}
           icon={CreditCard}
-          hint="Оплата через подключённые платёжные шлюзы"
+          hint={t.payments.onlineHint}
           extra={
             <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
               {activeGateways.length > 0 ? (
                 <span>
-                  Активные шлюзы:{' '}
+                  {t.payments.activeGatewaysPrefix}{' '}
                   <span className="font-medium text-foreground">
                     {activeGateways.map((g) => g.name).join(', ')}
                   </span>
                 </span>
               ) : (
-                <span>Нет активных шлюзов — включите их на вкладке «Шлюзы».</span>
+                <span>{t.payments.noActiveGatewaysHint}</span>
               )}
             </div>
           }

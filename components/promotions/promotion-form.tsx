@@ -18,6 +18,7 @@ import {
   Check,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type Option = { id: number; name: string | null }
 
@@ -32,6 +33,7 @@ function todayStr() {
 }
 
 export function PromotionForm({ groups, products }: { groups: Option[]; products: Option[] }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -68,13 +70,13 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
   const summary = useMemo(() => {
     const rows: { label: string; value: string; done: boolean }[] = []
     rows.push({
-      label: 'Тип',
-      value: type === 'promocode' ? 'Промокод' : 'Скидка',
+      label: t.promotions.summaryTypeLabel,
+      value: type === 'promocode' ? t.promotions.summaryTypePromo : t.promotions.summaryTypeDiscount,
       done: true,
     })
-    rows.push({ label: 'Название', value: name || '—', done: !!name.trim() })
+    rows.push({ label: t.promotions.summaryNameLabel, value: name || '—', done: !!name.trim() })
     rows.push({
-      label: 'Скидка',
+      label: t.promotions.summaryDiscountLabel,
       value: discountValue
         ? discountType === 'percentage'
           ? `${discountValue}%`
@@ -83,32 +85,39 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
       done: Number(discountValue) > 0,
     })
     if (type === 'promocode') {
-      rows.push({ label: 'Промокод', value: promoCode || '—', done: !!promoCode.trim() })
+      rows.push({ label: t.promotions.summaryPromoCodeLabel, value: promoCode || '—', done: !!promoCode.trim() })
     }
     rows.push({
-      label: 'Область действия',
+      label: t.promotions.summaryScopeLabel,
       value:
         targetType === 'all'
-          ? 'Все товары'
+          ? t.promotions.targetAll
           : targetType === 'groups'
-            ? `Группы (${groupIds.length})`
-            : `Позиции (${productIds.length})`,
+            ? `${t.promotions.summaryGroupsPrefix} (${groupIds.length})`
+            : `${t.promotions.summaryProductsPrefix} (${productIds.length})`,
       done: targetType === 'all' || (targetType === 'groups' ? groupIds.length > 0 : productIds.length > 0),
     })
     const limits: string[] = []
-    if (limitUsage && usageLimit) limits.push(`лимит ${usageLimit}`)
-    if (limitMinOrder && minOrderAmount) limits.push(`от ${minOrderAmount} ₴`)
-    if (noStacking) limits.push('без стекинга')
-    if (excludeWholesale) limits.push('без опта')
-    rows.push({ label: 'Ограничения', value: limits.length ? limits.join(', ') : 'нет', done: true })
+    if (limitUsage && usageLimit) limits.push(`${t.promotions.summaryLimitUsagePrefix} ${usageLimit}`)
+    if (limitMinOrder && minOrderAmount) limits.push(`${t.promotions.summaryLimitMinOrderPrefix} ${minOrderAmount} ₴`)
+    if (noStacking) limits.push(t.promotions.summaryNoStacking)
+    if (excludeWholesale) limits.push(t.promotions.summaryExcludeWholesale)
     rows.push({
-      label: 'Сроки',
-      value: hasEnd && endsAt ? `${startsAt} → ${endsAt}` : `с ${startsAt}, бессрочно`,
+      label: t.promotions.summaryLimitsLabel,
+      value: limits.length ? limits.join(', ') : t.promotions.summaryNone,
+      done: true,
+    })
+    rows.push({
+      label: t.promotions.summaryDatesLabel,
+      value:
+        hasEnd && endsAt
+          ? `${startsAt} → ${endsAt}`
+          : t.promotions.summaryFromNoEnd.replace('{date}', startsAt),
       done: true,
     })
     return rows
   }, [
-    type, name, discountType, discountValue, promoCode, targetType, groupIds, productIds,
+    t, type, name, discountType, discountValue, promoCode, targetType, groupIds, productIds,
     limitUsage, usageLimit, limitMinOrder, minOrderAmount, noStacking, excludeWholesale,
     startsAt, hasEnd, endsAt,
   ])
@@ -135,11 +144,11 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
     startTransition(async () => {
       const res = await createPromotion(payload)
       if (res.success) {
-        toast.success('Акция создана')
+        toast.success(t.promotions.toastCreated)
         router.push('/admin/promotions')
         router.refresh()
       } else {
-        toast.error(res.error ?? 'Не удалось сохранить акцию')
+        toast.error(res.error ?? t.promotions.toastCreateError)
       }
     })
   }
@@ -150,13 +159,13 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
         <Link
           href="/admin/promotions"
           className="flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-          aria-label="Назад"
+          aria-label={t.promotions.backAria}
         >
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-lg font-semibold text-slate-900">Новая акция</h1>
-          <p className="text-sm text-slate-500">Настройте скидку, таргетинг и ограничения</p>
+          <h1 className="text-lg font-semibold text-slate-900">{t.promotions.formTitleNew}</h1>
+          <p className="text-sm text-slate-500">{t.promotions.formSubtitle}</p>
         </div>
         <button
           form="promo-form"
@@ -164,7 +173,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
           disabled={isPending}
           className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 disabled:opacity-60"
         >
-          {isPending ? 'Сохранение…' : 'Сохранить акцию'}
+          {isPending ? t.promotions.saveButtonSaving : t.promotions.saveButtonDefault}
         </button>
       </header>
 
@@ -179,42 +188,42 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
           <section className={cardClass}>
             <h2 className={cardTitleClass}>
               <Tag className="size-4 text-violet-600" />
-              Основная информация
+              {t.promotions.sectionMainInfo}
             </h2>
 
             <div className="mb-4 grid grid-cols-2 gap-3">
               <TypeCard
                 active={type === 'promocode'}
                 icon={<Ticket className="size-5" />}
-                title="Промокод"
-                desc="Код для покупателя"
+                title={t.promotions.typePromoTitle}
+                desc={t.promotions.typePromoDesc}
                 onClick={() => setType('promocode')}
               />
               <TypeCard
                 active={type === 'discount'}
                 icon={<Tag className="size-5" />}
-                title="Скидка"
-                desc="Автоматическая"
+                title={t.promotions.typeDiscountTitle}
+                desc={t.promotions.typeDiscountDesc}
                 onClick={() => setType('discount')}
               />
             </div>
 
             <div className="mb-4">
               <label className={labelClass} htmlFor="promo-name">
-                Название акции
+                {t.promotions.nameLabel}
               </label>
               <input
                 id="promo-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Например, Весенний розпродаж"
+                placeholder={t.promotions.namePlaceholder}
                 className={inputClass}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelClass}>Тип скидки</label>
+                <label className={labelClass}>{t.promotions.discountTypeLabel}</label>
                 <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-1">
                   <button
                     type="button"
@@ -223,7 +232,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                       discountType === 'percentage' ? 'bg-violet-600 text-white' : 'text-slate-600'
                     }`}
                   >
-                    Процент %
+                    {t.promotions.discountTypePercent}
                   </button>
                   <button
                     type="button"
@@ -232,13 +241,13 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                       discountType === 'fixed' ? 'bg-violet-600 text-white' : 'text-slate-600'
                     }`}
                   >
-                    Сумма ₴
+                    {t.promotions.discountTypeFixed}
                   </button>
                 </div>
               </div>
               <div>
                 <label className={labelClass} htmlFor="promo-value">
-                  Размер скидки
+                  {t.promotions.discountValueLabel}
                 </label>
                 <input
                   id="promo-value"
@@ -256,7 +265,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
             {type === 'promocode' && (
               <div className="mt-4">
                 <label className={labelClass} htmlFor="promo-code">
-                  Промокод
+                  {t.promotions.promoCodeLabel}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -272,7 +281,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                     className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 text-sm font-medium text-violet-700 transition-colors hover:bg-violet-100"
                   >
                     <RefreshCw className="size-4" />
-                    Сгенерировать
+                    {t.promotions.generateButton}
                   </button>
                 </div>
               </div>
@@ -283,28 +292,28 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
           <section className={cardClass}>
             <h2 className={cardTitleClass}>
               <Globe className="size-4 text-violet-600" />
-              Область действия
+              {t.promotions.sectionScope}
             </h2>
             <div className="grid gap-2">
               <RadioRow
                 active={targetType === 'all'}
                 icon={<Globe className="size-4" />}
-                title="На все товары"
-                desc="Акция применяется ко всему каталогу"
+                title={t.promotions.scopeAllTitle}
+                desc={t.promotions.scopeAllDesc}
                 onClick={() => setTargetType('all')}
               />
               <RadioRow
                 active={targetType === 'groups'}
                 icon={<Layers className="size-4" />}
-                title="На выбранные группы"
-                desc="Только товары указанных групп"
+                title={t.promotions.scopeGroupsTitle}
+                desc={t.promotions.scopeGroupsDesc}
                 onClick={() => setTargetType('groups')}
               />
               <RadioRow
                 active={targetType === 'products'}
                 icon={<Package className="size-4" />}
-                title="На конкретные позиции"
-                desc="Только выбранные товары"
+                title={t.promotions.scopeProductsTitle}
+                desc={t.promotions.scopeProductsDesc}
                 onClick={() => setTargetType('products')}
               />
             </div>
@@ -314,7 +323,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                 options={groups}
                 selected={groupIds}
                 onToggle={(id) => toggleId(groupIds, id, setGroupIds)}
-                empty="Нет групп товаров"
+                empty={t.promotions.noGroups}
               />
             )}
             {targetType === 'products' && (
@@ -322,7 +331,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                 options={products}
                 selected={productIds}
                 onToggle={(id) => toggleId(productIds, id, setProductIds)}
-                empty="Нет товаров"
+                empty={t.promotions.noProducts}
               />
             )}
           </section>
@@ -331,13 +340,13 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
           <section className={cardClass}>
             <h2 className={cardTitleClass}>
               <ListChecks className="size-4 text-violet-600" />
-              Ограничения
+              {t.promotions.sectionLimits}
             </h2>
             <div className="grid gap-3">
               <CheckRow
                 checked={limitUsage}
                 onChange={setLimitUsage}
-                title="Лимит на количество использований"
+                title={t.promotions.limitUsageTitle}
               >
                 {limitUsage && (
                   <input
@@ -345,7 +354,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                     min="1"
                     value={usageLimit}
                     onChange={(e) => setUsageLimit(e.target.value)}
-                    placeholder="Например, 500"
+                    placeholder={t.promotions.limitUsagePlaceholder}
                     className={`${inputClass} mt-2`}
                   />
                 )}
@@ -353,7 +362,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
               <CheckRow
                 checked={limitMinOrder}
                 onChange={setLimitMinOrder}
-                title="Минимальная сумма заказа"
+                title={t.promotions.limitMinOrderTitle}
               >
                 {limitMinOrder && (
                   <input
@@ -361,7 +370,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                     min="0"
                     value={minOrderAmount}
                     onChange={(e) => setMinOrderAmount(e.target.value)}
-                    placeholder="Например, 1000"
+                    placeholder={t.promotions.limitMinOrderPlaceholder}
                     className={`${inputClass} mt-2`}
                   />
                 )}
@@ -369,12 +378,12 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
               <CheckRow
                 checked={noStacking}
                 onChange={setNoStacking}
-                title="Запретить совмещение с другими скидками"
+                title={t.promotions.noStackingTitle}
               />
               <CheckRow
                 checked={excludeWholesale}
                 onChange={setExcludeWholesale}
-                title="Не применять к оптовым ценам"
+                title={t.promotions.excludeWholesaleTitle}
               />
             </div>
           </section>
@@ -383,12 +392,12 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
           <section className={cardClass}>
             <h2 className={cardTitleClass}>
               <CalendarDays className="size-4 text-violet-600" />
-              Сроки действия
+              {t.promotions.sectionDates}
             </h2>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass} htmlFor="promo-start">
-                  Дата старта
+                  {t.promotions.startDateLabel}
                 </label>
                 <input
                   id="promo-start"
@@ -400,7 +409,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
               </div>
               <div>
                 <label className={labelClass} htmlFor="promo-end">
-                  Дата окончания
+                  {t.promotions.endDateLabel}
                 </label>
                 <input
                   id="promo-end"
@@ -419,7 +428,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                 onChange={(e) => setHasEnd(e.target.checked)}
                 className="size-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
               />
-              Задать дату окончания
+              {t.promotions.setEndDateLabel}
             </label>
           </section>
         </div>
@@ -429,7 +438,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
           <section className={cardClass}>
             <h2 className={cardTitleClass}>
               <ListChecks className="size-4 text-violet-600" />
-              Резюме акции
+              {t.promotions.sectionSummary}
             </h2>
             <ul className="grid gap-2.5">
               {summary.map((row) => (
@@ -453,16 +462,14 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
           <section className={cardClass}>
             <h2 className={cardTitleClass}>
               <BarChart3 className="size-4 text-violet-600" />
-              Статистика использования
+              {t.promotions.sectionUsageStats}
             </h2>
             <div className="grid grid-cols-1 gap-3">
-              <StatBox label="Применено раз" value="0" />
-              <StatBox label="Сумма заказов" value="0 ₴" />
-              <StatBox label="Сумма скидок" value="0 ₴" />
+              <StatBox label={t.promotions.statAppliedCount} value="0" />
+              <StatBox label={t.promotions.statOrdersTotal} value="0 ₴" />
+              <StatBox label={t.promotions.statDiscountTotal} value="0 ₴" />
             </div>
-            <p className="mt-3 text-xs text-slate-400">
-              Статистика начнёт заполняться после первого применения акции.
-            </p>
+            <p className="mt-3 text-xs text-slate-400">{t.promotions.statsHint}</p>
           </section>
         </aside>
       </form>

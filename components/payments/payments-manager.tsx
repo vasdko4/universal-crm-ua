@@ -63,16 +63,20 @@ import {
   Clock,
   ListChecks,
 } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
-type StatusMeta = { label: string; className: string }
-const STATUS: Record<string, StatusMeta> = {
-  created: { label: 'Создан', className: 'bg-muted text-muted-foreground' },
-  pending: { label: 'Ожидает оплаты', className: 'bg-warning/15 text-warning' },
-  paid: { label: 'Оплачен', className: 'bg-success/15 text-success' },
-  partially_refunded: { label: 'Частичный возврат', className: 'bg-primary/15 text-primary' },
-  refunded: { label: 'Возвращён', className: 'bg-primary/15 text-primary' },
-  failed: { label: 'Ошибка', className: 'bg-destructive/15 text-destructive' },
-  expired: { label: 'Истёк', className: 'bg-muted text-muted-foreground' },
+function statusMeta(t: AdminDictionary, status: string): { label: string; className: string } {
+  const map: Record<string, { label: string; className: string }> = {
+    created: { label: t.payments.statusCreated, className: 'bg-muted text-muted-foreground' },
+    pending: { label: t.payments.statusPending, className: 'bg-warning/15 text-warning' },
+    paid: { label: t.payments.statusPaid, className: 'bg-success/15 text-success' },
+    partially_refunded: { label: t.payments.statusPartiallyRefunded, className: 'bg-primary/15 text-primary' },
+    refunded: { label: t.payments.statusRefunded, className: 'bg-primary/15 text-primary' },
+    failed: { label: t.payments.statusFailed, className: 'bg-destructive/15 text-destructive' },
+    expired: { label: t.payments.statusExpired, className: 'bg-muted text-muted-foreground' },
+  }
+  return map[status] ?? map.created
 }
 
 function money(v: string | number, currency: string) {
@@ -98,6 +102,7 @@ export function PaymentsManager({
   payments: Payment[]
   methods: PaymentMethod[]
 }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [createOpen, setCreateOpen] = useState(false)
@@ -131,12 +136,12 @@ export function PaymentsManager({
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!form.gatewayCode) {
-      toast.error('Выберите платёжный шлюз')
+      toast.error(t.payments.toastSelectGateway)
       return
     }
     const amount = Number(form.amount)
     if (!amount || amount <= 0) {
-      toast.error('Укажите корректную сумму')
+      toast.error(t.payments.toastInvalidAmount)
       return
     }
     startTransition(async () => {
@@ -191,7 +196,7 @@ export function PaymentsManager({
     if (!refunding) return
     const amount = Number(refundAmount)
     if (!amount || amount <= 0) {
-      toast.error('Укажите сумму возврата')
+      toast.error(t.payments.toastRefundAmount)
       return
     }
     startTransition(async () => {
@@ -206,10 +211,8 @@ export function PaymentsManager({
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-balance">Платежи</h1>
-          <p className="text-sm text-muted-foreground">
-            Приём оплат и возврат средств через WayForPay и Monobank
-          </p>
+          <h1 className="text-xl font-semibold tracking-tight text-balance">{t.payments.pageTitle}</h1>
+          <p className="text-sm text-muted-foreground">{t.payments.pageSubtitle}</p>
         </div>
       </header>
 
@@ -217,34 +220,34 @@ export function PaymentsManager({
         <TabsList>
           <TabsTrigger value="processing">
             <Wallet className="size-4" />
-            Обработка
+            {t.payments.tabProcessing}
           </TabsTrigger>
           <TabsTrigger value="methods">
             <ListChecks className="size-4" />
-            Способы оплаты
+            {t.payments.tabMethods}
           </TabsTrigger>
           <TabsTrigger value="gateways">
             <CreditCard className="size-4" />
-            Шлюзы
+            {t.payments.tabGateways}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="processing" className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={Wallet} label="Всего платежей" value={String(stats.total)} />
+            <StatCard icon={Wallet} label={t.payments.statTotal} value={String(stats.total)} />
             <StatCard
               icon={CheckCircle2}
-              label="Оплачено"
+              label={t.payments.statPaid}
               value={money(stats.paid, 'UAH')}
               accent="success"
             />
             <StatCard
               icon={Undo2}
-              label="Возвращено"
+              label={t.payments.statRefunded}
               value={money(stats.refunded, 'UAH')}
               accent="primary"
             />
-            <StatCard icon={Clock} label="В ожидании" value={String(stats.pending)} accent="warning" />
+            <StatCard icon={Clock} label={t.payments.statPending} value={String(stats.pending)} accent="warning" />
           </div>
 
           <div className="flex justify-end">
@@ -255,7 +258,7 @@ export function PaymentsManager({
               }}
             >
               <Plus className="size-4" />
-              Создать платёж
+              {t.payments.createButton}
             </Button>
           </div>
 
@@ -263,13 +266,13 @@ export function PaymentsManager({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead>Заказ</TableHead>
-                  <TableHead className="hidden md:table-cell">Шлюз</TableHead>
-                  <TableHead className="text-right">Сумма</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead className="hidden lg:table-cell">Клиент</TableHead>
-                  <TableHead className="hidden text-right sm:table-cell">Дата</TableHead>
-                  <TableHead className="w-16 text-right">Действия</TableHead>
+                  <TableHead>{t.payments.colOrder}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t.payments.colGateway}</TableHead>
+                  <TableHead className="text-right">{t.payments.colAmount}</TableHead>
+                  <TableHead>{t.payments.colStatus}</TableHead>
+                  <TableHead className="hidden lg:table-cell">{t.payments.colCustomer}</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">{t.payments.colDate}</TableHead>
+                  <TableHead className="w-16 text-right">{t.payments.colActions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -278,13 +281,13 @@ export function PaymentsManager({
                     <TableCell colSpan={7} className="h-32 text-center">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <Wallet className="size-8" />
-                        <p className="text-sm">Платежей пока нет</p>
+                        <p className="text-sm">{t.payments.emptyPayments}</p>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   payments.map((p) => {
-                    const meta = STATUS[p.status] ?? STATUS.created
+                    const meta = statusMeta(t, p.status)
                     const refunded = Number(p.refundedAmount)
                     const canRefund = p.status === 'paid' || p.status === 'partially_refunded'
                     const isTest = testModeByCode[p.gatewayCode]
@@ -306,7 +309,7 @@ export function PaymentsManager({
                           <p className="font-medium">{money(p.amount, p.currency)}</p>
                           {refunded > 0 && (
                             <p className="text-xs text-muted-foreground">
-                              возврат {money(refunded, p.currency)}
+                              {t.payments.refundedPrefix} {money(refunded, p.currency)}
                             </p>
                           )}
                         </TableCell>
@@ -333,7 +336,7 @@ export function PaymentsManager({
                                 ) : (
                                   <MoreHorizontal className="size-4" />
                                 )}
-                                <span className="sr-only">Действия</span>
+                                <span className="sr-only">{t.payments.colActions}</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -341,18 +344,18 @@ export function PaymentsManager({
                                 <DropdownMenuItem asChild>
                                   <a href={p.paymentUrl} target="_blank" rel="noopener noreferrer">
                                     <ExternalLink className="size-4" />
-                                    Открыть оплату
+                                    {t.payments.openPayment}
                                   </a>
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem onClick={() => handleRefresh(p)}>
                                 <RefreshCw className="size-4" />
-                                Обновить статус
+                                {t.payments.refreshStatus}
                               </DropdownMenuItem>
                               {isTest && p.status !== 'paid' && p.status !== 'refunded' && (
                                 <DropdownMenuItem onClick={() => handleMarkPaid(p)}>
                                   <CheckCircle2 className="size-4" />
-                                  Отметить оплаченным
+                                  {t.payments.markPaid}
                                 </DropdownMenuItem>
                               )}
                               {canRefund && (
@@ -363,7 +366,7 @@ export function PaymentsManager({
                                     onClick={() => openRefund(p)}
                                   >
                                     <RotateCcw className="size-4" />
-                                    Возврат средств
+                                    {t.payments.refundAction}
                                   </DropdownMenuItem>
                                 </>
                               )}
@@ -392,26 +395,24 @@ export function PaymentsManager({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Новый платёж</DialogTitle>
-            <DialogDescription>
-              Создаётся счёт в выбранном шлюзе и формируется ссылка на оплату.
-            </DialogDescription>
+            <DialogTitle>{t.payments.newPaymentTitle}</DialogTitle>
+            <DialogDescription>{t.payments.newPaymentDesc}</DialogDescription>
           </DialogHeader>
           {activeGateways.length === 0 ? (
             <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
-              Нет активных шлюзов. Активируйте WayForPay или Monobank во вкладке «Шлюзы».
+              {t.payments.noActiveGateways}
             </div>
           ) : (
             <form onSubmit={handleCreate} className="flex flex-col gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="payGateway">Шлюз *</Label>
+                  <Label htmlFor="payGateway">{t.payments.gatewayLabel}</Label>
                   <Select
                     value={form.gatewayCode}
                     onValueChange={(v) => setForm((f) => ({ ...f, gatewayCode: v }))}
                   >
                     <SelectTrigger id="payGateway">
-                      <SelectValue placeholder="Выберите шлюз" />
+                      <SelectValue placeholder={t.payments.gatewaySelectPlaceholder} />
                     </SelectTrigger>
                     <SelectContent>
                       {activeGateways.map((g) => (
@@ -423,7 +424,7 @@ export function PaymentsManager({
                   </Select>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="payCurrency">Валюта</Label>
+                  <Label htmlFor="payCurrency">{t.payments.currencyLabel}</Label>
                   <Select
                     value={form.currency}
                     onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}
@@ -440,7 +441,7 @@ export function PaymentsManager({
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="payAmount">Сумма *</Label>
+                <Label htmlFor="payAmount">{t.payments.amountLabel}</Label>
                 <Input
                   id="payAmount"
                   type="number"
@@ -452,18 +453,18 @@ export function PaymentsManager({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="payDesc">Назначение платежа</Label>
+                <Label htmlFor="payDesc">{t.payments.descLabel}</Label>
                 <Textarea
                   id="payDesc"
                   rows={2}
-                  placeholder="Оплата заказа №..."
+                  placeholder={t.payments.descPlaceholder}
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="payName">Клиент</Label>
+                  <Label htmlFor="payName">{t.payments.customerLabel}</Label>
                   <Input
                     id="payName"
                     value={form.customerName}
@@ -471,7 +472,7 @@ export function PaymentsManager({
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="payPhone">Телефон</Label>
+                  <Label htmlFor="payPhone">{t.payments.phoneLabel}</Label>
                   <Input
                     id="payPhone"
                     value={form.customerPhone}
@@ -480,7 +481,7 @@ export function PaymentsManager({
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="payEmail">Email</Label>
+                <Label htmlFor="payEmail">{t.payments.emailLabel}</Label>
                 <Input
                   id="payEmail"
                   type="email"
@@ -490,11 +491,11 @@ export function PaymentsManager({
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                  Отмена
+                  {t.common.cancel}
                 </Button>
                 <Button type="submit" disabled={isPending}>
                   {isPending && <Loader2 className="size-4 animate-spin" />}
-                  Создать счёт
+                  {t.payments.createInvoiceButton}
                 </Button>
               </DialogFooter>
             </form>
@@ -506,18 +507,19 @@ export function PaymentsManager({
       <Dialog open={refunding !== null} onOpenChange={(open) => !open && setRefunding(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Возврат средств</DialogTitle>
+            <DialogTitle>{t.payments.refundDialogTitle}</DialogTitle>
             <DialogDescription>
               {refunding && (
                 <>
-                  Платёж {refunding.orderReference} на {money(refunding.amount, refunding.currency)}.
-                  Уже возвращено {money(refunding.refundedAmount, refunding.currency)}.
+                  {t.payments.refundDialogDescPrefix} {refunding.orderReference} —{' '}
+                  {money(refunding.amount, refunding.currency)}. {t.payments.refundDialogAlreadyRefunded}{' '}
+                  {money(refunding.refundedAmount, refunding.currency)}.
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="refundAmount">Сумма возврата</Label>
+            <Label htmlFor="refundAmount">{t.payments.refundAmountLabel}</Label>
             <Input
               id="refundAmount"
               type="number"
@@ -527,13 +529,13 @@ export function PaymentsManager({
               onChange={(e) => setRefundAmount(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Возврат выполняется через API {refunding ? gatewayName(refunding.gatewayCode) : ''}.
-              Возможен частичный возврат.
+              {t.payments.refundHintPrefix} {refunding ? gatewayName(refunding.gatewayCode) : ''}.{' '}
+              {t.payments.refundHintSuffix}
             </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setRefunding(null)}>
-              Отмена
+              {t.common.cancel}
             </Button>
             <Button
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -541,7 +543,7 @@ export function PaymentsManager({
               disabled={isPending}
             >
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Вернуть средства
+              {t.payments.confirmRefundButton}
             </Button>
           </DialogFooter>
         </DialogContent>
