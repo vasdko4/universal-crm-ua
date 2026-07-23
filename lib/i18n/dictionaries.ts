@@ -403,6 +403,42 @@ export type Dictionary = {
     homeButton: string
     catalogButton: string
   }
+  auth: {
+    loginTitle: string
+    loginNoAccount: string
+    loginRegisterLink: string
+    registerTitle: string
+    registerHasAccount: string
+    registerLoginLink: string
+    forgotTitle: string
+    forgotDescription: string
+    forgotBackToLogin: string
+    emailLabel: string
+    passwordLabel: string
+    newPasswordLabel: string
+    forgotPasswordLink: string
+    nameLabel: string
+    phoneLabel: string
+    otpLabel: string
+    minPasswordHint: string
+    loginButton: string
+    registerButton: string
+    sendCodeButton: string
+    resetPasswordButton: string
+    resendCodeButton: string
+    tooManyAttempts: string
+    invalidCredentials: string
+    nameRequired: string
+    invalidPhoneFormat: string
+    passwordTooShort: string
+    phoneAlreadyRegistered: string
+    userAlreadyExists: string
+    registrationError: string
+    codeSent: string
+    couldNotSendCode: string
+    otpMustBe6Digits: string
+    invalidOrExpiredCode: string
+  }
 }
 
 const uk: Dictionary = {
@@ -803,6 +839,42 @@ const uk: Dictionary = {
     homeButton: 'На головну',
     catalogButton: 'Каталог товарів',
   },
+  auth: {
+    loginTitle: 'Вхід в акаунт',
+    loginNoAccount: 'Немає акаунту?',
+    loginRegisterLink: 'Зареєструватися',
+    registerTitle: 'Створити акаунт',
+    registerHasAccount: 'Вже є акаунт?',
+    registerLoginLink: 'Увійти',
+    forgotTitle: 'Відновлення пароля',
+    forgotDescription: 'Введіть пошту — ми надішлемо код для скидання пароля. Код діє 15 хвилин.',
+    forgotBackToLogin: 'Згадали пароль?',
+    emailLabel: 'Електронна пошта',
+    passwordLabel: 'Пароль',
+    newPasswordLabel: 'Новий пароль',
+    forgotPasswordLink: 'Забули пароль?',
+    nameLabel: 'Ім\u2019я та прізвище',
+    phoneLabel: 'Номер телефону',
+    otpLabel: 'Код з листа',
+    minPasswordHint: 'Мінімум 8 символів',
+    loginButton: 'Увійти',
+    registerButton: 'Зареєструватися',
+    sendCodeButton: 'Надіслати код',
+    resetPasswordButton: 'Скинути пароль',
+    resendCodeButton: 'Надіслати код повторно',
+    tooManyAttempts: 'Забагато спроб входу. Зачекайте 2 хвилини і спробуйте знову.',
+    invalidCredentials: 'Невірна пошта або пароль',
+    nameRequired: 'Введіть ім\u2019я',
+    invalidPhoneFormat: 'Введіть коректний номер телефону (наприклад, +380 67 123 45 67)',
+    passwordTooShort: 'Пароль має бути не менше 8 символів',
+    phoneAlreadyRegistered: 'Цей номер телефону вже зареєстровано',
+    userAlreadyExists: 'Користувач із такою поштою вже існує',
+    registrationError: 'Помилка реєстрації',
+    codeSent: 'Код надіслано на пошту. Перевірте вхідні (і теку «Спам»).',
+    couldNotSendCode: 'Не вдалося надіслати код',
+    otpMustBe6Digits: 'Код складається з 6 цифр',
+    invalidOrExpiredCode: 'Невірний або прострочений код',
+  },
 }
 
 const ru: Dictionary = {
@@ -1202,6 +1274,42 @@ const ru: Dictionary = {
       'Страница была удалена, перемещена или адрес введён с ошибкой. Попробуйте начать с главной страницы или загляните в каталог товаров.',
     homeButton: 'На главную',
     catalogButton: 'Каталог товаров',
+  },
+  auth: {
+    loginTitle: 'Вход в аккаунт',
+    loginNoAccount: 'Нет аккаунта?',
+    loginRegisterLink: 'Зарегистрироваться',
+    registerTitle: 'Создать аккаунт',
+    registerHasAccount: 'Уже есть аккаунт?',
+    registerLoginLink: 'Войти',
+    forgotTitle: 'Восстановление пароля',
+    forgotDescription: 'Введите почту — мы отправим код для сброса пароля. Код действует 15 минут.',
+    forgotBackToLogin: 'Вспомнили пароль?',
+    emailLabel: 'Электронная почта',
+    passwordLabel: 'Пароль',
+    newPasswordLabel: 'Новый пароль',
+    forgotPasswordLink: 'Забыли пароль?',
+    nameLabel: 'Имя и фамилия',
+    phoneLabel: 'Номер телефона',
+    otpLabel: 'Код из письма',
+    minPasswordHint: 'Минимум 8 символов',
+    loginButton: 'Войти',
+    registerButton: 'Зарегистрироваться',
+    sendCodeButton: 'Отправить код',
+    resetPasswordButton: 'Сбросить пароль',
+    resendCodeButton: 'Отправить код повторно',
+    tooManyAttempts: 'Слишком много попыток входа. Подождите 2 минуты и попробуйте снова.',
+    invalidCredentials: 'Неверная почта или пароль',
+    nameRequired: 'Введите имя',
+    invalidPhoneFormat: 'Введите корректный номер телефона (например, +380 67 123 45 67)',
+    passwordTooShort: 'Пароль должен быть не менее 8 символов',
+    phoneAlreadyRegistered: 'Этот номер телефона уже зарегистрирован',
+    userAlreadyExists: 'Пользователь с такой почтой уже существует',
+    registrationError: 'Ошибка регистрации',
+    codeSent: 'Код отправлен на почту. Проверьте входящие (и папку «Спам»).',
+    couldNotSendCode: 'Не удалось отправить код',
+    otpMustBe6Digits: 'Код состоит из 6 цифр',
+    invalidOrExpiredCode: 'Неверный или просроченный код',
   },
 }
 
