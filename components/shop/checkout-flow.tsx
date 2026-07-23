@@ -267,9 +267,9 @@ export function CheckoutFlow({
       if (res.ok) {
         setAddresses((prev) => prev.filter((a) => a.id !== id))
         if (selectedAddressId === id) setSelectedAddressId(null)
-        toast.success('Адрес удалён')
+        toast.success(dict.account.addressDeleted)
       } else {
-        toast.error('Не удалось удалить адрес')
+        toast.error(dict.account.genericError)
       }
     } finally {
       setDeletingAddressId(null)

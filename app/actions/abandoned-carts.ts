@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { db, pool } from '@/lib/db'
 import { abandonedCarts, type AbandonedCart } from '@/lib/db/schema'
 import { assertPermission } from '@/lib/session'
-import { auditLog } from '@/lib/audit-log'
+import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
+import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { sendMail } from '@/lib/mailer'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 
@@ -188,7 +189,9 @@ ${lines}
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'update', entity: 'abandoned_cart', entityId: id,
-    details: `Отправлено напоминание на ${cart.customerEmail}`,
+    details: fillAuditTemplate(getAdminDictionary(user.locale).auditLog.cartReminderSent, {
+      email: cart.customerEmail,
+    }),
   })
 
   revalidatePath('/admin/abandoned-carts')
@@ -206,7 +209,9 @@ export async function dismissAbandonedCarts(ids: number[]): Promise<{ success: b
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'delete', entity: 'abandoned_cart',
-    details: `Скрыто корзин: ${ids.length}`,
+    details: fillAuditTemplate(getAdminDictionary(user.locale).auditLog.cartsHidden, {
+      count: ids.length,
+    }),
   })
   revalidatePath('/admin/abandoned-carts')
   return { success: true }

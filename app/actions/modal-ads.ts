@@ -5,7 +5,8 @@ import { modalAds } from '@/lib/db/schema'
 import { and, count, desc, eq, ilike, lte, or, isNull, gte, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
-import { auditLog } from '@/lib/audit-log'
+import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
+import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 export type ModalAdTargetPage = 'all' | 'home' | 'catalog' | 'product' | 'cart'
 export type ModalAdTrigger = 'delay' | 'scroll' | 'exit'
@@ -117,7 +118,7 @@ export async function createModalAd(input: ModalAdInput) {
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'create', entity: 'modal_ad',
-    details: `Создана кампания «${input.name}»`,
+    details: fillAuditTemplate(getAdminDictionary(user.locale).auditLog.campaignCreated, { name: input.name }),
   })
   revalidatePath('/admin/modal-ads')
   return { success: true }
@@ -134,7 +135,7 @@ export async function updateModalAd(id: number, input: ModalAdInput) {
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'update', entity: 'modal_ad', entityId: id,
-    details: `Изменена кампания «${input.name}»`,
+    details: fillAuditTemplate(getAdminDictionary(user.locale).auditLog.campaignUpdated, { name: input.name }),
   })
   revalidatePath('/admin/modal-ads')
   return { success: true }
@@ -146,7 +147,7 @@ export async function toggleModalAdActive(id: number, isActive: boolean) {
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'toggle', entity: 'modal_ad', entityId: id,
-    details: isActive ? 'Кампания включена' : 'Кампания выключена',
+    details: isActive ? getAdminDictionary(user.locale).auditLog.campaignEnabled : getAdminDictionary(user.locale).auditLog.campaignDisabled,
   })
   revalidatePath('/admin/modal-ads')
   return { success: true }
@@ -158,7 +159,7 @@ export async function deleteModalAd(id: number) {
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'delete', entity: 'modal_ad', entityId: id,
-    details: 'Кампания удалена',
+    details: getAdminDictionary(user.locale).auditLog.campaignDeleted,
   })
   revalidatePath('/admin/modal-ads')
   return { success: true }

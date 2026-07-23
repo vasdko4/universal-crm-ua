@@ -1,14 +1,30 @@
 /**
- * Applies db/schema.sql and (optionally) db/seed.sql to the database pointed to
- * by DATABASE_URL. No `psql` binary required — uses the `pg` driver.
+ * Applies db/schema.sql, then db/migrate.sql, and (optionally) db/seed.sql to
+ * the database pointed to by DATABASE_URL. No `psql` binary required — uses
+ * the `pg` driver.
  *
- * By default only the schema is applied — the store is configured through the
- * web setup wizard on first visit (http://localhost:3000). Pass --seed to also
- * load the demo dataset (products, categories, sample orders).
+ * This runs on every container start (see the "app" service command in
+ * docker-compose.yml), including the auto-update sidecar's "recreate
+ * container from new image" flow — that flow only ever swaps the image, it
+ * never runs SQL by itself. schema.sql is a `CREATE TABLE IF NOT EXISTS` /
+ * `CREATE TABLE ... IF NOT EXISTS column` snapshot, so on an *existing*
+ * install it is a no-op for any column added to an already-created table —
+ * only migrate.sql's `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements
+ * actually add those columns to a live production database. Skipping it
+ * silently leaves prod behind schema.sql/the app code until someone runs
+ * migrate.sql by hand, which previously caused a production outage (missing
+ * columns like `products.variants_enabled`, `orders.utm_source`) after an
+ * unattended auto-update. migrate.sql is explicitly written to be safe to run
+ * repeatedly, so this always runs, unconditionally.
+ *
+ * By default only schema.sql + migrate.sql are applied — the store is
+ * configured through the web setup wizard on first visit
+ * (http://localhost:3000). Pass --seed to also load the demo dataset
+ * (products, categories, sample orders).
  *
  * Usage:
- *   node --env-file=.env.local scripts/db-setup.mjs          # schema only
- *   node --env-file=.env.local scripts/db-setup.mjs --seed   # schema + demo data
+ *   node --env-file=.env.local scripts/db-setup.mjs          # schema + migrations
+ *   node --env-file=.env.local scripts/db-setup.mjs --seed   # schema + migrations + demo data
  *   node --env-file=.env.local scripts/db-setup.mjs --reset  # drop public schema first
  */
 import { Pool } from 'pg'
@@ -63,6 +79,7 @@ async function main() {
       await run('resetting public schema', 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;')
     }
     await run('applying schema.sql', readFileSync(join(root, 'db/schema.sql'), 'utf8'))
+    await run('applying migrate.sql', readFileSync(join(root, 'db/migrate.sql'), 'utf8'))
     if (withSeed) {
       await run('applying seed.sql', readFileSync(join(root, 'db/seed.sql'), 'utf8'))
     }

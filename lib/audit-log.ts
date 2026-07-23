@@ -16,6 +16,16 @@ export type AuditEntry = {
 }
 
 /**
+ * Fills `{{name}}`-style placeholders in an audit-log dictionary string, e.g.
+ * `fillAuditTemplate(t.auditLog.cartsHidden, { count: 3 })`. Kept here (not
+ * in the dictionaries file) since it's purely a string-formatting helper used
+ * by every admin server action that writes audit log entries.
+ */
+export function fillAuditTemplate(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => String(values[key] ?? ''))
+}
+
+/**
  * Fire-and-forget audit logging for the admin center. Never throws: a broken
  * log write must not take down the action that triggered it.
  */

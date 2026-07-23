@@ -6,7 +6,8 @@ import { getAuth } from '@/lib/auth'
 import { db, pool } from '@/lib/db'
 import { roles } from '@/lib/db/schema'
 import { getAdminUser } from '@/lib/session'
-import { auditLog } from '@/lib/audit-log'
+import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
+import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 export async function countUsers(): Promise<number> {
   const res = await pool.query('SELECT COUNT(*)::int AS c FROM "user"')
@@ -89,7 +90,10 @@ export async function createUser(input: {
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'create', entity: 'user',
-    details: `Создан пользователь ${input.email} (роль: ${input.role})`,
+    details: fillAuditTemplate(getAdminDictionary(me.locale).auditLog.userCreated, {
+      email: input.email,
+      role: input.role,
+    }),
   })
   revalidatePath('/admin/users')
   return { success: true }
@@ -110,7 +114,7 @@ export async function updateUserRole(userId: string, role: string) {
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'security', entity: 'user', entityId: userId,
-    details: `Смена роли пользователя на «${role}»`,
+    details: fillAuditTemplate(getAdminDictionary(me.locale).auditLog.userRoleChanged, { role }),
   })
   revalidatePath('/admin/users')
   return { success: true }
@@ -128,7 +132,9 @@ export async function setUserActive(userId: string, isActive: boolean) {
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'security', entity: 'user', entityId: userId,
-    details: isActive ? 'Пользователь активирован' : 'Пользователь деактивирован',
+    details: isActive
+      ? getAdminDictionary(me.locale).auditLog.userActivated
+      : getAdminDictionary(me.locale).auditLog.userDeactivated,
   })
   revalidatePath('/admin/users')
   return { success: true }
@@ -141,7 +147,7 @@ export async function deleteUser(userId: string) {
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'delete', entity: 'user', entityId: userId,
-    details: 'Пользователь удалён',
+    details: getAdminDictionary(me.locale).auditLog.userDeleted,
   })
   revalidatePath('/admin/users')
   return { success: true }

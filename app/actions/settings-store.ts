@@ -103,14 +103,16 @@ export async function updateStoreSettings(data: Partial<StoreSettingsData>) {
     return JSON.stringify(before[k]) !== JSON.stringify(data[k])
   })
   const result = await writeStoreSettings(data)
-  const { auditLog } = await import('@/lib/audit-log')
+  const { auditLog, fillAuditTemplate } = await import('@/lib/audit-log')
+  const { getAdminDictionary } = await import('@/lib/i18n/admin/dictionaries')
+  const t = getAdminDictionary(user.locale).auditLog
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'settings', entity: 'settings',
     details:
       changedKeys.length > 0
-        ? `Обновлены настройки: ${changedKeys.join(', ')}`
-        : 'Настройки сохранены (без изменений)',
+        ? fillAuditTemplate(t.settingsUpdated, { keys: changedKeys.join(', ') })
+        : t.settingsUnchanged,
   })
   return result
 }
@@ -133,10 +135,11 @@ export async function clearSiteCache() {
   revalidateTag(STORE_SETTINGS_TAG, 'max')
   revalidatePath('/', 'layout')
   const { auditLog } = await import('@/lib/audit-log')
+  const { getAdminDictionary } = await import('@/lib/i18n/admin/dictionaries')
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'settings', entity: 'settings',
-    details: 'Очищен кеш сайта',
+    details: getAdminDictionary(user.locale).auditLog.cacheCleared,
   })
   return { success: true as const }
 }

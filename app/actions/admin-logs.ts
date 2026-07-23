@@ -84,14 +84,19 @@ export async function clearAdminLogs(days: number): Promise<{ ok: boolean; remov
       ? await pool.query(`DELETE FROM admin_logs WHERE created_at < NOW() - ($1 || ' days')::interval`, [days])
       : await pool.query(`DELETE FROM admin_logs`)
 
-  const { auditLog } = await import('@/lib/audit-log')
+  const { auditLog, fillAuditTemplate } = await import('@/lib/audit-log')
+  const { getAdminDictionary } = await import('@/lib/i18n/admin/dictionaries')
+  const t = getAdminDictionary(user.locale).auditLog
   await auditLog({
     userId: user.id,
     userName: user.name,
     userEmail: user.email,
     action: 'security',
     entity: 'logs',
-    details: days > 0 ? `Очистка логов старше ${days} дн. (${res.rowCount})` : `Полная очистка логов (${res.rowCount})`,
+    details:
+      days > 0
+        ? fillAuditTemplate(t.logsClearedOld, { days, count: res.rowCount ?? 0 })
+        : fillAuditTemplate(t.logsClearedAll, { count: res.rowCount ?? 0 }),
   })
 
   return { ok: true, removed: res.rowCount ?? 0 }

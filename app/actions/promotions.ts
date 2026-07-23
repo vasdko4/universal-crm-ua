@@ -7,6 +7,8 @@ import { and, asc, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
 import { isRateLimited } from '@/lib/api/rate-limit'
+import { getLocale } from '@/lib/i18n/server'
+import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 
 export type PromotionInput = {
   type: 'promocode' | 'discount'
@@ -202,14 +204,15 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
   // SECURITY: public server action (called from the storefront checkout with
   // no auth) — rate-limit per IP so promo codes cannot be brute-forced by
   // scripting this action directly.
+  const t = getDictionary(await getLocale()).serverErrors
   const h = await headers()
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
   if (isRateLimited('promo-eval', ip, 15)) {
-    return { ok: false, error: 'Слишком много попыток, попробуйте позже' }
+    return { ok: false, error: t.rateLimitGeneric }
   }
   const code = rawCode.trim().toUpperCase().slice(0, 64)
-  if (!code) return { ok: false, error: 'Введите промокод' }
-  if (!lines.length) return { ok: false, error: 'Корзина пуста' }
+  if (!code) return { ok: false, error: t.promoCodeRequired }
+  if (!lines.length) return { ok: false, error: t.cartEmpty }
 
   const [promo] = await db
     .select()
@@ -217,19 +220,19 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
     .where(and(eq(promotions.type, 'promocode'), sql`UPPER(${promotions.promoCode}) = ${code}`))
     .limit(1)
 
-  if (!promo) return { ok: false, error: 'Промокод не найден' }
-  if (!promo.isActive) return { ok: false, error: 'Промокод неактивен' }
+  if (!promo) return { ok: false, error: t.promoNotFound }
+  if (!promo.isActive) return { ok: false, error: t.promoInactive }
 
   const now = new Date()
-  if (promo.startsAt && new Date(promo.startsAt) > now) return { ok: false, error: 'Промокод ещё не действует' }
-  if (promo.endsAt && new Date(promo.endsAt) < now) return { ok: false, error: 'Срок действия промокода истёк' }
+  if (promo.startsAt && new Date(promo.startsAt) > now) return { ok: false, error: t.promoNotYetActive }
+  if (promo.endsAt && new Date(promo.endsAt) < now) return { ok: false, error: t.promoExpired }
   if (promo.usageLimit != null && promo.usedCount >= promo.usageLimit) {
-    return { ok: false, error: 'Лимит использования промокода исчерпан' }
+    return { ok: false, error: t.promoUsageLimitReached }
   }
 
   const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0)
   if (promo.minOrderAmount != null && subtotal < Number(promo.minOrderAmount)) {
-    return { ok: false, error: `Минимальная сумма заказа для промокода — ${Number(promo.minOrderAmount)} грн` }
+    return { ok: false, error: fillTemplate(t.promoMinOrder, { amount: Number(promo.minOrderAmount) }) }
   }
 
   // Determine which line items the promo applies to.
@@ -252,7 +255,7 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
   }
 
   if (eligibleBase <= 0) {
-    return { ok: false, error: 'Промокод не применяется к товарам в корзине' }
+    return { ok: false, error: t.promoNotApplicable }
   }
 
   const value = Number(promo.discountValue)
@@ -260,7 +263,7 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
     promo.discountType === 'percentage' ? (eligibleBase * value) / 100 : Math.min(value, eligibleBase)
   discount = Math.min(discount, subtotal)
   discount = Math.round(discount * 100) / 100
-  if (discount <= 0) return { ok: false, error: 'Промокод не даёт скидки на этот заказ' }
+  if (discount <= 0) return { ok: false, error: t.promoNoDiscount }
 
   return {
     ok: true,
