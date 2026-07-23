@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -67,6 +67,8 @@ import {
   X,
   MessageCircle,
 } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { pluralize } from '@/lib/i18n/plural'
 
 type ListData = {
   items: CustomerListItem[]
@@ -74,15 +76,6 @@ type ListData = {
   page: number
   pageSize: number
   totalPages: number
-}
-
-const CONTACT_LABELS: Record<string, string> = {
-  viber: 'Viber',
-  skype: 'Skype',
-  whatsapp: 'WhatsApp',
-  telegram: 'Telegram',
-  email: 'Доп. email',
-  phone: 'Доп. телефон',
 }
 
 function scoreColor(score: number) {
@@ -112,6 +105,16 @@ export function CustomersManager({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { dict } = useAdminI18n()
+  const t = dict.customers
+  const CONTACT_LABELS: Record<string, string> = {
+    viber: t.contactViber,
+    skype: t.contactSkype,
+    whatsapp: t.contactWhatsapp,
+    telegram: t.contactTelegram,
+    email: t.contactEmail,
+    phone: t.contactPhone,
+  }
   const [isPending, startTransition] = useTransition()
 
   const [search, setSearch] = useState(initialSearch)
@@ -160,10 +163,10 @@ export function CustomersManager({
     startTransition(async () => {
       const res = await deleteCustomer(id)
       if (res.success) {
-        toast.success('Клиент перемещён в архив')
+        toast.success(t.toastArchived)
         router.refresh()
       } else {
-        toast.error('Не удалось удалить клиента')
+        toast.error(t.toastDeleteError)
       }
       setDeleteTarget(null)
     })
@@ -177,10 +180,10 @@ export function CustomersManager({
     startTransition(async () => {
       const res = await addCustomerTag(id, value)
       if (res.success) {
-        toast.success(`Тег «${value}» добавлен`)
+        toast.success(`${t.toastTagAdded}: «${value}»`)
         router.refresh()
       } else {
-        toast.error(res.error ?? 'Ошибка')
+        toast.error(res.error ?? t.toastError)
       }
       setTagValue('')
       setTagTarget(null)
@@ -198,14 +201,14 @@ export function CustomersManager({
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Клиенты</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
           <p className="text-sm text-muted-foreground">
-            База клиентов: {data.total} {data.total === 1 ? 'запись' : 'записей'}
+            {data.total} {pluralize(data.total, t.countOne, t.countFew, t.countMany)}
           </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="size-4" />
-          Добавить клиента
+          {t.addCustomer}
         </Button>
       </header>
 
@@ -215,7 +218,7 @@ export function CustomersManager({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по имени, телефону или email..."
+            placeholder={t.searchPlaceholder}
             className="pl-9"
           />
         </form>
@@ -227,16 +230,16 @@ export function CustomersManager({
           }}
         >
           <SelectTrigger className="sm:w-56">
-            <SelectValue placeholder="Надежность" />
+            <SelectValue placeholder={t.reliabilityPlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="0">Любая надежность</SelectItem>
-            <SelectItem value="80">Высокая (80+)</SelectItem>
-            <SelectItem value="50">Средняя (50+)</SelectItem>
+            <SelectItem value="0">{t.anyReliability}</SelectItem>
+            <SelectItem value="80">{t.reliabilityHigh}</SelectItem>
+            <SelectItem value="50">{t.reliabilityMedium}</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={() => handleSearchSubmit(new Event('submit') as unknown as React.FormEvent)}>
-          Найти
+          {t.find}
         </Button>
       </div>
 
@@ -244,12 +247,12 @@ export function CustomersManager({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead>Клиент</TableHead>
-              <TableHead>Контакты</TableHead>
-              <TableHead className="text-center">Надежность</TableHead>
-              <TableHead className="text-center">Заказы</TableHead>
-              <TableHead className="text-right">Оборот</TableHead>
-              <TableHead>Последний заказ</TableHead>
+              <TableHead>{t.colCustomer}</TableHead>
+              <TableHead>{t.colContacts}</TableHead>
+              <TableHead className="text-center">{t.colReliability}</TableHead>
+              <TableHead className="text-center">{t.colOrders}</TableHead>
+              <TableHead className="text-right">{t.colTurnover}</TableHead>
+              <TableHead>{t.colLastOrder}</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -259,7 +262,7 @@ export function CustomersManager({
                 <TableCell colSpan={7} className="h-40 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Users className="size-8 opacity-40" />
-                    <p>Клиенты не найдены</p>
+                    <p>{t.notFound}</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -273,18 +276,18 @@ export function CustomersManager({
                       </span>
                       {c.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {c.tags.map((t) => (
+                          {c.tags.map((tg) => (
                             <Badge
-                              key={t}
+                              key={tg}
                               variant="secondary"
                               className="gap-1 pr-1 text-xs font-normal"
                             >
-                              {t}
+                              {tg}
                               <button
                                 type="button"
-                                onClick={() => handleRemoveTag(c.id, t)}
+                                onClick={() => handleRemoveTag(c.id, tg)}
                                 className="rounded-full p-0.5 hover:bg-muted-foreground/20"
-                                aria-label={`Удалить тег ${t}`}
+                                aria-label={`${t.removeTagAria} ${tg}`}
                               >
                                 <X className="size-3" />
                               </button>
@@ -329,14 +332,14 @@ export function CustomersManager({
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8" aria-label="Действия">
+                        <Button variant="ghost" size="icon" className="size-8" aria-label={t.actionsAria}>
                           <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEdit(c)}>
                           <Pencil className="size-4" />
-                          Редактировать
+                          {t.edit}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
@@ -345,7 +348,7 @@ export function CustomersManager({
                           }}
                         >
                           <Tag className="size-4" />
-                          Добавить тег
+                          {t.addTag}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -353,7 +356,7 @@ export function CustomersManager({
                           onClick={() => setDeleteTarget(c)}
                         >
                           <Trash2 className="size-4" />
-                          Удалить
+                          {t.delete}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -368,7 +371,7 @@ export function CustomersManager({
       {data.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Страница {data.page} из {data.totalPages}
+            {t.pageLabel} {data.page} {t.pageOf} {data.totalPages}
           </p>
           <div className="flex gap-2">
             <Button
@@ -378,7 +381,7 @@ export function CustomersManager({
               onClick={() => applyFilters({ page: data.page - 1 })}
             >
               <ChevronLeft className="size-4" />
-              Назад
+              {t.back}
             </Button>
             <Button
               variant="outline"
@@ -386,7 +389,7 @@ export function CustomersManager({
               disabled={data.page >= data.totalPages || isPending}
               onClick={() => applyFilters({ page: data.page + 1 })}
             >
-              Вперёд
+              {t.next}
               <ChevronRight className="size-4" />
             </Button>
           </div>
@@ -404,7 +407,7 @@ export function CustomersManager({
       <Dialog open={!!tagTarget} onOpenChange={(o) => !o && setTagTarget(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Добавить тег</DialogTitle>
+            <DialogTitle>{t.addTagTitle}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -417,7 +420,7 @@ export function CustomersManager({
               autoFocus
               value={tagValue}
               onChange={(e) => setTagValue(e.target.value)}
-              placeholder="Например: VIP, Опт, Постоянный"
+              placeholder={t.tagPlaceholder}
             />
             <div className="flex flex-wrap gap-1.5">
               {['VIP', 'Опт', 'Роздріб', 'Постійний', 'Проблемний'].map((preset) => (
@@ -433,10 +436,10 @@ export function CustomersManager({
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTagTarget(null)}>
-                Отмена
+                {t.cancel}
               </Button>
               <Button type="submit" disabled={isPending || !tagValue.trim()}>
-                Добавить
+                {t.add}
               </Button>
             </DialogFooter>
           </form>
@@ -446,19 +449,18 @@ export function CustomersManager({
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить клиента?</AlertDialogTitle>
+            <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Клиент {deleteTarget?.firstName} {deleteTarget?.lastName ?? ''} будет перемещён в архив
-              (мягкое удаление). Данные сохранятся в базе.
+              {deleteTarget?.firstName} {deleteTarget?.lastName ?? ''} {t.deleteDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Удалить
+              {t.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

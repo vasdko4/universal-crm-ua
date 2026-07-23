@@ -239,6 +239,75 @@ export type AdminDictionary = {
     toastDeleted: string
     toastDeleteError: string
   }
+  customers: {
+    title: string
+    countOne: string
+    countFew: string
+    countMany: string
+    addCustomer: string
+    searchPlaceholder: string
+    reliabilityPlaceholder: string
+    anyReliability: string
+    reliabilityHigh: string
+    reliabilityMedium: string
+    find: string
+    colCustomer: string
+    colContacts: string
+    colReliability: string
+    colOrders: string
+    colTurnover: string
+    colLastOrder: string
+    colActions: string
+    notFound: string
+    pageLabel: string
+    removeTagAria: string
+    actionsAria: string
+    edit: string
+    addTag: string
+    delete: string
+    pageOf: string
+    back: string
+    next: string
+    addTagTitle: string
+    tagPlaceholder: string
+    cancel: string
+    add: string
+    deleteTitle: string
+    deleteDescription: string
+    toastArchived: string
+    toastDeleteError: string
+    toastTagAdded: string
+    toastError: string
+    contactViber: string
+    contactSkype: string
+    contactWhatsapp: string
+    contactTelegram: string
+    contactEmail: string
+    contactPhone: string
+    dialogEditTitle: string
+    dialogNewTitle: string
+    dialogHint: string
+    firstName: string
+    lastName: string
+    firstNamePlaceholder: string
+    lastNamePlaceholder: string
+    mainPhone: string
+    email: string
+    reliabilityScore: string
+    contactChannels: string
+    addChannel: string
+    noChannels: string
+    channelValuePlaceholder: string
+    removeChannelAria: string
+    note: string
+    notePlaceholder: string
+    save: string
+    saving: string
+    create: string
+    toastUpdated: string
+    toastCreated: string
+    toastSaveError: string
+  }
 }
 
 const uk: AdminDictionary = {
@@ -503,6 +572,75 @@ const uk: AdminDictionary = {
     toastDeleted: 'Категорію видалено',
     toastDeleteError: 'Помилка видалення',
   },
+  customers: {
+    title: 'Клієнти',
+    countOne: 'запис',
+    countFew: 'записи',
+    countMany: 'записів',
+    addCustomer: 'Додати клієнта',
+    searchPlaceholder: 'Пошук за ім’ям, телефоном або email...',
+    reliabilityPlaceholder: 'Надійність',
+    anyReliability: 'Будь-яка надійність',
+    reliabilityHigh: 'Висока (80+)',
+    reliabilityMedium: 'Середня (50+)',
+    find: 'Знайти',
+    colCustomer: 'Клієнт',
+    colContacts: 'Контакти',
+    colReliability: 'Надійність',
+    colOrders: 'Замовлення',
+    colTurnover: 'Оборот',
+    colLastOrder: 'Останнє замовлення',
+    colActions: 'Дії',
+    notFound: 'Клієнтів не знайдено',
+    pageLabel: 'Сторінка',
+    removeTagAria: 'Видалити тег',
+    actionsAria: 'Дії',
+    edit: 'Редагувати',
+    addTag: 'Додати тег',
+    delete: 'Видалити',
+    pageOf: 'з',
+    back: 'Назад',
+    next: 'Вперед',
+    addTagTitle: 'Додати тег',
+    tagPlaceholder: 'Наприклад: VIP, Опт, Постійний',
+    cancel: 'Скасувати',
+    add: 'Додати',
+    deleteTitle: 'Видалити клієнта?',
+    deleteDescription: 'буде переміщений в архів (м’яке видалення). Дані збережуться в базі.',
+    toastArchived: 'Клієнта переміщено в архів',
+    toastDeleteError: 'Не вдалося видалити клієнта',
+    toastTagAdded: 'Тег додано',
+    toastError: 'Помилка',
+    contactViber: 'Viber',
+    contactSkype: 'Skype',
+    contactWhatsapp: 'WhatsApp',
+    contactTelegram: 'Telegram',
+    contactEmail: 'Дод. email',
+    contactPhone: 'Дод. телефон',
+    dialogEditTitle: 'Редагування клієнта',
+    dialogNewTitle: 'Новий клієнт',
+    dialogHint: 'Основна інформація та додаткові канали зв’язку.',
+    firstName: 'Ім’я *',
+    lastName: 'Прізвище',
+    firstNamePlaceholder: 'Олександр',
+    lastNamePlaceholder: 'Коваленко',
+    mainPhone: 'Основний телефон *',
+    email: 'Email',
+    reliabilityScore: 'Оцінка надійності (0–100)',
+    contactChannels: 'Канали зв’язку',
+    addChannel: 'Додати канал зв’язку',
+    noChannels: 'Немає додаткових каналів зв’язку',
+    channelValuePlaceholder: 'Значення',
+    removeChannelAria: 'Видалити канал',
+    note: 'Примітка',
+    notePlaceholder: 'Коментар про клієнта...',
+    save: 'Зберегти',
+    saving: 'Збереження...',
+    create: 'Створити клієнта',
+    toastUpdated: 'Клієнта оновлено',
+    toastCreated: 'Клієнта створено',
+    toastSaveError: 'Помилка збереження',
+  },
 }
 
 const ru: AdminDictionary = {
@@ -766,6 +904,75 @@ const ru: AdminDictionary = {
     toastSaveError: 'Ошибка сохранения',
     toastDeleted: 'Категория удалена',
     toastDeleteError: 'Ошибка удаления',
+  },
+  customers: {
+    title: 'Клиенты',
+    countOne: 'запись',
+    countFew: 'записи',
+    countMany: 'записей',
+    addCustomer: 'Добавить клиента',
+    searchPlaceholder: 'Поиск по имени, телефону или email...',
+    reliabilityPlaceholder: 'Надежность',
+    anyReliability: 'Любая надежность',
+    reliabilityHigh: 'Высокая (80+)',
+    reliabilityMedium: 'Средняя (50+)',
+    find: 'Найти',
+    colCustomer: 'Клиент',
+    colContacts: 'Контакты',
+    colReliability: 'Надежность',
+    colOrders: 'Заказы',
+    colTurnover: 'Оборот',
+    colLastOrder: 'Последний заказ',
+    colActions: 'Действия',
+    notFound: 'Клиенты не найдены',
+    pageLabel: 'Страница',
+    removeTagAria: 'Удалить тег',
+    actionsAria: 'Действия',
+    edit: 'Редактировать',
+    addTag: 'Добавить тег',
+    delete: 'Удалить',
+    pageOf: 'из',
+    back: 'Назад',
+    next: 'Вперёд',
+    addTagTitle: 'Добавить тег',
+    tagPlaceholder: 'Например: VIP, Опт, Постоянный',
+    cancel: 'Отмена',
+    add: 'Добавить',
+    deleteTitle: 'Удалить клиента?',
+    deleteDescription: 'будет перемещён в архив (мягкое удаление). Данные сохранятся в базе.',
+    toastArchived: 'Клиент перемещён в архив',
+    toastDeleteError: 'Не удалось удалить клиента',
+    toastTagAdded: 'Тег добавлен',
+    toastError: 'Ошибка',
+    contactViber: 'Viber',
+    contactSkype: 'Skype',
+    contactWhatsapp: 'WhatsApp',
+    contactTelegram: 'Telegram',
+    contactEmail: 'Доп. email',
+    contactPhone: 'Доп. телефон',
+    dialogEditTitle: 'Редактирование клиента',
+    dialogNewTitle: 'Новый клиент',
+    dialogHint: 'Основная информация и дополнительные каналы связи.',
+    firstName: 'Имя *',
+    lastName: 'Фамилия',
+    firstNamePlaceholder: 'Олександр',
+    lastNamePlaceholder: 'Коваленко',
+    mainPhone: 'Основной телефон *',
+    email: 'Email',
+    reliabilityScore: 'Оценка надежности (0–100)',
+    contactChannels: 'Каналы связи',
+    addChannel: 'Добавить канал связи',
+    noChannels: 'Нет дополнительных каналов связи',
+    channelValuePlaceholder: 'Значение',
+    removeChannelAria: 'Удалить канал',
+    note: 'Заметка',
+    notePlaceholder: 'Комментарий о клиенте...',
+    save: 'Сохранить',
+    saving: 'Сохранение...',
+    create: 'Создать клиента',
+    toastUpdated: 'Клиент обновлён',
+    toastCreated: 'Клиент создан',
+    toastSaveError: 'Ошибка сохранения',
   },
 }
 
