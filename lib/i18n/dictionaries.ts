@@ -341,6 +341,11 @@ export type Dictionary = {
     addressDeleted: string
     genericError: string
   }
+  cookieConsent: {
+    message: string
+    accept: string
+    decline: string
+  }
 }
 
 const uk: Dictionary = {
@@ -685,6 +690,12 @@ const uk: Dictionary = {
     addressDeleted: 'Адресу видалено',
     genericError: 'Сталася помилка. Спробуйте ще раз.',
   },
+  cookieConsent: {
+    message:
+      'Ми використовуємо файли cookie для аналітики та персоналізованої реклами, щоб покращувати сайт і пропозиції.',
+    accept: 'Прийняти',
+    decline: 'Відхилити',
+  },
 }
 
 const ru: Dictionary = {
@@ -1028,6 +1039,12 @@ const ru: Dictionary = {
     addressSaved: 'Адрес сохранён',
     addressDeleted: 'Адрес удалён',
     genericError: 'Произошла ошибка. Попробуйте ещё раз.',
+  },
+  cookieConsent: {
+    message:
+      'Мы используем файлы cookie для аналитики и персонализированной рекламы, чтобы улучшать сайт и предложения.',
+    accept: 'Принять',
+    decline: 'Отклонить',
   },
 }
 

@@ -129,6 +129,27 @@ export type StoreSettingsData = {
     /** GA4 (Google Analytics) — separate from the Ads conversion pixel above. */
     gaEnabled: boolean
     gaMeasurementId: string
+    /**
+     * Enhanced Conversions: sends the buyer's (hashed, client-side by
+     * gtag.js) email/phone alongside the purchase conversion so Google can
+     * match it to signed-in accounts — recovers conversions lost to
+     * cookie/ITP restrictions and improves Smart Bidding. Off by default;
+     * admin opts in explicitly since it involves sending PII to Google.
+     */
+    enhancedConversionsEnabled: boolean
+  }
+  merchantFeed: {
+    /** Google's product taxonomy ID/name, e.g. "Electronics > ...". Sent as
+     *  g:google_product_category on every feed item when set — omitting it
+     *  risks Shopping listings being limited or disapproved. Blank = omit
+     *  the tag entirely (no behavior change from before this field existed). */
+    googleProductCategory: string
+    /** Flat shipping price shown in the feed (g:shipping), e.g. "60 UAH".
+     *  Blank = omit the tag (Merchant Center falls back to whatever
+     *  shipping settings exist directly in the Merchant Center account). */
+    shippingPrice: string
+    /** ISO 3166-1 alpha-2 country the shippingPrice applies to, e.g. "UA". */
+    shippingCountry: string
   }
   emailSettings: {
     provider: string
@@ -172,7 +193,15 @@ export const DEFAULTS: StoreSettingsData = {
     viber: { url: '', enabled: false },
     tiktok: { url: '', enabled: false },
   },
-  googleAds: { conversionId: '', conversionLabel: '', enabled: false, gaEnabled: false, gaMeasurementId: '' },
+  googleAds: {
+    conversionId: '',
+    conversionLabel: '',
+    enabled: false,
+    gaEnabled: false,
+    gaMeasurementId: '',
+    enhancedConversionsEnabled: false,
+  },
+  merchantFeed: { googleProductCategory: '', shippingPrice: '', shippingCountry: 'UA' },
   emailSettings: {
     provider: 'gmail',
     fromEmail: '',
@@ -256,6 +285,10 @@ export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
     seo: { ...DEFAULTS.seo, ...(row.seo as Partial<SeoSettings> | null) },
     social: { ...DEFAULTS.social, ...(row.social as StoreSettingsData['social']) },
     googleAds: { ...DEFAULTS.googleAds, ...(row.googleAds as StoreSettingsData['googleAds']) },
+    merchantFeed: {
+      ...DEFAULTS.merchantFeed,
+      ...((row.merchantFeed ?? {}) as Partial<StoreSettingsData['merchantFeed']>),
+    },
     emailSettings: {
       ...DEFAULTS.emailSettings,
       ...(row.emailSettings as StoreSettingsData['emailSettings']),

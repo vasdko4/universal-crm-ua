@@ -14,6 +14,7 @@ import {
   Package,
   Clock,
   MapPin,
+  Megaphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -236,6 +237,31 @@ export function OrderDetail({
                     <Mail className="size-3.5" />
                     {order.customerEmail}
                   </p>
+                )}
+                {order.utmSource && (
+                  <div className="mt-2 flex flex-col gap-0.5 border-t border-border pt-2">
+                    <p className="flex items-center gap-1.5 text-muted-foreground">
+                      <Megaphone className="size-3.5" />
+                      <span className="font-medium text-foreground">{t.trafficSource}:</span>{' '}
+                      {order.utmSource}
+                      {order.utmMedium ? ` / ${order.utmMedium}` : ''}
+                    </p>
+                    {order.utmCampaign && (
+                      <p className="pl-5 text-xs text-muted-foreground">
+                        {t.utmCampaign}: {order.utmCampaign}
+                      </p>
+                    )}
+                    {order.utmTerm && (
+                      <p className="pl-5 text-xs text-muted-foreground">
+                        {t.utmTerm}: {order.utmTerm}
+                      </p>
+                    )}
+                    {order.utmContent && (
+                      <p className="pl-5 text-xs text-muted-foreground">
+                        {t.utmContent}: {order.utmContent}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </section>

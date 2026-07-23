@@ -37,6 +37,34 @@ async function actionClientIp(): Promise<string> {
   return h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
 }
 
+// Reads the utm_attribution cookie written by lib/shop/utm.ts on landing, so
+// the order this checkout produces is tagged with whichever campaign link
+// the customer most recently clicked — see migrations/009_google_ads_tracking.sql.
+async function readUtmAttribution(): Promise<{
+  utmSource: string | null
+  utmMedium: string | null
+  utmCampaign: string | null
+  utmTerm: string | null
+  utmContent: string | null
+}> {
+  const empty = { utmSource: null, utmMedium: null, utmCampaign: null, utmTerm: null, utmContent: null }
+  try {
+    const store = await cookies()
+    const raw = store.get('utm_attribution')?.value
+    if (!raw) return empty
+    const parsed = JSON.parse(decodeURIComponent(raw)) as Record<string, string>
+    return {
+      utmSource: parsed.utmSource?.slice(0, 150) || null,
+      utmMedium: parsed.utmMedium?.slice(0, 150) || null,
+      utmCampaign: parsed.utmCampaign?.slice(0, 150) || null,
+      utmTerm: parsed.utmTerm?.slice(0, 150) || null,
+      utmContent: parsed.utmContent?.slice(0, 150) || null,
+    }
+  } catch {
+    return empty
+  }
+}
+
 function variantLabel(options: VariantOptions): string {
   return Object.entries(options)
     .map(([k, v]) => `${k}: ${v}`)
@@ -261,12 +289,14 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   // (no stock/promo side effects, hidden from the customer's order list) until
   // the payment is confirmed. Cash/requisite orders are placed immediately.
   const isOnline = input.paymentMethod === 'online'
+  const utm = await readUtmAttribution()
 
   const [order] = await db
     .insert(orders)
     .values({
       orderNumber,
       status: isOnline ? 'pending_payment' : 'new',
+      ...utm,
       customerId,
       customerName,
       customerPhone: input.phone.trim(),

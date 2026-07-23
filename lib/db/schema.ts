@@ -513,6 +513,16 @@ export const orders = pgTable('orders', {
   // True once stock has been restored for this (cancelled) order, so
   // toggling the status back and forth never double-counts the restock.
   stockRestored: boolean('stock_restored').notNull().default(false),
+  // Marketing attribution captured from the ?utm_* query params present when
+  // the customer landed on the site (last-touch: whichever campaign link was
+  // most recently opened before checkout). Populated from a client-side
+  // cookie at order creation time — see lib/shop/utm.ts. Null when the
+  // visitor arrived with no UTM params (direct traffic, organic, etc).
+  utmSource: varchar('utm_source', { length: 150 }),
+  utmMedium: varchar('utm_medium', { length: 150 }),
+  utmCampaign: varchar('utm_campaign', { length: 150 }),
+  utmTerm: varchar('utm_term', { length: 150 }),
+  utmContent: varchar('utm_content', { length: 150 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
@@ -564,6 +574,9 @@ export const storeSettings = pgTable('store_settings', {
   googleAuth: jsonb('google_auth').notNull().default({}),
   // Hero-блок главной страницы (тексты uk/ru + картинка), Настройки → Главная.
   homeHero: jsonb('home_hero').notNull().default({}),
+  // Доп. поля Google Merchant Center фида (категория товара, ставка доставки)
+  // — Настройки → Google Ads. См. app/feed/google-merchant.xml/route.ts.
+  merchantFeed: jsonb('merchant_feed').notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 

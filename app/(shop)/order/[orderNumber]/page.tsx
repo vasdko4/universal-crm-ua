@@ -87,6 +87,9 @@ export default async function OrderConfirmationPage({
             quantity: it.quantity,
             sku: it.sku,
           }))}
+          enhancedConversions={gads?.enhancedConversionsEnabled ?? false}
+          customerEmail={order.customerEmail}
+          customerPhone={order.customerPhone}
         />
       ) : null}
       <div className="flex flex-col items-center text-center">

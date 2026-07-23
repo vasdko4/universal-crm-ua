@@ -3,11 +3,27 @@
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { sendAnalyticsEvent } from '@/lib/shop/track'
-import { trackViewItem } from '@/components/shop/google-ads'
+import { trackViewItem, trackPageType, type EcommPageType } from '@/components/shop/google-ads'
+import { captureUtmFromLocation } from '@/lib/shop/utm'
+
+// Best-effort mapping from a storefront path to the dynamic-remarketing page
+// type Google Ads expects. Product pages fire their own more specific event
+// (view_item, in ProductViewTracker below) so they're excluded here.
+function pageTypeFor(pathname: string): EcommPageType | null {
+  if (pathname === '/' || /^\/(ru)\/?$/.test(pathname)) return 'home'
+  if (/^\/(ru\/)?category(\/|$)/.test(pathname)) return 'category'
+  if (/^\/(ru\/)?catalog(\/|$)/.test(pathname)) return 'category'
+  if (/^\/(ru\/)?cart(\/|$)/.test(pathname)) return 'cart'
+  if (/^\/(ru\/)?product(\/|$)/.test(pathname)) return null
+  return null
+}
 
 // Tracks a pageview on every storefront route change. Mounted once in the
-// shop layout so all public pages are covered automatically.
-export function AnalyticsTracker() {
+// shop layout so all public pages are covered automatically. Also captures
+// ?utm_* attribution params (lib/shop/utm.ts) and fires the Google Ads
+// dynamic-remarketing pageview for page types with no dedicated e-commerce
+// event (home/category/cart) — see components/shop/google-ads.tsx.
+export function AnalyticsTracker({ gaId }: { gaId?: string } = {}) {
   const pathname = usePathname()
   const lastTracked = useRef<string | null>(null)
 
@@ -15,7 +31,10 @@ export function AnalyticsTracker() {
     if (!pathname || lastTracked.current === pathname) return
     lastTracked.current = pathname
     sendAnalyticsEvent({ type: 'pageview', path: pathname })
-  }, [pathname])
+    captureUtmFromLocation()
+    const pageType = pageTypeFor(pathname)
+    if (pageType) trackPageType(gaId, pageType)
+  }, [pathname, gaId])
 
   return null
 }

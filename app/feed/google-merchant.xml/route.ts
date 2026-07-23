@@ -51,7 +51,12 @@ function priceTag(amount: number, currency: string): string {
   return `${amount.toFixed(2)} ${currency}`
 }
 
-function buildItem(p: FeedProduct, siteUrl: string, locale: Locale): string {
+function buildItem(
+  p: FeedProduct,
+  siteUrl: string,
+  locale: Locale,
+  merchant: { googleProductCategory: string; shippingPrice: string; shippingCountry: string },
+): string {
   const abs = (path: string) => toAbsolute(siteUrl, path)
   const link = abs(localizedPath(`/product/${p.id}`, locale))
   const image = p.image ? abs(p.image) : null
@@ -77,6 +82,16 @@ function buildItem(p: FeedProduct, siteUrl: string, locale: Locale): string {
       ? `      <g:price>${priceTag(p.oldPrice, p.currency)}</g:price>\n      <g:sale_price>${priceTag(p.price, p.currency)}</g:sale_price>\n`
       : `      <g:price>${priceTag(p.price, p.currency)}</g:price>\n`
 
+  // Optional, admin-configured (Настройки → Google Ads → Merchant feed).
+  // Both blank by default so a store that never touches these settings gets
+  // byte-identical feed output to before this field existed.
+  const categoryTag = merchant.googleProductCategory
+    ? `      <g:google_product_category>${escapeXml(merchant.googleProductCategory)}</g:google_product_category>\n`
+    : ''
+  const shippingTag = merchant.shippingPrice
+    ? `      <g:shipping>\n        <g:country>${escapeXml(merchant.shippingCountry || 'UA')}</g:country>\n        <g:price>${escapeXml(merchant.shippingPrice)}</g:price>\n      </g:shipping>\n`
+    : ''
+
   return `    <item>
       <g:id>${p.id}</g:id>
       <title>${escapeXml(p.name)}</title>
@@ -84,7 +99,7 @@ function buildItem(p: FeedProduct, siteUrl: string, locale: Locale): string {
       <link>${escapeXml(link)}</link>
       <g:image_link>${escapeXml(image)}</g:image_link>
 ${additionalImages ? additionalImages + '\n' : ''}      <g:availability>${availability}</g:availability>
-${saleTag}${brandTag}${identifierExists}      <g:condition>new</g:condition>
+${saleTag}${brandTag}${identifierExists}${categoryTag}${shippingTag}      <g:condition>new</g:condition>
 ${p.sku ? `      <g:mpn>${escapeXml(p.sku)}</g:mpn>\n` : ''}    </item>`
 }
 
@@ -102,10 +117,15 @@ export async function GET(req: NextRequest) {
 
   const siteUrl = await getCanonicalSiteUrl()
   const products = await getFeedProducts(locale)
+  const merchant = settings?.merchantFeed ?? {
+    googleProductCategory: '',
+    shippingPrice: '',
+    shippingCountry: 'UA',
+  }
 
   const items = products
     .filter((p) => p.price > 0) // Google rejects $0 items.
-    .map((p) => buildItem(p, siteUrl, locale))
+    .map((p) => buildItem(p, siteUrl, locale, merchant))
     .filter(Boolean)
     .join('\n')
 
