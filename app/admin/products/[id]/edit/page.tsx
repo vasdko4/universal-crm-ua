@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { requireAdmin } from '@/lib/session'
 import { getProduct } from '@/app/actions/products'
 import { getCategories } from '@/app/actions/categories'
 import { getGroups, getSiteGroups, getMarketplaceCategories } from '@/app/actions/groups'
@@ -16,6 +17,7 @@ export default async function EditProductPage({
   const productId = Number(id)
   if (!Number.isInteger(productId) || productId <= 0) notFound()
 
+  const admin = await requireAdmin()
   const [product, categories, groups, siteGroups, marketplaceCategories] = await Promise.all([
     getProduct(productId),
     getCategories(),
@@ -77,7 +79,7 @@ export default async function EditProductPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <ProductAnalyticsPanel productId={product.id} />
+      <ProductAnalyticsPanel productId={product.id} locale={admin.locale} />
       <ProductForm
         initial={initial}
         categories={categories}

@@ -16,6 +16,7 @@ import {
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { ImageUploader } from '@/components/products/image-uploader'
 import type { VariantInput } from '@/app/actions/products'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type Props = {
   options: ProductOption[]
@@ -55,6 +56,8 @@ function sameOptions(a: VariantOptions, b: VariantOptions): boolean {
 }
 
 export function ProductVariantsEditor({ options, variants, currency, onChange }: Props) {
+  const { dict } = useAdminI18n()
+  const t = dict.productVariants
   const [newOptionName, setNewOptionName] = useState('')
   const [newOptionType, setNewOptionType] = useState<'text' | 'color'>('text')
 
@@ -122,13 +125,10 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Оси выбора</CardTitle>
+          <CardTitle className="text-base">{t.axesTitle}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground">
-            Добавьте оси (например «Размер», или «Цвет» + «Память»). Значения указывайте через
-            запятую. Затем нажмите «Сгенерировать комбинации».
-          </p>
+          <p className="text-sm text-muted-foreground">{t.axesHint}</p>
 
           {options.map((opt, i) => (
             <div key={i} className="flex flex-col gap-3 rounded-lg border border-border p-3">
@@ -136,7 +136,7 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                 <span className="text-sm font-medium">
                   {opt.name}
                   <span className="ml-2 text-xs text-muted-foreground">
-                    {opt.type === 'color' ? 'цвет' : 'текст'}
+                    {opt.type === 'color' ? t.typeColor : t.typeText}
                   </span>
                 </span>
                 <Button
@@ -144,19 +144,19 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                   variant="ghost"
                   size="icon"
                   className="size-8 text-destructive hover:text-destructive"
-                  aria-label={`Удалить ось ${opt.name}`}
+                  aria-label={`${t.removeAxisAria} ${opt.name}`}
                   onClick={() => removeOption(i)}
                 >
                   <Trash2 className="size-4" />
                 </Button>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor={`opt-values-${i}`}>Значения (через запятую)</Label>
+                <Label htmlFor={`opt-values-${i}`}>{t.valuesLabel}</Label>
                 <Input
                   id={`opt-values-${i}`}
                   value={opt.values.join(', ')}
                   onChange={(e) => setOptionValues(i, e.target.value)}
-                  placeholder={opt.type === 'color' ? 'Black, Blue, Silver' : '39, 40, 41, 42'}
+                  placeholder={opt.type === 'color' ? t.colorPlaceholder : t.textPlaceholder}
                 />
               </div>
               {opt.type === 'color' && opt.values.length > 0 && (
@@ -168,7 +168,7 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                         value={opt.swatches?.[value] ?? '#cccccc'}
                         onChange={(e) => setSwatch(i, value, e.target.value)}
                         className="size-8 cursor-pointer rounded border border-border bg-transparent"
-                        aria-label={`Цвет для ${value}`}
+                        aria-label={`${t.colorForAria} ${value}`}
                       />
                       <span className="text-xs text-muted-foreground">{value}</span>
                     </div>
@@ -180,12 +180,12 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
 
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="new-opt-name">Новая ось</Label>
+              <Label htmlFor="new-opt-name">{t.newAxisLabel}</Label>
               <Input
                 id="new-opt-name"
                 value={newOptionName}
                 onChange={(e) => setNewOptionName(e.target.value)}
-                placeholder="Цвет"
+                placeholder={t.newAxisPlaceholder}
                 className="w-40"
               />
             </div>
@@ -194,20 +194,20 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="text">Текст</SelectItem>
-                <SelectItem value="color">Цвет</SelectItem>
+                <SelectItem value="text">{t.selectText}</SelectItem>
+                <SelectItem value="color">{t.selectColor}</SelectItem>
               </SelectContent>
             </Select>
             <Button type="button" variant="outline" onClick={addOption}>
               <Plus className="size-4" />
-              Добавить ось
+              {t.addAxis}
             </Button>
           </div>
 
           {hasAxes && (
             <Button type="button" variant="secondary" className="w-fit" onClick={generateMatrix}>
               <RefreshCw className="size-4" />
-              Сгенерировать комбинации
+              {t.generateMatrix}
             </Button>
           )}
         </CardContent>
@@ -216,7 +216,9 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
       {variants.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Комбинации ({variants.length})</CardTitle>
+            <CardTitle className="text-base">
+              {t.combinationsTitle} ({variants.length})
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {variants.map((v, i) => (
@@ -225,12 +227,12 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                 className="grid grid-cols-1 gap-2 rounded-lg border border-border p-3 md:grid-cols-[1.3fr_repeat(4,1fr)] md:items-end"
               >
                 <div className="flex flex-col gap-1">
-                  <Label className="text-xs">Комбинация</Label>
+                  <Label className="text-xs">{t.combinationLabel}</Label>
                   <span className="text-sm font-medium">{labelFor(v.options)}</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor={`v-price-${i}`} className="text-xs">
-                    Цена ({currency})
+                    {t.priceLabel} ({currency})
                   </Label>
                   <Input
                     id={`v-price-${i}`}
@@ -242,7 +244,7 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor={`v-old-${i}`} className="text-xs">
-                    Старая цена
+                    {t.oldPriceLabel}
                   </Label>
                   <Input
                     id={`v-old-${i}`}
@@ -254,7 +256,7 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor={`v-qty-${i}`} className="text-xs">
-                    Остаток
+                    {t.quantityLabel}
                   </Label>
                   <Input
                     id={`v-qty-${i}`}
@@ -268,7 +270,7 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor={`v-sku-${i}`} className="text-xs">
-                    SKU
+                    {t.skuLabel}
                   </Label>
                   <Input
                     id={`v-sku-${i}`}
@@ -278,7 +280,7 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                   />
                 </div>
                 <div className="flex flex-col gap-1 md:col-span-5">
-                  <Label className="text-xs">Фото варианта (для выбора цвета)</Label>
+                  <Label className="text-xs">{t.variantImageLabel}</Label>
                   <ImageUploader
                     size="sm"
                     value={v.image ?? null}

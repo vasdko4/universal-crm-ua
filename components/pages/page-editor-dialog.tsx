@@ -26,13 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-
-const TEMPLATES = [
-  { value: 'default', label: 'Обычная страница' },
-  { value: 'contacts', label: 'Контакты' },
-  { value: 'faq', label: 'Вопрос-ответ (FAQ)' },
-  { value: 'landing', label: 'Лендинг' },
-]
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 const empty: PageInput = {
   title: '',
@@ -62,6 +56,14 @@ export function PageEditorDialog({
   page: Page | null
   onSaved: () => void
 }) {
+  const { dict } = useAdminI18n()
+  const t = dict.pages
+  const TEMPLATES = [
+    { value: 'default', label: t.templateDefault },
+    { value: 'contacts', label: t.templateContacts },
+    { value: 'faq', label: t.templateFaq },
+    { value: 'landing', label: t.templateLanding },
+  ]
   const [form, setForm] = useState<PageInput>(empty)
   const [slugTouched, setSlugTouched] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -106,16 +108,16 @@ export function PageEditorDialog({
 
   function handleSubmit() {
     if (!form.title.trim()) {
-      toast.error('Введите заголовок страницы')
+      toast.error(t.toastTitleRequired)
       return
     }
     startTransition(async () => {
       const result = page ? await updatePage(page.id, form) : await createPage(form)
       if (result.success) {
-        toast.success(page ? 'Страница обновлена' : 'Страница создана')
+        toast.success(page ? t.toastUpdated : t.toastCreated)
         onSaved()
       } else {
-        toast.error(result.error ?? 'Ошибка сохранения')
+        toast.error(result.error ?? t.toastSaveError)
       }
     })
   }
@@ -124,40 +126,40 @@ export function PageEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{page ? 'Редактирование страницы' : 'Новая страница'}</DialogTitle>
-          <DialogDescription>Заполните содержимое и настройки отображения.</DialogDescription>
+          <DialogTitle>{page ? t.dialogTitleEdit : t.dialogTitleCreate}</DialogTitle>
+          <DialogDescription>{t.dialogDescription}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="content" className="mt-2">
           <TabsList className="w-full">
-            <TabsTrigger value="content" className="flex-1">Содержимое</TabsTrigger>
-            <TabsTrigger value="settings" className="flex-1">Настройки</TabsTrigger>
-            <TabsTrigger value="seo" className="flex-1">SEO</TabsTrigger>
+            <TabsTrigger value="content" className="flex-1">{t.tabContent}</TabsTrigger>
+            <TabsTrigger value="settings" className="flex-1">{t.tabSettings}</TabsTrigger>
+            <TabsTrigger value="seo" className="flex-1">{t.tabSeo}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="content" className="flex flex-col gap-4 pt-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="page-title">Заголовок (Укр)</Label>
+                <Label htmlFor="page-title">{t.titleUk}</Label>
                 <Input
                   id="page-title"
                   value={form.title}
                   onChange={(e) => handleTitle(e.target.value)}
-                  placeholder="Наприклад: Про компанію"
+                  placeholder={t.titleUkPlaceholder}
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="page-title-ru">Заголовок (Рус)</Label>
+                <Label htmlFor="page-title-ru">{t.titleRu}</Label>
                 <Input
                   id="page-title-ru"
                   value={form.titleRu ?? ''}
                   onChange={(e) => set('titleRu', e.target.value)}
-                  placeholder="Например: О компании"
+                  placeholder={t.titleRuPlaceholder}
                 />
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="page-slug">URL (slug)</Label>
+              <Label htmlFor="page-slug">{t.slugLabel}</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">/</span>
                 <Input
@@ -174,29 +176,29 @@ export function PageEditorDialog({
             </div>
             <Tabs defaultValue="uk" className="mt-1">
               <TabsList className="w-full">
-                <TabsTrigger value="uk" className="flex-1">Українська</TabsTrigger>
-                <TabsTrigger value="ru" className="flex-1">Русский</TabsTrigger>
+                <TabsTrigger value="uk" className="flex-1">{t.langUk}</TabsTrigger>
+                <TabsTrigger value="ru" className="flex-1">{t.langRu}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="uk" className="flex flex-col gap-4 pt-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="page-excerpt-uk">Короткий опис (Укр)</Label>
+                  <Label htmlFor="page-excerpt-uk">{t.excerptUk}</Label>
                   <Textarea
                     id="page-excerpt-uk"
                     value={form.excerpt}
                     onChange={(e) => set('excerpt', e.target.value)}
                     rows={2}
-                    placeholder="Короткий анонс сторінки"
+                    placeholder={t.excerptPlaceholder}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="page-content-uk">Вміст, Укр (HTML)</Label>
+                  <Label htmlFor="page-content-uk">{t.contentUk}</Label>
                   <Textarea
                     id="page-content-uk"
                     value={form.content}
                     onChange={(e) => set('content', e.target.value)}
                     rows={10}
-                    placeholder="<h2>Заголовок</h2><p>Текст...</p>"
+                    placeholder={t.contentPlaceholder}
                     className="font-mono text-sm"
                   />
                 </div>
@@ -204,23 +206,23 @@ export function PageEditorDialog({
 
               <TabsContent value="ru" className="flex flex-col gap-4 pt-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="page-excerpt-ru">Краткое описание (Рус)</Label>
+                  <Label htmlFor="page-excerpt-ru">{t.excerptRu}</Label>
                   <Textarea
                     id="page-excerpt-ru"
                     value={form.excerptRu ?? ''}
                     onChange={(e) => set('excerptRu', e.target.value)}
                     rows={2}
-                    placeholder="Короткий анонс страницы"
+                    placeholder={t.excerptPlaceholder}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="page-content-ru">Содержимое, Рус (HTML)</Label>
+                  <Label htmlFor="page-content-ru">{t.contentRu}</Label>
                   <Textarea
                     id="page-content-ru"
                     value={form.contentRu ?? ''}
                     onChange={(e) => set('contentRu', e.target.value)}
                     rows={10}
-                    placeholder="<h2>Заголовок</h2><p>Текст...</p>"
+                    placeholder={t.contentPlaceholder}
                     className="font-mono text-sm"
                   />
                 </div>
@@ -230,15 +232,15 @@ export function PageEditorDialog({
 
           <TabsContent value="settings" className="flex flex-col gap-4 pt-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="page-template">Шаблон</Label>
+              <Label htmlFor="page-template">{t.templateLabel}</Label>
               <Select value={form.template} onValueChange={(v) => set('template', v)}>
                 <SelectTrigger id="page-template">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TEMPLATES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
+                  {TEMPLATES.map((tpl) => (
+                    <SelectItem key={tpl.value} value={tpl.value}>
+                      {tpl.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -246,8 +248,8 @@ export function PageEditorDialog({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
-                <p className="text-sm font-medium text-foreground">Опубликовать</p>
-                <p className="text-xs text-muted-foreground">Страница будет видна на сайте</p>
+                <p className="text-sm font-medium text-foreground">{t.publishLabel}</p>
+                <p className="text-xs text-muted-foreground">{t.publishHint}</p>
               </div>
               <Switch
                 checked={form.status === 'published'}
@@ -256,15 +258,15 @@ export function PageEditorDialog({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
-                <p className="text-sm font-medium text-foreground">Показывать в меню</p>
-                <p className="text-xs text-muted-foreground">Добавить ссылку в навигацию</p>
+                <p className="text-sm font-medium text-foreground">{t.showInMenuLabel}</p>
+                <p className="text-xs text-muted-foreground">{t.showInMenuHint}</p>
               </div>
               <Switch checked={form.showInMenu} onCheckedChange={(c) => set('showInMenu', c)} />
             </div>
             {form.showInMenu && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="page-menu-title">Название в меню</Label>
+                  <Label htmlFor="page-menu-title">{t.menuTitleLabel}</Label>
                   <Input
                     id="page-menu-title"
                     value={form.menuTitle ?? ''}
@@ -273,7 +275,7 @@ export function PageEditorDialog({
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="page-sort">Порядок</Label>
+                  <Label htmlFor="page-sort">{t.sortOrderLabel}</Label>
                   <Input
                     id="page-sort"
                     type="number"
@@ -287,22 +289,22 @@ export function PageEditorDialog({
 
           <TabsContent value="seo" className="flex flex-col gap-4 pt-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="page-meta-title">Meta Title</Label>
+              <Label htmlFor="page-meta-title">{t.metaTitleLabel}</Label>
               <Input
                 id="page-meta-title"
                 value={form.metaTitle ?? ''}
                 onChange={(e) => set('metaTitle', e.target.value)}
-                placeholder="Заголовок для поисковых систем"
+                placeholder={t.metaTitlePlaceholder}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="page-meta-desc">Meta Description</Label>
+              <Label htmlFor="page-meta-desc">{t.metaDescLabel}</Label>
               <Textarea
                 id="page-meta-desc"
                 value={form.metaDescription ?? ''}
                 onChange={(e) => set('metaDescription', e.target.value)}
                 rows={3}
-                placeholder="Описание для сниппета в поиске"
+                placeholder={t.metaDescPlaceholder}
               />
             </div>
           </TabsContent>
@@ -310,10 +312,10 @@ export function PageEditorDialog({
 
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Отмена
+            {t.cancel}
           </Button>
           <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? 'Сохранение...' : page ? 'Сохранить' : 'Создать'}
+            {isPending ? t.saving : page ? t.save : t.create}
           </Button>
         </DialogFooter>
       </DialogContent>

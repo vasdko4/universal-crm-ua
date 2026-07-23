@@ -52,6 +52,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type ArticleItem = Article & { categoryName: string | null }
 
@@ -73,6 +74,8 @@ export function ArticlesManager({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
+  const { dict } = useAdminI18n()
+  const t = dict.articles
 
   const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const status = (searchParams.get('status') as 'all' | 'draft' | 'published') ?? 'all'
@@ -103,7 +106,7 @@ export function ArticlesManager({
   function handleToggleStatus(a: Article) {
     startTransition(async () => {
       await toggleArticleStatus(a.id, a.status === 'published' ? 'draft' : 'published')
-      toast.success(a.status === 'published' ? 'Снято с публикации' : 'Опубликовано')
+      toast.success(a.status === 'published' ? t.toastUnpublished : t.toastPublished)
       router.refresh()
     })
   }
@@ -111,7 +114,7 @@ export function ArticlesManager({
   function handleFeatured(a: Article) {
     startTransition(async () => {
       await toggleArticleFeatured(a.id, !a.isFeatured)
-      toast.success(a.isFeatured ? 'Убрано из рекомендованных' : 'Добавлено в рекомендованные')
+      toast.success(a.isFeatured ? t.toastFeaturedRemoved : t.toastFeaturedAdded)
       router.refresh()
     })
   }
@@ -122,7 +125,7 @@ export function ArticlesManager({
     setDeleteTarget(null)
     startTransition(async () => {
       await deleteArticle(target.id)
-      toast.success('Статья удалена')
+      toast.success(t.toastDeleted)
       router.refresh()
     })
   }
@@ -133,8 +136,10 @@ export function ArticlesManager({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Статьи и блог</h1>
-          <p className="text-sm text-muted-foreground">Публикации магазина — {total}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t.subtitle} — {total}
+          </p>
         </div>
         <Button
           onClick={() => {
@@ -143,25 +148,25 @@ export function ArticlesManager({
           }}
         >
           <Plus className="size-4" />
-          Новая статья
+          {t.newArticle}
         </Button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs value={status} onValueChange={(v) => pushParams({ status: v, page: undefined })}>
           <TabsList>
-            <TabsTrigger value="all">Все</TabsTrigger>
-            <TabsTrigger value="published">Опубликованные</TabsTrigger>
-            <TabsTrigger value="draft">Черновики</TabsTrigger>
+            <TabsTrigger value="all">{t.tabAll}</TabsTrigger>
+            <TabsTrigger value="published">{t.tabPublished}</TabsTrigger>
+            <TabsTrigger value="draft">{t.tabDraft}</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="flex flex-wrap items-center gap-3">
           <Select value={category} onValueChange={(v) => pushParams({ category: v, page: undefined })}>
             <SelectTrigger className="w-44">
-              <SelectValue placeholder="Категория" />
+              <SelectValue placeholder={t.categoryPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Все категории</SelectItem>
+              <SelectItem value="all">{t.allCategories}</SelectItem>
               {categories.map((c) => (
                 <SelectItem key={c.id} value={String(c.id)}>
                   {c.name}
@@ -174,7 +179,7 @@ export function ArticlesManager({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск статей..."
+              placeholder={t.searchPlaceholder}
               className="pl-9"
             />
           </form>
@@ -184,7 +189,7 @@ export function ArticlesManager({
       {items.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-20">
           <Newspaper className="mb-3 size-12 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">Статей пока нет</p>
+          <p className="text-sm text-muted-foreground">{t.empty}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -202,20 +207,20 @@ export function ArticlesManager({
                 )}
                 <div className="absolute left-2 top-2 flex gap-1.5">
                   {a.status === 'published' ? (
-                    <Badge className="border-success/30 bg-success/15 text-success">Опубликовано</Badge>
+                    <Badge className="border-success/30 bg-success/15 text-success">{t.published}</Badge>
                   ) : (
-                    <Badge variant="secondary">Черновик</Badge>
+                    <Badge variant="secondary">{t.draft}</Badge>
                   )}
                   {a.isFeatured && (
                     <Badge className="border-warning/30 bg-warning/15 text-warning">
-                      <Star className="size-3" /> Топ
+                      <Star className="size-3" /> {t.featuredBadge}
                     </Badge>
                   )}
                 </div>
                 <div className="absolute right-2 top-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" className="size-7" aria-label="Действия">
+                      <Button variant="secondary" size="icon" className="size-7" aria-label={t.actionsAria}>
                         <MoreHorizontal className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -226,25 +231,25 @@ export function ArticlesManager({
                           setEditorOpen(true)
                         }}
                       >
-                        <Pencil className="size-4" /> Редактировать
+                        <Pencil className="size-4" /> {t.edit}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleToggleStatus(a)}>
                         {a.status === 'published' ? (
                           <>
-                            <EyeOff className="size-4" /> Снять с публикации
+                            <EyeOff className="size-4" /> {t.unpublish}
                           </>
                         ) : (
                           <>
-                            <Eye className="size-4" /> Опубликовать
+                            <Eye className="size-4" /> {t.publish}
                           </>
                         )}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleFeatured(a)}>
-                        <Star className="size-4" /> {a.isFeatured ? 'Убрать из топа' : 'В топ'}
+                        <Star className="size-4" /> {a.isFeatured ? t.featuredRemove : t.featuredAdd}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(a)}>
-                        <Trash2 className="size-4" /> Удалить
+                        <Trash2 className="size-4" /> {t.delete}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -270,7 +275,7 @@ export function ArticlesManager({
                 )}
                 <div className="mt-auto flex items-center gap-3 pt-2 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
-                    <Clock className="size-3.5" /> {a.readingMinutes} мин
+                    <Clock className="size-3.5" /> {a.readingMinutes} {t.minutesSuffix}
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Eye className="size-3.5" /> {a.viewsCount}
@@ -286,7 +291,7 @@ export function ArticlesManager({
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Страница {page} из {totalPages}
+            {t.pageOf.replace('{page}', String(page)).replace('{total}', String(totalPages))}
           </p>
           <div className="flex gap-2">
             <Button
@@ -295,7 +300,7 @@ export function ArticlesManager({
               disabled={page <= 1 || isPending}
               onClick={() => pushParams({ page: String(page - 1) })}
             >
-              <ChevronLeft className="size-4" /> Назад
+              <ChevronLeft className="size-4" /> {t.back}
             </Button>
             <Button
               variant="outline"
@@ -303,7 +308,7 @@ export function ArticlesManager({
               disabled={page >= totalPages || isPending}
               onClick={() => pushParams({ page: String(page + 1) })}
             >
-              Вперёд <ChevronRight className="size-4" />
+              {t.next} <ChevronRight className="size-4" />
             </Button>
           </div>
         </div>
@@ -323,14 +328,14 @@ export function ArticlesManager({
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить статью?</AlertDialogTitle>
+            <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Статья «{deleteTarget?.title}» будет удалена безвозвратно.
+              {t.deleteDescription.replace('{title}', deleteTarget?.title ?? '')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Удалить</AlertDialogAction>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>{t.delete}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

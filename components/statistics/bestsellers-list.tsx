@@ -6,8 +6,11 @@ import { Star, Trophy, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { Switch } from '@/components/ui/switch'
 import { toggleProductPopular, type BestsellerRow } from '@/app/actions/analytics'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
+  const { dict } = useAdminI18n()
+  const t = dict.bestsellers
   const [items, setItems] = useState(rows)
   const [isPending, startTransition] = useTransition()
 
@@ -16,7 +19,7 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
 
   function togglePopular(productId: number | null, value: boolean) {
     if (!productId) {
-      toast.error('Товар не связан с каталогом')
+      toast.error(t.toastNoProduct)
       return
     }
     setItems((prev) =>
@@ -25,7 +28,7 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
     startTransition(async () => {
       const res = await toggleProductPopular(productId, value)
       if (res.success) {
-        toast.success(value ? 'Добавлено в топ продаж' : 'Убрано из топа')
+        toast.success(value ? t.toastAdded : t.toastRemoved)
       }
     })
   }
@@ -33,24 +36,22 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
   return (
     <div className="flex flex-col">
       <header className="border-b border-border px-6 py-5">
-        <h1 className="text-2xl font-semibold text-foreground text-balance">Топ продаж</h1>
-        <p className="text-sm text-muted-foreground">
-          Рейтинг товаров по продажам. Отмечайте хиты для витрины магазина.
-        </p>
+        <h1 className="text-2xl font-semibold text-foreground text-balance">{t.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.subtitle}</p>
       </header>
 
       <div className="grid gap-6 p-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Позиций в рейтинге</p>
+              <p className="text-sm text-muted-foreground">{t.statRankedItems}</p>
               <Trophy className="size-5 text-warning" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">{items.length}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Продано единиц</p>
+              <p className="text-sm text-muted-foreground">{t.statUnitsSold}</p>
               <Package className="size-5 text-primary" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">
@@ -59,7 +60,7 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Выручка</p>
+              <p className="text-sm text-muted-foreground">{t.statRevenue}</p>
               <Star className="size-5 text-success" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">
@@ -72,12 +73,12 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-                <th className="px-4 py-3 font-medium">#</th>
-                <th className="px-4 py-3 font-medium">Товар</th>
-                <th className="px-4 py-3 text-right font-medium">Продано</th>
-                <th className="px-4 py-3 text-right font-medium">Заказов</th>
-                <th className="px-4 py-3 text-right font-medium">Выручка</th>
-                <th className="px-4 py-3 text-center font-medium">Топ продаж</th>
+                <th className="px-4 py-3 font-medium">{t.colRank}</th>
+                <th className="px-4 py-3 font-medium">{t.colProduct}</th>
+                <th className="px-4 py-3 text-right font-medium">{t.colUnitsSold}</th>
+                <th className="px-4 py-3 text-right font-medium">{t.colOrders}</th>
+                <th className="px-4 py-3 text-right font-medium">{t.colRevenue}</th>
+                <th className="px-4 py-3 text-center font-medium">{t.colTop}</th>
               </tr>
             </thead>
             <tbody>
@@ -114,7 +115,7 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
                         checked={r.isPopular}
                         disabled={isPending || !r.productId}
                         onCheckedChange={(v) => togglePopular(r.productId, v)}
-                        aria-label="Топ продаж"
+                        aria-label={t.topAria}
                       />
                     </div>
                   </td>
@@ -123,7 +124,7 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
               {items.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    Пока нет продаж для формирования рейтинга
+                    {t.empty}
                   </td>
                 </tr>
               )}

@@ -1045,6 +1045,469 @@ export type AdminDictionary = {
     statusRecovered: string
     itemQtyTemplate: string
     toastReminderSent: string
+    timeMinutesAgo: string
+    timeHoursAgo: string
+    timeDaysAgo: string
+  }
+  notFound: {
+    errorLabel: string
+    title: string
+    description: string
+    goToAdmin: string
+  }
+  accessDenied: {
+    errorLabel: string
+    title: string
+    reasonWithSection: string
+    reasonGeneric: string
+    contactHint: string
+    goToAdmin: string
+    goToSite: string
+  }
+  bestsellers: {
+    title: string
+    subtitle: string
+    statRankedItems: string
+    statUnitsSold: string
+    statRevenue: string
+    colRank: string
+    colProduct: string
+    colUnitsSold: string
+    colOrders: string
+    colRevenue: string
+    colTop: string
+    topAria: string
+    empty: string
+    toastAdded: string
+    toastRemoved: string
+    toastNoProduct: string
+  }
+  dashboard: {
+    welcome: string
+    subtitle: string
+    statOrdersTotal: string
+    statOrdersActive: string
+    statRevenue: string
+    statViews: string
+    recentOrdersTitle: string
+    allOrders: string
+    noOrders: string
+    noName: string
+    unitsSuffix: string
+    funnelTitle: string
+    funnelPageViews: string
+    funnelProductViews: string
+    funnelAddToCart: string
+    funnelOrders: string
+    conversionRate: string
+    lowStockTitle: string
+    toProducts: string
+    skuLabel: string
+    outOfStock: string
+    remainingPrefix: string
+  }
+  pages: {
+    title: string
+    subtitle: string
+    createPage: string
+    tabAll: string
+    tabPublished: string
+    tabDraft: string
+    searchPlaceholder: string
+    colTitle: string
+    colUrl: string
+    colStatus: string
+    colInMenu: string
+    empty: string
+    yes: string
+    published: string
+    draft: string
+    actionsAria: string
+    edit: string
+    unpublish: string
+    publish: string
+    delete: string
+    pageOf: string
+    back: string
+    next: string
+    deleteTitle: string
+    deleteDescription: string
+    cancel: string
+    toastUnpublished: string
+    toastPublished: string
+    toastDeleted: string
+    dialogTitleEdit: string
+    dialogTitleCreate: string
+    dialogDescription: string
+    tabContent: string
+    tabSettings: string
+    tabSeo: string
+    titleUk: string
+    titleRu: string
+    titleUkPlaceholder: string
+    titleRuPlaceholder: string
+    slugLabel: string
+    langUk: string
+    langRu: string
+    excerptUk: string
+    excerptRu: string
+    excerptPlaceholder: string
+    contentUk: string
+    contentRu: string
+    contentPlaceholder: string
+    templateLabel: string
+    templateDefault: string
+    templateContacts: string
+    templateFaq: string
+    templateLanding: string
+    publishLabel: string
+    publishHint: string
+    showInMenuLabel: string
+    showInMenuHint: string
+    menuTitleLabel: string
+    sortOrderLabel: string
+    metaTitleLabel: string
+    metaTitlePlaceholder: string
+    metaDescLabel: string
+    metaDescPlaceholder: string
+    save: string
+    saving: string
+    create: string
+    toastTitleRequired: string
+    toastUpdated: string
+    toastCreated: string
+    toastSaveError: string
+  }
+  users: {
+    title: string
+    subtitle: string
+    tabUsers: string
+    tabRoles: string
+    addUser: string
+    newUserTitle: string
+    nameLabel: string
+    emailLabel: string
+    passwordLabel: string
+    roleLabel: string
+    create: string
+    toastUserCreated: string
+    genericError: string
+    colUser: string
+    colRole: string
+    colStatus: string
+    colActions: string
+    youSuffix: string
+    toastRoleUpdated: string
+    active: string
+    disabled: string
+    deleteUserConfirm: string
+    toastUserDeleted: string
+    createRole: string
+    systemRole: string
+    customRole: string
+    accessCountLabel: string
+    allSections: string
+    edit: string
+    deleteRoleConfirm: string
+    toastRoleDeleted: string
+    dialogTitleEdit: string
+    dialogTitleCreate: string
+    codeLabel: string
+    descriptionLabel: string
+    adminRoleHint: string
+    sectionAccessLabel: string
+    cancel: string
+    save: string
+    toastRoleSaved: string
+  }
+  articles: {
+    title: string
+    subtitle: string
+    newArticle: string
+    tabAll: string
+    tabPublished: string
+    tabDraft: string
+    categoryPlaceholder: string
+    allCategories: string
+    searchPlaceholder: string
+    empty: string
+    published: string
+    draft: string
+    featuredBadge: string
+    actionsAria: string
+    edit: string
+    unpublish: string
+    publish: string
+    featuredAdd: string
+    featuredRemove: string
+    delete: string
+    minutesSuffix: string
+    pageOf: string
+    back: string
+    next: string
+    deleteTitle: string
+    deleteDescription: string
+    cancel: string
+    toastUnpublished: string
+    toastPublished: string
+    toastFeaturedAdded: string
+    toastFeaturedRemoved: string
+    toastDeleted: string
+    dialogTitleEdit: string
+    dialogTitleCreate: string
+    dialogDescription: string
+    tabContent: string
+    tabSettings: string
+    tabSeo: string
+    titleLabel: string
+    titlePlaceholder: string
+    slugLabel: string
+    excerptLabel: string
+    excerptPlaceholder: string
+    contentLabel: string
+    contentPlaceholder: string
+    categoryLabel: string
+    noCategory: string
+    authorLabel: string
+    coverLabel: string
+    readingMinutesLabel: string
+    tagsLabel: string
+    tagsPlaceholder: string
+    addTag: string
+    removeTagAria: string
+    publishLabel: string
+    publishHint: string
+    featuredLabel: string
+    featuredHint: string
+    metaTitleLabel: string
+    metaDescLabel: string
+    save: string
+    saving: string
+    create: string
+    toastTitleRequired: string
+    toastUpdated: string
+    toastCreated: string
+    toastSaveError: string
+  }
+  modalAds: {
+    title: string
+    subtitle: string
+    newCampaign: string
+    statCampaigns: string
+    statViews: string
+    statClicks: string
+    statCtr: string
+    searchPlaceholder: string
+    tabAll: string
+    tabActive: string
+    tabInactive: string
+    empty: string
+    emptyHint: string
+    createCampaign: string
+    active: string
+    inactive: string
+    enableCampaignAria: string
+    actionsAria: string
+    edit: string
+    resetStats: string
+    delete: string
+    statViewsShort: string
+    statClicksShort: string
+    statClosesShort: string
+    paginationAria: string
+    secSuffix: string
+    sinceLabel: string
+    untilLabel: string
+    dialogTitleEdit: string
+    dialogTitleCreate: string
+    dialogDescription: string
+    sectionContent: string
+    campaignNameLabel: string
+    campaignNamePlaceholder: string
+    bannerTitleLabel: string
+    bannerTitlePlaceholder: string
+    textLabel: string
+    textPlaceholder: string
+    bannerImageLabel: string
+    bannerImageHint: string
+    windowSizeLabel: string
+    sizeSmall: string
+    sizeMedium: string
+    sizeLarge: string
+    buttonTextLabel: string
+    buttonTextPlaceholder: string
+    buttonUrlLabel: string
+    buttonColorLabel: string
+    colorTheme: string
+    colorRed: string
+    colorOrange: string
+    colorGreen: string
+    colorBlue: string
+    colorBlack: string
+    customColorLabel: string
+    customColorAria: string
+    previewLabel: string
+    sectionWhereToShow: string
+    pageAll: string
+    pageHome: string
+    pageCatalog: string
+    pageProduct: string
+    pageCart: string
+    sectionTrigger: string
+    triggerDelay: string
+    triggerDelayHint: string
+    triggerScroll: string
+    triggerScrollHint: string
+    triggerExit: string
+    triggerExitHint: string
+    delaySecondsLabel: string
+    scrollPercentLabel: string
+    sectionFrequency: string
+    freqEvery: string
+    freqSession: string
+    freqDays: string
+    daysBetweenAria: string
+    daysSuffix: string
+    sectionSchedule: string
+    startLabel: string
+    endLabel: string
+    campaignEnabledLabel: string
+    cancel: string
+    save: string
+    create: string
+    toastSaveError: string
+    toastUpdated: string
+    toastCreated: string
+    toastDeleted: string
+    toastStatsReset: string
+    deleteTitle: string
+    deleteDescription: string
+  }
+  productAnalytics: {
+    title: string
+    period: string
+    views: string
+    addToCart: string
+    unitsSold: string
+    revenue: string
+    cartRate: string
+    purchaseRate: string
+  }
+  productVariants: {
+    axesTitle: string
+    axesHint: string
+    typeColor: string
+    typeText: string
+    removeAxisAria: string
+    valuesLabel: string
+    colorPlaceholder: string
+    textPlaceholder: string
+    colorForAria: string
+    newAxisLabel: string
+    newAxisPlaceholder: string
+    selectText: string
+    selectColor: string
+    addAxis: string
+    generateMatrix: string
+    combinationsTitle: string
+    combinationLabel: string
+    priceLabel: string
+    oldPriceLabel: string
+    quantityLabel: string
+    skuLabel: string
+    variantImageLabel: string
+  }
+  productForm: {
+    backToListAria: string
+    editTitle: string
+    createTitle: string
+    idPrefix: string
+    fillInfoHint: string
+    cancel: string
+    save: string
+    createProduct: string
+    tabMain: string
+    tabPrice: string
+    tabVariants: string
+    tabCategories: string
+    tabChars: string
+    tabSeo: string
+    photosTitle: string
+    mainPhotoLabel: string
+    mainPhotoHint: string
+    galleryLabel: string
+    galleryHint: string
+    nameSectionTitle: string
+    nameRuLabel: string
+    nameRuPlaceholder: string
+    nameUkLabel: string
+    nameUkPlaceholder: string
+    descRuLabel: string
+    descUkLabel: string
+    notesLabel: string
+    identificationTitle: string
+    skuLabel: string
+    barcodeLabel: string
+    salesTypeLabel: string
+    salesTypeRetail: string
+    salesTypeWholesale: string
+    salesTypeBoth: string
+    visibleLabel: string
+    visibleHint: string
+    popularLabel: string
+    popularHint: string
+    purchaseCounterTitle: string
+    realOrdersLabel: string
+    realOrdersHint: string
+    purchasesBoostLabel: string
+    purchasesBoostHint: string
+    shownToBuyersLabel: string
+    shownToBuyersHint: string
+    dimensionsTitle: string
+    widthLabel: string
+    heightLabel: string
+    lengthLabel: string
+    weightLabel: string
+    pricesTitle: string
+    priceLabel: string
+    oldPriceLabel: string
+    costPriceLabel: string
+    currencyLabel: string
+    priceFromLabel: string
+    priceFromHint: string
+    stockTitle: string
+    quantityLabel: string
+    quantityHint: string
+    unitLabel: string
+    productCategoriesTitle: string
+    noCategoriesHint: string
+    createCategoryLink: string
+    productGroupsTitle: string
+    noGroupsHint: string
+    createGroupLink: string
+    placementTitle: string
+    siteGroupLabel: string
+    notSelected: string
+    marketplaceCategoryLabel: string
+    charsTitle: string
+    charsEmptyHint: string
+    charNamePlaceholder: string
+    charNameAria: string
+    charValuePlaceholder: string
+    charValueAria: string
+    removeCharAria: string
+    addChar: string
+    seoTitle: string
+    metaTitleRuLabel: string
+    metaTitleUkLabel: string
+    metaDescRuLabel: string
+    metaDescUkLabel: string
+    toastNameRequired: string
+    toastPriceInvalid: string
+    toastUpdated: string
+    toastCreated: string
+    toastSaveError: string
+    saveChanges: string
   }
 }
 
@@ -2132,6 +2595,471 @@ const uk: AdminDictionary = {
     statusRecovered: 'Купив',
     itemQtyTemplate: '{qty} шт. × {price}',
     toastReminderSent: 'Нагадування надіслано',
+    timeMinutesAgo: '{n} хв тому',
+    timeHoursAgo: '{n} год тому',
+    timeDaysAgo: '{n} дн тому',
+  },
+  notFound: {
+    errorLabel: 'Помилка 404',
+    title: 'Запис не знайдено',
+    description: 'Такої сторінки або запису немає — можливо, її було видалено або посилання застаріло.',
+    goToAdmin: 'До адмін-центру',
+  },
+  accessDenied: {
+    errorLabel: 'Помилка 403',
+    title: 'Доступ заборонено',
+    reasonWithSection: 'Ваша роль не має доступу до розділу «{section}».',
+    reasonGeneric: 'Ваша роль не має доступу до цього розділу.',
+    contactHint:
+      'Якщо доступ потрібен для роботи — зверніться до адміністратора магазину, щоб він видав дозвіл у розділі «Користувачі».',
+    goToAdmin: 'До адмін-центру',
+    goToSite: 'На сайт',
+  },
+  bestsellers: {
+    title: 'Топ продажів',
+    subtitle: 'Рейтинг товарів за продажами. Позначайте хіти для вітрини магазину.',
+    statRankedItems: 'Позицій у рейтингу',
+    statUnitsSold: 'Продано одиниць',
+    statRevenue: 'Виручка',
+    colRank: '#',
+    colProduct: 'Товар',
+    colUnitsSold: 'Продано',
+    colOrders: 'Замовлень',
+    colRevenue: 'Виручка',
+    colTop: 'Топ продажів',
+    topAria: 'Топ продажів',
+    empty: 'Поки немає продажів для формування рейтингу',
+    toastAdded: 'Додано в топ продажів',
+    toastRemoved: 'Прибрано з топу',
+    toastNoProduct: "Товар не пов'язаний з каталогом",
+  },
+  dashboard: {
+    welcome: 'Ласкаво просимо, {name}',
+    subtitle: 'Зведення по вашому магазину',
+    statOrdersTotal: 'Замовлень всього',
+    statOrdersActive: 'Активні замовлення',
+    statRevenue: 'Виручка (оплачено)',
+    statViews: 'Перегляди (30 дн.)',
+    recentOrdersTitle: 'Останні замовлення',
+    allOrders: 'Усі замовлення',
+    noOrders: 'Замовлень поки немає',
+    noName: 'Без імені',
+    unitsSuffix: 'шт.',
+    funnelTitle: 'Воронка (30 днів)',
+    funnelPageViews: 'Перегляди сторінок',
+    funnelProductViews: 'Перегляди товарів',
+    funnelAddToCart: 'Додавання в кошик',
+    funnelOrders: 'Замовлення',
+    conversionRate: 'Конверсія в замовлення',
+    lowStockTitle: 'Закінчуються на складі',
+    toProducts: 'До товарів',
+    skuLabel: 'Артикул',
+    outOfStock: 'Немає в наявності',
+    remainingPrefix: 'Залишилось',
+  },
+  pages: {
+    title: 'Сторінки',
+    subtitle: 'Інформаційні сторінки магазину',
+    createPage: 'Створити сторінку',
+    tabAll: 'Усі',
+    tabPublished: 'Опубліковані',
+    tabDraft: 'Чернетки',
+    searchPlaceholder: 'Пошук за заголовком...',
+    colTitle: 'Заголовок',
+    colUrl: 'URL',
+    colStatus: 'Статус',
+    colInMenu: 'У меню',
+    empty: 'Сторінок поки немає',
+    yes: 'Так',
+    published: 'Опубліковано',
+    draft: 'Чернетка',
+    actionsAria: 'Дії',
+    edit: 'Редагувати',
+    unpublish: 'Зняти з публікації',
+    publish: 'Опублікувати',
+    delete: 'Видалити',
+    pageOf: 'Сторінка {page} з {total}',
+    back: 'Назад',
+    next: 'Далі',
+    deleteTitle: 'Видалити сторінку?',
+    deleteDescription: 'Сторінка «{title}» буде видалена безповоротно.',
+    cancel: 'Скасувати',
+    toastUnpublished: 'Сторінку знято з публікації',
+    toastPublished: 'Сторінку опубліковано',
+    toastDeleted: 'Сторінку видалено',
+    dialogTitleEdit: 'Редагування сторінки',
+    dialogTitleCreate: 'Нова сторінка',
+    dialogDescription: 'Заповніть вміст і налаштування відображення.',
+    tabContent: 'Вміст',
+    tabSettings: 'Налаштування',
+    tabSeo: 'SEO',
+    titleUk: 'Заголовок (Укр)',
+    titleRu: 'Заголовок (Рус)',
+    titleUkPlaceholder: 'Наприклад: Про компанію',
+    titleRuPlaceholder: 'Наприклад: О компании',
+    slugLabel: 'URL (slug)',
+    langUk: 'Українська',
+    langRu: 'Русский',
+    excerptUk: 'Короткий опис (Укр)',
+    excerptRu: 'Короткий опис (Рус)',
+    excerptPlaceholder: 'Короткий анонс сторінки',
+    contentUk: 'Вміст, Укр (HTML)',
+    contentRu: 'Вміст, Рус (HTML)',
+    contentPlaceholder: '<h2>Заголовок</h2><p>Текст...</p>',
+    templateLabel: 'Шаблон',
+    templateDefault: 'Звичайна сторінка',
+    templateContacts: 'Контакти',
+    templateFaq: 'Питання-відповідь (FAQ)',
+    templateLanding: 'Лендинг',
+    publishLabel: 'Опублікувати',
+    publishHint: 'Сторінка буде видима на сайті',
+    showInMenuLabel: 'Показувати в меню',
+    showInMenuHint: 'Додати посилання в навігацію',
+    menuTitleLabel: 'Назва в меню',
+    sortOrderLabel: 'Порядок',
+    metaTitleLabel: 'Meta Title',
+    metaTitlePlaceholder: 'Заголовок для пошукових систем',
+    metaDescLabel: 'Meta Description',
+    metaDescPlaceholder: 'Опис для сніпета в пошуку',
+    save: 'Зберегти',
+    saving: 'Збереження...',
+    create: 'Створити',
+    toastTitleRequired: 'Введіть заголовок сторінки',
+    toastUpdated: 'Сторінку оновлено',
+    toastCreated: 'Сторінку створено',
+    toastSaveError: 'Помилка збереження',
+  },
+  users: {
+    title: 'Користувачі та ролі',
+    subtitle: 'Керування доступом співробітників до розділів адмін-центру',
+    tabUsers: 'Користувачі',
+    tabRoles: 'Ролі',
+    addUser: 'Додати користувача',
+    newUserTitle: 'Новий користувач',
+    nameLabel: "Ім'я",
+    emailLabel: 'Email',
+    passwordLabel: 'Пароль',
+    roleLabel: 'Роль',
+    create: 'Створити',
+    toastUserCreated: 'Користувача створено',
+    genericError: 'Помилка',
+    colUser: 'Користувач',
+    colRole: 'Роль',
+    colStatus: 'Статус',
+    colActions: 'Дії',
+    youSuffix: '(ви)',
+    toastRoleUpdated: 'Роль оновлено',
+    active: 'Активний',
+    disabled: 'Відключений',
+    deleteUserConfirm: 'Видалити користувача {name}?',
+    toastUserDeleted: 'Користувача видалено',
+    createRole: 'Створити роль',
+    systemRole: 'Системна',
+    customRole: 'Користувацька',
+    accessCountLabel: 'Доступів:',
+    allSections: 'всі розділи',
+    edit: 'Змінити',
+    deleteRoleConfirm: 'Видалити роль {name}?',
+    toastRoleDeleted: 'Роль видалено',
+    dialogTitleEdit: 'Редагування ролі',
+    dialogTitleCreate: 'Нова роль',
+    codeLabel: 'Код',
+    descriptionLabel: 'Опис',
+    adminRoleHint: 'Роль адміністратора завжди має повний доступ до всіх розділів.',
+    sectionAccessLabel: 'Доступ до розділів',
+    cancel: 'Скасувати',
+    save: 'Зберегти',
+    toastRoleSaved: 'Роль збережено',
+  },
+  articles: {
+    title: 'Статті та блог',
+    subtitle: 'Публікації магазину',
+    newArticle: 'Нова стаття',
+    tabAll: 'Усі',
+    tabPublished: 'Опубліковані',
+    tabDraft: 'Чернетки',
+    categoryPlaceholder: 'Категорія',
+    allCategories: 'Усі категорії',
+    searchPlaceholder: 'Пошук статей...',
+    empty: 'Статей поки немає',
+    published: 'Опубліковано',
+    draft: 'Чернетка',
+    featuredBadge: 'Топ',
+    actionsAria: 'Дії',
+    edit: 'Редагувати',
+    unpublish: 'Зняти з публікації',
+    publish: 'Опублікувати',
+    featuredAdd: 'У топ',
+    featuredRemove: 'Прибрати з топу',
+    delete: 'Видалити',
+    minutesSuffix: 'хв',
+    pageOf: 'Сторінка {page} з {total}',
+    back: 'Назад',
+    next: 'Далі',
+    deleteTitle: 'Видалити статтю?',
+    deleteDescription: 'Стаття «{title}» буде видалена безповоротно.',
+    cancel: 'Скасувати',
+    toastUnpublished: 'Знято з публікації',
+    toastPublished: 'Опубліковано',
+    toastFeaturedAdded: 'Додано в рекомендовані',
+    toastFeaturedRemoved: 'Прибрано з рекомендованих',
+    toastDeleted: 'Статтю видалено',
+    dialogTitleEdit: 'Редагування статті',
+    dialogTitleCreate: 'Нова стаття',
+    dialogDescription: 'Напишіть матеріал і налаштуйте публікацію.',
+    tabContent: 'Вміст',
+    tabSettings: 'Налаштування',
+    tabSeo: 'SEO',
+    titleLabel: 'Заголовок',
+    titlePlaceholder: 'Заголовок статті',
+    slugLabel: 'URL (slug)',
+    excerptLabel: 'Короткий опис',
+    excerptPlaceholder: 'Анонс статті для картки і списків',
+    contentLabel: 'Вміст (HTML)',
+    contentPlaceholder: '<p>Текст статті...</p>',
+    categoryLabel: 'Категорія',
+    noCategory: 'Без категорії',
+    authorLabel: 'Автор',
+    coverLabel: 'Посилання на обкладинку',
+    readingMinutesLabel: 'Час читання (хв)',
+    tagsLabel: 'Теги',
+    tagsPlaceholder: 'Додати тег і Enter',
+    addTag: 'Додати',
+    removeTagAria: 'Видалити тег',
+    publishLabel: 'Опублікувати',
+    publishHint: 'Стаття буде видима на сайті',
+    featuredLabel: 'Рекомендована',
+    featuredHint: 'Показувати в блоці «Топ»',
+    metaTitleLabel: 'Meta Title',
+    metaDescLabel: 'Meta Description',
+    save: 'Зберегти',
+    saving: 'Збереження...',
+    create: 'Створити',
+    toastTitleRequired: 'Введіть заголовок статті',
+    toastUpdated: 'Статтю оновлено',
+    toastCreated: 'Статтю створено',
+    toastSaveError: 'Помилка збереження',
+  },
+  modalAds: {
+    title: 'Модальна реклама',
+    subtitle: 'Спливаючі банери на вітрині: акції, підписки, промо',
+    newCampaign: 'Нова кампанія',
+    statCampaigns: 'Кампаній',
+    statViews: 'Покази',
+    statClicks: 'Кліки',
+    statCtr: 'CTR',
+    searchPlaceholder: 'Пошук за назвою або заголовком…',
+    tabAll: 'Усі',
+    tabActive: 'Активні',
+    tabInactive: 'Неактивні',
+    empty: 'Кампаній поки немає',
+    emptyHint: 'Створіть першу модальну рекламу — наприклад, попап зі знижкою для нових відвідувачів',
+    createCampaign: 'Створити кампанію',
+    active: 'Активна',
+    inactive: 'Вимкнена',
+    enableCampaignAria: 'Увімкнути кампанію',
+    actionsAria: 'Дії',
+    edit: 'Редагувати',
+    resetStats: 'Скинути статистику',
+    delete: 'Видалити',
+    statViewsShort: 'Покази',
+    statClicksShort: 'Кліки',
+    statClosesShort: 'Закриття',
+    paginationAria: 'Пагінація',
+    secSuffix: 'сек',
+    sinceLabel: 'з',
+    untilLabel: 'по',
+    dialogTitleEdit: 'Редагувати кампанію',
+    dialogTitleCreate: 'Нова кампанія',
+    dialogDescription: 'Налаштуйте вміст банера, умови показу і розклад',
+    sectionContent: 'Вміст',
+    campaignNameLabel: 'Назва кампанії',
+    campaignNamePlaceholder: 'Знижка новим клієнтам',
+    bannerTitleLabel: 'Заголовок банера',
+    bannerTitlePlaceholder: '−10% на перше замовлення',
+    textLabel: 'Текст',
+    textPlaceholder: 'Підпишіться і отримайте промокод на знижку',
+    bannerImageLabel: 'Зображення банера',
+    bannerImageHint: 'Рекомендована пропорція 16:9. Стискається у WebP автоматично.',
+    windowSizeLabel: 'Розмір вікна',
+    sizeSmall: 'Маленький',
+    sizeMedium: 'Середній',
+    sizeLarge: 'Великий',
+    buttonTextLabel: 'Текст кнопки',
+    buttonTextPlaceholder: 'Перейти в каталог',
+    buttonUrlLabel: 'Посилання кнопки',
+    buttonColorLabel: 'Колір кнопки',
+    colorTheme: 'Тема магазину',
+    colorRed: 'Червоний',
+    colorOrange: 'Оранжевий',
+    colorGreen: 'Зелений',
+    colorBlue: 'Синій',
+    colorBlack: 'Чорний',
+    customColorLabel: 'Свій колір',
+    customColorAria: 'Свій колір кнопки',
+    previewLabel: 'Перегляд:',
+    sectionWhereToShow: 'Де показувати',
+    pageAll: 'Усі сторінки',
+    pageHome: 'Головна',
+    pageCatalog: 'Каталог',
+    pageProduct: 'Картка товару',
+    pageCart: 'Кошик',
+    sectionTrigger: 'Умова показу',
+    triggerDelay: 'За затримкою',
+    triggerDelayHint: 'Через N секунд після відкриття сторінки',
+    triggerScroll: 'За прокруткою',
+    triggerScrollHint: 'Коли відвідувач прокрутив N% сторінки',
+    triggerExit: 'При виході',
+    triggerExitHint: 'Коли курсор прямує до закриття вкладки',
+    delaySecondsLabel: 'Затримка, сек',
+    scrollPercentLabel: 'Прокрутка, %',
+    sectionFrequency: 'Частота показу',
+    freqEvery: 'Кожен візит',
+    freqSession: 'Раз за сесію',
+    freqDays: 'Раз на N днів',
+    daysBetweenAria: 'Днів між показами',
+    daysSuffix: 'днів',
+    sectionSchedule: 'Розклад',
+    startLabel: 'Початок',
+    endLabel: 'Завершення (необов\u2019язково)',
+    campaignEnabledLabel: 'Кампанію увімкнено',
+    cancel: 'Скасувати',
+    save: 'Зберегти',
+    create: 'Створити',
+    toastSaveError: 'Не вдалося зберегти',
+    toastUpdated: 'Кампанію оновлено',
+    toastCreated: 'Кампанію створено',
+    toastDeleted: 'Кампанію видалено',
+    toastStatsReset: 'Статистику скинуто',
+    deleteTitle: 'Видалити кампанію?',
+    deleteDescription: 'Кампанія та її статистика будуть видалені безповоротно.',
+  },
+  productAnalytics: {
+    title: 'Аналітика товару',
+    period: 'за 30 днів',
+    views: 'Перегляди',
+    addToCart: 'У кошик',
+    unitsSold: 'Продано, шт',
+    revenue: 'Виручка',
+    cartRate: 'Конверсія в кошик',
+    purchaseRate: 'Конверсія в замовлення',
+  },
+  productVariants: {
+    axesTitle: 'Осі вибору',
+    axesHint:
+      'Додайте осі (наприклад «Розмір», або «Колір» + «Пам\u2019ять»). Значення вказуйте через кому. Потім натисніть «Згенерувати комбінації».',
+    typeColor: 'колір',
+    typeText: 'текст',
+    removeAxisAria: 'Видалити вісь',
+    valuesLabel: 'Значення (через кому)',
+    colorPlaceholder: 'Black, Blue, Silver',
+    textPlaceholder: '39, 40, 41, 42',
+    colorForAria: 'Колір для',
+    newAxisLabel: 'Нова вісь',
+    newAxisPlaceholder: 'Колір',
+    selectText: 'Текст',
+    selectColor: 'Колір',
+    addAxis: 'Додати вісь',
+    generateMatrix: 'Згенерувати комбінації',
+    combinationsTitle: 'Комбінації',
+    combinationLabel: 'Комбінація',
+    priceLabel: 'Ціна',
+    oldPriceLabel: 'Стара ціна',
+    quantityLabel: 'Залишок',
+    skuLabel: 'SKU',
+    variantImageLabel: 'Фото варіанту (для вибору кольору)',
+  },
+  productForm: {
+    backToListAria: 'Назад до списку товарів',
+    editTitle: 'Редагування товару',
+    createTitle: 'Новий товар',
+    idPrefix: 'ID',
+    fillInfoHint: 'Заповніть інформацію про товар',
+    cancel: 'Скасувати',
+    save: 'Зберегти',
+    createProduct: 'Створити товар',
+    tabMain: 'Основне',
+    tabPrice: 'Ціна та залишки',
+    tabVariants: 'Варіанти',
+    tabCategories: 'Категорії та групи',
+    tabChars: 'Характеристики',
+    tabSeo: 'SEO',
+    photosTitle: 'Фотографії',
+    mainPhotoLabel: 'Головне фото',
+    mainPhotoHint: 'Відображається в каталозі і картці товару.',
+    galleryLabel: 'Галерея товару',
+    galleryHint: 'Додаткові фото товару. Можна завантажити декілька одразу.',
+    nameSectionTitle: 'Назва і опис',
+    nameRuLabel: 'Назва (RU)',
+    nameRuPlaceholder: 'Бездротові навушники…',
+    nameUkLabel: 'Назва (UK)',
+    nameUkPlaceholder: 'Бездротові навушники…',
+    descRuLabel: 'Опис (RU)',
+    descUkLabel: 'Опис (UK)',
+    notesLabel: 'Приватні нотатки (видно лише адміністраторам)',
+    identificationTitle: 'Ідентифікація і статус',
+    skuLabel: 'Артикул (SKU)',
+    barcodeLabel: 'Штрихкод',
+    salesTypeLabel: 'Тип продажів',
+    salesTypeRetail: 'Роздріб',
+    salesTypeWholesale: 'Опт',
+    salesTypeBoth: 'Роздріб і опт',
+    visibleLabel: 'Показувати на сайті',
+    visibleHint: 'Товар видно покупцям',
+    popularLabel: 'Популярний товар',
+    popularHint: 'Показується в блоці «Популярні товари»',
+    purchaseCounterTitle: 'Лічильник покупок',
+    realOrdersLabel: 'Реальні покупки',
+    realOrdersHint: 'Рахується автоматично за замовленнями',
+    purchasesBoostLabel: 'Накрутка покупок',
+    purchasesBoostHint: 'Додається до реальної кількості покупок',
+    shownToBuyersLabel: 'Показується покупцям',
+    shownToBuyersHint: '«Купили N разів» на картці товару',
+    dimensionsTitle: 'Габарити і вага',
+    widthLabel: 'Ширина, см',
+    heightLabel: 'Висота, см',
+    lengthLabel: 'Довжина, см',
+    weightLabel: 'Вага, кг',
+    pricesTitle: 'Ціни',
+    priceLabel: 'Ціна продажу *',
+    oldPriceLabel: 'Стара ціна (для знижки)',
+    costPriceLabel: 'Ціна закупівлі',
+    currencyLabel: 'Валюта',
+    priceFromLabel: 'Ціна «від»',
+    priceFromHint: 'Відображати як мінімальну ціну',
+    stockTitle: 'Наявність',
+    quantityLabel: 'Кількість на складі',
+    quantityHint: 'При нулі статус автоматично стане «Немає в наявності»',
+    unitLabel: 'Одиниця виміру',
+    productCategoriesTitle: 'Категорії товару',
+    noCategoriesHint: 'Категорій поки немає.',
+    createCategoryLink: 'Створити категорію',
+    productGroupsTitle: 'Групи товарів',
+    noGroupsHint: 'Груп поки немає.',
+    createGroupLink: 'Створити групу',
+    placementTitle: 'Розміщення',
+    siteGroupLabel: 'Група на сайті',
+    notSelected: 'Не обрано',
+    marketplaceCategoryLabel: 'Категорія маркетплейсу',
+    charsTitle: 'Характеристики товару',
+    charsEmptyHint: 'Характеристики не додані. Наприклад: «Колір — чорний», «Матеріал — метал».',
+    charNamePlaceholder: 'Назва (Колір)',
+    charNameAria: 'Назва характеристики',
+    charValuePlaceholder: 'Значення (Чорний)',
+    charValueAria: 'Значення характеристики',
+    removeCharAria: 'Видалити характеристику',
+    addChar: 'Додати характеристику',
+    seoTitle: 'SEO-налаштування',
+    metaTitleRuLabel: 'Meta Title (RU)',
+    metaTitleUkLabel: 'Meta Title (UK)',
+    metaDescRuLabel: 'Meta Description (RU)',
+    metaDescUkLabel: 'Meta Description (UK)',
+    toastNameRequired: 'Вкажіть назву товару хоча б однією мовою',
+    toastPriceInvalid: 'Вкажіть коректну ціну',
+    toastUpdated: 'Товар оновлено',
+    toastCreated: 'Товар створено',
+    toastSaveError: 'Помилка збереження',
+    saveChanges: 'Зберегти зміни',
   },
 }
 
@@ -3219,6 +4147,471 @@ const ru: AdminDictionary = {
     statusRecovered: 'Купил',
     itemQtyTemplate: '{qty} шт. × {price}',
     toastReminderSent: 'Напоминание отправлено',
+    timeMinutesAgo: '{n} мин назад',
+    timeHoursAgo: '{n} ч назад',
+    timeDaysAgo: '{n} дн назад',
+  },
+  notFound: {
+    errorLabel: 'Ошибка 404',
+    title: 'Запись не найдена',
+    description: 'Такой страницы или записи нет — возможно, она была удалена или ссылка устарела.',
+    goToAdmin: 'В админ-центр',
+  },
+  accessDenied: {
+    errorLabel: 'Ошибка 403',
+    title: 'Доступ запрещён',
+    reasonWithSection: 'У вашей роли нет доступа к разделу «{section}».',
+    reasonGeneric: 'У вашей роли нет доступа к этому разделу.',
+    contactHint:
+      'Если доступ нужен для работы — обратитесь к администратору магазина, чтобы он выдал разрешение в разделе «Пользователи».',
+    goToAdmin: 'В админ-центр',
+    goToSite: 'На сайт',
+  },
+  bestsellers: {
+    title: 'Топ продаж',
+    subtitle: 'Рейтинг товаров по продажам. Отмечайте хиты для витрины магазина.',
+    statRankedItems: 'Позиций в рейтинге',
+    statUnitsSold: 'Продано единиц',
+    statRevenue: 'Выручка',
+    colRank: '#',
+    colProduct: 'Товар',
+    colUnitsSold: 'Продано',
+    colOrders: 'Заказов',
+    colRevenue: 'Выручка',
+    colTop: 'Топ продаж',
+    topAria: 'Топ продаж',
+    empty: 'Пока нет продаж для формирования рейтинга',
+    toastAdded: 'Добавлено в топ продаж',
+    toastRemoved: 'Убрано из топа',
+    toastNoProduct: 'Товар не связан с каталогом',
+  },
+  dashboard: {
+    welcome: 'Добро пожаловать, {name}',
+    subtitle: 'Сводка по вашему магазину',
+    statOrdersTotal: 'Заказов всего',
+    statOrdersActive: 'Активные заказы',
+    statRevenue: 'Выручка (оплачено)',
+    statViews: 'Просмотры (30 дн.)',
+    recentOrdersTitle: 'Последние заказы',
+    allOrders: 'Все заказы',
+    noOrders: 'Заказов пока нет',
+    noName: 'Без имени',
+    unitsSuffix: 'шт.',
+    funnelTitle: 'Воронка (30 дней)',
+    funnelPageViews: 'Просмотры страниц',
+    funnelProductViews: 'Просмотры товаров',
+    funnelAddToCart: 'Добавления в корзину',
+    funnelOrders: 'Заказы',
+    conversionRate: 'Конверсия в заказ',
+    lowStockTitle: 'Заканчиваются на складе',
+    toProducts: 'К товарам',
+    skuLabel: 'Артикул',
+    outOfStock: 'Нет в наличии',
+    remainingPrefix: 'Осталось',
+  },
+  pages: {
+    title: 'Страницы',
+    subtitle: 'Информационные страницы магазина',
+    createPage: 'Создать страницу',
+    tabAll: 'Все',
+    tabPublished: 'Опубликованные',
+    tabDraft: 'Черновики',
+    searchPlaceholder: 'Поиск по заголовку...',
+    colTitle: 'Заголовок',
+    colUrl: 'URL',
+    colStatus: 'Статус',
+    colInMenu: 'В меню',
+    empty: 'Страниц пока нет',
+    yes: 'Да',
+    published: 'Опубликовано',
+    draft: 'Черновик',
+    actionsAria: 'Действия',
+    edit: 'Редактировать',
+    unpublish: 'Снять с публикации',
+    publish: 'Опубликовать',
+    delete: 'Удалить',
+    pageOf: 'Страница {page} из {total}',
+    back: 'Назад',
+    next: 'Вперёд',
+    deleteTitle: 'Удалить страницу?',
+    deleteDescription: 'Страница «{title}» будет удалена безвозвратно.',
+    cancel: 'Отмена',
+    toastUnpublished: 'Страница снята с публикации',
+    toastPublished: 'Страница опубликована',
+    toastDeleted: 'Страница удалена',
+    dialogTitleEdit: 'Редактирование страницы',
+    dialogTitleCreate: 'Новая страница',
+    dialogDescription: 'Заполните содержимое и настройки отображения.',
+    tabContent: 'Содержимое',
+    tabSettings: 'Настройки',
+    tabSeo: 'SEO',
+    titleUk: 'Заголовок (Укр)',
+    titleRu: 'Заголовок (Рус)',
+    titleUkPlaceholder: 'Наприклад: Про компанію',
+    titleRuPlaceholder: 'Например: О компании',
+    slugLabel: 'URL (slug)',
+    langUk: 'Українська',
+    langRu: 'Русский',
+    excerptUk: 'Краткое описание (Укр)',
+    excerptRu: 'Краткое описание (Рус)',
+    excerptPlaceholder: 'Короткий анонс страницы',
+    contentUk: 'Содержимое, Укр (HTML)',
+    contentRu: 'Содержимое, Рус (HTML)',
+    contentPlaceholder: '<h2>Заголовок</h2><p>Текст...</p>',
+    templateLabel: 'Шаблон',
+    templateDefault: 'Обычная страница',
+    templateContacts: 'Контакты',
+    templateFaq: 'Вопрос-ответ (FAQ)',
+    templateLanding: 'Лендинг',
+    publishLabel: 'Опубликовать',
+    publishHint: 'Страница будет видна на сайте',
+    showInMenuLabel: 'Показывать в меню',
+    showInMenuHint: 'Добавить ссылку в навигацию',
+    menuTitleLabel: 'Название в меню',
+    sortOrderLabel: 'Порядок',
+    metaTitleLabel: 'Meta Title',
+    metaTitlePlaceholder: 'Заголовок для поисковых систем',
+    metaDescLabel: 'Meta Description',
+    metaDescPlaceholder: 'Описание для сниппета в поиске',
+    save: 'Сохранить',
+    saving: 'Сохранение...',
+    create: 'Создать',
+    toastTitleRequired: 'Введите заголовок страницы',
+    toastUpdated: 'Страница обновлена',
+    toastCreated: 'Страница создана',
+    toastSaveError: 'Ошибка сохранения',
+  },
+  users: {
+    title: 'Пользователи и роли',
+    subtitle: 'Управление доступом сотрудников к разделам админ-центра',
+    tabUsers: 'Пользователи',
+    tabRoles: 'Роли',
+    addUser: 'Добавить пользователя',
+    newUserTitle: 'Новый пользователь',
+    nameLabel: 'Имя',
+    emailLabel: 'Email',
+    passwordLabel: 'Пароль',
+    roleLabel: 'Роль',
+    create: 'Создать',
+    toastUserCreated: 'Пользователь создан',
+    genericError: 'Ошибка',
+    colUser: 'Пользователь',
+    colRole: 'Роль',
+    colStatus: 'Статус',
+    colActions: 'Действия',
+    youSuffix: '(вы)',
+    toastRoleUpdated: 'Роль обновлена',
+    active: 'Активен',
+    disabled: 'Отключён',
+    deleteUserConfirm: 'Удалить пользователя {name}?',
+    toastUserDeleted: 'Пользователь удалён',
+    createRole: 'Создать роль',
+    systemRole: 'Системная',
+    customRole: 'Пользовательская',
+    accessCountLabel: 'Доступов:',
+    allSections: 'все разделы',
+    edit: 'Изменить',
+    deleteRoleConfirm: 'Удалить роль {name}?',
+    toastRoleDeleted: 'Роль удалена',
+    dialogTitleEdit: 'Редактирование роли',
+    dialogTitleCreate: 'Новая роль',
+    codeLabel: 'Код',
+    descriptionLabel: 'Описание',
+    adminRoleHint: 'Роль администратора всегда имеет полный доступ ко всем разделам.',
+    sectionAccessLabel: 'Доступ к разделам',
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    toastRoleSaved: 'Роль сохранена',
+  },
+  articles: {
+    title: 'Статьи и блог',
+    subtitle: 'Публикации магазина',
+    newArticle: 'Новая статья',
+    tabAll: 'Все',
+    tabPublished: 'Опубликованные',
+    tabDraft: 'Черновики',
+    categoryPlaceholder: 'Категория',
+    allCategories: 'Все категории',
+    searchPlaceholder: 'Поиск статей...',
+    empty: 'Статей пока нет',
+    published: 'Опубликовано',
+    draft: 'Черновик',
+    featuredBadge: 'Топ',
+    actionsAria: 'Действия',
+    edit: 'Редактировать',
+    unpublish: 'Снять с публикации',
+    publish: 'Опубликовать',
+    featuredAdd: 'В топ',
+    featuredRemove: 'Убрать из топа',
+    delete: 'Удалить',
+    minutesSuffix: 'мин',
+    pageOf: 'Страница {page} из {total}',
+    back: 'Назад',
+    next: 'Вперёд',
+    deleteTitle: 'Удалить статью?',
+    deleteDescription: 'Статья «{title}» будет удалена безвозвратно.',
+    cancel: 'Отмена',
+    toastUnpublished: 'Снято с публикации',
+    toastPublished: 'Опубликовано',
+    toastFeaturedAdded: 'Добавлено в рекомендованные',
+    toastFeaturedRemoved: 'Убрано из рекомендованных',
+    toastDeleted: 'Статья удалена',
+    dialogTitleEdit: 'Редактирование статьи',
+    dialogTitleCreate: 'Новая статья',
+    dialogDescription: 'Напишите материал и настройте публикацию.',
+    tabContent: 'Содержимое',
+    tabSettings: 'Настройки',
+    tabSeo: 'SEO',
+    titleLabel: 'Заголовок',
+    titlePlaceholder: 'Заголовок статьи',
+    slugLabel: 'URL (slug)',
+    excerptLabel: 'Краткое описание',
+    excerptPlaceholder: 'Анонс статьи для карточки и списков',
+    contentLabel: 'Содержимое (HTML)',
+    contentPlaceholder: '<p>Текст статьи...</p>',
+    categoryLabel: 'Категория',
+    noCategory: 'Без категории',
+    authorLabel: 'Автор',
+    coverLabel: 'Ссылка на обложку',
+    readingMinutesLabel: 'Время чтения (мин)',
+    tagsLabel: 'Теги',
+    tagsPlaceholder: 'Добавить тег и Enter',
+    addTag: 'Добавить',
+    removeTagAria: 'Удалить тег',
+    publishLabel: 'Опубликовать',
+    publishHint: 'Статья будет видна на сайте',
+    featuredLabel: 'Рекомендованная',
+    featuredHint: 'Показывать в блоке «Топ»',
+    metaTitleLabel: 'Meta Title',
+    metaDescLabel: 'Meta Description',
+    save: 'Сохранить',
+    saving: 'Сохранение...',
+    create: 'Создать',
+    toastTitleRequired: 'Введите заголовок статьи',
+    toastUpdated: 'Статья обновлена',
+    toastCreated: 'Статья создана',
+    toastSaveError: 'Ошибка сохранения',
+  },
+  modalAds: {
+    title: 'Модальная реклама',
+    subtitle: 'Всплывающие баннеры на витрине: акции, подписки, промо',
+    newCampaign: 'Новая кампания',
+    statCampaigns: 'Кампаний',
+    statViews: 'Показы',
+    statClicks: 'Клики',
+    statCtr: 'CTR',
+    searchPlaceholder: 'Поиск по названию или заголовку…',
+    tabAll: 'Все',
+    tabActive: 'Активные',
+    tabInactive: 'Неактивные',
+    empty: 'Кампаний пока нет',
+    emptyHint: 'Создайте первую модальную рекламу — например, попап со скидкой для новых посетителей',
+    createCampaign: 'Создать кампанию',
+    active: 'Активна',
+    inactive: 'Выключена',
+    enableCampaignAria: 'Включить кампанию',
+    actionsAria: 'Действия',
+    edit: 'Редактировать',
+    resetStats: 'Сбросить статистику',
+    delete: 'Удалить',
+    statViewsShort: 'Показы',
+    statClicksShort: 'Клики',
+    statClosesShort: 'Закрытия',
+    paginationAria: 'Пагинация',
+    secSuffix: 'сек',
+    sinceLabel: 'с',
+    untilLabel: 'по',
+    dialogTitleEdit: 'Редактировать кампанию',
+    dialogTitleCreate: 'Новая кампания',
+    dialogDescription: 'Настройте содержимое баннера, условия показа и расписание',
+    sectionContent: 'Содержимое',
+    campaignNameLabel: 'Название кампании',
+    campaignNamePlaceholder: 'Скидка новым клиентам',
+    bannerTitleLabel: 'Заголовок баннера',
+    bannerTitlePlaceholder: '−10% на первый заказ',
+    textLabel: 'Текст',
+    textPlaceholder: 'Подпишитесь и получите промокод на скидку',
+    bannerImageLabel: 'Изображение баннера',
+    bannerImageHint: 'Рекомендуемая пропорция 16:9. Сжимается в WebP автоматически.',
+    windowSizeLabel: 'Размер окна',
+    sizeSmall: 'Маленький',
+    sizeMedium: 'Средний',
+    sizeLarge: 'Большой',
+    buttonTextLabel: 'Текст кнопки',
+    buttonTextPlaceholder: 'Перейти в каталог',
+    buttonUrlLabel: 'Ссылка кнопки',
+    buttonColorLabel: 'Цвет кнопки',
+    colorTheme: 'Тема магазина',
+    colorRed: 'Красный',
+    colorOrange: 'Оранжевый',
+    colorGreen: 'Зелёный',
+    colorBlue: 'Синий',
+    colorBlack: 'Чёрный',
+    customColorLabel: 'Свой цвет',
+    customColorAria: 'Свой цвет кнопки',
+    previewLabel: 'Превью:',
+    sectionWhereToShow: 'Где показывать',
+    pageAll: 'Все страницы',
+    pageHome: 'Главная',
+    pageCatalog: 'Каталог',
+    pageProduct: 'Карточка товара',
+    pageCart: 'Корзина',
+    sectionTrigger: 'Условие показа',
+    triggerDelay: 'По задержке',
+    triggerDelayHint: 'Через N секунд после открытия страницы',
+    triggerScroll: 'По прокрутке',
+    triggerScrollHint: 'Когда посетитель прокрутил N% страницы',
+    triggerExit: 'При уходе',
+    triggerExitHint: 'Когда курсор уходит к закрытию вкладки',
+    delaySecondsLabel: 'Задержка, сек',
+    scrollPercentLabel: 'Прокрутка, %',
+    sectionFrequency: 'Частота показа',
+    freqEvery: 'Каждый визит',
+    freqSession: 'Раз за сессию',
+    freqDays: 'Раз в N дней',
+    daysBetweenAria: 'Дней между показами',
+    daysSuffix: 'дней',
+    sectionSchedule: 'Расписание',
+    startLabel: 'Начало',
+    endLabel: 'Окончание (необязательно)',
+    campaignEnabledLabel: 'Кампания включена',
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    create: 'Создать',
+    toastSaveError: 'Не удалось сохранить',
+    toastUpdated: 'Кампания обновлена',
+    toastCreated: 'Кампания создана',
+    toastDeleted: 'Кампания удалена',
+    toastStatsReset: 'Статистика сброшена',
+    deleteTitle: 'Удалить кампанию?',
+    deleteDescription: 'Кампания и её статистика будут удалены безвозвратно.',
+  },
+  productAnalytics: {
+    title: 'Аналитика товара',
+    period: 'за 30 дней',
+    views: 'Просмотры',
+    addToCart: 'В корзину',
+    unitsSold: 'Продано, шт',
+    revenue: 'Выручка',
+    cartRate: 'Конверсия в корзину',
+    purchaseRate: 'Конверсия в заказ',
+  },
+  productVariants: {
+    axesTitle: 'Оси выбора',
+    axesHint:
+      'Добавьте оси (например «Размер», или «Цвет» + «Память»). Значения указывайте через запятую. Затем нажмите «Сгенерировать комбинации».',
+    typeColor: 'цвет',
+    typeText: 'текст',
+    removeAxisAria: 'Удалить ось',
+    valuesLabel: 'Значения (через запятую)',
+    colorPlaceholder: 'Black, Blue, Silver',
+    textPlaceholder: '39, 40, 41, 42',
+    colorForAria: 'Цвет для',
+    newAxisLabel: 'Новая ось',
+    newAxisPlaceholder: 'Цвет',
+    selectText: 'Текст',
+    selectColor: 'Цвет',
+    addAxis: 'Добавить ось',
+    generateMatrix: 'Сгенерировать комбинации',
+    combinationsTitle: 'Комбинации',
+    combinationLabel: 'Комбинация',
+    priceLabel: 'Цена',
+    oldPriceLabel: 'Старая цена',
+    quantityLabel: 'Остаток',
+    skuLabel: 'SKU',
+    variantImageLabel: 'Фото варианта (для выбора цвета)',
+  },
+  productForm: {
+    backToListAria: 'Назад к списку товаров',
+    editTitle: 'Редактирование товара',
+    createTitle: 'Новый товар',
+    idPrefix: 'ID',
+    fillInfoHint: 'Заполните информацию о товаре',
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    createProduct: 'Создать товар',
+    tabMain: 'Основное',
+    tabPrice: 'Цена и остатки',
+    tabVariants: 'Варианты',
+    tabCategories: 'Категории и группы',
+    tabChars: 'Характеристики',
+    tabSeo: 'SEO',
+    photosTitle: 'Фотографии',
+    mainPhotoLabel: 'Главное фото',
+    mainPhotoHint: 'Отображается в каталоге и карточке товара.',
+    galleryLabel: 'Галерея товара',
+    galleryHint: 'Дополнительные фото товара. Можно загрузить несколько сразу.',
+    nameSectionTitle: 'Название и описание',
+    nameRuLabel: 'Название (RU)',
+    nameRuPlaceholder: 'Беспроводные наушники…',
+    nameUkLabel: 'Название (UK)',
+    nameUkPlaceholder: 'Бездротові навушники…',
+    descRuLabel: 'Описание (RU)',
+    descUkLabel: 'Описание (UK)',
+    notesLabel: 'Приватные заметки (видны только администраторам)',
+    identificationTitle: 'Идентификация и статус',
+    skuLabel: 'Артикул (SKU)',
+    barcodeLabel: 'Штрихкод',
+    salesTypeLabel: 'Тип продаж',
+    salesTypeRetail: 'Розница',
+    salesTypeWholesale: 'Опт',
+    salesTypeBoth: 'Розница и опт',
+    visibleLabel: 'Показывать на сайте',
+    visibleHint: 'Товар виден покупателям',
+    popularLabel: 'Популярный товар',
+    popularHint: 'Показывается в блоке «Популярные товары»',
+    purchaseCounterTitle: 'Счётчик покупок',
+    realOrdersLabel: 'Реальные покупки',
+    realOrdersHint: 'Считается автоматически по заказам',
+    purchasesBoostLabel: 'Накрутка покупок',
+    purchasesBoostHint: 'Добавляется к реальному числу покупок',
+    shownToBuyersLabel: 'Показывается покупателям',
+    shownToBuyersHint: '«Купили N раз» на карточке товара',
+    dimensionsTitle: 'Габариты и вес',
+    widthLabel: 'Ширина, см',
+    heightLabel: 'Высота, см',
+    lengthLabel: 'Длина, см',
+    weightLabel: 'Вес, кг',
+    pricesTitle: 'Цены',
+    priceLabel: 'Цена продажи *',
+    oldPriceLabel: 'Старая цена (для скидки)',
+    costPriceLabel: 'Цена закупки',
+    currencyLabel: 'Валюта',
+    priceFromLabel: 'Цена «от»',
+    priceFromHint: 'Отображать как минимальную цену',
+    stockTitle: 'Наличие',
+    quantityLabel: 'Количество на складе',
+    quantityHint: 'При нуле статус автоматически станет «Нет в наличии»',
+    unitLabel: 'Единица измерения',
+    productCategoriesTitle: 'Категории товара',
+    noCategoriesHint: 'Категорий пока нет.',
+    createCategoryLink: 'Создать категорию',
+    productGroupsTitle: 'Группы товаров',
+    noGroupsHint: 'Групп пока нет.',
+    createGroupLink: 'Создать группу',
+    placementTitle: 'Размещение',
+    siteGroupLabel: 'Группа на сайте',
+    notSelected: 'Не выбрано',
+    marketplaceCategoryLabel: 'Категория маркетплейса',
+    charsTitle: 'Характеристики товара',
+    charsEmptyHint: 'Характеристики не добавлены. Например: «Цвет — чёрный», «Материал — металл».',
+    charNamePlaceholder: 'Название (Цвет)',
+    charNameAria: 'Название характеристики',
+    charValuePlaceholder: 'Значение (Чёрный)',
+    charValueAria: 'Значение характеристики',
+    removeCharAria: 'Удалить характеристику',
+    addChar: 'Добавить характеристику',
+    seoTitle: 'SEO-настройки',
+    metaTitleRuLabel: 'Meta Title (RU)',
+    metaTitleUkLabel: 'Meta Title (UK)',
+    metaDescRuLabel: 'Meta Description (RU)',
+    metaDescUkLabel: 'Meta Description (UK)',
+    toastNameRequired: 'Укажите название товара хотя бы на одном языке',
+    toastPriceInvalid: 'Укажите корректную цену',
+    toastUpdated: 'Товар обновлён',
+    toastCreated: 'Товар создан',
+    toastSaveError: 'Ошибка сохранения',
+    saveChanges: 'Сохранить изменения',
   },
 }
 

@@ -61,6 +61,7 @@ import {
   MoveVertical,
   LogOut,
 } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type Data = {
   items: ModalAd[]
@@ -70,47 +71,8 @@ type Data = {
   totalPages: number
 }
 
-const statusTabs = [
-  { key: 'all', label: 'Все' },
-  { key: 'active', label: 'Активные' },
-  { key: 'inactive', label: 'Неактивные' },
-] as const
-
-const PAGE_OPTIONS: { key: ModalAdTargetPage; label: string }[] = [
-  { key: 'all', label: 'Все страницы' },
-  { key: 'home', label: 'Главная' },
-  { key: 'catalog', label: 'Каталог' },
-  { key: 'product', label: 'Карточка товара' },
-  { key: 'cart', label: 'Корзина' },
-]
-
-const TRIGGERS = [
-  { key: 'delay', label: 'По задержке', hint: 'Через N секунд после открытия страницы', icon: Timer },
-  { key: 'scroll', label: 'По прокрутке', hint: 'Когда посетитель прокрутил N% страницы', icon: MoveVertical },
-  { key: 'exit', label: 'При уходе', hint: 'Когда курсор уходит к закрытию вкладки', icon: LogOut },
-] as const
-
-const FREQUENCIES = [
-  { key: 'every', label: 'Каждый визит' },
-  { key: 'session', label: 'Раз за сессию' },
-  { key: 'days', label: 'Раз в N дней' },
-] as const
-
-const SIZES = [
-  { key: 'small', label: 'Маленький' },
-  { key: 'medium', label: 'Средний' },
-  { key: 'large', label: 'Большой' },
-] as const
-
 // '' = theme primary color; anything else is a hex applied inline.
-const BUTTON_COLORS = [
-  { key: '', label: 'Тема магазина' },
-  { key: '#e11d48', label: 'Красный' },
-  { key: '#ea580c', label: 'Оранжевый' },
-  { key: '#16a34a', label: 'Зелёный' },
-  { key: '#2563eb', label: 'Синий' },
-  { key: '#111111', label: 'Чёрный' },
-] as const
+const BUTTON_COLOR_KEYS = ['', '#e11d48', '#ea580c', '#16a34a', '#2563eb', '#111111'] as const
 
 // Readable text (black/white) for an arbitrary hex background.
 function contrastText(hex: string): string {
@@ -208,12 +170,56 @@ export function ModalAdsManager({
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const { dict } = useAdminI18n()
+  const t = dict.modalAds
   const [query, setQuery] = useState(search)
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<number | null>(null)
+
+  const statusTabs = [
+    { key: 'all' as const, label: t.tabAll },
+    { key: 'active' as const, label: t.tabActive },
+    { key: 'inactive' as const, label: t.tabInactive },
+  ]
+
+  const PAGE_OPTIONS: { key: ModalAdTargetPage; label: string }[] = [
+    { key: 'all', label: t.pageAll },
+    { key: 'home', label: t.pageHome },
+    { key: 'catalog', label: t.pageCatalog },
+    { key: 'product', label: t.pageProduct },
+    { key: 'cart', label: t.pageCart },
+  ]
+
+  const TRIGGERS = [
+    { key: 'delay' as const, label: t.triggerDelay, hint: t.triggerDelayHint, icon: Timer },
+    { key: 'scroll' as const, label: t.triggerScroll, hint: t.triggerScrollHint, icon: MoveVertical },
+    { key: 'exit' as const, label: t.triggerExit, hint: t.triggerExitHint, icon: LogOut },
+  ]
+
+  const FREQUENCIES = [
+    { key: 'every' as const, label: t.freqEvery },
+    { key: 'session' as const, label: t.freqSession },
+    { key: 'days' as const, label: t.freqDays },
+  ]
+
+  const SIZES = [
+    { key: 'small' as const, label: t.sizeSmall },
+    { key: 'medium' as const, label: t.sizeMedium },
+    { key: 'large' as const, label: t.sizeLarge },
+  ]
+
+  const BUTTON_COLOR_LABELS: Record<string, string> = {
+    '': t.colorTheme,
+    '#e11d48': t.colorRed,
+    '#ea580c': t.colorOrange,
+    '#16a34a': t.colorGreen,
+    '#2563eb': t.colorBlue,
+    '#111111': t.colorBlack,
+  }
+  const BUTTON_COLORS = BUTTON_COLOR_KEYS.map((key) => ({ key, label: BUTTON_COLOR_LABELS[key] }))
 
   const navigate = (params: Record<string, string>) => {
     const sp = new URLSearchParams()
@@ -269,10 +275,10 @@ export function ModalAdsManager({
     const res = editingId ? await updateModalAd(editingId, input) : await createModalAd(input)
     setSaving(false)
     if (!res.success) {
-      toast.error(res.error ?? 'Не удалось сохранить')
+      toast.error(res.error ?? t.toastSaveError)
       return
     }
-    toast.success(editingId ? 'Кампания обновлена' : 'Кампания создана')
+    toast.success(editingId ? t.toastUpdated : t.toastCreated)
     setFormOpen(false)
     router.refresh()
   }
@@ -288,14 +294,14 @@ export function ModalAdsManager({
     if (deleteId == null) return
     await deleteModalAd(deleteId)
     setDeleteId(null)
-    toast.success('Кампания удалена')
+    toast.success(t.toastDeleted)
     router.refresh()
   }
 
   const onResetStats = (id: number) => {
     startTransition(async () => {
       await resetModalAdStats(id)
-      toast.success('Статистика сброшена')
+      toast.success(t.toastStatsReset)
       router.refresh()
     })
   }
@@ -313,23 +319,21 @@ export function ModalAdsManager({
     <div className="flex flex-col gap-6 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Модальная реклама</h1>
-          <p className="text-sm text-muted-foreground">
-            Всплывающие баннеры на витрине: акции, подписки, промо
-          </p>
+          <h1 className="text-xl font-semibold text-foreground">{t.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.subtitle}</p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="size-4" />
-          Новая кампания
+          {t.newCampaign}
         </Button>
       </header>
 
       {/* Aggregate analytics for the visible page */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard icon={<Megaphone className="size-4" />} label="Кампаний" value={String(data.total)} />
-        <StatCard icon={<Eye className="size-4" />} label="Показы" value={String(totals.views)} />
-        <StatCard icon={<MousePointerClick className="size-4" />} label="Клики" value={String(totals.clicks)} />
-        <StatCard icon={<X className="size-4" />} label="CTR" value={ctr(totals.views, totals.clicks)} />
+        <StatCard icon={<Megaphone className="size-4" />} label={t.statCampaigns} value={String(data.total)} />
+        <StatCard icon={<Eye className="size-4" />} label={t.statViews} value={String(totals.views)} />
+        <StatCard icon={<MousePointerClick className="size-4" />} label={t.statClicks} value={String(totals.clicks)} />
+        <StatCard icon={<X className="size-4" />} label={t.statCtr} value={ctr(totals.views, totals.clicks)} />
       </div>
 
       {/* Search + status filter */}
@@ -345,22 +349,22 @@ export function ModalAdsManager({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Поиск по названию или заголовку…"
+            placeholder={t.searchPlaceholder}
             className="pl-9"
           />
         </form>
         <div className="flex rounded-lg border border-border p-0.5">
-          {statusTabs.map((t) => (
+          {statusTabs.map((tab) => (
             <button
-              key={t.key}
+              key={tab.key}
               type="button"
-              onClick={() => navigate({ status: t.key, page: '1' })}
+              onClick={() => navigate({ status: tab.key, page: '1' })}
               className={
                 'rounded-md px-3 py-1.5 text-sm transition-colors ' +
-                (status === t.key ? 'bg-secondary font-medium text-foreground' : 'text-muted-foreground hover:text-foreground')
+                (status === tab.key ? 'bg-secondary font-medium text-foreground' : 'text-muted-foreground hover:text-foreground')
               }
             >
-              {t.label}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -370,19 +374,17 @@ export function ModalAdsManager({
       {data.items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
           <Megaphone className="size-8 text-muted-foreground" />
-          <p className="font-medium text-foreground">Кампаний пока нет</p>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            Создайте первую модальную рекламу — например, попап со скидкой для новых посетителей
-          </p>
+          <p className="font-medium text-foreground">{t.empty}</p>
+          <p className="max-w-sm text-sm text-muted-foreground">{t.emptyHint}</p>
           <Button onClick={openCreate} variant="outline" size="sm">
             <Plus className="size-4" />
-            Создать кампанию
+            {t.createCampaign}
           </Button>
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
           {data.items.map((ad) => {
-            const trigger = TRIGGERS.find((t) => t.key === ad.triggerType)
+            const trigger = TRIGGERS.find((tr) => tr.key === ad.triggerType)
             const pages = (ad.targetPages as string[])
               .map((p) => PAGE_OPTIONS.find((o) => o.key === p)?.label ?? p)
               .join(', ')
@@ -407,19 +409,19 @@ export function ModalAdsManager({
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-foreground">{ad.name}</p>
                         <Badge variant={ad.isActive ? 'default' : 'secondary'}>
-                          {ad.isActive ? 'Активна' : 'Выключена'}
+                          {ad.isActive ? t.active : t.inactive}
                         </Badge>
                       </div>
                       <p className="mt-0.5 truncate text-sm text-muted-foreground">«{ad.title}»</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {trigger?.label.toLowerCase()}
-                        {ad.triggerType === 'delay' && ` · ${ad.triggerValue} сек`}
+                        {ad.triggerType === 'delay' && ` · ${ad.triggerValue} ${t.secSuffix}`}
                         {ad.triggerType === 'scroll' && ` · ${ad.triggerValue}%`}
                         {' · '}
                         {pages}
-                        {' · с '}
+                        {` · ${t.sinceLabel} `}
                         {formatDate(ad.startsAt)}
-                        {ad.endsAt ? ` по ${formatDate(ad.endsAt)}` : ''}
+                        {ad.endsAt ? ` ${t.untilLabel} ${formatDate(ad.endsAt)}` : ''}
                       </p>
                     </div>
                   </div>
@@ -428,26 +430,26 @@ export function ModalAdsManager({
                       checked={ad.isActive}
                       onCheckedChange={() => onToggle(ad)}
                       disabled={isPending}
-                      aria-label="Включить кампанию"
+                      aria-label={t.enableCampaignAria}
                     />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label="Действия">
+                        <Button variant="ghost" size="icon" aria-label={t.actionsAria}>
                           <MoreVertical className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEdit(ad)}>
                           <Pencil className="size-4" />
-                          Редактировать
+                          {t.edit}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onResetStats(ad.id)}>
                           <RotateCcw className="size-4" />
-                          Сбросить статистику
+                          {t.resetStats}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(ad.id)}>
                           <Trash2 className="size-4" />
-                          Удалить
+                          {t.delete}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -456,10 +458,10 @@ export function ModalAdsManager({
 
                 {/* Per-campaign analytics */}
                 <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-sm sm:grid-cols-4">
-                  <AdStat label="Показы" value={String(ad.viewsCount)} />
-                  <AdStat label="Клики" value={String(ad.clicksCount)} />
-                  <AdStat label="CTR" value={ctr(ad.viewsCount, ad.clicksCount)} />
-                  <AdStat label="Закрытия" value={String(ad.closesCount)} />
+                  <AdStat label={t.statViewsShort} value={String(ad.viewsCount)} />
+                  <AdStat label={t.statClicksShort} value={String(ad.clicksCount)} />
+                  <AdStat label={t.statCtr} value={ctr(ad.viewsCount, ad.clicksCount)} />
+                  <AdStat label={t.statClosesShort} value={String(ad.closesCount)} />
                 </dl>
               </li>
             )
@@ -469,7 +471,7 @@ export function ModalAdsManager({
 
       {/* Pagination */}
       {data.totalPages > 1 && (
-        <nav className="flex items-center justify-center gap-2" aria-label="Пагинация">
+        <nav className="flex items-center justify-center gap-2" aria-label={t.paginationAria}>
           {Array.from({ length: data.totalPages }, (_, i) => i + 1).map((p) => (
             <Button
               key={p}
@@ -487,58 +489,54 @@ export function ModalAdsManager({
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Редактировать кампанию' : 'Новая кампания'}</DialogTitle>
-            <DialogDescription>
-              Настройте содержимое баннера, условия показа и расписание
-            </DialogDescription>
+            <DialogTitle>{editingId ? t.dialogTitleEdit : t.dialogTitleCreate}</DialogTitle>
+            <DialogDescription>{t.dialogDescription}</DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-5">
             <section className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-foreground">Содержимое</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t.sectionContent}</h3>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ma-name">Название кампании</Label>
+                  <Label htmlFor="ma-name">{t.campaignNameLabel}</Label>
                   <Input
                     id="ma-name"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Скидка новым клиентам"
+                    placeholder={t.campaignNamePlaceholder}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ma-title">Заголовок баннера</Label>
+                  <Label htmlFor="ma-title">{t.bannerTitleLabel}</Label>
                   <Input
                     id="ma-title"
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder="−10% на первый заказ"
+                    placeholder={t.bannerTitlePlaceholder}
                   />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="ma-body">Текст</Label>
+                <Label htmlFor="ma-body">{t.textLabel}</Label>
                 <Textarea
                   id="ma-body"
                   value={form.body}
                   onChange={(e) => setForm({ ...form, body: e.target.value })}
-                  placeholder="Подпишитесь и получите промокод на скидку"
+                  placeholder={t.textPlaceholder}
                   rows={2}
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label>Изображение баннера</Label>
+                  <Label>{t.bannerImageLabel}</Label>
                   <ImageUploader
                     value={form.imageUrl || null}
                     onChange={(url) => setForm({ ...form, imageUrl: url ?? '' })}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Рекомендуемая пропорция 16:9. Сжимается в WebP автоматически.
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t.bannerImageHint}</p>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label>Размер окна</Label>
+                  <Label>{t.windowSizeLabel}</Label>
                   <div className="flex rounded-lg border border-border p-0.5">
                     {SIZES.map((s) => (
                       <button
@@ -560,16 +558,16 @@ export function ModalAdsManager({
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ma-btn-text">Текст кнопки</Label>
+                  <Label htmlFor="ma-btn-text">{t.buttonTextLabel}</Label>
                   <Input
                     id="ma-btn-text"
                     value={form.buttonText}
                     onChange={(e) => setForm({ ...form, buttonText: e.target.value })}
-                    placeholder="Перейти в каталог"
+                    placeholder={t.buttonTextPlaceholder}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ma-btn-url">Ссылка кнопки</Label>
+                  <Label htmlFor="ma-btn-url">{t.buttonUrlLabel}</Label>
                   <Input
                     id="ma-btn-url"
                     value={form.buttonUrl}
@@ -579,7 +577,7 @@ export function ModalAdsManager({
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>Цвет кнопки</Label>
+                <Label>{t.buttonColorLabel}</Label>
                 <div className="flex flex-wrap items-center gap-2">
                   {BUTTON_COLORS.map((c) => (
                     <button
@@ -605,21 +603,21 @@ export function ModalAdsManager({
                   ))}
                   <label
                     className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                    title="Свой цвет"
+                    title={t.customColorLabel}
                   >
                     <input
                       type="color"
                       value={/^#[0-9a-fA-F]{6}$/.test(form.buttonColor) ? form.buttonColor : '#2563eb'}
                       onChange={(e) => setForm({ ...form, buttonColor: e.target.value })}
                       className="size-4 cursor-pointer appearance-none border-0 bg-transparent p-0"
-                      aria-label="Свой цвет кнопки"
+                      aria-label={t.customColorAria}
                     />
-                    Свой цвет
+                    {t.customColorLabel}
                   </label>
                 </div>
                 {form.buttonText && (
                   <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-border p-3">
-                    <span className="text-xs text-muted-foreground">Превью:</span>
+                    <span className="text-xs text-muted-foreground">{t.previewLabel}</span>
                     <span
                       className="inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold"
                       style={
@@ -636,7 +634,7 @@ export function ModalAdsManager({
             </section>
 
             <section className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-foreground">Где показывать</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t.sectionWhereToShow}</h3>
               <div className="flex flex-wrap gap-2">
                 {PAGE_OPTIONS.map((p) => {
                   const active = form.targetPages.includes(p.key)
@@ -660,30 +658,30 @@ export function ModalAdsManager({
             </section>
 
             <section className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-foreground">Условие показа</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t.sectionTrigger}</h3>
               <div className="grid gap-2 sm:grid-cols-3">
-                {TRIGGERS.map((t) => (
+                {TRIGGERS.map((tr) => (
                   <button
-                    key={t.key}
+                    key={tr.key}
                     type="button"
-                    onClick={() => setForm({ ...form, triggerType: t.key })}
+                    onClick={() => setForm({ ...form, triggerType: tr.key })}
                     className={
                       'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ' +
-                      (form.triggerType === t.key ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/40')
+                      (form.triggerType === tr.key ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/40')
                     }
                   >
                     <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <t.icon className="size-4" />
-                      {t.label}
+                      <tr.icon className="size-4" />
+                      {tr.label}
                     </span>
-                    <span className="text-xs text-muted-foreground">{t.hint}</span>
+                    <span className="text-xs text-muted-foreground">{tr.hint}</span>
                   </button>
                 ))}
               </div>
               {form.triggerType !== 'exit' && (
                 <div className="flex items-center gap-3">
                   <Label htmlFor="ma-trigger-value" className="shrink-0">
-                    {form.triggerType === 'delay' ? 'Задержка, сек' : 'Прокрутка, %'}
+                    {form.triggerType === 'delay' ? t.delaySecondsLabel : t.scrollPercentLabel}
                   </Label>
                   <Input
                     id="ma-trigger-value"
@@ -699,7 +697,7 @@ export function ModalAdsManager({
             </section>
 
             <section className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-foreground">Частота показа</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t.sectionFrequency}</h3>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex rounded-lg border border-border p-0.5">
                   {FREQUENCIES.map((f) => (
@@ -726,19 +724,19 @@ export function ModalAdsManager({
                       value={form.frequencyDays}
                       onChange={(e) => setForm({ ...form, frequencyDays: e.target.value })}
                       className="w-20"
-                      aria-label="Дней между показами"
+                      aria-label={t.daysBetweenAria}
                     />
-                    <span className="text-sm text-muted-foreground">дней</span>
+                    <span className="text-sm text-muted-foreground">{t.daysSuffix}</span>
                   </div>
                 )}
               </div>
             </section>
 
             <section className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-foreground">Расписание</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t.sectionSchedule}</h3>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ma-starts">Начало</Label>
+                  <Label htmlFor="ma-starts">{t.startLabel}</Label>
                   <Input
                     id="ma-starts"
                     type="datetime-local"
@@ -747,7 +745,7 @@ export function ModalAdsManager({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="ma-ends">Окончание (необязательно)</Label>
+                  <Label htmlFor="ma-ends">{t.endLabel}</Label>
                   <Input
                     id="ma-ends"
                     type="datetime-local"
@@ -762,18 +760,18 @@ export function ModalAdsManager({
                   checked={form.isActive}
                   onCheckedChange={(v) => setForm({ ...form, isActive: v })}
                 />
-                <Label htmlFor="ma-active">Кампания включена</Label>
+                <Label htmlFor="ma-active">{t.campaignEnabledLabel}</Label>
               </div>
             </section>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
-              Отмена
+              {t.cancel}
             </Button>
             <Button onClick={submit} disabled={saving}>
               {saving && <Loader2 className="size-4 animate-spin" />}
-              {editingId ? 'Сохранить' : 'Создать'}
+              {editingId ? t.save : t.create}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -783,18 +781,16 @@ export function ModalAdsManager({
       <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить кампанию?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Кампания и её статистика будут удалены безвозвратно.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{t.deleteDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={onDelete}
             >
-              Удалить
+              {t.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
