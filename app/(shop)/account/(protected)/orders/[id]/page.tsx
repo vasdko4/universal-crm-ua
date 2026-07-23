@@ -4,16 +4,9 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, User, Phone, Mail, Truck, MapPin, Package } from 'lucide-react'
 import { getMyOrderDetail } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
-import { ORDER_STATUSES, PAYMENT_STATUSES } from '@/lib/order-status'
+import { getOrderStatusLabel, getPaymentStatusLabel, getDeliveryMethodLabel } from '@/lib/order-status'
 import { OrderReceiptSection } from '@/components/orders/order-receipt-section'
-
-function deliveryMethodLabel(method: string | null): string {
-  if (method === 'nova_poshta') return 'Нова Пошта'
-  if (method === 'ukrposhta') return 'Укрпошта'
-  if (method === 'courier') return 'Курьер'
-  if (method === 'pickup') return 'Самовывоз'
-  return method || 'Не выбрано'
-}
+import { getLocale, getDictionary } from '@/lib/i18n/server'
 
 function InfoRow({
   icon: Icon,
@@ -41,12 +34,15 @@ export default async function MyOrderDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const data = await getMyOrderDetail(Number(id))
+  const [data, locale] = await Promise.all([getMyOrderDetail(Number(id)), getLocale()])
   if (!data) notFound()
   const { order, items, receipt } = data
+  const dict = getDictionary(locale)
+  const t = dict.account
 
-  const status = ORDER_STATUSES.find((s) => s.value === order.status)?.label ?? order.status
-  const pay = PAYMENT_STATUSES.find((s) => s.value === order.paymentStatus)?.label ?? order.paymentStatus
+  const status = getOrderStatusLabel(order.status, locale)
+  const pay = getPaymentStatusLabel(order.paymentStatus, locale)
+  const deliveryLabel = getDeliveryMethodLabel(order.deliveryMethod, locale)
 
   return (
     <div className="space-y-5">
@@ -54,12 +50,15 @@ export default async function MyOrderDetailPage({
         href="/account/orders"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
       >
-        <ArrowLeft className="size-4" /> Ко всем заказам
+        <ArrowLeft className="size-4" /> {t.backToOrders}
       </Link>
 
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-bold text-card-foreground">Заказ №{order.orderNumber}</h2>
+          <h2 className="text-xl font-bold text-card-foreground">
+            {t.orderHeading}
+            {order.orderNumber}
+          </h2>
           <div className="flex gap-2 text-xs">
             <span className="rounded-full bg-muted px-3 py-1 font-medium text-muted-foreground">
               {status}
@@ -76,12 +75,12 @@ export default async function MyOrderDetailPage({
 
       {/* Recipient & delivery details */}
       <div className="rounded-xl border border-border bg-card p-6">
-        <h3 className="mb-2 text-base font-semibold text-card-foreground">Получатель и доставка</h3>
+        <h3 className="mb-2 text-base font-semibold text-card-foreground">{t.recipientAndDelivery}</h3>
         <div className="grid gap-x-6 sm:grid-cols-2">
           {order.trackingNumber ? (
             <InfoRow
               icon={Package}
-              label="Номер накладной (ТТН)"
+              label={t.trackingNumber}
               value={
                 <span className="font-mono tracking-wide text-primary">{order.trackingNumber}</span>
               }
@@ -89,19 +88,19 @@ export default async function MyOrderDetailPage({
           ) : (
             <InfoRow
               icon={Package}
-              label="Номер накладной (ТТН)"
-              value={<span className="text-muted-foreground">Ещё не отправлено</span>}
+              label={t.trackingNumber}
+              value={<span className="text-muted-foreground">{t.notShippedYet}</span>}
             />
           )}
 
           {order.customerName ? (
-            <InfoRow icon={User} label="Имя и фамилия получателя" value={order.customerName} />
+            <InfoRow icon={User} label={t.recipientName} value={order.customerName} />
           ) : null}
 
           {order.customerPhone ? (
             <InfoRow
               icon={Phone}
-              label="Номер телефона"
+              label={t.phone}
               value={
                 <a href={`tel:${order.customerPhone}`} className="hover:text-primary">
                   {order.customerPhone}
@@ -113,7 +112,7 @@ export default async function MyOrderDetailPage({
           {order.customerEmail ? (
             <InfoRow
               icon={Mail}
-              label="Эл. почта"
+              label={t.emailShort}
               value={
                 <a href={`mailto:${order.customerEmail}`} className="hover:text-primary">
                   {order.customerEmail}
@@ -122,16 +121,12 @@ export default async function MyOrderDetailPage({
             />
           ) : null}
 
-          <InfoRow
-            icon={Truck}
-            label="Способ доставки"
-            value={deliveryMethodLabel(order.deliveryMethod)}
-          />
+          <InfoRow icon={Truck} label={t.deliveryMethod} value={deliveryLabel} />
 
           {order.deliveryCity || order.deliveryBranch || order.deliveryAddress ? (
             <InfoRow
               icon={MapPin}
-              label="Куда отправлено"
+              label={t.shippedTo}
               value={
                 <>
                   {order.deliveryCity ? <span>{order.deliveryCity}</span> : null}
@@ -199,13 +194,14 @@ export default async function MyOrderDetailPage({
         {Number(order.discountTotal) > 0 && (
           <div className="flex items-center justify-between border-t border-border px-5 pt-4 text-sm">
             <span className="text-muted-foreground">
-              Скидка{order.promoCode ? ` (${order.promoCode})` : ''}
+              {t.discount}
+              {order.promoCode ? ` (${order.promoCode})` : ''}
             </span>
             <span className="font-medium text-primary">−{formatPrice(Number(order.discountTotal))}</span>
           </div>
         )}
         <div className="flex items-center justify-between border-t border-border px-5 py-4">
-          <span className="font-semibold text-card-foreground">Итого</span>
+          <span className="font-semibold text-card-foreground">{t.grandTotal}</span>
           <span className="text-lg font-bold text-primary">{formatPrice(Number(order.total))}</span>
         </div>
       </div>

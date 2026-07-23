@@ -3,11 +3,14 @@ import Image from 'next/image'
 import { Package } from 'lucide-react'
 import { getMyOrders } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
-import { ORDER_STATUSES } from '@/lib/order-status'
+import { getOrderStatusLabel } from '@/lib/order-status'
 import { Button } from '@/components/ui/button'
+import { getLocale, getDictionary } from '@/lib/i18n/server'
 
 export default async function MyOrdersPage() {
-  const orders = await getMyOrders()
+  const [orders, locale] = await Promise.all([getMyOrders(), getLocale()])
+  const dict = getDictionary(locale)
+  const t = dict.account
 
   if (orders.length === 0) {
     return (
@@ -15,10 +18,10 @@ export default async function MyOrdersPage() {
         <div className="flex size-14 items-center justify-center rounded-full bg-muted">
           <Package className="size-7 text-muted-foreground" />
         </div>
-        <h2 className="mt-4 text-lg font-semibold text-card-foreground">Заказов пока нет</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Оформите первый заказ в каталоге.</p>
+        <h2 className="mt-4 text-lg font-semibold text-card-foreground">{t.noOrders}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t.noOrdersDescription}</p>
         <Button asChild className="mt-5">
-          <Link href="/catalog">Перейти в каталог</Link>
+          <Link href="/catalog">{t.goToCatalog}</Link>
         </Button>
       </div>
     )
@@ -27,7 +30,7 @@ export default async function MyOrdersPage() {
   return (
     <div className="space-y-4">
       {orders.map((o) => {
-        const status = ORDER_STATUSES.find((s) => s.value === o.status)
+        const statusLabel = getOrderStatusLabel(o.status, locale)
         return (
           <div key={o.id} className="rounded-xl border border-border bg-card p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -40,12 +43,12 @@ export default async function MyOrdersPage() {
                     №{o.orderNumber}
                   </Link>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                    {status?.label ?? o.status}
+                    {statusLabel}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {o.createdAt ? new Date(o.createdAt).toLocaleDateString('uk-UA') : ''} ·{' '}
-                  {o.itemsCount} тов.
+                  {o.itemsCount} {t.itemsCountUnit}
                 </p>
               </div>
               <div className="text-lg font-bold text-primary">{formatPrice(Number(o.total))}</div>
@@ -96,7 +99,7 @@ export default async function MyOrdersPage() {
 
             <div className="mt-4 flex justify-end">
               <Button asChild variant="outline" size="sm">
-                <Link href={`/account/orders/${o.id}`}>Детали заказа</Link>
+                <Link href={`/account/orders/${o.id}`}>{t.orderDetailsButton}</Link>
               </Button>
             </div>
           </div>
