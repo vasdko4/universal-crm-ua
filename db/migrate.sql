@@ -75,5 +75,9 @@ ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "utm_content" varchar(150);
 -- ---------- Google Merchant Center: категория товара + доставка в фиде ----------
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "merchant_feed" jsonb DEFAULT '{}'::jsonb NOT NULL;
 
+-- ---------- Минимальная сумма заказа + чек заказа ----------
+ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "min_order" jsonb DEFAULT '{}'::jsonb NOT NULL;
+ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "receipt_url" text;
+
 -- ---------- Готово ----------
 DO $$ BEGIN RAISE NOTICE 'Миграция применена успешно.'; END $$;

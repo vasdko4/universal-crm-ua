@@ -5,6 +5,7 @@ import { ArrowLeft, User, Phone, Mail, Truck, MapPin, Package } from 'lucide-rea
 import { getMyOrderDetail } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
 import { ORDER_STATUSES, PAYMENT_STATUSES } from '@/lib/order-status'
+import { OrderReceiptSection } from '@/components/orders/order-receipt-section'
 
 function deliveryMethodLabel(method: string | null): string {
   if (method === 'nova_poshta') return 'Нова Пошта'
@@ -42,7 +43,7 @@ export default async function MyOrderDetailPage({
   const { id } = await params
   const data = await getMyOrderDetail(Number(id))
   if (!data) notFound()
-  const { order, items } = data
+  const { order, items, receipt } = data
 
   const status = ORDER_STATUSES.find((s) => s.value === order.status)?.label ?? order.status
   const pay = PAYMENT_STATUSES.find((s) => s.value === order.paymentStatus)?.label ?? order.paymentStatus
@@ -208,6 +209,29 @@ export default async function MyOrderDetailPage({
           <span className="text-lg font-bold text-primary">{formatPrice(Number(order.total))}</span>
         </div>
       </div>
+
+      {receipt && (
+        <OrderReceiptSection
+          storeName={receipt.storeName}
+          orderNumber={order.orderNumber}
+          createdAt={order.createdAt}
+          items={items.map((i) => ({
+            name: i.name,
+            variantLabel: i.variantLabel,
+            sku: i.sku,
+            price: Number(i.price),
+            quantity: i.quantity,
+            total: Number(i.total),
+          }))}
+          itemsTotal={Number(order.itemsTotal)}
+          discountTotal={Number(order.discountTotal)}
+          deliveryCost={Number(order.deliveryCost)}
+          total={Number(order.total)}
+          currency={order.currency}
+          isFiscal={receipt.isFiscal}
+          qrDataUrl={receipt.qrDataUrl}
+        />
+      )}
     </div>
   )
 }

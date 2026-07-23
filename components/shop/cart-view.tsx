@@ -8,10 +8,13 @@ import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 
-export function CartView() {
+export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: number } } = {}) {
   const { items, setQuantity, remove, total, count } = useCart()
   const { locale } = useI18n()
   const lp = (p: string) => localizedPath(p, locale)
+  const minOrderShortfall =
+    minOrder?.enabled && minOrder.amount > 0 ? Math.max(0, minOrder.amount - total) : 0
+  const belowMinOrder = minOrderShortfall > 0
 
   if (items.length === 0) {
     return (
@@ -127,12 +130,25 @@ export function CartView() {
             <span className="font-semibold text-foreground">К оплате</span>
             <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
           </div>
-          <Button asChild size="lg" className="mt-5 w-full gap-2">
-            <Link href={lp('/checkout')}>
+          {belowMinOrder && (
+            <p className="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+              Минимальная сумма заказа — {formatPrice(minOrder!.amount)}. Добавьте товаров ещё на{' '}
+              {formatPrice(minOrderShortfall)}.
+            </p>
+          )}
+          {belowMinOrder ? (
+            <Button size="lg" className="mt-5 w-full gap-2" disabled>
               Оформить заказ
               <ArrowRight className="size-4" />
-            </Link>
-          </Button>
+            </Button>
+          ) : (
+            <Button asChild size="lg" className="mt-5 w-full gap-2">
+              <Link href={lp('/checkout')}>
+                Оформить заказ
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="ghost" className="mt-2 w-full">
             <Link href={lp('/catalog')}>Продолжить покупки</Link>
           </Button>

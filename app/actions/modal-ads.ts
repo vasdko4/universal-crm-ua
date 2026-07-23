@@ -196,8 +196,15 @@ export type PublicModalAd = {
 
 // Active campaigns within their date window. The client component picks the
 // one matching the current page type and applies frequency capping locally.
+// Grace period after a campaign's endsAt during which it keeps showing (and
+// its link keeps working) instead of vanishing the instant the end time
+// passes — a visitor mid-session (or reloading right around the deadline)
+// still gets the full window instead of the offer disappearing under them.
+const END_GRACE_MS = 15 * 60 * 1000
+
 export async function getActiveModalAds(): Promise<PublicModalAd[]> {
   const now = new Date()
+  const graceCutoff = new Date(now.getTime() - END_GRACE_MS)
   const rows = await db
     .select()
     .from(modalAds)
@@ -205,7 +212,7 @@ export async function getActiveModalAds(): Promise<PublicModalAd[]> {
       and(
         eq(modalAds.isActive, true),
         lte(modalAds.startsAt, now),
-        or(isNull(modalAds.endsAt), gte(modalAds.endsAt, now)),
+        or(isNull(modalAds.endsAt), gte(modalAds.endsAt, graceCutoff)),
       ),
     )
     .orderBy(desc(modalAds.createdAt))

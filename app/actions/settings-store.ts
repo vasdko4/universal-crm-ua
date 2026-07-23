@@ -26,6 +26,7 @@ export type {
   GoogleAuthSettings,
   HomeHeroLocaleContent,
   HomeHeroSettings,
+  MinOrderSettings,
   StoreSettingsData,
 } from '@/lib/store-settings'
 
@@ -73,6 +74,7 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
     notifications: merged.notifications,
     googleAuth: merged.googleAuth,
     homeHero: merged.homeHero,
+    minOrder: merged.minOrder,
     updatedAt: new Date(),
   }
   await db

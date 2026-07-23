@@ -197,6 +197,8 @@ export type Dictionary = {
     itemsCount: string
     deliveryByCarrier: string
     toPay: string
+    minOrderPrefix: string
+    minOrderAddMore: string
     promoLabel: string
     promoPlaceholder: string
     promoApply: string
@@ -545,6 +547,8 @@ const uk: Dictionary = {
     itemsCount: 'Товари',
     deliveryByCarrier: 'за тарифами перевізника',
     toPay: 'До сплати',
+    minOrderPrefix: 'Мінімальна сума замовлення —',
+    minOrderAddMore: 'Додайте товарів ще на',
     promoLabel: 'Промокод',
     promoPlaceholder: 'Введіть промокод',
     promoApply: 'Застосувати',
@@ -895,6 +899,8 @@ const ru: Dictionary = {
     itemsCount: 'Товары',
     deliveryByCarrier: 'по тарифам перевозчика',
     toPay: 'К оплате',
+    minOrderPrefix: 'Минимальная сумма заказа —',
+    minOrderAddMore: 'Добавьте товаров ещё на',
     promoLabel: 'Промокод',
     promoPlaceholder: 'Введите промокод',
     promoApply: 'Применить',

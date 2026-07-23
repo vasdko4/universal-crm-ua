@@ -415,6 +415,9 @@ export type AdminDictionary = {
     storeDescLabel: string
     openCartTitle: string
     openCartDesc: string
+    minOrderTitle: string
+    minOrderDesc: string
+    minOrderAmountLabel: string
     heroTitle: string
     heroDesc: string
     localeUk: string
@@ -1964,6 +1967,9 @@ const uk: AdminDictionary = {
     storeDescLabel: 'Опис',
     openCartTitle: 'Відкривати кошик після додавання',
     openCartDesc: 'Автоматично показувати кошик при додаванні товару',
+    minOrderTitle: 'Мінімальна сума замовлення',
+    minOrderDesc: 'Заборонити оформлення замовлення, якщо сума товарів менша за поріг',
+    minOrderAmountLabel: 'Мінімальна сума, ₴',
     heroTitle: 'Hero-блок головної сторінки',
     heroDesc:
       'Великий банер угорі головної сторінки: бейдж, заголовок, опис, кнопка та картинка. Порожні поля показують стандартний текст. Тексти задаються окремо для кожної мови.',
@@ -3531,6 +3537,9 @@ const ru: AdminDictionary = {
     storeDescLabel: 'Описание',
     openCartTitle: 'Открывать корзину после добавления',
     openCartDesc: 'Автоматически показывать корзину при добавлении товара',
+    minOrderTitle: 'Минимальная сумма заказа',
+    minOrderDesc: 'Запретить оформление заказа, если сумма товаров меньше порога',
+    minOrderAmountLabel: 'Минимальная сумма, ₴',
     heroTitle: 'Hero-блок главной страницы',
     heroDesc:
       'Большой баннер вверху главной страницы: бейдж, заголовок, описание, кнопка и картинка. Пустые поля показывают стандартный текст. Тексты задаются отдельно для каждого языка.',

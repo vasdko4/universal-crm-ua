@@ -749,3 +749,10 @@ CREATE TABLE IF NOT EXISTS "abandoned_carts" (
   "updated_at" timestamptz DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS abandoned_carts_status_idx ON public.abandoned_carts USING btree (status, updated_at DESC);
+
+-- Минимальная сумма заказа: включение/выключение + порог (Настройки → Общие)
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS min_order jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+-- Реальный URL фискального чека от эквайринга (WayForPay/Monobank), если API
+-- шлюза его вернул. NULL — чек заказа показывает нефискальный QR на магазин.
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS receipt_url text;
