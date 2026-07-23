@@ -44,6 +44,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Plus, Pencil, Trash2, Loader2, Layers } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { pickLocalized } from '@/lib/i18n/config'
+import { pluralize } from '@/lib/i18n/plural'
 
 type GroupWithCount = ProductGroup & { productCount: number }
 
@@ -67,6 +70,10 @@ const emptyForm: FormState = {
 
 export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
   const router = useRouter()
+  const { dict, locale } = useAdminI18n()
+  const t = dict.groups
+  const groupName = (g: { nameUk: string; nameRu: string }) =>
+    pickLocalized(locale, g.nameUk, g.nameRu)
   const [isPending, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<GroupWithCount | null>(null)
@@ -95,7 +102,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nameRu.trim() || !form.nameUk.trim()) {
-      toast.error('Заполните название на обоих языках')
+      toast.error(t.toastFillBothLanguages)
       return
     }
     const input: GroupInput = {
@@ -109,11 +116,11 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
     startTransition(async () => {
       const result = editing ? await updateGroup(editing.id, input) : await createGroup(input)
       if (result.success) {
-        toast.success(editing ? 'Группа обновлена' : 'Группа создана')
+        toast.success(editing ? t.toastUpdated : t.toastCreated)
         setDialogOpen(false)
         router.refresh()
       } else {
-        toast.error(result.error ?? 'Ошибка сохранения')
+        toast.error(result.error ?? t.toastSaveError)
       }
     })
   }
@@ -123,10 +130,10 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
     startTransition(async () => {
       const result = await deleteGroup(deleting.id)
       if (result.success) {
-        toast.success('Группа удалена')
+        toast.success(t.toastDeleted)
         router.refresh()
       } else {
-        toast.error(result.error ?? 'Ошибка удаления')
+        toast.error(result.error ?? t.toastDeleteError)
       }
       setDeleting(null)
     })
@@ -143,14 +150,15 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-balance">Группы товаров</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-balance">{t.title}</h1>
           <p className="text-sm text-muted-foreground">
-            Подборки товаров для витрин и акций — {groups.length} групп
+            {t.subtitle} — {groups.length}{' '}
+            {pluralize(groups.length, t.countOne, t.countFew, t.countMany)}
           </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="size-4" />
-          Добавить группу
+          {t.addGroup}
         </Button>
       </header>
 
@@ -158,12 +166,12 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
-              <TableHead>Название</TableHead>
-              <TableHead className="hidden md:table-cell">Slug</TableHead>
-              <TableHead className="text-right">Товаров</TableHead>
-              <TableHead className="hidden text-right sm:table-cell">Порядок</TableHead>
-              <TableHead>Статус</TableHead>
-              <TableHead className="w-24 text-right">Действия</TableHead>
+              <TableHead>{t.colName}</TableHead>
+              <TableHead className="hidden md:table-cell">{t.colSlug}</TableHead>
+              <TableHead className="text-right">{t.colProducts}</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">{t.colSortOrder}</TableHead>
+              <TableHead>{t.colStatus}</TableHead>
+              <TableHead className="w-24 text-right">{t.colActions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -172,7 +180,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
                 <TableCell colSpan={6} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Layers className="size-8" />
-                    <p className="text-sm">Групп пока нет</p>
+                    <p className="text-sm">{t.notFound}</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -180,8 +188,10 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
               groups.map((group) => (
                 <TableRow key={group.id}>
                   <TableCell>
-                    <p className="font-medium">{group.nameRu}</p>
-                    <p className="text-xs text-muted-foreground">{group.nameUk}</p>
+                    <p className="font-medium">{groupName(group)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {locale === 'uk' ? group.nameRu : group.nameUk}
+                    </p>
                   </TableCell>
                   <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
                     {group.slug}
@@ -196,14 +206,14 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
                       onClick={() => handleToggle(group)}
                       disabled={isPending}
                       className="cursor-pointer"
-                      aria-label={group.isActive ? 'Деактивировать группу' : 'Активировать группу'}
+                      aria-label={group.isActive ? t.deactivateAria : t.activateAria}
                     >
                       {group.isActive ? (
                         <Badge className="bg-success/15 text-success hover:bg-success/25">
-                          Активна
+                          {t.active}
                         </Badge>
                       ) : (
-                        <Badge variant="secondary">Неактивна</Badge>
+                        <Badge variant="secondary">{t.inactive}</Badge>
                       )}
                     </button>
                   </TableCell>
@@ -214,7 +224,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
                         size="icon"
                         className="size-8"
                         onClick={() => openEdit(group)}
-                        aria-label={`Редактировать ${group.nameRu}`}
+                        aria-label={`${t.editAria} ${groupName(group)}`}
                       >
                         <Pencil className="size-4" />
                       </Button>
@@ -223,7 +233,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
                         size="icon"
                         className="size-8 text-destructive hover:text-destructive"
                         onClick={() => setDeleting(group)}
-                        aria-label={`Удалить ${group.nameRu}`}
+                        aria-label={`${t.deleteAria} ${groupName(group)}`}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -239,15 +249,13 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Редактировать группу' : 'Новая группа'}</DialogTitle>
-            <DialogDescription>
-              Группы объединяют товары в подборки: «Хиты продаж», «Новинки» и т.д.
-            </DialogDescription>
+            <DialogTitle>{editing ? t.editTitle : t.newTitle}</DialogTitle>
+            <DialogDescription>{t.dialogHint}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="grNameRu">Название (RU) *</Label>
+                <Label htmlFor="grNameRu">{t.nameRu}</Label>
                 <Input
                   id="grNameRu"
                   value={form.nameRu}
@@ -256,7 +264,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="grNameUk">Название (UK) *</Label>
+                <Label htmlFor="grNameUk">{t.nameUk}</Label>
                 <Input
                   id="grNameUk"
                   value={form.nameUk}
@@ -266,7 +274,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="grDescRu">Описание (RU)</Label>
+              <Label htmlFor="grDescRu">{t.descriptionRu}</Label>
               <Textarea
                 id="grDescRu"
                 rows={2}
@@ -276,7 +284,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="grSort">Порядок сортировки</Label>
+                <Label htmlFor="grSort">{t.sortOrder}</Label>
                 <Input
                   id="grSort"
                   type="number"
@@ -285,7 +293,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
                 />
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3">
-                <Label htmlFor="grActive">Активна</Label>
+                <Label htmlFor="grActive">{t.isActive}</Label>
                 <Switch
                   id="grActive"
                   checked={form.isActive}
@@ -295,11 +303,11 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Отмена
+                {t.cancel}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                {editing ? 'Сохранить' : 'Создать'}
+                {editing ? t.save : t.create}
               </Button>
             </DialogFooter>
           </form>
@@ -309,19 +317,18 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить группу?</AlertDialogTitle>
+            <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Группа «{deleting?.nameRu}» будет удалена. Товары останутся, но связи с группой будут
-              удалены.
+              «{deleting ? groupName(deleting) : ''}» {t.deleteDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
             >
-              Удалить
+              {t.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
