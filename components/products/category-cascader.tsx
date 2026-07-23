@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ChevronRight, X } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { pickLocalized } from '@/lib/i18n/config'
 
 /**
  * Cascading category picker: the admin drills down level by level
@@ -29,6 +31,9 @@ export function CategoryCascader({
   value: number[]
   onChange: (ids: number[]) => void
 }) {
+  const { locale } = useAdminI18n()
+  const catName = (c: Category) => pickLocalized(locale, c.nameUk, c.nameRu)
+
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
   const childrenOf = useMemo(() => {
     const map = new Map<number | null, Category[]>()
@@ -39,10 +44,14 @@ export function CategoryCascader({
       map.set(key, list)
     }
     for (const list of map.values()) {
-      list.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.nameRu.localeCompare(b.nameRu))
+      list.sort(
+        (a, b) =>
+          (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+          pickLocalized(locale, a.nameUk, a.nameRu).localeCompare(pickLocalized(locale, b.nameUk, b.nameRu)),
+      )
     }
     return map
-  }, [categories, byId])
+  }, [categories, byId, locale])
 
   function ancestorsOf(id: number): number[] {
     const out: number[] = []
@@ -106,7 +115,7 @@ export function CategoryCascader({
     parent = selected
   }
 
-  const pathLabel = path.map((p) => byId.get(p)?.nameRu ?? '?').join(' → ')
+  const pathLabel = path.map((p) => { const c = byId.get(p); return c ? catName(c) : '?' }).join(' → ')
 
   return (
     <div className="flex flex-col gap-3">
@@ -127,7 +136,7 @@ export function CategoryCascader({
               <SelectContent>
                 {level.options.map((c) => (
                   <SelectItem key={c.id} value={String(c.id)}>
-                    {c.nameRu}
+                    {catName(c)}
                   </SelectItem>
                 ))}
               </SelectContent>

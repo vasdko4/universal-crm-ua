@@ -65,6 +65,7 @@ import {
 } from 'lucide-react'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { pluralize } from '@/lib/i18n/plural'
+import { pickLocalized } from '@/lib/i18n/config'
 
 const PER_PAGE = 10
 
@@ -88,7 +89,7 @@ export function ProductsTable({
   filters: ProductFilters
 }) {
   const router = useRouter()
-  const { dict } = useAdminI18n()
+  const { dict, locale } = useAdminI18n()
   const t = dict.products
   const [isPending, startTransition] = useTransition()
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -97,7 +98,9 @@ export function ProductsTable({
 
   const page = filters.page ?? 1
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE))
-  const categoryNames = new Map(categories.map((c) => [c.id, c.nameRu]))
+  const categoryNames = new Map(
+    categories.map((c) => [c.id, pickLocalized(locale, c.nameUk, c.nameRu)]),
+  )
 
   function updateParams(patch: Record<string, string | undefined>) {
     const params = new URLSearchParams()
@@ -206,7 +209,7 @@ export function ProductsTable({
             <SelectItem value="all">{t.allCategories}</SelectItem>
             {categories.map((c) => (
               <SelectItem key={c.id} value={String(c.id)}>
-                {c.nameRu} ({c.productCount})
+                {pickLocalized(locale, c.nameUk, c.nameRu)} ({c.productCount})
               </SelectItem>
             ))}
           </SelectContent>
@@ -330,7 +333,7 @@ export function ProductsTable({
                       <Checkbox
                         checked={selected.has(product.id)}
                         onCheckedChange={() => toggleOne(product.id)}
-                        aria-label={product.nameRu ?? product.nameUk ?? ''}
+                        aria-label={pickLocalized(locale, product.nameUk, product.nameRu) || undefined}
                       />
                     </TableCell>
                     <TableCell>
@@ -339,7 +342,7 @@ export function ProductsTable({
                           {product.image ? (
                             <Image
                               src={product.image || "/placeholder.svg"}
-                              alt={product.nameRu ?? product.nameUk ?? t.noName}
+                              alt={pickLocalized(locale, product.nameUk, product.nameRu) || t.noName}
                               fill
                               sizes="44px"
                               className="object-cover"
@@ -355,7 +358,7 @@ export function ProductsTable({
                             href={`/admin/products/${product.id}/edit`}
                             className="font-medium hover:text-primary hover:underline"
                           >
-                            {product.nameRu ?? product.nameUk ?? t.noName}
+                            {pickLocalized(locale, product.nameUk, product.nameRu) || t.noName}
                           </Link>
                           {product.isPopular && (
                             <Badge variant="secondary" className="ml-2 text-xs">

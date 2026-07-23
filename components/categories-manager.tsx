@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/table'
 import { Plus, Pencil, Trash2, Loader2, FolderTree } from 'lucide-react'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { pickLocalized } from '@/lib/i18n/config'
 import { pluralize } from '@/lib/i18n/plural'
 
 type CategoryWithCount = Category & { productCount: number }
@@ -78,15 +79,16 @@ const emptyForm: FormState = {
 
 export function CategoriesManager({ categories }: { categories: CategoryWithCount[] }) {
   const router = useRouter()
-  const { dict } = useAdminI18n()
+  const { dict, locale } = useAdminI18n()
   const t = dict.categories
+  const catName = (c: { nameUk: string; nameRu: string }) => pickLocalized(locale, c.nameUk, c.nameRu)
   const [isPending, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<CategoryWithCount | null>(null)
   const [deleting, setDeleting] = useState<CategoryWithCount | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
 
-  const nameById = new Map(categories.map((c) => [c.id, c.nameRu]))
+  const nameById = new Map(categories.map((c) => [c.id, catName(c)]))
 
   function openCreate() {
     setEditing(null)
@@ -197,8 +199,10 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
               categories.map((cat) => (
                 <TableRow key={cat.id}>
                   <TableCell>
-                    <p className="font-medium">{cat.nameRu}</p>
-                    <p className="text-xs text-muted-foreground">{cat.nameUk}</p>
+                    <p className="font-medium">{catName(cat)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {locale === 'uk' ? cat.nameRu : cat.nameUk}
+                    </p>
                   </TableCell>
                   <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
                     {cat.slug}
@@ -231,7 +235,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                         size="icon"
                         className="size-8"
                         onClick={() => openEdit(cat)}
-                        aria-label={`${t.editAria} ${cat.nameRu}`}
+                        aria-label={`${t.editAria} ${catName(cat)}`}
                       >
                         <Pencil className="size-4" />
                       </Button>
@@ -240,7 +244,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                         size="icon"
                         className="size-8 text-destructive hover:text-destructive"
                         onClick={() => setDeleting(cat)}
-                        aria-label={`${t.deleteAria} ${cat.nameRu}`}
+                        aria-label={`${t.deleteAria} ${catName(cat)}`}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -307,7 +311,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                       .filter((c) => c.id !== editing?.id)
                       .map((c) => (
                         <SelectItem key={c.id} value={String(c.id)}>
-                          {c.nameRu}
+                          {catName(c)}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -349,7 +353,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
           <AlertDialogHeader>
             <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              «{deleting?.nameRu}» {t.deleteDescription}
+              «{deleting ? catName(deleting) : ''}» {t.deleteDescription}
               {deleting && deleting.productCount > 0 && (
                 <> {t.deleteWithProducts}</>
               )}
