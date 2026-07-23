@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, LayoutGrid, ShoppingCart, Heart, User } from 'lucide-react'
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/sheet'
 import { CatalogCategoriesMobile } from '@/components/shop/catalog-categories-mobile'
 import type { HeaderCategory } from '@/components/shop/site-header'
+import { useIsClient } from '@/lib/hooks/use-client-only'
 
 /**
  * Fixed bottom navigation bar for mobile (Prom.ua style): Home, Catalog, Cart,
@@ -46,16 +47,19 @@ export function MobileBottomNav({
   const [categoriesOpen, setCategoriesOpen] = useState(false)
 
   // Close the categories sheet whenever navigation happens (link tapped).
-  useEffect(() => {
+  // Adjusted during render (comparing against the previous pathname) instead
+  // of in an effect — same behavior, no synchronous setState-in-effect.
+  const [prevPathname, setPrevPathname] = useState(pathname)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname)
     setCategoriesOpen(false)
-  }, [pathname])
+  }
   const { data: session, isPending } = useSession()
   const isLoggedIn = Boolean(session?.user)
   // The session state differs between SSR and the first client render, which
   // would cause a hydration mismatch (server renders a link, client renders
   // the dialog trigger). Render the link until mounted, then switch.
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const mounted = useIsClient()
 
   // Compare against the un-prefixed pathname so /ru/... routes still match
   // the same (unprefixed) href patterns used below.

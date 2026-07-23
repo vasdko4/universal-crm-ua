@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export default function ErrorPage({
@@ -29,7 +30,7 @@ export default function ErrorPage({
       <div className="flex gap-3">
         <Button onClick={reset}>Попробовать снова</Button>
         <Button variant="outline" asChild>
-          <a href="/">На главную</a>
+          <Link href="/">На главную</Link>
         </Button>
       </div>
     </main>

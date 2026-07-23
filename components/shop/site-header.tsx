@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ShoppingCart, User, Phone, Heart } from 'lucide-react'
@@ -15,6 +14,7 @@ import { useCart } from '@/lib/shop/cart-context'
 import { useFavorites } from '@/lib/shop/favorites-context'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
+import { useIsClient } from '@/lib/hooks/use-client-only'
 
 export type HeaderCategory = {
   id: number
@@ -46,8 +46,7 @@ export function SiteHeader({
   // The session state differs between SSR and the first client render, which
   // would cause a hydration mismatch (server renders a link, client renders
   // the dialog trigger). Render the link until mounted, then switch.
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const mounted = useIsClient()
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">

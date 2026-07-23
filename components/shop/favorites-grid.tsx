@@ -27,6 +27,10 @@ export function FavoritesGrid() {
   useEffect(() => {
     if (!isReady) return
     let cancelled = false
+    // Genuine data-fetching effect: flip to the loading state right before
+    // starting the request (React's own docs show this exact pattern —
+    // https://react.dev/learn/synchronizing-with-effects#fetching-data).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getFavoriteProducts(ids)
       .then((res) => {

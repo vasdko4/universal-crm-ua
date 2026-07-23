@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { updateGateway } from '@/app/actions/payments'
+import { useClientOrigin } from '@/lib/hooks/use-client-only'
 import type { PaymentGateway } from '@/lib/db/schema'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,11 +41,7 @@ function gatewayFields(t: AdminDictionary): Record<string, FieldDef[]> {
 // Base URL for gateway callbacks — the domain the admin panel is opened on.
 // Resolved in an effect to avoid SSR/client hydration mismatches.
 function usePublicOrigin(): string {
-  const [origin, setOrigin] = useState('')
-  useEffect(() => {
-    setOrigin(window.location.origin)
-  }, [])
-  return origin
+  return useClientOrigin()
 }
 
 function CopyUrlRow({ label, url }: { label: string; url: string }) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import {
   createCustomer,
@@ -69,26 +69,35 @@ export function CustomerDialog({
 
   const isEdit = !!customer
 
-  useEffect(() => {
-    if (!open) return
-    if (customer) {
-      setFirstName(customer.firstName)
-      setLastName(customer.lastName ?? '')
-      setPhone(customer.phone)
-      setEmail(customer.email ?? '')
-      setScore(String(customer.reliabilityScore))
-      setNote(customer.note ?? '')
-      setContacts(customer.contacts.map((c) => newRow(c.type, c.value)))
-    } else {
-      setFirstName('')
-      setLastName('')
-      setPhone('')
-      setEmail('')
-      setScore('100')
-      setNote('')
-      setContacts([])
+  // Reset the form whenever the dialog (re-)opens or the customer being
+  // edited changes, while it's open. Done as a render-time adjustment
+  // (comparing against the previous "open state key") instead of an effect,
+  // so React doesn't warn about setState calls directly inside an effect
+  // body — behavior is identical to the original effect.
+  const openKey = open ? (customer ? `edit-${customer.id}` : 'new') : null
+  const [prevOpenKey, setPrevOpenKey] = useState<string | null>(null)
+  if (openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey)
+    if (openKey !== null) {
+      if (customer) {
+        setFirstName(customer.firstName)
+        setLastName(customer.lastName ?? '')
+        setPhone(customer.phone)
+        setEmail(customer.email ?? '')
+        setScore(String(customer.reliabilityScore))
+        setNote(customer.note ?? '')
+        setContacts(customer.contacts.map((c) => newRow(c.type, c.value)))
+      } else {
+        setFirstName('')
+        setLastName('')
+        setPhone('')
+        setEmail('')
+        setScore('100')
+        setNote('')
+        setContacts([])
+      }
     }
-  }, [open, customer])
+  }
 
   function addRow() {
     setContacts((prev) => [...prev, newRow()])

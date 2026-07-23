@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { createPage, updatePage, type PageInput } from '@/app/actions/pages'
 import { slugify } from '@/lib/slug'
@@ -68,31 +68,40 @@ export function PageEditorDialog({
   const [slugTouched, setSlugTouched] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  useEffect(() => {
-    if (!open) return
-    if (page) {
-      setForm({
-        title: page.title,
-        titleRu: page.titleRu ?? '',
-        slug: page.slug,
-        content: page.content ?? '',
-        contentRu: page.contentRu ?? '',
-        excerpt: page.excerpt ?? '',
-        excerptRu: page.excerptRu ?? '',
-        template: page.template,
-        status: page.status as 'draft' | 'published',
-        showInMenu: page.showInMenu,
-        menuTitle: page.menuTitle ?? '',
-        sortOrder: page.sortOrder,
-        metaTitle: page.metaTitle ?? '',
-        metaDescription: page.metaDescription ?? '',
-      })
-      setSlugTouched(true)
-    } else {
-      setForm(empty)
-      setSlugTouched(false)
+  // Reset the form whenever the dialog (re-)opens or the page being edited
+  // changes, while it's open. Done as a render-time adjustment (comparing
+  // against the previous "open state key") instead of an effect, so React
+  // doesn't warn about setState calls directly inside an effect body —
+  // behavior is identical to the original effect.
+  const openKey = open ? (page ? `edit-${page.id}` : 'new') : null
+  const [prevOpenKey, setPrevOpenKey] = useState<string | null>(null)
+  if (openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey)
+    if (openKey !== null) {
+      if (page) {
+        setForm({
+          title: page.title,
+          titleRu: page.titleRu ?? '',
+          slug: page.slug,
+          content: page.content ?? '',
+          contentRu: page.contentRu ?? '',
+          excerpt: page.excerpt ?? '',
+          excerptRu: page.excerptRu ?? '',
+          template: page.template,
+          status: page.status as 'draft' | 'published',
+          showInMenu: page.showInMenu,
+          menuTitle: page.menuTitle ?? '',
+          sortOrder: page.sortOrder,
+          metaTitle: page.metaTitle ?? '',
+          metaDescription: page.metaDescription ?? '',
+        })
+        setSlugTouched(true)
+      } else {
+        setForm(empty)
+        setSlugTouched(false)
+      }
     }
-  }, [open, page])
+  }
 
   function set<K extends keyof PageInput>(key: K, value: PageInput[K]) {
     setForm((f) => ({ ...f, [key]: value }))

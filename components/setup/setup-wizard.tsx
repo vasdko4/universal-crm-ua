@@ -81,8 +81,12 @@ export function SetupWizard() {
     setDbChecking(false)
   }
 
-  // Fetch DB status when the user reaches the database step.
+  // Fetch DB status when the user reaches the database step. Genuine
+  // data-fetching effect (checkDb flips a loading flag before its awaited
+  // network call, same as React's own docs example for fetching data in an
+  // effect — https://react.dev/learn/synchronizing-with-effects#fetching-data).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (step === 'db' && !dbStatus) void checkDb()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])

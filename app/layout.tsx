@@ -104,10 +104,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} className="bg-background">
       <body className="font-sans antialiased">
-        {/* eslint-disable-next-line react/no-danger */}
         <script dangerouslySetInnerHTML={{ __html: domPatch }} />
         {process.env.NODE_ENV === 'development' && (
-          // eslint-disable-next-line react/no-danger
           <script dangerouslySetInnerHTML={{ __html: devPerfPatch }} />
         )}
         {children}

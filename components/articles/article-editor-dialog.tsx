@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { createArticle, updateArticle, type ArticleInput } from '@/app/actions/articles'
 import { slugify } from '@/lib/slug'
@@ -68,31 +68,40 @@ export function ArticleEditorDialog({
   const [tagInput, setTagInput] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  useEffect(() => {
-    if (!open) return
-    if (article) {
-      setForm({
-        title: article.title,
-        slug: article.slug,
-        categoryId: article.categoryId,
-        excerpt: article.excerpt ?? '',
-        content: article.content ?? '',
-        coverImage: article.coverImage ?? '',
-        author: article.author ?? 'Редакция',
-        tags: (article.tags as string[]) ?? [],
-        status: article.status as 'draft' | 'published',
-        isFeatured: article.isFeatured,
-        readingMinutes: article.readingMinutes,
-        metaTitle: article.metaTitle ?? '',
-        metaDescription: article.metaDescription ?? '',
-      })
-      setSlugTouched(true)
-    } else {
-      setForm(empty)
-      setSlugTouched(false)
+  // Reset the form whenever the dialog (re-)opens or the article being
+  // edited changes, while it's open. Done as a render-time adjustment
+  // (comparing against the previous "open state key") instead of an effect,
+  // so React doesn't warn about setState calls directly inside an effect
+  // body — behavior is identical to the original effect.
+  const openKey = open ? (article ? `edit-${article.id}` : 'new') : null
+  const [prevOpenKey, setPrevOpenKey] = useState<string | null>(null)
+  if (openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey)
+    if (openKey !== null) {
+      if (article) {
+        setForm({
+          title: article.title,
+          slug: article.slug,
+          categoryId: article.categoryId,
+          excerpt: article.excerpt ?? '',
+          content: article.content ?? '',
+          coverImage: article.coverImage ?? '',
+          author: article.author ?? 'Редакция',
+          tags: (article.tags as string[]) ?? [],
+          status: article.status as 'draft' | 'published',
+          isFeatured: article.isFeatured,
+          readingMinutes: article.readingMinutes,
+          metaTitle: article.metaTitle ?? '',
+          metaDescription: article.metaDescription ?? '',
+        })
+        setSlugTouched(true)
+      } else {
+        setForm(empty)
+        setSlugTouched(false)
+      }
+      setTagInput('')
     }
-    setTagInput('')
-  }, [open, article])
+  }
 
   function set<K extends keyof ArticleInput>(key: K, value: ArticleInput[K]) {
     setForm((f) => ({ ...f, [key]: value }))
