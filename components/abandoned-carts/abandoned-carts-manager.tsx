@@ -35,14 +35,14 @@ function money(v: string | number) {
   return `${Number(v).toLocaleString('uk-UA')} ₴`
 }
 
-function timeAgo(d: Date | string | null): string {
+function timeAgo(d: Date | string | null, t: AdminDictionary): string {
   if (!d) return ''
   const ms = Date.now() - new Date(d).getTime()
   const min = Math.floor(ms / 60000)
-  if (min < 60) return `${min} мин назад`
+  if (min < 60) return tpl(t.abandonedCarts.timeMinutesAgo, { n: min })
   const h = Math.floor(min / 60)
-  if (h < 24) return `${h} ч назад`
-  return `${Math.floor(h / 24)} дн назад`
+  if (h < 24) return tpl(t.abandonedCarts.timeHoursAgo, { n: h })
+  return tpl(t.abandonedCarts.timeDaysAgo, { n: Math.floor(h / 24) })
 }
 
 export function AbandonedCartsManager({
@@ -175,10 +175,10 @@ export function AbandonedCartsManager({
                           {cart.customerEmail}
                         </span>
                       )}
-                      <span>{timeAgo(cart.updatedAt)}</span>
+                      <span>{timeAgo(cart.updatedAt, t)}</span>
                       {cart.remindedAt && (
                         <span>
-                          {t.abandonedCarts.remindedAtPrefix} {timeAgo(cart.remindedAt)}
+                          {t.abandonedCarts.remindedAtPrefix} {timeAgo(cart.remindedAt, t)}
                         </span>
                       )}
                     </div>

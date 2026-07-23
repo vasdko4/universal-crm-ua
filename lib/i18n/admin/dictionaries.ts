@@ -971,6 +971,9 @@ export type AdminDictionary = {
     statusRecovered: string
     itemQtyTemplate: string
     toastReminderSent: string
+    timeMinutesAgo: string
+    timeHoursAgo: string
+    timeDaysAgo: string
   }
   notFound: {
     errorLabel: string
@@ -2444,6 +2447,9 @@ const uk: AdminDictionary = {
     statusRecovered: 'Купив',
     itemQtyTemplate: '{qty} шт. × {price}',
     toastReminderSent: 'Нагадування надіслано',
+    timeMinutesAgo: '{n} хв тому',
+    timeHoursAgo: '{n} год тому',
+    timeDaysAgo: '{n} дн тому',
   },
   notFound: {
     errorLabel: 'Помилка 404',
@@ -3919,6 +3925,9 @@ const ru: AdminDictionary = {
     statusRecovered: 'Купил',
     itemQtyTemplate: '{qty} шт. × {price}',
     toastReminderSent: 'Напоминание отправлено',
+    timeMinutesAgo: '{n} мин назад',
+    timeHoursAgo: '{n} ч назад',
+    timeDaysAgo: '{n} дн назад',
   },
   notFound: {
     errorLabel: 'Ошибка 404',
