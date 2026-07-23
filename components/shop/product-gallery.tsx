@@ -22,12 +22,17 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
 
-  // Sync the active image when a variant (color) selection drives it externally.
-  useEffect(() => {
-    if (!selectedImage) return
-    const idx = gallery.indexOf(selectedImage)
-    if (idx >= 0) setActive(idx)
-  }, [selectedImage, gallery])
+  // Sync the active image when a variant (color) selection drives it
+  // externally. Adjusted during render (comparing against the previous
+  // `selectedImage`) instead of in an effect.
+  const [prevSelectedImage, setPrevSelectedImage] = useState(selectedImage)
+  if (selectedImage !== prevSelectedImage) {
+    setPrevSelectedImage(selectedImage)
+    if (selectedImage) {
+      const idx = gallery.indexOf(selectedImage)
+      if (idx >= 0) setActive(idx)
+    }
+  }
 
   const hasImages = gallery.length > 0
   const count = gallery.length
@@ -35,12 +40,15 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   const current = hasImages ? gallery[safeActive] : null
   const hasThumbs = count > 1
 
-  const goTo = useCallback(
-    (i: number) => setActive(((i % count) + count) % count),
-    [count],
-  )
-  const prev = useCallback(() => goTo(safeActive - 1), [goTo, safeActive])
-  const next = useCallback(() => goTo(safeActive + 1), [goTo, safeActive])
+  function goTo(i: number) {
+    setActive(((i % count) + count) % count)
+  }
+  function prev() {
+    goTo(safeActive - 1)
+  }
+  function next() {
+    goTo(safeActive + 1)
+  }
 
   // Keep the active thumbnail visible inside the scrollable rail/strip.
   useEffect(() => {

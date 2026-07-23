@@ -1,9 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/lib/i18n/client'
 import { readConsentCookie, writeConsentCookie, updateGtagConsent } from '@/lib/shop/consent'
+
+function subscribeNoop() {
+  return () => {}
+}
 
 // Lightweight Google Consent Mode v2 prompt. Only rendered when the shop
 // actually has Google Ads/Analytics configured (see (shop)/layout.tsx) —
@@ -14,19 +18,20 @@ import { readConsentCookie, writeConsentCookie, updateGtagConsent } from '@/lib/
 export function CookieConsentBanner() {
   const { dict } = useI18n()
   const t = dict.cookieConsent
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    // Already decided on a previous visit — google-ads.tsx already applied
-    // 'granted' synchronously in its init script if the cookie says so, so
-    // there's nothing left to do here except stay hidden.
-    if (readConsentCookie() === null) setVisible(true)
-  }, [])
+  // Already decided on a previous visit — google-ads.tsx already applied
+  // 'granted' synchronously in its init script if the cookie says so, so
+  // there's nothing left to do here except stay hidden. Read the cookie via
+  // useSyncExternalStore (server snapshot: not-yet-decided is never shown, to
+  // match SSR where cookies aren't readable) instead of an effect, so the
+  // banner can appear on the very first client render with no flash.
+  const undecided = useSyncExternalStore(subscribeNoop, () => readConsentCookie() === null, () => false)
+  const [dismissed, setDismissed] = useState(false)
+  const visible = undecided && !dismissed
 
   function choose(choice: 'granted' | 'denied') {
     writeConsentCookie(choice)
     updateGtagConsent(choice)
-    setVisible(false)
+    setDismissed(true)
   }
 
   if (!visible) return null

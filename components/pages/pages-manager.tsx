@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { deletePage, togglePageStatus, type PageInput } from '@/app/actions/pages'
@@ -73,9 +73,15 @@ export function PagesManager({ initialData }: { initialData: ListData }) {
   const [editing, setEditing] = useState<Page | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Page | null>(null)
 
-  useEffect(() => {
+  // Keep the search box in sync with the URL (e.g. browser back/forward)
+  // by adjusting state during render when the URL actually changed, rather
+  // than in an effect.
+  const searchParamsKey = searchParams.toString()
+  const [syncedSearchParamsKey, setSyncedSearchParamsKey] = useState(searchParamsKey)
+  if (searchParamsKey !== syncedSearchParamsKey) {
+    setSyncedSearchParamsKey(searchParamsKey)
     setSearch(searchParams.get('q') ?? '')
-  }, [searchParams])
+  }
 
   function pushParams(next: Record<string, string | undefined>) {
     const params = new URLSearchParams(searchParams.toString())

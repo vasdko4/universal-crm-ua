@@ -226,10 +226,15 @@ export function CheckoutFlow({
   const [note, setNote] = useState('')
 
   // Logged-in customers never type their email: it is taken from the account
-  // and the field is hidden. The session loads asynchronously, so sync here.
-  useEffect(() => {
-    if (session?.user?.email) setEmail(session.user.email)
-  }, [session?.user?.email])
+  // and the field is hidden. The session loads asynchronously, so adjust the
+  // field during render as soon as it becomes available (rather than in an
+  // effect) — this is React's recommended pattern for syncing state to a
+  // prop/value that changed since the last render.
+  const [syncedSessionEmail, setSyncedSessionEmail] = useState<string | null>(null)
+  if (session?.user?.email && session.user.email !== syncedSessionEmail) {
+    setSyncedSessionEmail(session.user.email)
+    setEmail(session.user.email)
+  }
 
   const [delivery, setDelivery] = useState<string>(deliveryMethods[0]?.code ?? '')
   const [payment, setPayment] = useState<string>('')
@@ -300,15 +305,15 @@ export function CheckoutFlow({
   }
 
   // Auto-apply the default saved address on first load (nothing selected yet).
-  const didAutofill = useRef(false)
-  useEffect(() => {
-    if (didAutofill.current) return
-    if (addresses.length === 0) return
-    didAutofill.current = true
+  // Done as a render-time adjustment (not an effect) since it's a one-time
+  // derivation from the initial `addresses` prop, not a subscription to an
+  // external system.
+  const [addressAutofilled, setAddressAutofilled] = useState(false)
+  if (!addressAutofilled && addresses.length > 0) {
+    setAddressAutofilled(true)
     const def = addresses.find((a) => a.isDefault) ?? addresses[0]
     if (def) applyAddress(def)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addresses])
+  }
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -334,12 +339,11 @@ export function CheckoutFlow({
   }, [paymentMethods, branchDelivery])
 
   // Pick a sane default payment, and clear an invalid one when rules change.
-  useEffect(() => {
-    if (availablePayments.length === 0) return
-    if (!payment || !availablePayments.some((m) => m.code === payment)) {
-      setPayment(availablePayments[0].code)
-    }
-  }, [availablePayments, payment])
+  // Adjusted during render (idempotent: only fires when the current value is
+  // actually invalid) rather than in an effect.
+  if (availablePayments.length > 0 && (!payment || !availablePayments.some((m) => m.code === payment))) {
+    setPayment(availablePayments[0].code)
+  }
 
   // Debounced city search for Nova Poshta.
   const cityTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -348,7 +352,6 @@ export function CheckoutFlow({
     if (city && cityQuery === city.name) return
     if (cityTimer.current) clearTimeout(cityTimer.current)
     if (cityQuery.trim().length < 2) {
-      setCities([])
       return
     }
     cityTimer.current = setTimeout(async () => {
@@ -396,7 +399,11 @@ export function CheckoutFlow({
   // server-side (debounced) so the admin can follow up if checkout is never
   // completed. The token persists per browser so repeats update one row.
   const cartTokenRef = useRef<string>('')
-  if (!cartTokenRef.current && typeof window !== 'undefined') {
+  // Refs must not be read/written during render — initialize once on mount
+  // instead. The debounced snapshot effect below only fires after the user
+  // has typed contact info, so this one-render delay is harmless.
+  useEffect(() => {
+    if (cartTokenRef.current) return
     const stored = window.localStorage.getItem('v0.cartToken')
     if (stored) cartTokenRef.current = stored
     else {
@@ -404,7 +411,7 @@ export function CheckoutFlow({
       window.localStorage.setItem('v0.cartToken', token)
       cartTokenRef.current = token
     }
-  }
+  }, [])
   useEffect(() => {
     const digits = phone.replace(/\D/g, '')
     const hasContact = digits.length >= 12 || /\S+@\S+\.\S+/.test(email)
@@ -787,7 +794,7 @@ export function CheckoutFlow({
                     {loadingCities && (
                       <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
                     )}
-                    {cities.length > 0 && (
+                    {cityQuery.trim().length >= 2 && cities.length > 0 && (
                       <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-border bg-popover shadow-lg">
                         {cities.map((c) => (
                           <li key={c.ref}>

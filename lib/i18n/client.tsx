@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react'
 import { LOCALE_COOKIE, normalizeLocale, type Locale } from './config'
 import { getDictionary, type Dictionary } from './dictionaries'
 
@@ -22,6 +22,11 @@ function readLocaleCookie(): Locale | null {
   return normalizeLocale(raw.split('=')[1])
 }
 
+function subscribeToLocaleChange(callback: () => void) {
+  window.addEventListener(LOCALE_EVENT, callback)
+  return () => window.removeEventListener(LOCALE_EVENT, callback)
+}
+
 /**
  * Writes the locale cookie directly on the client and notifies all mounted
  * LocaleProviders. Keeps the choice safe even when the server action response
@@ -40,25 +45,18 @@ export function LocaleProvider({
   locale: Locale
   children: ReactNode
 }) {
-  const [activeLocale, setActiveLocale] = useState<Locale>(locale)
-
   // Server HTML can come from a cache rendered before (or with a different)
-  // locale cookie — e.g. behind an nginx proxy cache. After hydration, trust
-  // the client cookie as the source of truth and correct the UI language.
-  useEffect(() => {
-    const fromCookie = readLocaleCookie()
-    setActiveLocale((current) => (fromCookie && fromCookie !== current ? fromCookie : current))
-  }, [locale])
-
-  // Instant switch when the user picks a language anywhere on the page.
-  useEffect(() => {
-    const onChange = (e: Event) => {
-      const next = normalizeLocale((e as CustomEvent<string>).detail)
-      setActiveLocale(next)
-    }
-    window.addEventListener(LOCALE_EVENT, onChange)
-    return () => window.removeEventListener(LOCALE_EVENT, onChange)
-  }, [])
+  // locale cookie — e.g. behind an nginx proxy cache — so the client cookie
+  // is the real source of truth once we can read it, and an in-page locale
+  // switch should update instantly everywhere. `useSyncExternalStore` covers
+  // both: it re-reads the cookie whenever the LOCALE_EVENT fires (dispatched
+  // by persistLocaleClientSide right after writing the cookie), and falls
+  // back to the server-rendered `locale` prop for the SSR snapshot.
+  const activeLocale = useSyncExternalStore(
+    subscribeToLocaleChange,
+    () => readLocaleCookie() ?? locale,
+    () => locale,
+  )
 
   const dict = getDictionary(activeLocale)
   return (

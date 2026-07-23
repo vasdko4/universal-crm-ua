@@ -72,9 +72,18 @@ export function ModalAdHost({ ads }: { ads: PublicModalAd[] }) {
   const [current, setCurrent] = useState<PublicModalAd | null>(null)
   const firedRef = useRef(false)
 
+  // Hide any ad from the previous page the instant the route changes —
+  // adjusted during render (comparing against the previous pathname)
+  // instead of in the effect below, so the reset lands in the same render
+  // as the navigation rather than a render after it.
+  const [prevPathname, setPrevPathname] = useState(pathname)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname)
+    setCurrent(null)
+  }
+
   useEffect(() => {
     firedRef.current = false
-    setCurrent(null)
 
     const pt = pageType(pathname)
     // Never show popups over admin/auth/setup surfaces.

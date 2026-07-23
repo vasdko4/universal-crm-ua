@@ -81,7 +81,6 @@ export function PayForm({
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRealGateway, success, orderNumber])
 
   async function handlePay() {

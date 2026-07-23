@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
 import { toast } from 'sonner'
 import {
@@ -35,6 +35,7 @@ import { TEMPLATES } from '@/lib/shop/templates'
 import { cn } from '@/lib/utils'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { useClientOrigin } from '@/lib/hooks/use-client-only'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -1294,11 +1295,9 @@ function MerchantFeedFields({ data, setData, t }: SectionProps) {
 }
 
 function MerchantFeedUrl({ siteUrl, t }: { siteUrl: string; t: AdminDictionary['settings'] }) {
-  const [url, setUrl] = useState('')
-  useEffect(() => {
-    const base = siteUrl?.trim() || window.location.origin
-    setUrl(`${base.replace(/\/+$/, '')}/feed/google-merchant.xml`)
-  }, [siteUrl])
+  const origin = useClientOrigin()
+  const base = siteUrl?.trim() || origin
+  const url = base ? `${base.replace(/\/+$/, '')}/feed/google-merchant.xml` : ''
 
   return (
     <div className="mt-2 flex items-center gap-2">

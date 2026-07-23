@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Upload, X, Loader2, ImageIcon, Star, ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -134,7 +134,7 @@ export function ImageGalleryUploader({
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const images = value ?? []
+  const images = useMemo(() => value ?? [], [value])
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {

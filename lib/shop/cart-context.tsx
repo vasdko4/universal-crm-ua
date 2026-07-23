@@ -63,6 +63,11 @@ export function CartProvider({ children, gaId }: { children: ReactNode; gaId?: s
       if (raw) {
         const parsed = JSON.parse(raw) as CartItem[]
         // Backfill keys for carts saved before variant-aware line keys existed.
+        // Genuinely must run post-mount: localStorage doesn't exist during
+        // SSR, and eagerly reading it in a lazy useState initializer would
+        // make the client's first render diverge from the server-rendered
+        // HTML (a hydration mismatch) instead of deferring to this effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setItems(parsed.map((i) => (i.key ? i : { ...i, key: cartKey(i.id, i.variantId) })))
       }
     } catch {
