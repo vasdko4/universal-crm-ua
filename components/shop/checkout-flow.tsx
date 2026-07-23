@@ -39,6 +39,7 @@ import { toast } from 'sonner'
 import { useSession } from '@/lib/auth-client'
 import { useI18n } from '@/lib/i18n/client'
 import { cn } from '@/lib/utils'
+import { trackBeginCheckout } from '@/components/shop/google-ads'
 
 // No `config` here on purpose — that column holds admin secrets (Nova Poshta
 // apiKey, bank IBAN/EDRPOU). See app/(shop)/checkout/page.tsx for why it must
@@ -53,11 +54,13 @@ export function CheckoutFlow({
   paymentMethods,
   buyNow = false,
   savedAddresses = [],
+  gaId,
 }: {
   deliveryMethods: Method[]
   paymentMethods: Method[]
   buyNow?: boolean
   savedAddresses?: UserAddress[]
+  gaId?: string
 }) {
   const router = useRouter()
   const { dict } = useI18n()
@@ -95,6 +98,19 @@ export function CheckoutFlow({
   )
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.price * i.quantity, 0), [items])
   const totalItems = useMemo(() => items.reduce((s, i) => s + i.quantity, 0), [items])
+
+  // GA4 begin_checkout: fired once per checkout-page visit with a non-empty
+  // cart/buy-now item, so the funnel between "add to cart" and "purchase" is
+  // no longer a blind spot in reporting.
+  const beginCheckoutFired = useRef(false)
+  useEffect(() => {
+    if (beginCheckoutFired.current || items.length === 0) return
+    beginCheckoutFired.current = true
+    trackBeginCheckout(
+      gaId,
+      items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+    )
+  }, [gaId, items])
 
   // Route quantity edits / removal to the right store depending on the mode.
   const updateQty = (key: string, quantity: number) => {

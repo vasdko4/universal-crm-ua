@@ -63,5 +63,17 @@ ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "stock_restored" boolean DEFAULT f
 -- Хранится в БД (user.locale), выбор не спрашивается повторно при входе.
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "locale" varchar(5) DEFAULT 'ru'::character varying NOT NULL;
 
+-- ---------- Заказы: атрибуция трафика (utm_*) ----------
+-- Захватывается из ?utm_* параметров при заходе на сайт (см. lib/shop/utm.ts),
+-- чтобы видеть, какая рекламная кампания реально привела заказ.
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "utm_source" varchar(150);
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "utm_medium" varchar(150);
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "utm_campaign" varchar(150);
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "utm_term" varchar(150);
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "utm_content" varchar(150);
+
+-- ---------- Google Merchant Center: категория товара + доставка в фиде ----------
+ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "merchant_feed" jsonb DEFAULT '{}'::jsonb NOT NULL;
+
 -- ---------- Готово ----------
 DO $$ BEGIN RAISE NOTICE 'Миграция применена успешно.'; END $$;

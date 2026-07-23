@@ -67,6 +67,7 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
     seo: merged.seo,
     social: merged.social,
     googleAds: merged.googleAds,
+    merchantFeed: merged.merchantFeed,
     emailSettings: merged.emailSettings,
     contact: merged.contact,
     notifications: merged.notifications,

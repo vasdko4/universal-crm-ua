@@ -10,6 +10,7 @@ import { AnalyticsTracker } from '@/components/shop/analytics-tracker'
 import { PhoneGuard } from '@/components/shop/auth/phone-guard'
 import { AuthDialogProvider } from '@/components/shop/auth/auth-dialog'
 import { GoogleTag, GoogleAnalyticsPageview } from '@/components/shop/google-ads'
+import { CookieConsentBanner } from '@/components/shop/cookie-consent-banner'
 import { LocaleModal } from '@/components/shop/locale-modal'
 import { ModalAdHost } from '@/components/shop/modal-ad'
 import { LocaleProvider } from '@/lib/i18n/client'
@@ -68,7 +69,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         <FavoritesProvider>
           <AuthDialogProvider googleEnabled={googleAuthEnabled}>
           <div data-template={template} className="flex min-h-screen flex-col bg-background text-foreground">
-            <AnalyticsTracker />
+            <AnalyticsTracker gaId={settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined} />
             <GoogleTag
               adsId={settings?.googleAds.enabled ? settings.googleAds.conversionId : undefined}
               gaId={settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined}
@@ -102,6 +103,10 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           {settings?.contact.widget && <ContactWidgetButton widget={settings.contact.widget} />}
           {!chosenLocale && <LocaleModal defaultLocale={settings?.defaultLocale ?? 'uk'} />}
           {chosenLocale && modalAdsList.length > 0 && <ModalAdHost ads={modalAdsList} />}
+          {((settings?.googleAds.enabled && settings.googleAds.conversionId) ||
+            (settings?.googleAds.gaEnabled && settings.googleAds.gaMeasurementId)) && (
+            <CookieConsentBanner />
+          )}
           </AuthDialogProvider>
         </FavoritesProvider>
       </CartProvider>

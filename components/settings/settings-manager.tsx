@@ -1176,6 +1176,17 @@ function AdsSection({ data, setData, t }: SectionProps) {
         />
       </div>
 
+      <div className="flex items-center justify-between rounded-lg border border-border p-4">
+        <div>
+          <p className="text-sm font-medium text-foreground">{t.enhancedConvTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.enhancedConvDesc}</p>
+        </div>
+        <Switch
+          checked={g.enhancedConversionsEnabled}
+          onCheckedChange={(v) => set({ enhancedConversionsEnabled: v })}
+        />
+      </div>
+
       <div className="border-t border-border pt-5">
         <div className="flex items-center justify-between rounded-lg border border-border p-4">
           <div>
@@ -1200,6 +1211,45 @@ function AdsSection({ data, setData, t }: SectionProps) {
         <p className="mt-1 text-xs text-muted-foreground">{t.merchantDesc}</p>
         <MerchantFeedUrl siteUrl={data.seo.siteUrl} t={t} />
         <p className="mt-2 text-xs text-muted-foreground">{t.merchantLocaleNote}</p>
+        <MerchantFeedFields data={data} setData={setData} t={t} />
+      </div>
+    </div>
+  )
+}
+
+function MerchantFeedFields({ data, setData, t }: SectionProps) {
+  const m = data.merchantFeed
+  const set = (patch: Partial<StoreSettingsData['merchantFeed']>) =>
+    setData((d) => ({ ...d, merchantFeed: { ...d.merchantFeed, ...patch } }))
+
+  return (
+    <div className="mt-4 flex flex-col gap-4 border-t border-border pt-4">
+      <div className="flex flex-col gap-2">
+        <Label>{t.merchantCategoryLabel}</Label>
+        <Input
+          value={m.googleProductCategory}
+          placeholder={t.merchantCategoryPlaceholder}
+          onChange={(e) => set({ googleProductCategory: e.target.value })}
+        />
+        <p className="text-xs text-muted-foreground">{t.merchantCategoryHint}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-2">
+          <Label>{t.merchantShippingPriceLabel}</Label>
+          <Input
+            value={m.shippingPrice}
+            placeholder={t.merchantShippingPricePlaceholder}
+            onChange={(e) => set({ shippingPrice: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label>{t.merchantShippingCountryLabel}</Label>
+          <Input
+            value={m.shippingCountry}
+            placeholder="UA"
+            onChange={(e) => set({ shippingCountry: e.target.value.toUpperCase().slice(0, 2) })}
+          />
+        </div>
       </div>
     </div>
   )

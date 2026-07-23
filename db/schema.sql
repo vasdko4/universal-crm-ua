@@ -220,6 +220,11 @@ CREATE TABLE IF NOT EXISTS "orders" (
   "user_id" text,
   "promo_code" varchar(80),
   "stock_restored" boolean DEFAULT false NOT NULL,
+  "utm_source" varchar(150),
+  "utm_medium" varchar(150),
+  "utm_campaign" varchar(150),
+  "utm_term" varchar(150),
+  "utm_content" varchar(150),
   PRIMARY KEY ("id")
 );
 
@@ -604,6 +609,7 @@ CREATE TABLE IF NOT EXISTS "store_settings" (
   "active_template" varchar(30) DEFAULT 'classic'::character varying NOT NULL,
   "social" jsonb DEFAULT '{"viber": {"url": "", "enabled": false}, "tiktok": {"url": "", "enabled": false}, "telegram": {"url": "", "enabled": false}, "instagram": {"url": "", "enabled": false}}'::jsonb NOT NULL,
   "google_ads" jsonb DEFAULT '{"enabled": false, "conversionId": "", "conversionLabel": ""}'::jsonb NOT NULL,
+  "merchant_feed" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "email_settings" jsonb DEFAULT '{"enabled": false, "fromName": "", "provider": "gmail", "smtpHost": "", "smtpPort": "587", "smtpUser": "", "fromEmail": "", "smtpPassword": "", "dkimSelector": "", "dkimPrivateKey": ""}'::jsonb NOT NULL,
   "contact" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "seo" jsonb DEFAULT '{}'::jsonb NOT NULL,

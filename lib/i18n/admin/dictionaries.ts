@@ -103,6 +103,11 @@ export type AdminDictionary = {
     searchDialogPlaceholder: string
     searching: string
     nothingFound: string
+    trafficSource: string
+    utmCampaign: string
+    utmMedium: string
+    utmTerm: string
+    utmContent: string
     toastStatusUpdated: string
     toastPaymentUpdated: string
     toastTrackingSaved: string
@@ -458,9 +463,17 @@ export type AdminDictionary = {
     gaDesc: string
     gaMeasurementLabel: string
     gaHint: string
+    enhancedConvTitle: string
+    enhancedConvDesc: string
     merchantTitle: string
     merchantDesc: string
     merchantLocaleNote: string
+    merchantCategoryLabel: string
+    merchantCategoryPlaceholder: string
+    merchantCategoryHint: string
+    merchantShippingPriceLabel: string
+    merchantShippingPricePlaceholder: string
+    merchantShippingCountryLabel: string
     copyButton: string
     toastCopied: string
     googleAuthTitle: string
@@ -1101,6 +1114,11 @@ const uk: AdminDictionary = {
     searchDialogPlaceholder: 'Назва або артикул (мін. 2 символи)',
     searching: 'Пошук...',
     nothingFound: 'Нічого не знайдено',
+    trafficSource: 'Джерело трафіку',
+    utmCampaign: 'Кампанія',
+    utmMedium: 'Канал',
+    utmTerm: 'Ключове слово',
+    utmContent: 'Контент оголошення',
     toastStatusUpdated: 'Статус оновлено',
     toastPaymentUpdated: 'Оплату оновлено',
     toastTrackingSaved: 'Накладну збережено',
@@ -1468,10 +1486,20 @@ const uk: AdminDictionary = {
     gaDesc: 'Перегляди сторінок, товарів, додавання в кошик, покупки — воронка продажів прямо в GA4',
     gaMeasurementLabel: 'Measurement ID',
     gaHint: 'Знайдіть у Google Analytics: Адміністратор → Потоки даних → ваш веб-потік.',
+    enhancedConvTitle: 'Enhanced Conversions',
+    enhancedConvDesc:
+      'Надсилає захешований email/телефон покупця разом із конверсією покупки — Google точніше зіставляє конверсії з обліковими записами та краще оптимізує ставки. Працює лише разом із конверсією вище.',
     merchantTitle: 'Google Merchant Center',
     merchantDesc:
       'Товарний фід для Google Shopping/Merchant Center. Додайте це посилання в Merchant Center (Продукти → Фіди → «Заданий час отримання»), воно оновлюється автоматично:',
     merchantLocaleNote: 'Для окремого фіда російською додайте ?locale=ru до посилання.',
+    merchantCategoryLabel: 'Категорія товару Google (google_product_category)',
+    merchantCategoryPlaceholder: 'Наприклад: Electronics > Communications > Telephony > Mobile Phones',
+    merchantCategoryHint:
+      'Без категорії Google часто обмежує покази або відхиляє товари в Shopping. Список категорій: google.com/basepages/producttype/taxonomy-with-ids.uk-UA.txt',
+    merchantShippingPriceLabel: 'Фіксована вартість доставки у фіді',
+    merchantShippingPricePlaceholder: 'Наприклад: 60 UAH',
+    merchantShippingCountryLabel: 'Країна доставки (ISO, напр. UA)',
     copyButton: 'Копіювати',
     toastCopied: 'Скопійовано',
     googleAuthTitle: 'Вхід через Google (OAuth 2.0)',
@@ -2114,6 +2142,11 @@ const ru: AdminDictionary = {
     searchDialogPlaceholder: 'Название или артикул (мин. 2 символа)',
     searching: 'Поиск...',
     nothingFound: 'Ничего не найдено',
+    trafficSource: 'Источник трафика',
+    utmCampaign: 'Кампания',
+    utmMedium: 'Канал',
+    utmTerm: 'Ключевое слово',
+    utmContent: 'Контент объявления',
     toastStatusUpdated: 'Статус обновлён',
     toastPaymentUpdated: 'Оплата обновлена',
     toastTrackingSaved: 'Накладная сохранена',
@@ -2481,10 +2514,20 @@ const ru: AdminDictionary = {
     gaDesc: 'Просмотры страниц, товаров, добавления в корзину, покупки — воронка продаж прямо в GA4',
     gaMeasurementLabel: 'Measurement ID',
     gaHint: 'Найдите в Google Analytics: Администратор → Потоки данных → ваш веб-поток.',
+    enhancedConvTitle: 'Enhanced Conversions',
+    enhancedConvDesc:
+      'Отправляет захешированный email/телефон покупателя вместе с конверсией покупки — Google точнее сопоставляет конверсии с аккаунтами и лучше оптимизирует ставки. Работает только вместе с конверсией выше.',
     merchantTitle: 'Google Merchant Center',
     merchantDesc:
       'Товарный фид для Google Shopping/Merchant Center. Добавьте эту ссылку в Merchant Center (Продукты → Фиды → «Заданное время получения»), она обновляется автоматически:',
     merchantLocaleNote: 'Для отдельного фида на русском добавьте ?locale=ru к ссылке.',
+    merchantCategoryLabel: 'Категория товара Google (google_product_category)',
+    merchantCategoryPlaceholder: 'Например: Electronics > Communications > Telephony > Mobile Phones',
+    merchantCategoryHint:
+      'Без категории Google часто ограничивает показы или отклоняет товары в Shopping. Список категорий: google.com/basepages/producttype/taxonomy-with-ids.ru-RU.txt',
+    merchantShippingPriceLabel: 'Фиксированная стоимость доставки в фиде',
+    merchantShippingPricePlaceholder: 'Например: 60 UAH',
+    merchantShippingCountryLabel: 'Страна доставки (ISO, напр. UA)',
     copyButton: 'Копировать',
     toastCopied: 'Скопировано',
     googleAuthTitle: 'Вход через Google (OAuth 2.0)',

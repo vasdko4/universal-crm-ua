@@ -3,6 +3,7 @@
 import Script from 'next/script'
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
+import { CONSENT_COOKIE, readConsentCookie } from '@/lib/shop/consent'
 
 declare global {
   interface Window {
@@ -16,11 +17,23 @@ const isValidGaId = (id: string) => /^G-\w+$/.test(id)
 
 type CartItem = { id: number; name: string; price: number; quantity: number; sku?: string | null }
 
+// Dynamic remarketing "page type" Google Ads expects in the `ecomm_pagetype`
+// parameter — lets Shopping/Display remarketing show the exact products a
+// visitor viewed/added to cart instead of generic catalog ads.
+export type EcommPageType = 'home' | 'category' | 'product' | 'cart' | 'purchase' | 'searchresults' | 'other'
+
 // Loads the gtag.js snippet once and configures Google Ads conversion
 // tracking and/or GA4 (Google Analytics), whichever are enabled in
 // Настройки → Google Ads. One script covers both — gtag.js supports
 // multiple `config` calls after a single load, so enabling both never
 // double-loads the library. Rendered once in the shop layout.
+//
+// Also wires up Google Consent Mode v2: ad/analytics storage default to
+// "denied" until the visitor accepts the cookie banner (components/shop/
+// cookie-consent-banner.tsx), or immediately to "granted" if they already
+// accepted on a previous visit (cookie read synchronously before the first
+// gtag call, so no consent-state flash). This keeps EU traffic measurable
+// without violating GDPR — see CookieConsentBanner for the actual prompt.
 export function GoogleTag({ adsId, gaId }: { adsId?: string; gaId?: string }) {
   const validAds = adsId && isValidAdsId(adsId) ? adsId : null
   const validGa = gaId && isValidGaId(gaId) ? gaId : null
@@ -44,6 +57,21 @@ export function GoogleTag({ adsId, gaId }: { adsId?: string; gaId?: string }) {
         {`window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
+gtag('consent', 'default', {
+  ad_storage: 'denied',
+  ad_user_data: 'denied',
+  ad_personalization: 'denied',
+  analytics_storage: 'denied',
+  wait_for_update: 500,
+});
+if (document.cookie.split('; ').some(function(c){ return c.indexOf('${CONSENT_COOKIE}=granted') === 0; })) {
+  gtag('consent', 'update', {
+    ad_storage: 'granted',
+    ad_user_data: 'granted',
+    ad_personalization: 'granted',
+    analytics_storage: 'granted',
+  });
+}
 ${configCalls}`}
       </Script>
     </>
@@ -78,6 +106,30 @@ function fireGtagEvent(name: string, params: Record<string, unknown>) {
   window.gtag('event', name, params)
 }
 
+// Dynamic remarketing parameters, sent as extra fields alongside the normal
+// GA4/Ads event params. Google's classic dynamic remarketing tag reads these
+// off the same dataLayer pushes gtag() makes, so no separate tag/script is
+// needed — see https://support.google.com/google-ads/answer/6053288.
+function ecommParams(pagetype: EcommPageType, prodIds?: (string | number)[], totalValue?: number) {
+  return {
+    ecomm_pagetype: pagetype,
+    ...(prodIds && prodIds.length ? { ecomm_prodid: prodIds.map(String) } : {}),
+    ...(totalValue != null ? { ecomm_totalvalue: totalValue } : {}),
+  }
+}
+
+// Fires a dynamic-remarketing pageview for pages with no dedicated e-commerce
+// event of their own (home, category listing, search results). Call once per
+// navigation; safe no-op without a configured GA/Ads id.
+export function trackPageType(
+  gaId: string | undefined,
+  pagetype: EcommPageType,
+  prodIds?: (string | number)[],
+) {
+  if (!gaId || !isValidGaId(gaId)) return
+  fireGtagEvent('page_view', ecommParams(pagetype, prodIds))
+}
+
 // GA4 recommended e-commerce event: fired once per product page view.
 export function trackViewItem(gaId: string | undefined, item: CartItem, currency = 'UAH') {
   if (!gaId || !isValidGaId(gaId)) return
@@ -87,6 +139,7 @@ export function trackViewItem(gaId: string | undefined, item: CartItem, currency
     items: [
       { item_id: item.sku || String(item.id), item_name: item.name, price: item.price, quantity: 1 },
     ],
+    ...ecommParams('product', [item.sku || item.id]),
   })
 }
 
@@ -104,12 +157,59 @@ export function trackAddToCart(gaId: string | undefined, item: CartItem, currenc
         quantity: item.quantity,
       },
     ],
+    ...ecommParams('cart', [item.sku || item.id]),
   })
+}
+
+// GA4 recommended e-commerce event: fired once when the checkout page is
+// first opened with a non-empty cart/buy-now item. Fills the gap between
+// "added to cart" and "purchased" so funnel drop-off at checkout is visible
+// in GA4/Ads reporting (previously there was no signal here at all).
+export function trackBeginCheckout(
+  gaId: string | undefined,
+  items: CartItem[],
+  currency = 'UAH',
+) {
+  if (!gaId || !isValidGaId(gaId) || items.length === 0) return
+  const value = items.reduce((s, i) => s + i.price * i.quantity, 0)
+  fireGtagEvent('begin_checkout', {
+    currency,
+    value,
+    items: items.map((it) => ({
+      item_id: it.sku || String(it.id),
+      item_name: it.name,
+      price: it.price,
+      quantity: it.quantity,
+    })),
+    ...ecommParams('cart', items.map((i) => i.sku || i.id), value),
+  })
+}
+
+// Normalizes email/phone the way Google Ads Enhanced Conversions requires
+// before hashing: lowercase + trim for email, digits-only E.164-ish for
+// phone. gtag.js hashes (SHA-256) these client-side itself — we must send
+// normalized plaintext, never pre-hash.
+// https://support.google.com/google-ads/answer/9888656
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase()
+}
+function normalizePhone(phone: string) {
+  const digits = phone.replace(/[^\d+]/g, '')
+  if (digits.startsWith('+')) return digits
+  // Ukrainian numbers are stored locally as 0XXXXXXXXX — E.164 needs +380.
+  if (digits.startsWith('0')) return `+38${digits}`
+  return `+${digits}`
 }
 
 // Fires the Google Ads purchase conversion and, if configured, the GA4
 // `purchase` event on the order confirmation page. Deduplicated per order
 // via sessionStorage so refreshes/back-navigation never double-count.
+//
+// When `enhancedConversions` is on and we have the customer's email/phone,
+// sends them via `gtag('set', 'user_data', ...)` right before the conversion
+// fires — Google matches this (hashed, first-party) against signed-in Google
+// accounts to recover conversions lost to cookie/ITP restrictions and to
+// improve Smart Bidding, at no cost and no UI change for the customer.
 export function GoogleAdsPurchase({
   conversionId,
   conversionLabel,
@@ -118,6 +218,9 @@ export function GoogleAdsPurchase({
   value,
   currency = 'UAH',
   items,
+  enhancedConversions = false,
+  customerEmail,
+  customerPhone,
 }: {
   conversionId?: string
   conversionLabel?: string
@@ -126,6 +229,9 @@ export function GoogleAdsPurchase({
   value: number
   currency?: string
   items?: CartItem[]
+  enhancedConversions?: boolean
+  customerEmail?: string | null
+  customerPhone?: string | null
 }) {
   useEffect(() => {
     const adsReady = conversionId && isValidAdsId(conversionId) && conversionLabel
@@ -143,6 +249,12 @@ export function GoogleAdsPurchase({
     // gtag may not be ready yet if the layout script is still loading.
     const fire = () => {
       if (typeof window.gtag !== 'function') return false
+      if (adsReady && enhancedConversions && (customerEmail || customerPhone)) {
+        window.gtag('set', 'user_data', {
+          ...(customerEmail ? { email: normalizeEmail(customerEmail) } : {}),
+          ...(customerPhone ? { phone_number: normalizePhone(customerPhone) } : {}),
+        })
+      }
       if (adsReady) {
         window.gtag('event', 'conversion', {
           send_to: `${conversionId}/${conversionLabel}`,
@@ -162,6 +274,11 @@ export function GoogleAdsPurchase({
             price: it.price,
             quantity: it.quantity,
           })),
+          ...ecommParams(
+            'purchase',
+            (items ?? []).map((it) => it.sku || it.id),
+            value,
+          ),
         })
       }
       return true
@@ -177,7 +294,18 @@ export function GoogleAdsPurchase({
         clearTimeout(stop)
       }
     }
-  }, [conversionId, conversionLabel, gaId, orderNumber, value, currency, items])
+  }, [
+    conversionId,
+    conversionLabel,
+    gaId,
+    orderNumber,
+    value,
+    currency,
+    items,
+    enhancedConversions,
+    customerEmail,
+    customerPhone,
+  ])
 
   return null
 }
