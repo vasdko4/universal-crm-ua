@@ -12,6 +12,8 @@ import { getOrderStats, listOrders } from '@/app/actions/orders'
 import { getStatsSummary } from '@/app/actions/analytics'
 import { getLowStockProducts } from '@/app/actions/products'
 import { StatusBadge } from '@/components/orders/status-badge'
+import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { pickLocalized } from '@/lib/i18n/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +23,7 @@ function money(n: number) {
 
 export default async function DashboardPage() {
   const user = await requirePermission('dashboard')
+  const t = getAdminDictionary(user.locale).dashboard
   const [stats, analytics, recent, lowStock] = await Promise.all([
     getOrderStats(),
     getStatsSummary(30),
@@ -29,19 +32,19 @@ export default async function DashboardPage() {
   ])
 
   const cards = [
-    { label: 'Заказов всего', value: stats.total, icon: ShoppingCart, tone: 'text-primary' },
-    { label: 'Активные заказы', value: stats.active, icon: Package, tone: 'text-warning' },
-    { label: 'Выручка (оплачено)', value: money(stats.revenue), icon: TrendingUp, tone: 'text-success' },
-    { label: 'Просмотры (30 дн.)', value: analytics.pageViews, icon: Eye, tone: 'text-info' },
+    { label: t.statOrdersTotal, value: stats.total, icon: ShoppingCart, tone: 'text-primary' },
+    { label: t.statOrdersActive, value: stats.active, icon: Package, tone: 'text-warning' },
+    { label: t.statRevenue, value: money(stats.revenue), icon: TrendingUp, tone: 'text-success' },
+    { label: t.statViews, value: analytics.pageViews, icon: Eye, tone: 'text-info' },
   ]
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Добро пожаловать, {user.name.split(' ')[0]}
+          {t.welcome.replace('{name}', user.name.split(' ')[0])}
         </h1>
-        <p className="text-sm text-muted-foreground">Сводка по вашему магазину</p>
+        <p className="text-sm text-muted-foreground">{t.subtitle}</p>
       </header>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -59,17 +62,17 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="rounded-xl border border-border bg-card lg:col-span-2">
           <div className="flex items-center justify-between border-b border-border p-4">
-            <h2 className="font-semibold text-foreground">Последние заказы</h2>
+            <h2 className="font-semibold text-foreground">{t.recentOrdersTitle}</h2>
             <Link
               href="/admin/orders"
               className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
             >
-              Все заказы <ArrowRight className="size-4" />
+              {t.allOrders} <ArrowRight className="size-4" />
             </Link>
           </div>
           <div className="divide-y divide-border">
             {recent.items.length === 0 && (
-              <p className="p-6 text-center text-sm text-muted-foreground">Заказов пока нет</p>
+              <p className="p-6 text-center text-sm text-muted-foreground">{t.noOrders}</p>
             )}
             {recent.items.map((o) => (
               <Link
@@ -80,7 +83,7 @@ export default async function DashboardPage() {
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">№{o.orderNumber}</p>
                   <p className="truncate text-sm text-muted-foreground">
-                    {o.customerName ?? 'Без имени'} · {o.itemsCount} шт.
+                    {o.customerName ?? t.noName} · {o.itemsCount} {t.unitsSuffix}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -93,15 +96,15 @@ export default async function DashboardPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="mb-4 font-semibold text-foreground">Воронка (30 дней)</h2>
+          <h2 className="mb-4 font-semibold text-foreground">{t.funnelTitle}</h2>
           <div className="flex flex-col gap-3">
-            <FunnelRow label="Просмотры страниц" value={analytics.pageViews} max={analytics.pageViews} />
-            <FunnelRow label="Просмотры товаров" value={analytics.productViews} max={analytics.pageViews} />
-            <FunnelRow label="Добавления в корзину" value={analytics.addToCarts} max={analytics.pageViews} />
-            <FunnelRow label="Заказы" value={analytics.orders} max={analytics.pageViews} />
+            <FunnelRow label={t.funnelPageViews} value={analytics.pageViews} max={analytics.pageViews} />
+            <FunnelRow label={t.funnelProductViews} value={analytics.productViews} max={analytics.pageViews} />
+            <FunnelRow label={t.funnelAddToCart} value={analytics.addToCarts} max={analytics.pageViews} />
+            <FunnelRow label={t.funnelOrders} value={analytics.orders} max={analytics.pageViews} />
           </div>
           <div className="mt-4 rounded-lg bg-muted/50 p-3">
-            <p className="text-sm text-muted-foreground">Конверсия в заказ</p>
+            <p className="text-sm text-muted-foreground">{t.conversionRate}</p>
             <p className="text-xl font-semibold text-foreground">{analytics.conversionRate.toFixed(1)}%</p>
           </div>
         </div>
@@ -112,13 +115,13 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between border-b border-border p-4">
             <h2 className="flex items-center gap-2 font-semibold text-foreground">
               <AlertTriangle className="size-4 text-warning" />
-              Заканчиваются на складе
+              {t.lowStockTitle}
             </h2>
             <Link
               href="/admin/products?status=out_of_stock"
               className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
             >
-              К товарам <ArrowRight className="size-4" />
+              {t.toProducts} <ArrowRight className="size-4" />
             </Link>
           </div>
           <div className="divide-y divide-border">
@@ -129,8 +132,14 @@ export default async function DashboardPage() {
                 className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-muted/50"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{p.name}</p>
-                  {p.sku && <p className="text-sm text-muted-foreground">Артикул: {p.sku}</p>}
+                  <p className="truncate font-medium text-foreground">
+                    {pickLocalized(user.locale, p.nameUk, p.nameRu)}
+                  </p>
+                  {p.sku && (
+                    <p className="text-sm text-muted-foreground">
+                      {t.skuLabel}: {p.sku}
+                    </p>
+                  )}
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${
@@ -139,7 +148,7 @@ export default async function DashboardPage() {
                       : 'bg-warning/10 text-warning'
                   }`}
                 >
-                  {p.quantity === 0 ? 'Нет в наличии' : `Осталось: ${p.quantity}`}
+                  {p.quantity === 0 ? t.outOfStock : `${t.remainingPrefix}: ${p.quantity}`}
                 </span>
               </Link>
             ))}

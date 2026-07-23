@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type Characteristic = { name: string; value: string }
 
@@ -121,6 +122,8 @@ export function ProductForm({
   marketplaceCategories: MarketplaceCategory[]
 }) {
   const router = useRouter()
+  const { dict } = useAdminI18n()
+  const t = dict.productForm
   const [isPending, startTransition] = useTransition()
   const [form, setForm] = useState<ProductFormData>(initial)
   const isEdit = initial.id != null
@@ -140,11 +143,11 @@ export function ProductForm({
     e.preventDefault()
 
     if (!form.nameRu.trim() && !form.nameUk.trim()) {
-      toast.error('Укажите название товара хотя бы на одном языке')
+      toast.error(t.toastNameRequired)
       return
     }
     if (form.price === '' || Number.isNaN(Number(form.price)) || Number(form.price) < 0) {
-      toast.error('Укажите корректную цену')
+      toast.error(t.toastPriceInvalid)
       return
     }
 
@@ -191,11 +194,11 @@ export function ProductForm({
         ? await updateProduct(initial.id as number, input)
         : await createProduct(input)
       if (result.success) {
-        toast.success(isEdit ? 'Товар обновлён' : 'Товар создан')
+        toast.success(isEdit ? t.toastUpdated : t.toastCreated)
         router.push('/admin/products')
         router.refresh()
       } else {
-        toast.error(result.error ?? 'Ошибка сохранения')
+        toast.error(result.error ?? t.toastSaveError)
       }
     })
   }
@@ -205,58 +208,54 @@ export function ProductForm({
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="icon" className="size-8">
-            <Link href="/admin/products" aria-label="Назад к списку товаров">
+            <Link href="/admin/products" aria-label={t.backToListAria}>
               <ArrowLeft className="size-4" />
             </Link>
           </Button>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-balance">
-              {isEdit ? 'Редактирование товара' : 'Новый товар'}
+              {isEdit ? t.editTitle : t.createTitle}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {isEdit ? `ID: ${initial.id}` : 'Заполните информацию о товаре'}
+              {isEdit ? `${t.idPrefix}: ${initial.id}` : t.fillInfoHint}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" type="button">
-            <Link href="/admin/products">Отмена</Link>
+            <Link href="/admin/products">{t.cancel}</Link>
           </Button>
           <Button type="submit" disabled={isPending}>
             {isPending && <Loader2 className="size-4 animate-spin" />}
-            {isEdit ? 'Сохранить' : 'Создать товар'}
+            {isEdit ? t.save : t.createProduct}
           </Button>
         </div>
       </header>
 
       <Tabs defaultValue="main" className="w-full">
         <TabsList className="flex w-full flex-wrap justify-start">
-          <TabsTrigger value="main">Основное</TabsTrigger>
-          <TabsTrigger value="price">Цена и остатки</TabsTrigger>
-          <TabsTrigger value="variants">Варианты</TabsTrigger>
-          <TabsTrigger value="categories">Категории и группы</TabsTrigger>
-          <TabsTrigger value="chars">Характеристики</TabsTrigger>
-          <TabsTrigger value="seo">SEO</TabsTrigger>
+          <TabsTrigger value="main">{t.tabMain}</TabsTrigger>
+          <TabsTrigger value="price">{t.tabPrice}</TabsTrigger>
+          <TabsTrigger value="variants">{t.tabVariants}</TabsTrigger>
+          <TabsTrigger value="categories">{t.tabCategories}</TabsTrigger>
+          <TabsTrigger value="chars">{t.tabChars}</TabsTrigger>
+          <TabsTrigger value="seo">{t.tabSeo}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="main" className="mt-4 flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Фотографии</CardTitle>
+              <CardTitle className="text-base">{t.photosTitle}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <Label>Главное фото</Label>
-                <p className="text-xs text-muted-foreground">
-                  Отображается в каталоге и карточке товара.
-                </p>
+                <Label>{t.mainPhotoLabel}</Label>
+                <p className="text-xs text-muted-foreground">{t.mainPhotoHint}</p>
                 <ImageUploader value={form.image} onChange={(url) => set('image', url)} />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Галерея товара</Label>
-                <p className="text-xs text-muted-foreground">
-                  Дополнительные фото товара. Можно загрузить несколько сразу.
-                </p>
+                <Label>{t.galleryLabel}</Label>
+                <p className="text-xs text-muted-foreground">{t.galleryHint}</p>
                 <ImageGalleryUploader value={form.images} onChange={(urls) => set('images', urls)} />
               </div>
             </CardContent>
@@ -264,29 +263,29 @@ export function ProductForm({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Название и описание</CardTitle>
+              <CardTitle className="text-base">{t.nameSectionTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="nameRu">Название (RU)</Label>
+                <Label htmlFor="nameRu">{t.nameRuLabel}</Label>
                 <Input
                   id="nameRu"
                   value={form.nameRu}
                   onChange={(e) => set('nameRu', e.target.value)}
-                  placeholder="Беспроводные наушники…"
+                  placeholder={t.nameRuPlaceholder}
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="nameUk">Название (UK)</Label>
+                <Label htmlFor="nameUk">{t.nameUkLabel}</Label>
                 <Input
                   id="nameUk"
                   value={form.nameUk}
                   onChange={(e) => set('nameUk', e.target.value)}
-                  placeholder="Бездротові навушники…"
+                  placeholder={t.nameUkPlaceholder}
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="descRu">Описание (RU)</Label>
+                <Label htmlFor="descRu">{t.descRuLabel}</Label>
                 <Textarea
                   id="descRu"
                   rows={4}
@@ -295,7 +294,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="descUk">Описание (UK)</Label>
+                <Label htmlFor="descUk">{t.descUkLabel}</Label>
                 <Textarea
                   id="descUk"
                   rows={4}
@@ -304,7 +303,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2 md:col-span-2">
-                <Label htmlFor="notes">Приватные заметки (видны только администраторам)</Label>
+                <Label htmlFor="notes">{t.notesLabel}</Label>
                 <Textarea
                   id="notes"
                   rows={2}
@@ -317,15 +316,15 @@ export function ProductForm({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Идентификация и статус</CardTitle>
+              <CardTitle className="text-base">{t.identificationTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="sku">Артикул (SKU)</Label>
+                <Label htmlFor="sku">{t.skuLabel}</Label>
                 <Input id="sku" value={form.sku} onChange={(e) => set('sku', e.target.value)} />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="barcode">Штрихкод</Label>
+                <Label htmlFor="barcode">{t.barcodeLabel}</Label>
                 <Input
                   id="barcode"
                   value={form.barcode}
@@ -333,22 +332,22 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Тип продаж</Label>
+                <Label>{t.salesTypeLabel}</Label>
                 <Select value={form.salesType} onValueChange={(v) => set('salesType', v)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="retail">Розница</SelectItem>
-                    <SelectItem value="wholesale">Опт</SelectItem>
-                    <SelectItem value="both">Розница и опт</SelectItem>
+                    <SelectItem value="retail">{t.salesTypeRetail}</SelectItem>
+                    <SelectItem value="wholesale">{t.salesTypeWholesale}</SelectItem>
+                    <SelectItem value="both">{t.salesTypeBoth}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3 md:col-span-1">
                 <div>
-                  <Label htmlFor="visible">Показывать на сайте</Label>
-                  <p className="text-xs text-muted-foreground">Товар виден покупателям</p>
+                  <Label htmlFor="visible">{t.visibleLabel}</Label>
+                  <p className="text-xs text-muted-foreground">{t.visibleHint}</p>
                 </div>
                 <Switch
                   id="visible"
@@ -358,10 +357,8 @@ export function ProductForm({
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3 md:col-span-1">
                 <div>
-                  <Label htmlFor="popular">Популярный товар</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Показывается в блоке «Популярные товары»
-                  </p>
+                  <Label htmlFor="popular">{t.popularLabel}</Label>
+                  <p className="text-xs text-muted-foreground">{t.popularHint}</p>
                 </div>
                 <Switch
                   id="popular"
@@ -374,18 +371,16 @@ export function ProductForm({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Счётчик покупок</CardTitle>
+              <CardTitle className="text-base">{t.purchaseCounterTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-2">
-                <Label>Реальные покупки</Label>
+                <Label>{t.realOrdersLabel}</Label>
                 <Input value={String(form.realOrdersCount)} disabled readOnly />
-                <p className="text-xs text-muted-foreground">
-                  Считается автоматически по заказам
-                </p>
+                <p className="text-xs text-muted-foreground">{t.realOrdersHint}</p>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="purchasesBoost">Накрутка покупок</Label>
+                <Label htmlFor="purchasesBoost">{t.purchasesBoostLabel}</Label>
                 <Input
                   id="purchasesBoost"
                   type="number"
@@ -394,29 +389,25 @@ export function ProductForm({
                   value={form.purchasesBoost}
                   onChange={(e) => set('purchasesBoost', e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Добавляется к реальному числу покупок
-                </p>
+                <p className="text-xs text-muted-foreground">{t.purchasesBoostHint}</p>
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Показывается покупателям</Label>
+                <Label>{t.shownToBuyersLabel}</Label>
                 <div className="flex h-9 items-center rounded-md border bg-muted/50 px-3 text-sm font-semibold">
                   {form.realOrdersCount + Math.max(0, Math.trunc(Number(form.purchasesBoost) || 0))}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  «Купили N раз» на карточке товара
-                </p>
+                <p className="text-xs text-muted-foreground">{t.shownToBuyersHint}</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Габариты и вес</CardTitle>
+              <CardTitle className="text-base">{t.dimensionsTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="width">Ширина, см</Label>
+                <Label htmlFor="width">{t.widthLabel}</Label>
                 <Input
                   id="width"
                   type="number"
@@ -427,7 +418,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="height">Высота, см</Label>
+                <Label htmlFor="height">{t.heightLabel}</Label>
                 <Input
                   id="height"
                   type="number"
@@ -438,7 +429,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="length">Длина, см</Label>
+                <Label htmlFor="length">{t.lengthLabel}</Label>
                 <Input
                   id="length"
                   type="number"
@@ -449,7 +440,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="weight">Вес, кг</Label>
+                <Label htmlFor="weight">{t.weightLabel}</Label>
                 <Input
                   id="weight"
                   type="number"
@@ -466,11 +457,11 @@ export function ProductForm({
         <TabsContent value="price" className="mt-4 flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Цены</CardTitle>
+              <CardTitle className="text-base">{t.pricesTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="price">Цена продажи *</Label>
+                <Label htmlFor="price">{t.priceLabel}</Label>
                 <Input
                   id="price"
                   type="number"
@@ -482,7 +473,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="oldPrice">Старая цена (для скидки)</Label>
+                <Label htmlFor="oldPrice">{t.oldPriceLabel}</Label>
                 <Input
                   id="oldPrice"
                   type="number"
@@ -493,7 +484,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="costPrice">Цена закупки</Label>
+                <Label htmlFor="costPrice">{t.costPriceLabel}</Label>
                 <Input
                   id="costPrice"
                   type="number"
@@ -504,7 +495,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Валюта</Label>
+                <Label>{t.currencyLabel}</Label>
                 <Select value={form.currency} onValueChange={(v) => set('currency', v)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -518,10 +509,8 @@ export function ProductForm({
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3 md:col-span-2">
                 <div>
-                  <Label htmlFor="priceFrom">Цена «от»</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Отображать как минимальную цену
-                  </p>
+                  <Label htmlFor="priceFrom">{t.priceFromLabel}</Label>
+                  <p className="text-xs text-muted-foreground">{t.priceFromHint}</p>
                 </div>
                 <Switch
                   id="priceFrom"
@@ -534,11 +523,11 @@ export function ProductForm({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Наличие</CardTitle>
+              <CardTitle className="text-base">{t.stockTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="quantity">Количество на складе</Label>
+                <Label htmlFor="quantity">{t.quantityLabel}</Label>
                 <Input
                   id="quantity"
                   type="number"
@@ -547,12 +536,10 @@ export function ProductForm({
                   value={form.quantity}
                   onChange={(e) => set('quantity', e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  При нуле статус автоматически станет «Нет в наличии»
-                </p>
+                <p className="text-xs text-muted-foreground">{t.quantityHint}</p>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="unit">Единица измерения</Label>
+                <Label htmlFor="unit">{t.unitLabel}</Label>
                 <Input id="unit" value={form.unit} onChange={(e) => set('unit', e.target.value)} />
               </div>
             </CardContent>
@@ -562,14 +549,14 @@ export function ProductForm({
         <TabsContent value="categories" className="mt-4 flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Категории товара</CardTitle>
+              <CardTitle className="text-base">{t.productCategoriesTitle}</CardTitle>
             </CardHeader>
             <CardContent>
               {categories.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Категорий пока нет.{' '}
+                  {t.noCategoriesHint}{' '}
                   <Link href="/admin/categories" className="text-primary underline">
-                    Создать категорию
+                    {t.createCategoryLink}
                   </Link>
                 </p>
               ) : (
@@ -584,14 +571,14 @@ export function ProductForm({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Группы товаров</CardTitle>
+              <CardTitle className="text-base">{t.productGroupsTitle}</CardTitle>
             </CardHeader>
             <CardContent>
               {groups.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Групп пока нет.{' '}
+                  {t.noGroupsHint}{' '}
                   <Link href="/admin/groups" className="text-primary underline">
-                    Создать группу
+                    {t.createGroupLink}
                   </Link>
                 </p>
               ) : (
@@ -615,20 +602,20 @@ export function ProductForm({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Размещение</CardTitle>
+              <CardTitle className="text-base">{t.placementTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label>Группа на сайте</Label>
+                <Label>{t.siteGroupLabel}</Label>
                 <Select
                   value={form.siteGroupId || 'none'}
                   onValueChange={(v) => set('siteGroupId', v === 'none' ? '' : v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Не выбрано" />
+                    <SelectValue placeholder={t.notSelected} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Не выбрано</SelectItem>
+                    <SelectItem value="none">{t.notSelected}</SelectItem>
                     {siteGroups.map((g) => (
                       <SelectItem key={g.id} value={String(g.id)}>
                         {g.nameRu}
@@ -638,16 +625,16 @@ export function ProductForm({
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Категория маркетплейса</Label>
+                <Label>{t.marketplaceCategoryLabel}</Label>
                 <Select
                   value={form.marketplaceCategoryId || 'none'}
                   onValueChange={(v) => set('marketplaceCategoryId', v === 'none' ? '' : v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Не выбрано" />
+                    <SelectValue placeholder={t.notSelected} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Не выбрано</SelectItem>
+                    <SelectItem value="none">{t.notSelected}</SelectItem>
                     {marketplaceCategories.map((c) => (
                       <SelectItem key={c.id} value={String(c.id)}>
                         {c.parentId ? '— ' : ''}
@@ -664,13 +651,11 @@ export function ProductForm({
         <TabsContent value="chars" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Характеристики товара</CardTitle>
+              <CardTitle className="text-base">{t.charsTitle}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               {form.characteristics.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Характеристики не добавлены. Например: «Цвет — чёрный», «Материал — металл».
-                </p>
+                <p className="text-sm text-muted-foreground">{t.charsEmptyHint}</p>
               )}
               {form.characteristics.map((char, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -681,8 +666,8 @@ export function ProductForm({
                       next[i] = { ...next[i], name: e.target.value }
                       set('characteristics', next)
                     }}
-                    placeholder="Название (Цвет)"
-                    aria-label={`Название характеристики ${i + 1}`}
+                    placeholder={t.charNamePlaceholder}
+                    aria-label={`${t.charNameAria} ${i + 1}`}
                   />
                   <Input
                     value={char.value}
@@ -691,15 +676,15 @@ export function ProductForm({
                       next[i] = { ...next[i], value: e.target.value }
                       set('characteristics', next)
                     }}
-                    placeholder="Значение (Чёрный)"
-                    aria-label={`Значение характеристики ${i + 1}`}
+                    placeholder={t.charValuePlaceholder}
+                    aria-label={`${t.charValueAria} ${i + 1}`}
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="shrink-0 text-destructive hover:text-destructive"
-                    aria-label="Удалить характеристику"
+                    aria-label={t.removeCharAria}
                     onClick={() =>
                       set(
                         'characteristics',
@@ -721,7 +706,7 @@ export function ProductForm({
                 }
               >
                 <Plus className="size-4" />
-                Добавить характеристику
+                {t.addChar}
               </Button>
             </CardContent>
           </Card>
@@ -739,11 +724,11 @@ export function ProductForm({
         <TabsContent value="seo" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">SEO-настройки</CardTitle>
+              <CardTitle className="text-base">{t.seoTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="metaTitleRu">Meta Title (RU)</Label>
+                <Label htmlFor="metaTitleRu">{t.metaTitleRuLabel}</Label>
                 <Input
                   id="metaTitleRu"
                   value={form.metaTitleRu}
@@ -751,7 +736,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="metaTitleUk">Meta Title (UK)</Label>
+                <Label htmlFor="metaTitleUk">{t.metaTitleUkLabel}</Label>
                 <Input
                   id="metaTitleUk"
                   value={form.metaTitleUk}
@@ -759,7 +744,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="metaDescRu">Meta Description (RU)</Label>
+                <Label htmlFor="metaDescRu">{t.metaDescRuLabel}</Label>
                 <Textarea
                   id="metaDescRu"
                   rows={3}
@@ -768,7 +753,7 @@ export function ProductForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="metaDescUk">Meta Description (UK)</Label>
+                <Label htmlFor="metaDescUk">{t.metaDescUkLabel}</Label>
                 <Textarea
                   id="metaDescUk"
                   rows={3}
@@ -783,11 +768,11 @@ export function ProductForm({
 
       <div className="flex justify-end gap-2 border-t pt-4">
         <Button asChild variant="outline" type="button">
-          <Link href="/admin/products">Отмена</Link>
+          <Link href="/admin/products">{t.cancel}</Link>
         </Button>
         <Button type="submit" disabled={isPending}>
           {isPending && <Loader2 className="size-4 animate-spin" />}
-          {isEdit ? 'Сохранить изменения' : 'Создать товар'}
+          {isEdit ? t.saveChanges : t.createProduct}
         </Button>
       </div>
     </form>

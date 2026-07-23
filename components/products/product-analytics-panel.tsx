@@ -1,28 +1,37 @@
 import { getProductAnalytics } from '@/app/actions/analytics'
 import { Eye, ShoppingCart, Package, Banknote, TrendingUp, Percent } from 'lucide-react'
+import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import type { Locale } from '@/lib/i18n/config'
 
 function formatUah(n: number) {
   return new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format(n) + ' грн'
 }
 
 // Server component: funnel metrics for one product over the last 30 days.
-export async function ProductAnalyticsPanel({ productId }: { productId: number }) {
+export async function ProductAnalyticsPanel({
+  productId,
+  locale,
+}: {
+  productId: number
+  locale: Locale
+}) {
   const a = await getProductAnalytics(productId, 30)
+  const t = getAdminDictionary(locale).productAnalytics
 
   const cards = [
-    { label: 'Просмотры', value: String(a.views), icon: Eye },
-    { label: 'В корзину', value: String(a.addToCarts), icon: ShoppingCart },
-    { label: 'Продано, шт', value: String(a.unitsSold), icon: Package },
-    { label: 'Выручка', value: formatUah(a.revenue), icon: Banknote },
-    { label: 'Конверсия в корзину', value: a.cartRate.toFixed(1) + '%', icon: Percent },
-    { label: 'Конверсия в заказ', value: a.purchaseRate.toFixed(1) + '%', icon: TrendingUp },
+    { label: t.views, value: String(a.views), icon: Eye },
+    { label: t.addToCart, value: String(a.addToCarts), icon: ShoppingCart },
+    { label: t.unitsSold, value: String(a.unitsSold), icon: Package },
+    { label: t.revenue, value: formatUah(a.revenue), icon: Banknote },
+    { label: t.cartRate, value: a.cartRate.toFixed(1) + '%', icon: Percent },
+    { label: t.purchaseRate, value: a.purchaseRate.toFixed(1) + '%', icon: TrendingUp },
   ]
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Аналитика товара</h2>
-        <span className="text-xs text-muted-foreground">за 30 дней</span>
+        <h2 className="text-sm font-semibold text-foreground">{t.title}</h2>
+        <span className="text-xs text-muted-foreground">{t.period}</span>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (

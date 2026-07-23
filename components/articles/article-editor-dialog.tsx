@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { X } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 const NONE = 'none'
 
@@ -60,6 +61,8 @@ export function ArticleEditorDialog({
   categories: ArticleCategory[]
   onSaved: () => void
 }) {
+  const { dict } = useAdminI18n()
+  const t = dict.articles
   const [form, setForm] = useState<ArticleInput>(empty)
   const [slugTouched, setSlugTouched] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -100,28 +103,28 @@ export function ArticleEditorDialog({
   }
 
   function addTag() {
-    const t = tagInput.trim()
-    if (!t) return
-    if (!(form.tags ?? []).includes(t)) set('tags', [...(form.tags ?? []), t])
+    const tag = tagInput.trim()
+    if (!tag) return
+    if (!(form.tags ?? []).includes(tag)) set('tags', [...(form.tags ?? []), tag])
     setTagInput('')
   }
 
-  function removeTag(t: string) {
-    set('tags', (form.tags ?? []).filter((x) => x !== t))
+  function removeTag(tag: string) {
+    set('tags', (form.tags ?? []).filter((x) => x !== tag))
   }
 
   function handleSubmit() {
     if (!form.title.trim()) {
-      toast.error('Введите заголовок статьи')
+      toast.error(t.toastTitleRequired)
       return
     }
     startTransition(async () => {
       const result = article ? await updateArticle(article.id, form) : await createArticle(form)
       if (result.success) {
-        toast.success(article ? 'Статья обновлена' : 'Статья создана')
+        toast.success(article ? t.toastUpdated : t.toastCreated)
         onSaved()
       } else {
-        toast.error(result.error ?? 'Ошибка сохранения')
+        toast.error(result.error ?? t.toastSaveError)
       }
     })
   }
@@ -130,29 +133,29 @@ export function ArticleEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{article ? 'Редактирование статьи' : 'Новая статья'}</DialogTitle>
-          <DialogDescription>Напишите материал и настройте публикацию.</DialogDescription>
+          <DialogTitle>{article ? t.dialogTitleEdit : t.dialogTitleCreate}</DialogTitle>
+          <DialogDescription>{t.dialogDescription}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="content" className="mt-2">
           <TabsList className="w-full">
-            <TabsTrigger value="content" className="flex-1">Содержимое</TabsTrigger>
-            <TabsTrigger value="settings" className="flex-1">Настройки</TabsTrigger>
-            <TabsTrigger value="seo" className="flex-1">SEO</TabsTrigger>
+            <TabsTrigger value="content" className="flex-1">{t.tabContent}</TabsTrigger>
+            <TabsTrigger value="settings" className="flex-1">{t.tabSettings}</TabsTrigger>
+            <TabsTrigger value="seo" className="flex-1">{t.tabSeo}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="content" className="flex flex-col gap-4 pt-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="art-title">Заголовок</Label>
+              <Label htmlFor="art-title">{t.titleLabel}</Label>
               <Input
                 id="art-title"
                 value={form.title}
                 onChange={(e) => handleTitle(e.target.value)}
-                placeholder="Заголовок статьи"
+                placeholder={t.titlePlaceholder}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="art-slug">URL (slug)</Label>
+              <Label htmlFor="art-slug">{t.slugLabel}</Label>
               <Input
                 id="art-slug"
                 value={form.slug}
@@ -165,24 +168,24 @@ export function ArticleEditorDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="art-excerpt">Краткое описание</Label>
+              <Label htmlFor="art-excerpt">{t.excerptLabel}</Label>
               <Textarea
                 id="art-excerpt"
                 value={form.excerpt}
                 onChange={(e) => set('excerpt', e.target.value)}
                 rows={2}
-                placeholder="Анонс статьи для карточки и списков"
+                placeholder={t.excerptPlaceholder}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="art-content">Содержимое (HTML)</Label>
+              <Label htmlFor="art-content">{t.contentLabel}</Label>
               <Textarea
                 id="art-content"
                 value={form.content}
                 onChange={(e) => set('content', e.target.value)}
                 rows={10}
                 className="font-mono text-sm"
-                placeholder="<p>Текст статьи...</p>"
+                placeholder={t.contentPlaceholder}
               />
             </div>
           </TabsContent>
@@ -190,16 +193,16 @@ export function ArticleEditorDialog({
           <TabsContent value="settings" className="flex flex-col gap-4 pt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="art-category">Категория</Label>
+                <Label htmlFor="art-category">{t.categoryLabel}</Label>
                 <Select
                   value={form.categoryId ? String(form.categoryId) : NONE}
                   onValueChange={(v) => set('categoryId', v === NONE ? null : Number(v))}
                 >
                   <SelectTrigger id="art-category">
-                    <SelectValue placeholder="Без категории" />
+                    <SelectValue placeholder={t.noCategory} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Без категории</SelectItem>
+                    <SelectItem value={NONE}>{t.noCategory}</SelectItem>
                     {categories.map((c) => (
                       <SelectItem key={c.id} value={String(c.id)}>
                         {c.name}
@@ -209,7 +212,7 @@ export function ArticleEditorDialog({
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="art-author">Автор</Label>
+                <Label htmlFor="art-author">{t.authorLabel}</Label>
                 <Input
                   id="art-author"
                   value={form.author ?? ''}
@@ -219,7 +222,7 @@ export function ArticleEditorDialog({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="art-cover">Ссылка на обложку</Label>
+                <Label htmlFor="art-cover">{t.coverLabel}</Label>
                 <Input
                   id="art-cover"
                   value={form.coverImage ?? ''}
@@ -228,7 +231,7 @@ export function ArticleEditorDialog({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="art-reading">Время чтения (мин)</Label>
+                <Label htmlFor="art-reading">{t.readingMinutesLabel}</Label>
                 <Input
                   id="art-reading"
                   type="number"
@@ -239,7 +242,7 @@ export function ArticleEditorDialog({
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="art-tags">Теги</Label>
+              <Label htmlFor="art-tags">{t.tagsLabel}</Label>
               <div className="flex gap-2">
                 <Input
                   id="art-tags"
@@ -251,18 +254,18 @@ export function ArticleEditorDialog({
                       addTag()
                     }
                   }}
-                  placeholder="Добавить тег и Enter"
+                  placeholder={t.tagsPlaceholder}
                 />
                 <Button type="button" variant="outline" onClick={addTag}>
-                  Добавить
+                  {t.addTag}
                 </Button>
               </div>
               {(form.tags ?? []).length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {(form.tags ?? []).map((t) => (
-                    <Badge key={t} variant="secondary" className="gap-1">
-                      {t}
-                      <button onClick={() => removeTag(t)} aria-label={`Удалить тег ${t}`}>
+                  {(form.tags ?? []).map((tag) => (
+                    <Badge key={tag} variant="secondary" className="gap-1">
+                      {tag}
+                      <button onClick={() => removeTag(tag)} aria-label={`${t.removeTagAria} ${tag}`}>
                         <X className="size-3" />
                       </button>
                     </Badge>
@@ -272,8 +275,8 @@ export function ArticleEditorDialog({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
-                <p className="text-sm font-medium text-foreground">Опубликовать</p>
-                <p className="text-xs text-muted-foreground">Статья будет видна на сайте</p>
+                <p className="text-sm font-medium text-foreground">{t.publishLabel}</p>
+                <p className="text-xs text-muted-foreground">{t.publishHint}</p>
               </div>
               <Switch
                 checked={form.status === 'published'}
@@ -282,8 +285,8 @@ export function ArticleEditorDialog({
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
-                <p className="text-sm font-medium text-foreground">Рекомендованная</p>
-                <p className="text-xs text-muted-foreground">Показывать в блоке «Топ»</p>
+                <p className="text-sm font-medium text-foreground">{t.featuredLabel}</p>
+                <p className="text-xs text-muted-foreground">{t.featuredHint}</p>
               </div>
               <Switch checked={form.isFeatured} onCheckedChange={(c) => set('isFeatured', c)} />
             </div>
@@ -291,7 +294,7 @@ export function ArticleEditorDialog({
 
           <TabsContent value="seo" className="flex flex-col gap-4 pt-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="art-meta-title">Meta Title</Label>
+              <Label htmlFor="art-meta-title">{t.metaTitleLabel}</Label>
               <Input
                 id="art-meta-title"
                 value={form.metaTitle ?? ''}
@@ -299,7 +302,7 @@ export function ArticleEditorDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="art-meta-desc">Meta Description</Label>
+              <Label htmlFor="art-meta-desc">{t.metaDescLabel}</Label>
               <Textarea
                 id="art-meta-desc"
                 value={form.metaDescription ?? ''}
@@ -312,10 +315,10 @@ export function ArticleEditorDialog({
 
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Отмена
+            {t.cancel}
           </Button>
           <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? 'Сохранение...' : article ? 'Сохранить' : 'Создать'}
+            {isPending ? t.saving : article ? t.save : t.create}
           </Button>
         </DialogFooter>
       </DialogContent>

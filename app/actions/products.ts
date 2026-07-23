@@ -472,7 +472,8 @@ export async function getLowStockProducts(threshold = 3, limit = 6) {
   return db
     .select({
       id: products.id,
-      name: sql<string>`COALESCE(${products.nameRu}, ${products.nameUk})`,
+      nameRu: products.nameRu,
+      nameUk: products.nameUk,
       sku: products.sku,
       image: products.image,
       quantity: products.quantity,

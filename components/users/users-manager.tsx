@@ -42,6 +42,8 @@ import {
   type AdminUserRow,
 } from '@/app/actions/users'
 import type { Role } from '@/lib/db/schema'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 type Tab = 'users' | 'roles'
 
@@ -55,33 +57,31 @@ export function UsersManager({
   currentUserId: string
 }) {
   const [tab, setTab] = useState<Tab>('users')
+  const { dict } = useAdminI18n()
+  const t = dict.users
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Пользователи и роли
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Управление доступом сотрудников к разделам админ-центра
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.subtitle}</p>
         </div>
       </header>
 
       <div className="flex gap-1 border-b border-border">
         <TabButton active={tab === 'users'} onClick={() => setTab('users')}>
-          Пользователи ({users.length})
+          {t.tabUsers} ({users.length})
         </TabButton>
         <TabButton active={tab === 'roles'} onClick={() => setTab('roles')}>
-          Роли ({roles.length})
+          {t.tabRoles} ({roles.length})
         </TabButton>
       </div>
 
       {tab === 'users' ? (
-        <UsersTab users={users} roles={roles} currentUserId={currentUserId} />
+        <UsersTab users={users} roles={roles} currentUserId={currentUserId} t={t} />
       ) : (
-        <RolesTab roles={roles} />
+        <RolesTab roles={roles} t={t} />
       )}
     </div>
   )
@@ -114,10 +114,12 @@ function UsersTab({
   users,
   roles,
   currentUserId,
+  t,
 }: {
   users: AdminUserRow[]
   roles: Role[]
   currentUserId: string
+  t: AdminDictionary['users']
 }) {
   const [pending, startTransition] = useTransition()
   const [open, setOpen] = useState(false)
@@ -129,11 +131,11 @@ function UsersTab({
     startTransition(async () => {
       const res = await createUser(form)
       if (res.success) {
-        toast.success('Пользователь создан')
+        toast.success(t.toastUserCreated)
         setOpen(false)
         setForm({ name: '', email: '', password: '', role: 'manager' })
       } else {
-        toast.error(res.error ?? 'Ошибка')
+        toast.error(res.error ?? t.genericError)
       }
     })
   }
@@ -145,16 +147,16 @@ function UsersTab({
           <DialogTrigger asChild>
             <Button>
               <UserPlus className="size-4" />
-              Добавить пользователя
+              {t.addUser}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Новый пользователь</DialogTitle>
+              <DialogTitle>{t.newUserTitle}</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="u-name">Имя</Label>
+                <Label htmlFor="u-name">{t.nameLabel}</Label>
                 <Input
                   id="u-name"
                   value={form.name}
@@ -162,7 +164,7 @@ function UsersTab({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="u-email">Email</Label>
+                <Label htmlFor="u-email">{t.emailLabel}</Label>
                 <Input
                   id="u-email"
                   type="email"
@@ -171,7 +173,7 @@ function UsersTab({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="u-pass">Пароль</Label>
+                <Label htmlFor="u-pass">{t.passwordLabel}</Label>
                 <Input
                   id="u-pass"
                   type="password"
@@ -180,7 +182,7 @@ function UsersTab({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Роль</Label>
+                <Label>{t.roleLabel}</Label>
                 <Select
                   value={form.role}
                   onValueChange={(v) => setForm({ ...form, role: v })}
@@ -204,7 +206,7 @@ function UsersTab({
                 disabled={pending || !form.name || !form.email || form.password.length < 8}
               >
                 {pending && <Loader2 className="size-4 animate-spin" />}
-                Создать
+                {t.create}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -215,10 +217,10 @@ function UsersTab({
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/50 text-left text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 font-medium">Пользователь</th>
-              <th className="px-4 py-3 font-medium">Роль</th>
-              <th className="px-4 py-3 font-medium">Статус</th>
-              <th className="px-4 py-3 font-medium text-right">Действия</th>
+              <th className="px-4 py-3 font-medium">{t.colUser}</th>
+              <th className="px-4 py-3 font-medium">{t.colRole}</th>
+              <th className="px-4 py-3 font-medium">{t.colStatus}</th>
+              <th className="px-4 py-3 font-medium text-right">{t.colActions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -229,6 +231,7 @@ function UsersTab({
                 roles={roles}
                 roleName={roleName}
                 isSelf={u.id === currentUserId}
+                t={t}
               />
             ))}
           </tbody>
@@ -243,11 +246,13 @@ function UserRow({
   roles,
   roleName,
   isSelf,
+  t,
 }: {
   user: AdminUserRow
   roles: Role[]
   roleName: (code: string) => string
   isSelf: boolean
+  t: AdminDictionary['users']
 }) {
   const [pending, startTransition] = useTransition()
 
@@ -260,7 +265,7 @@ function UserRow({
           </div>
           <div>
             <p className="font-medium text-foreground">
-              {user.name} {isSelf && <span className="text-xs text-muted-foreground">(вы)</span>}
+              {user.name} {isSelf && <span className="text-xs text-muted-foreground">{t.youSuffix}</span>}
             </p>
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
@@ -273,8 +278,8 @@ function UserRow({
           onValueChange={(v) =>
             startTransition(async () => {
               const res = await updateUserRole(user.id, v)
-              if (res.success) toast.success('Роль обновлена')
-              else toast.error('Ошибка')
+              if (res.success) toast.success(t.toastRoleUpdated)
+              else toast.error(t.genericError)
             })
           }
         >
@@ -296,7 +301,7 @@ function UserRow({
           onClick={() =>
             startTransition(async () => {
               const res = await setUserActive(user.id, !user.isActive)
-              if (!res.success) toast.error(res.error ?? 'Ошибка')
+              if (!res.success) toast.error(res.error ?? t.genericError)
             })
           }
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -306,7 +311,7 @@ function UserRow({
           } ${isSelf ? 'cursor-default' : 'cursor-pointer'}`}
         >
           {user.isActive ? <Check className="size-3" /> : <X className="size-3" />}
-          {user.isActive ? 'Активен' : 'Отключён'}
+          {user.isActive ? t.active : t.disabled}
         </button>
       </td>
       <td className="px-4 py-3 text-right">
@@ -316,11 +321,11 @@ function UserRow({
             size="sm"
             disabled={pending}
             onClick={() => {
-              if (!confirm(`Удалить пользователя ${user.name}?`)) return
+              if (!confirm(t.deleteUserConfirm.replace('{name}', user.name))) return
               startTransition(async () => {
                 const res = await deleteUser(user.id)
-                if (res.success) toast.success('Пользователь удалён')
-                else toast.error(res.error ?? 'Ошибка')
+                if (res.success) toast.success(t.toastUserDeleted)
+                else toast.error(res.error ?? t.genericError)
               })
             }}
           >
@@ -332,7 +337,7 @@ function UserRow({
   )
 }
 
-function RolesTab({ roles }: { roles: Role[] }) {
+function RolesTab({ roles, t }: { roles: Role[]; t: AdminDictionary['users'] }) {
   const [editing, setEditing] = useState<Role | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -341,7 +346,7 @@ function RolesTab({ roles }: { roles: Role[] }) {
       <div className="flex justify-end">
         <Button onClick={() => setCreating(true)}>
           <Plus className="size-4" />
-          Создать роль
+          {t.createRole}
         </Button>
       </div>
 
@@ -360,7 +365,7 @@ function RolesTab({ roles }: { roles: Role[] }) {
                 <div>
                   <p className="font-medium text-foreground">{role.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {role.isSystem ? 'Системная' : 'Пользовательская'}
+                    {role.isSystem ? t.systemRole : t.customRole}
                   </p>
                 </div>
               </div>
@@ -369,27 +374,27 @@ function RolesTab({ roles }: { roles: Role[] }) {
               <p className="mt-3 text-sm text-muted-foreground">{role.description}</p>
             )}
             <p className="mt-3 text-xs text-muted-foreground">
-              Доступов:{' '}
+              {t.accessCountLabel}{' '}
               <span className="font-medium text-foreground">
                 {(role.permissions as string[]).includes('*')
-                  ? 'все разделы'
+                  ? t.allSections
                   : (role.permissions as string[]).length}
               </span>
             </p>
             <div className="mt-4 flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setEditing(role)}>
                 <Pencil className="size-3.5" />
-                Изменить
+                {t.edit}
               </Button>
               {!role.isSystem && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={async () => {
-                    if (!confirm(`Удалить роль ${role.name}?`)) return
+                    if (!confirm(t.deleteRoleConfirm.replace('{name}', role.name))) return
                     const res = await deleteRole(role.id)
-                    if (res.success) toast.success('Роль удалена')
-                    else toast.error(res.error ?? 'Ошибка')
+                    if (res.success) toast.success(t.toastRoleDeleted)
+                    else toast.error(res.error ?? t.genericError)
                   }}
                 >
                   <Trash2 className="size-3.5 text-destructive" />
@@ -403,6 +408,7 @@ function RolesTab({ roles }: { roles: Role[] }) {
       {(editing || creating) && (
         <RoleDialog
           role={editing}
+          t={t}
           onClose={() => {
             setEditing(null)
             setCreating(false)
@@ -413,7 +419,15 @@ function RolesTab({ roles }: { roles: Role[] }) {
   )
 }
 
-function RoleDialog({ role, onClose }: { role: Role | null; onClose: () => void }) {
+function RoleDialog({
+  role,
+  onClose,
+  t,
+}: {
+  role: Role | null
+  onClose: () => void
+  t: AdminDictionary['users']
+}) {
   const [pending, startTransition] = useTransition()
   const isAdminRole = role?.code === 'admin'
   const [name, setName] = useState(role?.name ?? '')
@@ -441,10 +455,10 @@ function RoleDialog({ role, onClose }: { role: Role | null; onClose: () => void 
         permissions: isAdminRole ? ['*'] : permissions,
       })
       if (res.success) {
-        toast.success('Роль сохранена')
+        toast.success(t.toastRoleSaved)
         onClose()
       } else {
-        toast.error(res.error ?? 'Ошибка')
+        toast.error(res.error ?? t.genericError)
       }
     })
   }
@@ -455,16 +469,16 @@ function RoleDialog({ role, onClose }: { role: Role | null; onClose: () => void 
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{role ? 'Редактирование роли' : 'Новая роль'}</DialogTitle>
+          <DialogTitle>{role ? t.dialogTitleEdit : t.dialogTitleCreate}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-2">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="r-name">Название</Label>
+              <Label htmlFor="r-name">{t.nameLabel}</Label>
               <Input id="r-name" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="r-code">Код</Label>
+              <Label htmlFor="r-code">{t.codeLabel}</Label>
               <Input
                 id="r-code"
                 value={code}
@@ -475,7 +489,7 @@ function RoleDialog({ role, onClose }: { role: Role | null; onClose: () => void 
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="r-desc">Описание</Label>
+            <Label htmlFor="r-desc">{t.descriptionLabel}</Label>
             <Input
               id="r-desc"
               value={description}
@@ -485,11 +499,11 @@ function RoleDialog({ role, onClose }: { role: Role | null; onClose: () => void 
 
           {isAdminRole ? (
             <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-              Роль администратора всегда имеет полный доступ ко всем разделам.
+              {t.adminRoleHint}
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <Label>Доступ к разделам</Label>
+              <Label>{t.sectionAccessLabel}</Label>
               {groups.map((group) => (
                 <div key={group}>
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -518,11 +532,11 @@ function RoleDialog({ role, onClose }: { role: Role | null; onClose: () => void 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Отмена
+            {t.cancel}
           </Button>
           <Button onClick={handleSave} disabled={pending || !name}>
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Сохранить
+            {t.save}
           </Button>
         </DialogFooter>
       </DialogContent>
