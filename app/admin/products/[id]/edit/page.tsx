@@ -75,6 +75,7 @@ export default async function EditProductPage({
       quantity: v.quantity ?? 0,
       image: v.image ?? '',
     })),
+    variantsEnabled: product.variantsEnabled ?? false,
   }
 
   return (

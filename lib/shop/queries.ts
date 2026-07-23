@@ -65,6 +65,8 @@ export type ShopProduct = {
   sizes: string[]
   options: ProductOption[]
   variants: ProductVariant[]
+  /** Whether the admin has turned on variant-based pricing/stock for this product. */
+  variantsEnabled: boolean
   isPopular: boolean
   sku: string | null
   /** Displayed purchase count: real orders + admin-set boost. */
@@ -109,6 +111,10 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
   const oldPrice = r.old_price != null ? Number(r.old_price) : null
   const quantity = Number(r.quantity ?? 0)
   const gallery = toStringArray(r.images)
+  // Variant options/prices only apply when the admin has explicitly enabled
+  // them for this product — otherwise the base price/quantity are the source
+  // of truth and any leftover variant rows are ignored on the storefront.
+  const variantsEnabled = Boolean(r.variants_enabled)
   return {
     id: Number(r.id),
     name: (r.name as string) ?? 'Товар',
@@ -123,8 +129,9 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     image: (r.image as string) ?? null,
     images: gallery,
     sizes: toStringArray(r.sizes),
-    options: toOptions(r.options),
+    options: variantsEnabled ? toOptions(r.options) : [],
     variants: [],
+    variantsEnabled,
     isPopular: Boolean(r.is_popular),
     sku: (r.sku as string) ?? null,
     purchasedCount: Number(r.orders_count ?? 0) + Number(r.purchases_boost ?? 0),
@@ -158,6 +165,7 @@ function buildProductSelect(locale: Locale = 'uk') {
     sku: products.sku,
     orders_count: products.ordersCount,
     purchases_boost: products.purchasesBoost,
+    variants_enabled: products.variantsEnabled,
   }
 }
 
@@ -404,21 +412,23 @@ async function _getProductById(id: number, locale: Locale = 'uk') {
       .orderBy(asc(productVariants.sortOrder), asc(productVariants.id)),
   ])
   const product = toShopProduct(row as Record<string, unknown>)
-  product.variants = variantRows.map((v) => {
-    const vq = Number(v.quantity ?? 0)
-    const vp = Number(v.price ?? 0)
-    const vop = v.oldPrice != null ? Number(v.oldPrice) : null
-    return {
-      id: v.id,
-      options: (v.options ?? {}) as VariantOptions,
-      sku: v.sku ?? null,
-      price: vp,
-      oldPrice: vop && vop > vp ? vop : null,
-      quantity: vq,
-      inStock: Boolean(v.isInStock) && vq > 0,
-      image: v.image ?? null,
-    }
-  })
+  product.variants = product.variantsEnabled
+    ? variantRows.map((v) => {
+        const vq = Number(v.quantity ?? 0)
+        const vp = Number(v.price ?? 0)
+        const vop = v.oldPrice != null ? Number(v.oldPrice) : null
+        return {
+          id: v.id,
+          options: (v.options ?? {}) as VariantOptions,
+          sku: v.sku ?? null,
+          price: vp,
+          oldPrice: vop && vop > vp ? vop : null,
+          quantity: vq,
+          inStock: Boolean(v.isInStock) && vq > 0,
+          image: v.image ?? null,
+        }
+      })
+    : []
   return {
     product,
     characteristics: chars,

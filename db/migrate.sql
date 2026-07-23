@@ -79,5 +79,16 @@ ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "merchant_feed" jsonb DEFA
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "min_order" jsonb DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "receipt_url" text;
 
+-- ---------- Товары: включатель вариантов (цвет/размер и т.д.) ----------
+-- По умолчанию false для новых товаров. Для уже существующих товаров, у
+-- которых уже настроены комбинации вариантов, включаем автоматически, чтобы
+-- их цена/остаток не «слетели» на агрегаты старого способа после апдейта.
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variants_enabled" boolean DEFAULT false NOT NULL;
+
+UPDATE "products" p
+SET "variants_enabled" = true
+WHERE EXISTS (SELECT 1 FROM "product_variants" pv WHERE pv."product_id" = p."id")
+  AND NOT p."variants_enabled";
+
 -- ---------- Готово ----------
 DO $$ BEGIN RAISE NOTICE 'Миграция применена успешно.'; END $$;

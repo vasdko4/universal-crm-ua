@@ -442,6 +442,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   "images" jsonb DEFAULT '[]'::jsonb,
   "sizes" jsonb DEFAULT '[]'::jsonb,
   "options" jsonb DEFAULT '[]'::jsonb,
+  "variants_enabled" boolean DEFAULT false NOT NULL,
   "is_visible" boolean DEFAULT true,
   "is_in_stock" boolean DEFAULT true,
   "is_popular" boolean DEFAULT false,

@@ -1494,7 +1494,12 @@ export type AdminDictionary = {
     stockTitle: string
     quantityLabel: string
     quantityHint: string
+    quantityHintVariants: string
     unitLabel: string
+    variantsActiveNotice: string
+    variantsToggleLabel: string
+    variantsToggleHint: string
+    variantsOffHint: string
     productCategoriesTitle: string
     noCategoriesHint: string
     createCategoryLink: string
@@ -3064,7 +3069,15 @@ const uk: AdminDictionary = {
     stockTitle: 'Наявність',
     quantityLabel: 'Кількість на складі',
     quantityHint: 'При нулі статус автоматично стане «Немає в наявності»',
+    quantityHintVariants: 'Сума залишків усіх комбінацій на вкладці «Варіанти»',
     unitLabel: 'Одиниця виміру',
+    variantsActiveNotice:
+      'Увімкнено варіанти товару — ціна та залишок нижче розраховуються автоматично за вкладкою «Варіанти» (мінімальна ціна серед комбінацій, сумарний залишок) і недоступні для ручного редагування. Щоб задавати їх вручну тут, вимкніть варіанти на вкладці «Варіанти».',
+    variantsToggleLabel: 'Увімкнути варіанти товару',
+    variantsToggleHint:
+      'Вибір за кольором, розміром тощо. Поки вимкнено — покупець бачить один товар з ціною та залишком з вкладки «Ціна та залишки»; нижче налаштовані комбінації не застосовуються (і дані не втрачаються).',
+    variantsOffHint:
+      'Увімкніть перемикач вище, щоб налаштувати осі вибору (колір, розмір тощо) і ціну/залишок для кожної комбінації.',
     productCategoriesTitle: 'Категорії товару',
     noCategoriesHint: 'Категорій поки немає.',
     createCategoryLink: 'Створити категорію',
@@ -4634,7 +4647,15 @@ const ru: AdminDictionary = {
     stockTitle: 'Наличие',
     quantityLabel: 'Количество на складе',
     quantityHint: 'При нуле статус автоматически станет «Нет в наличии»',
+    quantityHintVariants: 'Сумма остатков всех комбинаций во вкладке «Варианты»',
     unitLabel: 'Единица измерения',
+    variantsActiveNotice:
+      'Включены варианты товара — цена и остаток ниже рассчитываются автоматически по вкладке «Варианты» (минимальная цена среди комбинаций, суммарный остаток) и недоступны для ручного редактирования. Чтобы задавать их вручную здесь, выключите варианты на вкладке «Варианты».',
+    variantsToggleLabel: 'Включить варианты товара',
+    variantsToggleHint:
+      'Выбор по цвету, размеру и т.д. Пока выключено — покупатель видит один товар с ценой и остатком с вкладки «Цена и остатки»; ниже настроенные комбинации не применяются (и данные не теряются).',
+    variantsOffHint:
+      'Включите переключатель выше, чтобы настроить оси выбора (цвет, размер и т.д.) и цену/остаток для каждой комбинации.',
     productCategoriesTitle: 'Категории товара',
     noCategoriesHint: 'Категорий пока нет.',
     createCategoryLink: 'Создать категорию',
