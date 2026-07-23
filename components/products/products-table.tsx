@@ -63,6 +63,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { pluralize } from '@/lib/i18n/plural'
 
 const PER_PAGE = 10
 
@@ -86,6 +88,8 @@ export function ProductsTable({
   filters: ProductFilters
 }) {
   const router = useRouter()
+  const { dict } = useAdminI18n()
+  const t = dict.products
   const [isPending, startTransition] = useTransition()
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [searchValue, setSearchValue] = useState(filters.search ?? '')
@@ -138,7 +142,7 @@ export function ProductsTable({
         setSelected(new Set())
         router.refresh()
       } else {
-        toast.error(result.error ?? 'Произошла ошибка')
+        toast.error(result.error ?? t.toastGenericError)
       }
     })
   }
@@ -147,10 +151,10 @@ export function ProductsTable({
     startTransition(async () => {
       const result = await duplicateProduct(id)
       if (result.success) {
-        toast.success('Товар скопирован')
+        toast.success(t.toastCopied)
         router.refresh()
       } else {
-        toast.error(result.error ?? 'Ошибка копирования')
+        toast.error(result.error ?? t.toastCopyError)
       }
     })
   }
@@ -159,22 +163,22 @@ export function ProductsTable({
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-balance">Товары</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-balance">{t.title}</h1>
           <p className="text-sm text-muted-foreground">
-            {total} {total === 1 ? 'товар' : total < 5 && total > 0 ? 'товара' : 'товаров'} в каталоге
+            {total} {pluralize(total, t.countOne, t.countFew, t.countMany)} {t.inCatalog}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <a href="/api/admin/products/export" download>
               <Download className="size-4" />
-              Экспорт CSV
+              {t.exportCsv}
             </a>
           </Button>
           <Button asChild>
             <Link href="/admin/products/new">
               <Plus className="size-4" />
-              Добавить товар
+              {t.addProduct}
             </Link>
           </Button>
         </div>
@@ -186,20 +190,20 @@ export function ProductsTable({
           <Input
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Поиск по названию или артикулу…"
+            placeholder={t.searchPlaceholder}
             className="bg-card pl-8"
-            aria-label="Поиск товаров"
+            aria-label={t.searchPlaceholder}
           />
         </form>
         <Select
           value={filters.categoryId ? String(filters.categoryId) : 'all'}
           onValueChange={(v) => updateParams({ category: v === 'all' ? undefined : v })}
         >
-          <SelectTrigger className="w-44 bg-card" aria-label="Фильтр по категории">
-            <SelectValue placeholder="Категория" />
+          <SelectTrigger className="w-44 bg-card" aria-label={t.categoryPlaceholder}>
+            <SelectValue placeholder={t.categoryPlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Все категории</SelectItem>
+            <SelectItem value="all">{t.allCategories}</SelectItem>
             {categories.map((c) => (
               <SelectItem key={c.id} value={String(c.id)}>
                 {c.nameRu} ({c.productCount})
@@ -211,31 +215,31 @@ export function ProductsTable({
           value={filters.status ?? 'all'}
           onValueChange={(v) => updateParams({ status: v === 'all' ? undefined : v })}
         >
-          <SelectTrigger className="w-40 bg-card" aria-label="Фильтр по статусу">
-            <SelectValue placeholder="Статус" />
+          <SelectTrigger className="w-40 bg-card" aria-label={t.statusPlaceholder}>
+            <SelectValue placeholder={t.statusPlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Все статусы</SelectItem>
-            <SelectItem value="visible">Видимые</SelectItem>
-            <SelectItem value="hidden">Скрытые</SelectItem>
-            <SelectItem value="in_stock">В наличии</SelectItem>
-            <SelectItem value="out_of_stock">Нет в наличии</SelectItem>
-            <SelectItem value="popular">Популярные</SelectItem>
+            <SelectItem value="all">{t.allStatuses}</SelectItem>
+            <SelectItem value="visible">{t.visible}</SelectItem>
+            <SelectItem value="hidden">{t.hidden}</SelectItem>
+            <SelectItem value="in_stock">{t.inStock}</SelectItem>
+            <SelectItem value="out_of_stock">{t.outOfStock}</SelectItem>
+            <SelectItem value="popular">{t.popular}</SelectItem>
           </SelectContent>
         </Select>
         <Select
           value={filters.sort ?? 'newest'}
           onValueChange={(v) => updateParams({ sort: v === 'newest' ? undefined : v })}
         >
-          <SelectTrigger className="w-44 bg-card" aria-label="Сортировка">
-            <SelectValue placeholder="Сортировка" />
+          <SelectTrigger className="w-44 bg-card" aria-label={t.sortPlaceholder}>
+            <SelectValue placeholder={t.sortPlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="newest">Сначала новые</SelectItem>
-            <SelectItem value="oldest">Сначала старые</SelectItem>
-            <SelectItem value="price_asc">Цена: по возрастанию</SelectItem>
-            <SelectItem value="price_desc">Цена: по убыванию</SelectItem>
-            <SelectItem value="name">По названию</SelectItem>
+            <SelectItem value="newest">{t.sortNewest}</SelectItem>
+            <SelectItem value="oldest">{t.sortOldest}</SelectItem>
+            <SelectItem value="price_asc">{t.priceAsc}</SelectItem>
+            <SelectItem value="price_desc">{t.priceDesc}</SelectItem>
+            <SelectItem value="name">{t.byName}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -243,7 +247,7 @@ export function ProductsTable({
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-accent px-3 py-2">
           <span className="text-sm font-medium text-accent-foreground">
-            Выбрано: {selected.size}
+            {t.selectedCount}: {selected.size}
           </span>
           <div className="ml-auto flex flex-wrap gap-2">
             <Button
@@ -251,22 +255,22 @@ export function ProductsTable({
               variant="outline"
               disabled={isPending}
               onClick={() =>
-                runBulk(() => setProductsVisibility([...selected], true), 'Товары показаны')
+                runBulk(() => setProductsVisibility([...selected], true), t.toastShown)
               }
             >
               <Eye className="size-4" />
-              Показать
+              {t.show}
             </Button>
             <Button
               size="sm"
               variant="outline"
               disabled={isPending}
               onClick={() =>
-                runBulk(() => setProductsVisibility([...selected], false), 'Товары скрыты')
+                runBulk(() => setProductsVisibility([...selected], false), t.toastHidden)
               }
             >
               <EyeOff className="size-4" />
-              Скрыть
+              {t.hide}
             </Button>
             <Button
               size="sm"
@@ -275,7 +279,7 @@ export function ProductsTable({
               onClick={() => setDeleteTarget([...selected])}
             >
               <Trash2 className="size-4" />
-              В корзину
+              {t.toTrash}
             </Button>
           </div>
         </div>
@@ -289,16 +293,16 @@ export function ProductsTable({
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={toggleAll}
-                  aria-label="Выбрать все товары"
+                  aria-label={t.selectedCount}
                 />
               </TableHead>
-              <TableHead>Товар</TableHead>
-              <TableHead className="hidden md:table-cell">Артикул</TableHead>
-              <TableHead className="hidden lg:table-cell">Категории</TableHead>
-              <TableHead className="text-right">Цена</TableHead>
-              <TableHead className="hidden text-right lg:table-cell">Просмотры</TableHead>
-              <TableHead className="hidden text-right sm:table-cell">Остаток</TableHead>
-              <TableHead className="hidden sm:table-cell">Статус</TableHead>
+              <TableHead>{t.colProduct}</TableHead>
+              <TableHead className="hidden md:table-cell">{t.colSku}</TableHead>
+              <TableHead className="hidden lg:table-cell">{t.colCategories}</TableHead>
+              <TableHead className="text-right">{t.colPrice}</TableHead>
+              <TableHead className="hidden text-right lg:table-cell">{t.colViews}</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">{t.colStock}</TableHead>
+              <TableHead className="hidden sm:table-cell">{t.colStatus}</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -308,9 +312,9 @@ export function ProductsTable({
                 <TableCell colSpan={9} className="h-40 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Package className="size-8" />
-                    <p className="text-sm">Товары не найдены</p>
+                    <p className="text-sm">{t.notFound}</p>
                     <Button asChild size="sm" variant="outline">
-                      <Link href="/admin/products/new">Добавить первый товар</Link>
+                      <Link href="/admin/products/new">{t.addFirst}</Link>
                     </Button>
                   </div>
                 </TableCell>
@@ -326,7 +330,7 @@ export function ProductsTable({
                       <Checkbox
                         checked={selected.has(product.id)}
                         onCheckedChange={() => toggleOne(product.id)}
-                        aria-label={`Выбрать ${product.nameRu ?? product.nameUk}`}
+                        aria-label={product.nameRu ?? product.nameUk ?? ''}
                       />
                     </TableCell>
                     <TableCell>
@@ -335,7 +339,7 @@ export function ProductsTable({
                           {product.image ? (
                             <Image
                               src={product.image || "/placeholder.svg"}
-                              alt={product.nameRu ?? product.nameUk ?? 'Товар'}
+                              alt={product.nameRu ?? product.nameUk ?? t.noName}
                               fill
                               sizes="44px"
                               className="object-cover"
@@ -351,11 +355,11 @@ export function ProductsTable({
                             href={`/admin/products/${product.id}/edit`}
                             className="font-medium hover:text-primary hover:underline"
                           >
-                            {product.nameRu ?? product.nameUk ?? 'Без названия'}
+                            {product.nameRu ?? product.nameUk ?? t.noName}
                           </Link>
                           {product.isPopular && (
                             <Badge variant="secondary" className="ml-2 text-xs">
-                              Популярный
+                              {t.popularBadge}
                             </Badge>
                           )}
                         </div>
@@ -399,22 +403,22 @@ export function ProductsTable({
                       <div className="flex flex-wrap gap-1">
                         {product.quantity > 0 ? (
                           <Badge className="bg-success/15 text-success hover:bg-success/15">
-                            В наличии
+                            {t.inStock}
                           </Badge>
                         ) : (
                           <Badge variant="destructive" className="bg-destructive/15 text-destructive hover:bg-destructive/15">
-                            Нет в наличии
+                            {t.outOfStock}
                           </Badge>
                         )}
                         {!product.isVisible && (
-                          <Badge variant="secondary">Скрыт</Badge>
+                          <Badge variant="secondary">{t.hidden}</Badge>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-8" aria-label="Действия с товаром">
+                          <Button variant="ghost" size="icon" className="size-8" aria-label={t.colActions}>
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -422,23 +426,23 @@ export function ProductsTable({
                           <DropdownMenuItem asChild>
                             <Link href={`/admin/products/${product.id}/edit`}>
                               <Pencil className="size-4" />
-                              Редактировать
+                              {t.edit}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(product.id)}>
                             <Copy className="size-4" />
-                            Дублировать
+                            {t.duplicate}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() =>
                               runBulk(
                                 () => setProductsVisibility([product.id], !product.isVisible),
-                                product.isVisible ? 'Товар скрыт' : 'Товар показан'
+                                product.isVisible ? t.toastProductHidden : t.toastProductShown
                               )
                             }
                           >
                             {product.isVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                            {product.isVisible ? 'Скрыть' : 'Показать'}
+                            {product.isVisible ? t.hide : t.show}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -446,7 +450,7 @@ export function ProductsTable({
                             onClick={() => setDeleteTarget([product.id])}
                           >
                             <Trash2 className="size-4" />
-                            В корзину
+                            {t.toTrash}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -462,7 +466,7 @@ export function ProductsTable({
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Страница {page} из {totalPages}
+            {t.pageLabel} {page} {t.pageOf} {totalPages}
           </p>
           <div className="flex gap-2">
             <Button
@@ -472,7 +476,7 @@ export function ProductsTable({
               onClick={() => updateParams({ page: String(page - 1) })}
             >
               <ChevronLeft className="size-4" />
-              Назад
+              {t.back}
             </Button>
             <Button
               variant="outline"
@@ -480,7 +484,7 @@ export function ProductsTable({
               disabled={page >= totalPages}
               onClick={() => updateParams({ page: String(page + 1) })}
             >
-              Вперёд
+              {t.next}
               <ChevronRight className="size-4" />
             </Button>
           </div>
@@ -490,25 +494,25 @@ export function ProductsTable({
       <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Переместить в корзину?</AlertDialogTitle>
+            <AlertDialogTitle>{t.moveToTrashTitle}</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget?.length === 1
-                ? 'Товар будет перемещён в корзину. Его можно будет восстановить.'
-                : `${deleteTarget?.length ?? 0} товаров будут перемещены в корзину. Их можно будет восстановить.`}
+                ? t.moveToTrashDescSingle
+                : `${deleteTarget?.length ?? 0} ${t.moveToTrashDescMany}`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 if (deleteTarget) {
-                  runBulk(() => softDeleteProducts(deleteTarget), 'Перемещено в корзину')
+                  runBulk(() => softDeleteProducts(deleteTarget), t.toastMovedToTrash)
                 }
                 setDeleteTarget(null)
               }}
             >
-              В корзину
+              {t.toTrash}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

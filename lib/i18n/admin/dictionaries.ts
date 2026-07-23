@@ -136,6 +136,109 @@ export type AdminDictionary = {
     whatsapp: string
     sms: string
   }
+  products: {
+    title: string
+    countOne: string
+    countFew: string
+    countMany: string
+    inCatalog: string
+    exportCsv: string
+    addProduct: string
+    searchPlaceholder: string
+    categoryPlaceholder: string
+    allCategories: string
+    statusPlaceholder: string
+    allStatuses: string
+    visible: string
+    hidden: string
+    inStock: string
+    outOfStock: string
+    popular: string
+    sortPlaceholder: string
+    sortNewest: string
+    sortOldest: string
+    priceAsc: string
+    priceDesc: string
+    byName: string
+    selectedCount: string
+    show: string
+    hide: string
+    toTrash: string
+    colProduct: string
+    colSku: string
+    colCategories: string
+    colPrice: string
+    colViews: string
+    colStock: string
+    colStatus: string
+    colActions: string
+    notFound: string
+    addFirst: string
+    popularBadge: string
+    noName: string
+    edit: string
+    duplicate: string
+    pageLabel: string
+    pageOf: string
+    back: string
+    next: string
+    moveToTrashTitle: string
+    moveToTrashDescSingle: string
+    moveToTrashDescMany: string
+    cancel: string
+    toastShown: string
+    toastHidden: string
+    toastMovedToTrash: string
+    toastCopied: string
+    toastCopyError: string
+    toastGenericError: string
+    toastProductShown: string
+    toastProductHidden: string
+  }
+  categories: {
+    title: string
+    countOne: string
+    countFew: string
+    countMany: string
+    addCategory: string
+    colName: string
+    colSlug: string
+    colParent: string
+    colProducts: string
+    colVisibility: string
+    colActions: string
+    none: string
+    notFound: string
+    showAria: string
+    hideAria: string
+    visible: string
+    hidden: string
+    editAria: string
+    deleteAria: string
+    editTitle: string
+    newTitle: string
+    dialogHint: string
+    nameRu: string
+    nameUk: string
+    descriptionRu: string
+    parentCategory: string
+    noneRoot: string
+    sortOrder: string
+    showOnSite: string
+    cancel: string
+    save: string
+    create: string
+    deleteTitle: string
+    deleteDescription: string
+    deleteWithProducts: string
+    delete: string
+    toastFillBothLanguages: string
+    toastUpdated: string
+    toastCreated: string
+    toastSaveError: string
+    toastDeleted: string
+    toastDeleteError: string
+  }
 }
 
 const uk: AdminDictionary = {
@@ -297,6 +400,109 @@ const uk: AdminDictionary = {
     whatsapp: 'WhatsApp',
     sms: 'SMS',
   },
+  products: {
+    title: 'Товари',
+    countOne: 'товар',
+    countFew: 'товари',
+    countMany: 'товарів',
+    inCatalog: 'у каталозі',
+    exportCsv: 'Експорт CSV',
+    addProduct: 'Додати товар',
+    searchPlaceholder: 'Пошук за назвою або артикулом…',
+    categoryPlaceholder: 'Категорія',
+    allCategories: 'Всі категорії',
+    statusPlaceholder: 'Статус',
+    allStatuses: 'Всі статуси',
+    visible: 'Видимі',
+    hidden: 'Приховані',
+    inStock: 'В наявності',
+    outOfStock: 'Немає в наявності',
+    popular: 'Популярні',
+    sortPlaceholder: 'Сортування',
+    sortNewest: 'Спочатку нові',
+    sortOldest: 'Спочатку старі',
+    priceAsc: 'Ціна: за зростанням',
+    priceDesc: 'Ціна: за спаданням',
+    byName: 'За назвою',
+    selectedCount: 'Обрано',
+    show: 'Показати',
+    hide: 'Приховати',
+    toTrash: 'До кошика',
+    colProduct: 'Товар',
+    colSku: 'Артикул',
+    colCategories: 'Категорії',
+    colPrice: 'Ціна',
+    colViews: 'Перегляди',
+    colStock: 'Залишок',
+    colStatus: 'Статус',
+    colActions: 'Дії',
+    notFound: 'Товари не знайдено',
+    addFirst: 'Додати перший товар',
+    popularBadge: 'Популярний',
+    noName: 'Без назви',
+    edit: 'Редагувати',
+    duplicate: 'Дублювати',
+    pageLabel: 'Сторінка',
+    pageOf: 'з',
+    back: 'Назад',
+    next: 'Вперед',
+    moveToTrashTitle: 'Перемістити в кошик?',
+    moveToTrashDescSingle: 'Товар буде переміщено в кошик. Його можна буде відновити.',
+    moveToTrashDescMany: 'товарів будуть переміщені в кошик. Їх можна буде відновити.',
+    cancel: 'Скасувати',
+    toastShown: 'Товари показано',
+    toastHidden: 'Товари приховано',
+    toastMovedToTrash: 'Переміщено в кошик',
+    toastCopied: 'Товар скопійовано',
+    toastCopyError: 'Помилка копіювання',
+    toastGenericError: 'Сталася помилка',
+    toastProductShown: 'Товар показано',
+    toastProductHidden: 'Товар приховано',
+  },
+  categories: {
+    title: 'Категорії',
+    countOne: 'категорія',
+    countFew: 'категорії',
+    countMany: 'категорій',
+    addCategory: 'Додати категорію',
+    colName: 'Назва',
+    colSlug: 'Slug',
+    colParent: 'Батьківська',
+    colProducts: 'Товарів',
+    colVisibility: 'Видимість',
+    colActions: 'Дії',
+    none: 'Немає',
+    notFound: 'Категорій поки немає',
+    showAria: 'Показати категорію',
+    hideAria: 'Приховати категорію',
+    visible: 'Видима',
+    hidden: 'Прихована',
+    editAria: 'Редагувати',
+    deleteAria: 'Видалити',
+    editTitle: 'Редагувати категорію',
+    newTitle: 'Нова категорія',
+    dialogHint: 'Назва заповнюється двома мовами, slug створюється автоматично.',
+    nameRu: 'Назва (RU) *',
+    nameUk: 'Назва (UK) *',
+    descriptionRu: 'Опис (RU)',
+    parentCategory: 'Батьківська категорія',
+    noneRoot: 'Немає (коренева)',
+    sortOrder: 'Порядок сортування',
+    showOnSite: 'Показувати на сайті',
+    cancel: 'Скасувати',
+    save: 'Зберегти',
+    create: 'Створити',
+    deleteTitle: 'Видалити категорію?',
+    deleteDescription: 'буде видалена без можливості відновлення.',
+    deleteWithProducts: 'Зв’язки з товарами також будуть видалені.',
+    delete: 'Видалити',
+    toastFillBothLanguages: 'Заповніть назву обома мовами',
+    toastUpdated: 'Категорію оновлено',
+    toastCreated: 'Категорію створено',
+    toastSaveError: 'Помилка збереження',
+    toastDeleted: 'Категорію видалено',
+    toastDeleteError: 'Помилка видалення',
+  },
 }
 
 const ru: AdminDictionary = {
@@ -457,6 +663,109 @@ const ru: AdminDictionary = {
     telegram: 'Telegram',
     whatsapp: 'WhatsApp',
     sms: 'SMS',
+  },
+  products: {
+    title: 'Товары',
+    countOne: 'товар',
+    countFew: 'товара',
+    countMany: 'товаров',
+    inCatalog: 'в каталоге',
+    exportCsv: 'Экспорт CSV',
+    addProduct: 'Добавить товар',
+    searchPlaceholder: 'Поиск по названию или артикулу…',
+    categoryPlaceholder: 'Категория',
+    allCategories: 'Все категории',
+    statusPlaceholder: 'Статус',
+    allStatuses: 'Все статусы',
+    visible: 'Видимые',
+    hidden: 'Скрытые',
+    inStock: 'В наличии',
+    outOfStock: 'Нет в наличии',
+    popular: 'Популярные',
+    sortPlaceholder: 'Сортировка',
+    sortNewest: 'Сначала новые',
+    sortOldest: 'Сначала старые',
+    priceAsc: 'Цена: по возрастанию',
+    priceDesc: 'Цена: по убыванию',
+    byName: 'По названию',
+    selectedCount: 'Выбрано',
+    show: 'Показать',
+    hide: 'Скрыть',
+    toTrash: 'В корзину',
+    colProduct: 'Товар',
+    colSku: 'Артикул',
+    colCategories: 'Категории',
+    colPrice: 'Цена',
+    colViews: 'Просмотры',
+    colStock: 'Остаток',
+    colStatus: 'Статус',
+    colActions: 'Действия',
+    notFound: 'Товары не найдены',
+    addFirst: 'Добавить первый товар',
+    popularBadge: 'Популярный',
+    noName: 'Без названия',
+    edit: 'Редактировать',
+    duplicate: 'Дублировать',
+    pageLabel: 'Страница',
+    pageOf: 'из',
+    back: 'Назад',
+    next: 'Вперёд',
+    moveToTrashTitle: 'Переместить в корзину?',
+    moveToTrashDescSingle: 'Товар будет перемещён в корзину. Его можно будет восстановить.',
+    moveToTrashDescMany: 'товаров будут перемещены в корзину. Их можно будет восстановить.',
+    cancel: 'Отмена',
+    toastShown: 'Товары показаны',
+    toastHidden: 'Товары скрыты',
+    toastMovedToTrash: 'Перемещено в корзину',
+    toastCopied: 'Товар скопирован',
+    toastCopyError: 'Ошибка копирования',
+    toastGenericError: 'Произошла ошибка',
+    toastProductShown: 'Товар показан',
+    toastProductHidden: 'Товар скрыт',
+  },
+  categories: {
+    title: 'Категории',
+    countOne: 'категория',
+    countFew: 'категории',
+    countMany: 'категорий',
+    addCategory: 'Добавить категорию',
+    colName: 'Название',
+    colSlug: 'Slug',
+    colParent: 'Родитель',
+    colProducts: 'Товаров',
+    colVisibility: 'Видимость',
+    colActions: 'Действия',
+    none: 'Нет',
+    notFound: 'Категорий пока нет',
+    showAria: 'Показать категорию',
+    hideAria: 'Скрыть категорию',
+    visible: 'Видима',
+    hidden: 'Скрыта',
+    editAria: 'Редактировать',
+    deleteAria: 'Удалить',
+    editTitle: 'Редактировать категорию',
+    newTitle: 'Новая категория',
+    dialogHint: 'Название заполняется на двух языках, slug создаётся автоматически.',
+    nameRu: 'Название (RU) *',
+    nameUk: 'Название (UK) *',
+    descriptionRu: 'Описание (RU)',
+    parentCategory: 'Родительская категория',
+    noneRoot: 'Нет (корневая)',
+    sortOrder: 'Порядок сортировки',
+    showOnSite: 'Показывать на сайте',
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    create: 'Создать',
+    deleteTitle: 'Удалить категорию?',
+    deleteDescription: 'будет удалена без возможности восстановления.',
+    deleteWithProducts: 'Связи с товарами также будут удалены.',
+    delete: 'Удалить',
+    toastFillBothLanguages: 'Заполните название на обоих языках',
+    toastUpdated: 'Категория обновлена',
+    toastCreated: 'Категория создана',
+    toastSaveError: 'Ошибка сохранения',
+    toastDeleted: 'Категория удалена',
+    toastDeleteError: 'Ошибка удаления',
   },
 }
 
