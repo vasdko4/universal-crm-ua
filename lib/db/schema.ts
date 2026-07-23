@@ -523,6 +523,14 @@ export const orders = pgTable('orders', {
   deliveryCost: numeric('delivery_cost', { precision: 12, scale: 2 }).notNull().default('0'),
   discountTotal: numeric('discount_total', { precision: 12, scale: 2 }).notNull().default('0'),
   promoCode: varchar('promo_code', { length: 80 }),
+  // Automatic ("type: discount") promotion applied on top of/instead of the
+  // manually-entered promoCode above — see findBestAutomaticDiscount in
+  // app/actions/promotions.ts. autoDiscountAmount is the slice of
+  // discountTotal contributed by this promotion (the rest, if any, comes from
+  // promoCode) so fulfillment can record usage against the right promotion(s)
+  // without double-counting.
+  autoDiscountId: integer('auto_discount_id'),
+  autoDiscountAmount: numeric('auto_discount_amount', { precision: 12, scale: 2 }),
   total: numeric('total', { precision: 12, scale: 2 }).notNull().default('0'),
   itemsCount: integer('items_count').notNull().default(0),
   currency: varchar('currency', { length: 10 }).notNull().default('UAH'),

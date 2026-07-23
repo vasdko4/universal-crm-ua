@@ -33,7 +33,7 @@ import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import { searchCities, searchWarehouses } from '@/app/actions/nova-poshta'
 import { createStorefrontOrder, type CheckoutResult } from '@/app/actions/shop'
 import { saveAbandonedCart } from '@/app/actions/abandoned-carts'
-import { validatePromoCode } from '@/app/actions/promotions'
+import { validatePromoCode, previewAutomaticDiscount } from '@/app/actions/promotions'
 import { saveUserAddress, deleteUserAddress, type UserAddress } from '@/app/actions/addresses'
 import { toast } from 'sonner'
 import { useSession } from '@/lib/auth-client'
@@ -140,16 +140,47 @@ export function CheckoutFlow({
   const [promoInput, setPromoInput] = useState('')
   const [promoChecking, setPromoChecking] = useState(false)
   const [promoError, setPromoError] = useState<string | null>(null)
-  const [applied, setApplied] = useState<{ code: string; name: string; discount: number } | null>(null)
+  const [applied, setApplied] = useState<{ code: string; name: string; discount: number; noStacking: boolean } | null>(null)
 
-  // Discount is capped at the subtotal; total never goes below zero.
-  const discount = applied ? Math.min(applied.discount, subtotal) : 0
-  const total = Math.max(0, subtotal - discount)
+  // Automatic ("type: discount") promotion — applies with no code needed, so
+  // it's looked up/previewed automatically whenever the cart changes rather
+  // than via a user action like the promo code above.
+  const [autoDiscount, setAutoDiscount] = useState<{ name: string; discount: number; noStacking: boolean } | null>(null)
 
   const promoLines = useMemo(
     () => items.map((i) => ({ productId: i.id, price: i.price, quantity: i.quantity })),
     [items],
   )
+
+  useEffect(() => {
+    let cancelled = false
+    previewAutomaticDiscount(promoLines).then((res) => {
+      if (cancelled) return
+      setAutoDiscount(res.ok ? { name: res.name, discount: res.discount, noStacking: res.noStacking } : null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [promoLines])
+
+  // Either side of a promo-code + automatic-discount combo can veto stacking:
+  // when that happens only the larger discount is used (never both, never
+  // silently the smaller one) — this must mirror createStorefrontOrder's
+  // authoritative combination logic exactly so the preview never overstates
+  // the total the customer will actually pay.
+  const manualAmount = applied ? applied.discount : 0
+  const autoAmount = autoDiscount ? autoDiscount.discount : 0
+  const noStack = (applied?.noStacking ?? false) || (autoDiscount?.noStacking ?? false)
+  const combinedDiscount =
+    manualAmount > 0 && autoAmount > 0
+      ? noStack
+        ? Math.max(manualAmount, autoAmount)
+        : manualAmount + autoAmount
+      : manualAmount + autoAmount
+
+  // Discount is capped at the subtotal; total never goes below zero.
+  const discount = Math.min(combinedDiscount, subtotal)
+  const total = Math.max(0, subtotal - discount)
 
   async function applyPromo() {
     const code = promoInput.trim()
@@ -163,7 +194,7 @@ export function CheckoutFlow({
         setPromoError(res.error)
         return
       }
-      setApplied({ code: res.code, name: res.name, discount: res.discount })
+      setApplied({ code: res.code, name: res.name, discount: res.discount, noStacking: res.noStacking })
     } finally {
       setPromoChecking(false)
     }
@@ -186,7 +217,7 @@ export function CheckoutFlow({
         setApplied(null)
         setPromoError(res.error)
       } else {
-        setApplied({ code: res.code, name: res.name, discount: res.discount })
+        setApplied({ code: res.code, name: res.name, discount: res.discount, noStacking: res.noStacking })
       }
     })
     return () => {
@@ -1095,7 +1126,10 @@ export function CheckoutFlow({
           </div>
           {discount > 0 && (
             <div className="mt-2 flex justify-between text-sm">
-              <span className="text-muted-foreground">{t.discount}</span>
+              <span className="text-muted-foreground">
+                {t.discount}
+                {!noStack && autoAmount > 0 && autoDiscount ? ` (${autoDiscount.name})` : ''}
+              </span>
               <span className="font-medium text-primary">−{formatPrice(discount)}</span>
             </div>
           )}

@@ -219,6 +219,8 @@ CREATE TABLE IF NOT EXISTS "orders" (
   "updated_at" timestamptz DEFAULT now(),
   "user_id" text,
   "promo_code" varchar(80),
+  "auto_discount_id" integer,
+  "auto_discount_amount" numeric(12,2),
   "stock_restored" boolean DEFAULT false NOT NULL,
   "utm_source" varchar(150),
   "utm_medium" varchar(150),

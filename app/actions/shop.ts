@@ -24,7 +24,7 @@ import {
   monobankCheckStatus,
 } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
-import { evaluatePromoCode } from '@/app/actions/promotions'
+import { evaluatePromoCode, findBestAutomaticDiscount } from '@/app/actions/promotions'
 import { applyOrderFulfillment, finalizePaidOrder } from '@/lib/shop/order-fulfillment'
 import { notifyNewOrder } from '@/lib/notifications'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
@@ -262,18 +262,48 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     }
   }
 
-  // Authoritatively re-evaluate the promo code (never trust a client discount).
-  // Only the code + amount are persisted here; usage is recorded at fulfillment.
+  // Authoritatively re-evaluate the promo code AND any automatic ("type:
+  // discount") promotion (never trust a client discount). Only the resulting
+  // code/amounts are persisted here; usage is recorded at fulfillment.
+  const promoLines = lineItems.map((i) => ({ productId: i.productId, price: i.price, quantity: i.quantity }))
+
+  let manualPromo: Awaited<ReturnType<typeof evaluatePromoCode>> | null = null
+  if (input.promoCode?.trim()) {
+    manualPromo = await evaluatePromoCode(input.promoCode, promoLines)
+    if (!manualPromo.ok) return { success: false, error: manualPromo.error }
+  }
+  const autoPromo = await findBestAutomaticDiscount(promoLines)
+
   let discount = 0
   let appliedPromoCode: string | null = null
-  if (input.promoCode?.trim()) {
-    const promo = await evaluatePromoCode(
-      input.promoCode,
-      lineItems.map((i) => ({ productId: i.productId, price: i.price, quantity: i.quantity })),
-    )
-    if (!promo.ok) return { success: false, error: promo.error }
-    discount = promo.discount
-    appliedPromoCode = promo.code
+  let autoDiscountId: number | null = null
+  let autoDiscountAmount = 0
+
+  if (manualPromo?.ok && autoPromo.ok) {
+    // Either side can veto combining discounts — if so, only the larger of
+    // the two applies (never both, and never silently the smaller one).
+    if (manualPromo.noStacking || autoPromo.noStacking) {
+      if (manualPromo.discount >= autoPromo.discount) {
+        discount = manualPromo.discount
+        appliedPromoCode = manualPromo.code
+      } else {
+        discount = autoPromo.discount
+        autoDiscountId = autoPromo.promotionId
+        autoDiscountAmount = autoPromo.discount
+      }
+    } else {
+      appliedPromoCode = manualPromo.code
+      autoDiscountId = autoPromo.promotionId
+      autoDiscountAmount = autoPromo.discount
+      discount = Math.min(manualPromo.discount + autoPromo.discount, itemsTotal)
+    }
+  } else if (manualPromo?.ok) {
+    discount = manualPromo.discount
+    appliedPromoCode = manualPromo.code
+  } else if (autoPromo.ok) {
+    discount = autoPromo.discount
+    autoDiscountId = autoPromo.promotionId
+    autoDiscountAmount = autoPromo.discount
   }
 
   const total = Math.max(0, itemsTotal - discount)
@@ -330,6 +360,8 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       deliveryCost: '0',
       discountTotal: discount.toFixed(2),
       promoCode: appliedPromoCode,
+      autoDiscountId,
+      autoDiscountAmount: autoDiscountId ? autoDiscountAmount.toFixed(2) : null,
       total: total.toFixed(2),
       itemsCount,
       note: input.note || null,

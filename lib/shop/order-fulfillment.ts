@@ -95,9 +95,17 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
       .catch(() => {})
   }
 
-  // Promo usage + timeline note (resolve the promotion by its saved code).
-  const discount = Number(order.discountTotal)
-  if (order.promoCode && discount > 0) {
+  // Promo usage + timeline note. discountTotal can be the sum of a manually
+  // entered promo code AND an automatic ("type: discount") promotion applied
+  // at the same time (see createStorefrontOrder) — autoDiscountAmount is the
+  // slice attributed to the automatic promotion, the remainder (if any) to
+  // the promo code, so both get their usage stats recorded without
+  // double-counting either one.
+  const totalDiscount = Number(order.discountTotal)
+  const autoAmount = Number(order.autoDiscountAmount || 0)
+  const manualAmount = Math.max(0, totalDiscount - autoAmount)
+
+  if (order.promoCode && manualAmount > 0) {
     const [promo] = await db
       .select({ id: promotions.id })
       .from(promotions)
@@ -108,18 +116,36 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
         promotionId: promo.id,
         orderReference: order.orderNumber,
         orderAmount: total,
-        discountAmount: discount,
+        discountAmount: manualAmount,
       }).catch(() => {})
       await db
         .insert(orderHistory)
         .values({
           orderId,
           type: 'note',
-          message: `Применён промокод ${order.promoCode} — скидка ${discount.toFixed(2)} грн`,
+          message: `Применён промокод ${order.promoCode} — скидка ${manualAmount.toFixed(2)} грн`,
           actor: order.customerName ?? 'Система',
         })
         .catch(() => {})
     }
+  }
+
+  if (order.autoDiscountId && autoAmount > 0) {
+    await recordPromotionUsage({
+      promotionId: order.autoDiscountId,
+      orderReference: order.orderNumber,
+      orderAmount: total,
+      discountAmount: autoAmount,
+    }).catch(() => {})
+    await db
+      .insert(orderHistory)
+      .values({
+        orderId,
+        type: 'note',
+        message: `Применена автоматическая скидка — ${autoAmount.toFixed(2)} грн`,
+        actor: order.customerName ?? 'Система',
+      })
+      .catch(() => {})
   }
 
   // Record the sale for analytics.
