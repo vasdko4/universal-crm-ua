@@ -196,7 +196,59 @@ export type PromoEvaluation =
       discountType: 'percentage' | 'fixed'
       discountValue: number
       discount: number
+      noStacking: boolean
     }
+
+type PromotionRow = typeof promotions.$inferSelect
+
+// Shared eligibility + discount-amount calculation for a single promotion
+// row, used by both the promo-code path (evaluatePromoCode) and the
+// automatic-discount path (findBestAutomaticDiscount) so the two can never
+// drift apart on targeting/date/limit rules.
+async function computePromoDiscount(
+  promo: PromotionRow,
+  lines: PromoCartLine[],
+): Promise<{ discount: number } | { error: 'inactive' | 'not_yet_active' | 'expired' | 'usage_limit' | 'min_order' | 'not_applicable' | 'no_discount'; minOrderAmount?: number }> {
+  if (!promo.isActive) return { error: 'inactive' }
+  const now = new Date()
+  if (promo.startsAt && new Date(promo.startsAt) > now) return { error: 'not_yet_active' }
+  if (promo.endsAt && new Date(promo.endsAt) < now) return { error: 'expired' }
+  if (promo.usageLimit != null && promo.usedCount >= promo.usageLimit) return { error: 'usage_limit' }
+
+  const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0)
+  if (promo.minOrderAmount != null && subtotal < Number(promo.minOrderAmount)) {
+    return { error: 'min_order', minOrderAmount: Number(promo.minOrderAmount) }
+  }
+
+  // Determine which line items the promo applies to.
+  let eligibleBase = subtotal
+  if (promo.targetType === 'products') {
+    const targetIds = new Set((promo.targetProductIds as number[]) ?? [])
+    eligibleBase = lines.filter((l) => targetIds.has(l.productId)).reduce((s, l) => s + l.price * l.quantity, 0)
+  } else if (promo.targetType === 'groups') {
+    const groupIds = (promo.targetGroupIds as number[]) ?? []
+    const productIds = lines.map((l) => l.productId)
+    const memberRows =
+      groupIds.length && productIds.length
+        ? await db
+            .select({ productId: productGroupItems.productId })
+            .from(productGroupItems)
+            .where(and(inArray(productGroupItems.groupId, groupIds), inArray(productGroupItems.productId, productIds)))
+        : []
+    const memberSet = new Set(memberRows.map((r) => r.productId))
+    eligibleBase = lines.filter((l) => memberSet.has(l.productId)).reduce((s, l) => s + l.price * l.quantity, 0)
+  }
+
+  if (eligibleBase <= 0) return { error: 'not_applicable' }
+
+  const value = Number(promo.discountValue)
+  let discount = promo.discountType === 'percentage' ? (eligibleBase * value) / 100 : Math.min(value, eligibleBase)
+  discount = Math.min(discount, subtotal)
+  discount = Math.round(discount * 100) / 100
+  if (discount <= 0) return { error: 'no_discount' }
+
+  return { discount }
+}
 
 // Core promo-code logic shared by the checkout UI (preview) and order creation
 // (authoritative). Never trusts client prices — callers pass DB-derived lines.
@@ -221,49 +273,26 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
     .limit(1)
 
   if (!promo) return { ok: false, error: t.promoNotFound }
-  if (!promo.isActive) return { ok: false, error: t.promoInactive }
 
-  const now = new Date()
-  if (promo.startsAt && new Date(promo.startsAt) > now) return { ok: false, error: t.promoNotYetActive }
-  if (promo.endsAt && new Date(promo.endsAt) < now) return { ok: false, error: t.promoExpired }
-  if (promo.usageLimit != null && promo.usedCount >= promo.usageLimit) {
-    return { ok: false, error: t.promoUsageLimitReached }
+  const result = await computePromoDiscount(promo, lines)
+  if ('error' in result) {
+    switch (result.error) {
+      case 'inactive':
+        return { ok: false, error: t.promoInactive }
+      case 'not_yet_active':
+        return { ok: false, error: t.promoNotYetActive }
+      case 'expired':
+        return { ok: false, error: t.promoExpired }
+      case 'usage_limit':
+        return { ok: false, error: t.promoUsageLimitReached }
+      case 'min_order':
+        return { ok: false, error: fillTemplate(t.promoMinOrder, { amount: result.minOrderAmount ?? 0 }) }
+      case 'not_applicable':
+        return { ok: false, error: t.promoNotApplicable }
+      case 'no_discount':
+        return { ok: false, error: t.promoNoDiscount }
+    }
   }
-
-  const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0)
-  if (promo.minOrderAmount != null && subtotal < Number(promo.minOrderAmount)) {
-    return { ok: false, error: fillTemplate(t.promoMinOrder, { amount: Number(promo.minOrderAmount) }) }
-  }
-
-  // Determine which line items the promo applies to.
-  let eligibleBase = subtotal
-  if (promo.targetType === 'products') {
-    const targetIds = new Set((promo.targetProductIds as number[]) ?? [])
-    eligibleBase = lines.filter((l) => targetIds.has(l.productId)).reduce((s, l) => s + l.price * l.quantity, 0)
-  } else if (promo.targetType === 'groups') {
-    const groupIds = (promo.targetGroupIds as number[]) ?? []
-    const productIds = lines.map((l) => l.productId)
-    const memberRows =
-      groupIds.length && productIds.length
-        ? await db
-            .select({ productId: productGroupItems.productId })
-            .from(productGroupItems)
-            .where(and(inArray(productGroupItems.groupId, groupIds), inArray(productGroupItems.productId, productIds)))
-        : []
-    const memberSet = new Set(memberRows.map((r) => r.productId))
-    eligibleBase = lines.filter((l) => memberSet.has(l.productId)).reduce((s, l) => s + l.price * l.quantity, 0)
-  }
-
-  if (eligibleBase <= 0) {
-    return { ok: false, error: t.promoNotApplicable }
-  }
-
-  const value = Number(promo.discountValue)
-  let discount =
-    promo.discountType === 'percentage' ? (eligibleBase * value) / 100 : Math.min(value, eligibleBase)
-  discount = Math.min(discount, subtotal)
-  discount = Math.round(discount * 100) / 100
-  if (discount <= 0) return { ok: false, error: t.promoNoDiscount }
 
   return {
     ok: true,
@@ -271,8 +300,9 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
     name: promo.name,
     code,
     discountType: promo.discountType as 'percentage' | 'fixed',
-    discountValue: value,
-    discount,
+    discountValue: Number(promo.discountValue),
+    discount: result.discount,
+    noStacking: promo.noStacking,
   }
 }
 
@@ -286,6 +316,51 @@ export async function validatePromoCode(code: string, lines: PromoCartLine[]): P
     quantity: Math.max(1, Math.floor(l.quantity)),
   }))
   return evaluatePromoCode(code, safeLines)
+}
+
+// Finds the best (highest-discount) currently-active automatic promotion
+// ("Скидка" / type: 'discount') applicable to this cart, with no promo code
+// needed. Previously these promotions were configurable in the admin panel
+// but never actually looked up or applied anywhere — this is the one place
+// that changes. Never trusts client prices — callers pass DB-derived lines.
+export async function findBestAutomaticDiscount(lines: PromoCartLine[]): Promise<PromoEvaluation> {
+  if (!lines.length) return { ok: false, error: '' }
+
+  const candidates = await db
+    .select()
+    .from(promotions)
+    .where(and(eq(promotions.type, 'discount'), eq(promotions.isActive, true)))
+
+  let best: (PromoEvaluation & { ok: true }) | null = null
+  for (const promo of candidates) {
+    const result = await computePromoDiscount(promo, lines)
+    if ('error' in result) continue
+    if (!best || result.discount > best.discount) {
+      best = {
+        ok: true,
+        promotionId: promo.id,
+        name: promo.name,
+        code: '',
+        discountType: promo.discountType as 'percentage' | 'fixed',
+        discountValue: Number(promo.discountValue),
+        discount: result.discount,
+        noStacking: promo.noStacking,
+      }
+    }
+  }
+  return best ?? { ok: false, error: '' }
+}
+
+// Public action used by the checkout UI to preview the automatic discount
+// against the current cart, so it can be shown to the shopper before they
+// place the order (createStorefrontOrder re-evaluates authoritatively).
+export async function previewAutomaticDiscount(lines: PromoCartLine[]): Promise<PromoEvaluation> {
+  const safeLines = (lines ?? []).map((l) => ({
+    productId: l.productId,
+    price: Math.max(0, Number(l.price) || 0),
+    quantity: Math.max(1, Math.floor(l.quantity)),
+  }))
+  return findBestAutomaticDiscount(safeLines)
 }
 
 // Записать факт применения акции к заказу и пересчитать статистику.

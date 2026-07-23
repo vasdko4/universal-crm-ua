@@ -52,7 +52,14 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
   const [limitMinOrder, setLimitMinOrder] = useState(false)
   const [minOrderAmount, setMinOrderAmount] = useState('')
   const [noStacking, setNoStacking] = useState(false)
-  const [excludeWholesale, setExcludeWholesale] = useState(false)
+  // "Не применять к оптовым ценам" was removed from this form: the project
+  // has no wholesale-pricing concept anywhere (no wholesale price field on
+  // products/customers), so the checkbox had literally nothing to exclude
+  // from — it saved a value to the DB that no code ever read. Left the
+  // schema column in place (harmless) in case wholesale pricing is built
+  // later, but stopped exposing/settable it here to avoid promising
+  // behavior that doesn't exist.
+  const excludeWholesale = false
 
   const [startsAt, setStartsAt] = useState(todayStr())
   const [hasEnd, setHasEnd] = useState(false)
@@ -101,7 +108,6 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
     if (limitUsage && usageLimit) limits.push(`${t.promotions.summaryLimitUsagePrefix} ${usageLimit}`)
     if (limitMinOrder && minOrderAmount) limits.push(`${t.promotions.summaryLimitMinOrderPrefix} ${minOrderAmount} ₴`)
     if (noStacking) limits.push(t.promotions.summaryNoStacking)
-    if (excludeWholesale) limits.push(t.promotions.summaryExcludeWholesale)
     rows.push({
       label: t.promotions.summaryLimitsLabel,
       value: limits.length ? limits.join(', ') : t.promotions.summaryNone,
@@ -118,7 +124,7 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
     return rows
   }, [
     t, type, name, discountType, discountValue, promoCode, targetType, groupIds, productIds,
-    limitUsage, usageLimit, limitMinOrder, minOrderAmount, noStacking, excludeWholesale,
+    limitUsage, usageLimit, limitMinOrder, minOrderAmount, noStacking,
     startsAt, hasEnd, endsAt,
   ])
 
@@ -379,11 +385,6 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
                 checked={noStacking}
                 onChange={setNoStacking}
                 title={t.promotions.noStackingTitle}
-              />
-              <CheckRow
-                checked={excludeWholesale}
-                onChange={setExcludeWholesale}
-                title={t.promotions.excludeWholesaleTitle}
               />
             </div>
           </section>

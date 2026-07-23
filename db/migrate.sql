@@ -100,5 +100,14 @@ CREATE TABLE IF NOT EXISTS "locale_by_ip" (
   "updated_at" timestamptz DEFAULT now() NOT NULL
 );
 
+-- ---------- Автоматические скидки (акции без промокода) ----------
+-- Раньше акции с type='discount' сохранялись в админке, но никогда не
+-- применялись ни в корзине, ни при оформлении заказа — эти колонки нужны,
+-- чтобы отследить, какая автоматическая акция и на какую сумму применена к
+-- заказу (отдельно от вручную введённого promo_code), для точной статистики
+-- использования в /admin/promotions.
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "auto_discount_id" integer;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "auto_discount_amount" numeric(12,2);
+
 -- ---------- Готово ----------
 DO $$ BEGIN RAISE NOTICE 'Миграция применена успешно.'; END $$;
