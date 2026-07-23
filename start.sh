@@ -102,9 +102,14 @@ if [ ! -f .env ]; then
   }
   AUTH_SECRET=$(gen_secret)
   CRON_SECRET_VAL=$(gen_secret)
+  UPDATER_SECRET_VAL=$(gen_secret)
   DB_PASSWORD=$(gen_password)
   FTP_USER_VAL="techno"
   FTP_PASSWORD_VAL=$(gen_password)
+  # Project name docker-compose derives from this directory's name — pinned
+  # into .env so the "Обновления" admin page's self-update sidecar always
+  # targets *this* stack, even if it's ever invoked from a different path.
+  PROJECT_NAME_VAL="$(basename "$PWD")"
 
   cat > .env <<ENVEOF
 # Сгенерировано автоматически скриптом start.sh
@@ -117,6 +122,12 @@ NEXT_PUBLIC_SITE_URL=${PUBLIC_URL}
 # Секреты (сгенерированы автоматически).
 BETTER_AUTH_SECRET=${AUTH_SECRET}
 CRON_SECRET=${CRON_SECRET_VAL}
+UPDATER_SECRET=${UPDATER_SECRET_VAL}
+
+# Имя проекта docker-compose (= эта папка) — нужно для сайдкара автообновления
+# (страница /admin/updates → «Обновить»), чтобы он гарантированно обновлял
+# именно этот стек контейнеров.
+COMPOSE_PROJECT_NAME=${PROJECT_NAME_VAL}
 
 # Пользователь БД: techno / пароль ниже (создаётся при первом запуске).
 POSTGRES_PASSWORD=${DB_PASSWORD}

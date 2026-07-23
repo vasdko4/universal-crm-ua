@@ -481,6 +481,25 @@ export type AdminDictionary = {
     toastSettingsSaved: string
     toastSettingsSaveError: string
   }
+  updates: {
+    title: string
+    subtitle: string
+    currentVersionLabel: string
+    latestVersionLabel: string
+    upToDate: string
+    updateAvailable: string
+    checkErrorTitle: string
+    checkErrorDesc: string
+    changelogLink: string
+    recheckButton: string
+    updateButton: string
+    updatingButton: string
+    updateStartedTitle: string
+    updateStartedDesc: string
+    updateErrorTitle: string
+    updateErrorDesc: string
+    updaterNotConfigured: string
+  }
 }
 
 const uk: AdminDictionary = {
@@ -539,6 +558,7 @@ const uk: AdminDictionary = {
     users: 'Користувачі',
     logs: 'Логи',
     settings: 'Налаштування',
+    system_updates: 'Оновлення',
     trash: 'Кошик',
   },
   roles: {
@@ -1001,6 +1021,26 @@ const uk: AdminDictionary = {
     toastSettingsSaved: 'Налаштування збережено',
     toastSettingsSaveError: 'Помилка збереження',
   },
+  updates: {
+    title: 'Оновлення',
+    subtitle: 'Поточна версія системи та перевірка нових релізів',
+    currentVersionLabel: 'Поточна версія',
+    latestVersionLabel: 'Остання версія',
+    upToDate: 'Встановлена остання версія',
+    updateAvailable: 'Доступне оновлення',
+    checkErrorTitle: 'Не вдалося перевірити оновлення',
+    checkErrorDesc: 'Перевірте підключення до інтернету та спробуйте ще раз.',
+    changelogLink: 'Що нового',
+    recheckButton: 'Перевірити ще раз',
+    updateButton: 'Оновити',
+    updatingButton: 'Оновлення…',
+    updateStartedTitle: 'Оновлення запущено',
+    updateStartedDesc:
+      'Система завантажує нову версію та перезапуститься автоматично — це займе близько хвилини. Сторінка стане недоступна на короткий час.',
+    updateErrorTitle: 'Не вдалося запустити оновлення',
+    updateErrorDesc: 'Спробуйте ще раз або оновіть вручну на сервері.',
+    updaterNotConfigured: 'Автооновлення не налаштоване на цьому сервері. Зверніться до Viktor або оновіть вручну.',
+  },
 }
 
 const ru: AdminDictionary = {
@@ -1059,6 +1099,7 @@ const ru: AdminDictionary = {
     users: 'Пользователи',
     logs: 'Логи',
     settings: 'Настройки',
+    system_updates: 'Обновления',
     trash: 'Корзина',
   },
   roles: {
@@ -1520,6 +1561,26 @@ const ru: AdminDictionary = {
     uploadErrorDefault: 'Ошибка загрузки',
     toastSettingsSaved: 'Настройки сохранены',
     toastSettingsSaveError: 'Ошибка сохранения',
+  },
+  updates: {
+    title: 'Обновления',
+    subtitle: 'Текущая версия системы и проверка новых релизов',
+    currentVersionLabel: 'Текущая версия',
+    latestVersionLabel: 'Последняя версия',
+    upToDate: 'Установлена последняя версия',
+    updateAvailable: 'Доступно обновление',
+    checkErrorTitle: 'Не удалось проверить обновления',
+    checkErrorDesc: 'Проверьте подключение к интернету и попробуйте снова.',
+    changelogLink: 'Что нового',
+    recheckButton: 'Проверить снова',
+    updateButton: 'Обновить',
+    updatingButton: 'Обновление…',
+    updateStartedTitle: 'Обновление запущено',
+    updateStartedDesc:
+      'Система загружает новую версию и перезапустится автоматически — это займёт около минуты. Страница будет недоступна короткое время.',
+    updateErrorTitle: 'Не удалось запустить обновление',
+    updateErrorDesc: 'Попробуйте ещё раз или обновите вручную на сервере.',
+    updaterNotConfigured: 'Автообновление не настроено на этом сервере. Обратитесь к Viktor или обновите вручную.',
   },
 }
 

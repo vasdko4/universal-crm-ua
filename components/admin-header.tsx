@@ -1,11 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { ChevronDown, Check, Languages } from 'lucide-react'
+import { ChevronDown, Check, Languages, RefreshCw } from 'lucide-react'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { setAdminLocale } from '@/app/actions/admin-locale'
 import { LOCALES, LOCALE_LABELS, type Locale } from '@/lib/i18n/config'
+import { APP_VERSION } from '@/lib/app-version'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,9 +15,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-// Thin top bar shown above every admin page. Currently only hosts the
-// language switcher (kept separate from the sidebar per request), but is a
-// natural place to add breadcrumbs/page titles later.
+// Thin top bar shown above every admin page. Hosts the current CRM version
+// (links to the Updates page, /admin/updates) on the left and the language
+// switcher on the right. A natural place to add breadcrumbs/page titles too.
 export function AdminHeader() {
   const router = useRouter()
   const { locale, dict, setLocale } = useAdminI18n()
@@ -31,7 +33,15 @@ export function AdminHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-end border-b bg-background px-4">
+    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b bg-background px-4">
+      <Link
+        href="/admin/updates"
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+        title={dict.navItems.system_updates}
+      >
+        <RefreshCw className="size-3.5" />
+        {`v${APP_VERSION.replace(/^v/i, '')}`}
+      </Link>
       <DropdownMenu>
         <DropdownMenuTrigger
           className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-60"
