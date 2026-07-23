@@ -51,7 +51,7 @@ export function ProductPurchasePanel({
   const { dict, locale: uiLocale } = useI18n()
   const tp = dict.product
   const [qty, setQty] = useState(1)
-  const hasVariants = product.options.length > 0 && product.variants.length > 0
+  const hasVariants = product.variantsEnabled && product.options.length > 0 && product.variants.length > 0
   const [selected, setSelected] = useState<Record<string, string>>({})
 
   const selectedVariant = useMemo(

@@ -173,6 +173,8 @@ export type ProductInput = {
   characteristics?: { name: string; value: string }[]
   options?: ProductOption[]
   variants?: VariantInput[]
+  /** Whether variant-based pricing/stock (color, size, etc.) is turned on for this product. */
+  variantsEnabled?: boolean
 }
 
 function validateProduct(input: ProductInput): string | null {
@@ -222,7 +224,11 @@ function toProductRow(input: ProductInput) {
   const num = (v: string | null | undefined) => (v == null || v === '' ? null : v)
   const options = cleanOptions(input.options)
   const variants = cleanVariants(input)
-  const hasVariants = variants.length > 0
+  const variantsEnabled = input.variantsEnabled ?? false
+  // The variant matrix only drives price/stock when the admin has explicitly
+  // turned it on for this product — otherwise it's ignored even if variant
+  // rows exist (e.g. temporarily disabled without losing the data).
+  const hasVariants = variantsEnabled && variants.length > 0
   // When variants exist, the product-level price/stock become aggregates so
   // that catalog cards, filters and availability badges stay correct.
   const aggPrice = hasVariants
@@ -249,6 +255,7 @@ function toProductRow(input: ProductInput) {
     quantity: aggQty,
     unit: input.unit || 'шт',
     options,
+    variantsEnabled,
     stockStatus: aggQty > 0 ? input.stockStatus || 'В наличии' : 'Нет в наличии',
     siteGroupId: input.siteGroupId ?? null,
     marketplaceCategoryId: input.marketplaceCategoryId ?? null,

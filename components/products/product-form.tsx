@@ -67,6 +67,7 @@ export type ProductFormData = {
   characteristics: Characteristic[]
   options: ProductOption[]
   variants: VariantInput[]
+  variantsEnabled: boolean
 }
 
 export const emptyProduct: ProductFormData = {
@@ -106,6 +107,7 @@ export const emptyProduct: ProductFormData = {
   characteristics: [],
   options: [],
   variants: [],
+  variantsEnabled: false,
 }
 
 export function ProductForm({
@@ -127,6 +129,15 @@ export function ProductForm({
   const [isPending, startTransition] = useTransition()
   const [form, setForm] = useState<ProductFormData>(initial)
   const isEdit = initial.id != null
+  // When on, price/stock come from the variant matrix below and the base
+  // fields here become read-only aggregates (min price, total stock).
+  const variantsActive = form.variantsEnabled && form.variants.length > 0
+  const aggPrice = variantsActive
+    ? Math.min(...form.variants.map((v) => Number(v.price) || 0))
+    : null
+  const aggQty = variantsActive
+    ? form.variants.reduce((s, v) => s + Math.max(0, Math.trunc(v.quantity || 0)), 0)
+    : null
 
   function set<K extends keyof ProductFormData>(key: K, value: ProductFormData[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -187,6 +198,7 @@ export function ProductForm({
       characteristics: form.characteristics,
       options: form.options,
       variants: form.variants,
+      variantsEnabled: form.variantsEnabled,
     }
 
     startTransition(async () => {
@@ -460,6 +472,11 @@ export function ProductForm({
               <CardTitle className="text-base">{t.pricesTitle}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-3">
+              {variantsActive && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground md:col-span-3">
+                  {t.variantsActiveNotice}
+                </div>
+              )}
               <div className="flex flex-col gap-2">
                 <Label htmlFor="price">{t.priceLabel}</Label>
                 <Input
@@ -467,8 +484,9 @@ export function ProductForm({
                   type="number"
                   min="0"
                   step="0.01"
-                  required
-                  value={form.price}
+                  required={!variantsActive}
+                  disabled={variantsActive}
+                  value={variantsActive ? String(aggPrice) : form.price}
                   onChange={(e) => set('price', e.target.value)}
                 />
               </div>
@@ -533,10 +551,13 @@ export function ProductForm({
                   type="number"
                   min="0"
                   step="1"
-                  value={form.quantity}
+                  disabled={variantsActive}
+                  value={variantsActive ? String(aggQty) : form.quantity}
                   onChange={(e) => set('quantity', e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">{t.quantityHint}</p>
+                <p className="text-xs text-muted-foreground">
+                  {variantsActive ? t.quantityHintVariants : t.quantityHint}
+                </p>
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="unit">{t.unitLabel}</Label>
@@ -712,13 +733,31 @@ export function ProductForm({
           </Card>
         </TabsContent>
 
-        <TabsContent value="variants" className="mt-4">
-          <ProductVariantsEditor
-            options={form.options}
-            variants={form.variants}
-            currency={form.currency}
-            onChange={(options, variants) => setForm((f) => ({ ...f, options, variants }))}
-          />
+        <TabsContent value="variants" className="mt-4 flex flex-col gap-4">
+          <Card>
+            <CardContent className="flex items-center justify-between gap-4 pt-6">
+              <div>
+                <Label htmlFor="variantsEnabled">{t.variantsToggleLabel}</Label>
+                <p className="text-xs text-muted-foreground">{t.variantsToggleHint}</p>
+              </div>
+              <Switch
+                id="variantsEnabled"
+                checked={form.variantsEnabled}
+                onCheckedChange={(v) => set('variantsEnabled', v)}
+              />
+            </CardContent>
+          </Card>
+
+          {form.variantsEnabled ? (
+            <ProductVariantsEditor
+              options={form.options}
+              variants={form.variants}
+              currency={form.currency}
+              onChange={(options, variants) => setForm((f) => ({ ...f, options, variants }))}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">{t.variantsOffHint}</p>
+          )}
         </TabsContent>
 
         <TabsContent value="seo" className="mt-4">

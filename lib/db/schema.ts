@@ -60,6 +60,10 @@ export const products = pgTable('products', {
   sizes: jsonb('sizes').$type<string[]>().default([]),
   // Choice axes for variants, e.g. [{ name: 'Цвет', type: 'color', values: [...] }]
   options: jsonb('options').$type<ProductOption[]>().default([]),
+  // Master switch for variant-based pricing/stock (color, size, etc.). When
+  // false, the base price/quantity above are authoritative even if variant
+  // rows exist in product_variants (e.g. temporarily disabled).
+  variantsEnabled: boolean('variants_enabled').notNull().default(false),
   isVisible: boolean('is_visible').default(true),
   isInStock: boolean('is_in_stock').default(true),
   isPopular: boolean('is_popular').default(false),
