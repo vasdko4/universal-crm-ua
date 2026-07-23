@@ -38,6 +38,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 type Data = {
   items: Promotion[]
@@ -47,11 +49,13 @@ type Data = {
   totalPages: number
 }
 
-const statusTabs = [
-  { key: 'all', label: 'Все' },
-  { key: 'active', label: 'Активные' },
-  { key: 'inactive', label: 'Неактивные' },
-] as const
+function statusTabs(t: AdminDictionary) {
+  return [
+    { key: 'all', label: t.promotions.tabAll },
+    { key: 'active', label: t.promotions.tabActive },
+    { key: 'inactive', label: t.promotions.tabInactive },
+  ] as const
+}
 
 function formatMoney(v: number) {
   return new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format(v)
@@ -75,6 +79,7 @@ export function PromotionsList({
   search: string
   status: 'all' | 'active' | 'inactive'
 }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState(search)
@@ -94,7 +99,7 @@ export function PromotionsList({
   function handleToggle(id: number, value: boolean) {
     startTransition(async () => {
       await togglePromotionActive(id, value)
-      toast.success(value ? 'Акция активирована' : 'Акция отключена')
+      toast.success(value ? t.promotions.toastActivated : t.promotions.toastDeactivated)
       router.refresh()
     })
   }
@@ -105,7 +110,7 @@ export function PromotionsList({
     setDeleteId(null)
     startTransition(async () => {
       await deletePromotion(id)
-      toast.success('Акция удалена')
+      toast.success(t.promotions.toastDeleted)
       router.refresh()
     })
   }
@@ -119,22 +124,20 @@ export function PromotionsList({
           <div className="relative mb-6 size-48">
             <Image
               src="/promotions-empty.png"
-              alt="Нет акций"
+              alt=""
               fill
               className="object-contain"
               priority
             />
           </div>
-          <h2 className="text-xl font-semibold text-slate-900">Тут поки що нічого немає</h2>
-          <p className="mt-2 max-w-sm text-sm text-slate-500">
-            Створіть першу акцію або промокод, щоб залучати покупців та збільшувати продажі.
-          </p>
+          <h2 className="text-xl font-semibold text-slate-900">{t.promotions.emptyTitle}</h2>
+          <p className="mt-2 max-w-sm text-sm text-slate-500">{t.promotions.emptyDesc}</p>
           <Link
             href="/admin/promotions/new"
             className="mt-6 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700"
           >
             <Plus className="size-4" />
-            Додати акцію
+            {t.promotions.addButton}
           </Link>
         </div>
       </div>
@@ -149,7 +152,7 @@ export function PromotionsList({
         {/* Панель поиска и фильтров */}
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-            {statusTabs.map((tab) => (
+            {statusTabs(t).map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => pushParams({ status: tab.key, page: 1 })}
@@ -175,7 +178,7 @@ export function PromotionsList({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Поиск по названию…"
+              placeholder={t.promotions.searchPlaceholder}
               className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             />
           </form>
@@ -184,7 +187,7 @@ export function PromotionsList({
         {/* Список */}
         {data.items.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center shadow-sm">
-            <p className="text-sm text-slate-500">По вашему запросу ничего не найдено.</p>
+            <p className="text-sm text-slate-500">{t.promotions.noResults}</p>
           </div>
         ) : (
           <div className="grid gap-3">
@@ -223,18 +226,16 @@ export function PromotionsList({
       <AlertDialog open={deleteId != null} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить акцию?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Действие нельзя отменить. Статистика использования также будет удалена.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t.promotions.deleteDialogTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{t.promotions.deleteDialogDesc}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              Удалить
+              {t.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -244,18 +245,19 @@ export function PromotionsList({
 }
 
 function Header() {
+  const { dict: t } = useAdminI18n()
   return (
     <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
       <div>
-        <h1 className="text-lg font-semibold text-slate-900">Акции и промокоды</h1>
-        <p className="text-sm text-slate-500">Управление скидками, промокодами и таргетингом</p>
+        <h1 className="text-lg font-semibold text-slate-900">{t.promotions.pageTitle}</h1>
+        <p className="text-sm text-slate-500">{t.promotions.pageSubtitle}</p>
       </div>
       <Link
         href="/admin/promotions/new"
         className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700"
       >
         <Plus className="size-4" />
-        Додати акцію
+        {t.promotions.addButton}
       </Link>
     </header>
   )
@@ -272,16 +274,17 @@ function PromotionCard({
   onToggle: (id: number, value: boolean) => void
   onDelete: () => void
 }) {
+  const { dict: t } = useAdminI18n()
   const discount =
     p.discountType === 'percentage'
       ? `${Number(p.discountValue)}%`
       : `${formatMoney(Number(p.discountValue))} ₴`
   const targetLabel =
     p.targetType === 'all'
-      ? 'Все товары'
+      ? t.promotions.targetAll
       : p.targetType === 'groups'
-        ? 'Выбранные группы'
-        : 'Конкретные позиции'
+        ? t.promotions.targetGroups
+        : t.promotions.targetProducts
   const start = formatDate(p.startsAt)
   const end = formatDate(p.endsAt)
 
@@ -309,23 +312,23 @@ function PromotionCard({
           <span className="inline-flex items-center gap-1">
             <Calendar className="size-3" />
             {start}
-            {end ? ` – ${end}` : ' · бессрочно'}
+            {end ? ` – ${end}` : ` · ${t.promotions.noEndDate}`}
           </span>
           <span className="inline-flex items-center gap-1">
             <TrendingUp className="size-3" />
-            Использовано: {p.usedCount}
+            {t.promotions.usedLabel}: {p.usedCount}
             {p.usageLimit ? ` / ${p.usageLimit}` : ''}
           </span>
         </div>
       </div>
 
       <div className="hidden shrink-0 text-right md:block">
-        <p className="text-xs text-slate-400">Сумма скидок</p>
+        <p className="text-xs text-slate-400">{t.promotions.totalDiscountLabel}</p>
         <p className="font-semibold text-slate-900">{formatMoney(Number(p.totalDiscountAmount))} ₴</p>
       </div>
 
       <label className="flex shrink-0 cursor-pointer items-center gap-2">
-        <span className="sr-only">Статус акции</span>
+        <span className="sr-only">{t.promotions.statusSr}</span>
         <input
           type="checkbox"
           checked={!!p.isActive}
@@ -340,7 +343,7 @@ function PromotionCard({
         <DropdownMenuTrigger asChild>
           <button
             className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Действия"
+            aria-label={t.promotions.actionsAria}
           >
             <MoreVertical className="size-4" />
           </button>
@@ -350,16 +353,16 @@ function PromotionCard({
             <DropdownMenuItem
               onClick={() => {
                 navigator.clipboard.writeText(p.promoCode!)
-                toast.success('Промокод скопирован')
+                toast.success(t.promotions.toastCodeCopied)
               }}
             >
               <Copy className="size-4" />
-              Копировать код
+              {t.promotions.copyCodeAction}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600">
             <Trash2 className="size-4" />
-            Удалить
+            {t.common.delete}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

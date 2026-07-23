@@ -13,9 +13,11 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Save, Truck, PackageCheck, Lock } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
   const router = useRouter()
+  const { dict: t } = useAdminI18n()
   const [isPending, startTransition] = useTransition()
   const initialConfig = (method.config ?? {}) as Record<string, string>
   const [apiKey, setApiKey] = useState(initialConfig.apiKey ?? '')
@@ -44,45 +46,41 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
           </div>
           <div>
             <CardTitle className="text-base">{method.name}</CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Поиск отделений и почтоматов через API
-            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t.delivery.npDesc}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className="bg-success/15 text-success hover:bg-success/25">Активна</Badge>
+          <Badge className="bg-success/15 text-success hover:bg-success/25">{t.delivery.badgeActive}</Badge>
           <Badge variant="outline" className="gap-1 text-muted-foreground">
-            <Lock className="size-3" /> Обязательная
+            <Lock className="size-3" /> {t.delivery.badgeRequired}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="np-api-key">API-ключ Нова Пошта</Label>
+          <Label htmlFor="np-api-key">{t.delivery.npApiKeyLabel}</Label>
           <Input
             id="np-api-key"
             type="password"
             autoComplete="off"
             value={apiKey}
-            placeholder="Введите ключ из личного кабинета"
+            placeholder={t.delivery.npApiKeyPlaceholder}
             onChange={(e) => setApiKey(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            {apiKey.trim()
-              ? 'Поиск выполняется через реальный API Нова Пошта.'
-              : 'Без ключа доступен демо-режим с примерами отделений.'}
+            {apiKey.trim() ? t.delivery.npApiKeyHintReal : t.delivery.npApiKeyHintDemo}
           </p>
         </div>
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={isPending}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            Сохранить
+            {t.common.save}
           </Button>
         </div>
         <div className="rounded-lg border bg-muted/30 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <PackageCheck className="size-4 text-primary" />
-            Проверка получения: отделения и почтоматы
+            {t.delivery.npCheckTitle}
           </div>
           <NovaPoshtaSearch />
         </div>
@@ -93,6 +91,7 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
 
 function UkrPoshtaCard({ method }: { method: DeliveryMethod }) {
   const router = useRouter()
+  const { dict: t } = useAdminI18n()
   const [isPending, startTransition] = useTransition()
   const [isActive, setIsActive] = useState(method.isActive ?? false)
 
@@ -101,7 +100,7 @@ function UkrPoshtaCard({ method }: { method: DeliveryMethod }) {
     startTransition(async () => {
       const result = await updateDeliveryMethod('ukrposhta', { isActive: next, config: {} })
       if (result.ok) {
-        toast.success(next ? 'Укрпошта включена' : 'Укрпошта отключена')
+        toast.success(next ? t.delivery.toastUkrEnabled : t.delivery.toastUkrDisabled)
         router.refresh()
       } else {
         toast.error(result.message)
@@ -119,24 +118,20 @@ function UkrPoshtaCard({ method }: { method: DeliveryMethod }) {
           </div>
           <div>
             <CardTitle className="text-base">{method.name}</CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Доставка почтовыми отделениями Укрпошты
-            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t.delivery.ukrDesc}</p>
           </div>
         </div>
         {isActive ? (
-          <Badge className="bg-success/15 text-success hover:bg-success/25">Активна</Badge>
+          <Badge className="bg-success/15 text-success hover:bg-success/25">{t.delivery.badgeActive}</Badge>
         ) : (
-          <Badge variant="secondary">Отключена</Badge>
+          <Badge variant="secondary">{t.delivery.badgeDisabled}</Badge>
         )}
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between rounded-lg border p-3">
           <div>
-            <Label htmlFor="ukr-active">Доставка Укрпоштой</Label>
-            <p className="text-xs text-muted-foreground">
-              Клиенты смогут выбрать доставку Укрпоштой при оформлении
-            </p>
+            <Label htmlFor="ukr-active">{t.delivery.ukrToggleLabel}</Label>
+            <p className="text-xs text-muted-foreground">{t.delivery.ukrToggleDesc}</p>
           </div>
           <div className="flex items-center gap-2">
             {isPending && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
@@ -154,16 +149,15 @@ function UkrPoshtaCard({ method }: { method: DeliveryMethod }) {
 }
 
 export function DeliveryManager({ methods }: { methods: DeliveryMethod[] }) {
+  const { dict: t } = useAdminI18n()
   const novaPoshta = methods.find((m) => m.code === 'nova_poshta')
   const ukrPoshta = methods.find((m) => m.code === 'ukrposhta')
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Методы доставки</h1>
-        <p className="text-sm text-muted-foreground">
-          Настройка служб доставки для интернет-магазина
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.delivery.pageTitle}</h1>
+        <p className="text-sm text-muted-foreground">{t.delivery.pageSubtitle}</p>
       </header>
       <div className="grid gap-4 xl:grid-cols-2">
         {novaPoshta && <NovaPoshtaCard method={novaPoshta} />}

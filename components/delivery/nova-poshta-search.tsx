@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, MapPin, Building2, Package, Search } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 export function NovaPoshtaSearch() {
+  const { dict: t } = useAdminI18n()
   const [isPending, startTransition] = useTransition()
   const [cityQuery, setCityQuery] = useState('')
   const [cities, setCities] = useState<NpCity[]>([])
@@ -58,8 +60,8 @@ export function NovaPoshtaSearch() {
     })
   }
 
-  function handleTypeChange(t: string) {
-    const nt = t as 'branch' | 'postomat'
+  function handleTypeChange(nextType: string) {
+    const nt = nextType as 'branch' | 'postomat'
     setType(nt)
     if (selectedCity) loadWarehouses(selectedCity, nt, whQuery)
   }
@@ -68,20 +70,20 @@ export function NovaPoshtaSearch() {
     <div className="flex flex-col gap-4">
       {demo && (
         <Badge variant="outline" className="w-fit border-warning/40 text-warning">
-          Демо-режим (укажите API-ключ для реальных данных)
+          {t.delivery.searchDemoBadge}
         </Badge>
       )}
 
       {/* Шаг 1: город */}
       <div className="flex flex-col gap-2">
-        <Label className="text-xs">1. Город получения</Label>
+        <Label className="text-xs">{t.delivery.searchStep1Label}</Label>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <MapPin className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-8"
               value={cityQuery}
-              placeholder="Начните вводить город, например Київ"
+              placeholder={t.delivery.searchCityPlaceholder}
               onChange={(e) => setCityQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
@@ -93,7 +95,7 @@ export function NovaPoshtaSearch() {
           </div>
           <Button variant="secondary" onClick={handleCitySearch} disabled={isPending}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-            Найти
+            {t.delivery.searchFindButton}
           </Button>
         </div>
         {cities.length > 0 && (
@@ -106,7 +108,7 @@ export function NovaPoshtaSearch() {
                 className="flex items-center justify-between rounded px-2.5 py-2 text-left text-sm hover:bg-muted"
               >
                 <span>{c.name}</span>
-                <span className="text-xs text-muted-foreground">{c.area} обл.</span>
+                <span className="text-xs text-muted-foreground">{c.area} {t.delivery.searchRegionSuffix}</span>
               </button>
             ))}
           </div>
@@ -117,15 +119,15 @@ export function NovaPoshtaSearch() {
       {selectedCity && (
         <div className="flex flex-col gap-2">
           <Label className="text-xs">
-            2. Пункт выдачи в городе <span className="font-medium text-foreground">{selectedCity.name}</span>
+            {t.delivery.searchStep2LabelPrefix} <span className="font-medium text-foreground">{selectedCity.name}</span>
           </Label>
           <Tabs value={type} onValueChange={handleTypeChange}>
             <TabsList>
               <TabsTrigger value="branch" className="gap-1.5">
-                <Building2 className="size-4" /> Отделения
+                <Building2 className="size-4" /> {t.delivery.searchTabBranch}
               </TabsTrigger>
               <TabsTrigger value="postomat" className="gap-1.5">
-                <Package className="size-4" /> Почтоматы
+                <Package className="size-4" /> {t.delivery.searchTabPostomat}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -134,7 +136,7 @@ export function NovaPoshtaSearch() {
             <Input
               className="pl-8"
               value={whQuery}
-              placeholder="Фильтр по номеру или адресу"
+              placeholder={t.delivery.searchWhFilterPlaceholder}
               onChange={(e) => setWhQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
@@ -148,11 +150,11 @@ export function NovaPoshtaSearch() {
           <div className="max-h-72 overflow-y-auto rounded-md border">
             {isPending ? (
               <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" /> Загрузка...
+                <Loader2 className="size-4 animate-spin" /> {t.delivery.searchLoading}
               </div>
             ) : warehouses.length === 0 && searched ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                Ничего не найдено
+                {t.delivery.searchNothingFound}
               </div>
             ) : (
               <ul className="divide-y">
@@ -171,7 +173,7 @@ export function NovaPoshtaSearch() {
                     </div>
                     {w.maxWeight && (
                       <Badge variant="outline" className="shrink-0 text-xs">
-                        до {w.maxWeight} кг
+                        {t.delivery.searchMaxWeightPrefix} {w.maxWeight} {t.delivery.searchMaxWeightSuffix}
                       </Badge>
                     )}
                   </li>

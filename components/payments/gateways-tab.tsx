@@ -12,25 +12,29 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Save, CreditCard, Copy, Check, Link2 } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 type FieldDef = { key: string; label: string; secret?: boolean; hint?: string; optional?: boolean }
 
-const GATEWAY_FIELDS: Record<string, FieldDef[]> = {
-  wayforpay: [
-    { key: 'merchantAccount', label: 'Merchant login', hint: 'Логин мерчанта из личного кабинета WayForPay (напр. test_skycrms_pp_ua)' },
-    { key: 'merchantSecretKey', label: 'Merchant secret key', secret: true, hint: 'Секретный ключ для подписи запросов (HMAC-MD5)' },
-    { key: 'merchantDomainName', label: 'Merchant Domain', hint: 'Домен сайта, например shop.example.com' },
-    {
-      key: 'merchantPassword',
-      label: 'Merchant password',
-      secret: true,
-      optional: true,
-      hint: 'Необязательно. Пароль мерчанта из кабинета — для операций, где он требуется. В подписи платёжного API не используется.',
-    },
-  ],
-  monobank: [
-    { key: 'token', label: 'Токен эквайринга (X-Token)', secret: true, hint: 'Токен из кабинета Monobank Acquiring' },
-  ],
+function gatewayFields(t: AdminDictionary): Record<string, FieldDef[]> {
+  return {
+    wayforpay: [
+      { key: 'merchantAccount', label: 'Merchant login', hint: t.payments.wfpMerchantLoginHint },
+      { key: 'merchantSecretKey', label: 'Merchant secret key', secret: true, hint: t.payments.wfpSecretKeyHint },
+      { key: 'merchantDomainName', label: 'Merchant Domain', hint: t.payments.wfpDomainHint },
+      {
+        key: 'merchantPassword',
+        label: 'Merchant password',
+        secret: true,
+        optional: true,
+        hint: t.payments.wfpPasswordHint,
+      },
+    ],
+    monobank: [
+      { key: 'token', label: t.payments.monobankTokenLabel, secret: true, hint: t.payments.monobankTokenHint },
+    ],
+  }
 }
 
 // Base URL for gateway callbacks — the domain the admin panel is opened on.
@@ -44,16 +48,17 @@ function usePublicOrigin(): string {
 }
 
 function CopyUrlRow({ label, url }: { label: string; url: string }) {
+  const { dict: t } = useAdminI18n()
   const [copied, setCopied] = useState(false)
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      toast.success('Скопировано')
+      toast.success(t.payments.copiedToast)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.error('Не удалось скопировать')
+      toast.error(t.payments.copyFailedToast)
     }
   }
 
@@ -70,7 +75,7 @@ function CopyUrlRow({ label, url }: { label: string; url: string }) {
           size="icon"
           className="size-7 shrink-0"
           onClick={handleCopy}
-          aria-label={`Скопировать ${label}`}
+          aria-label={`${t.payments.copyAria} ${label}`}
         >
           {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
         </Button>
@@ -80,42 +85,44 @@ function CopyUrlRow({ label, url }: { label: string; url: string }) {
 }
 
 function GatewayUrls({ code }: { code: string }) {
+  const { dict: t } = useAdminI18n()
   const origin = usePublicOrigin()
   if (!origin) return null
 
   const rows =
     code === 'wayforpay'
       ? [
-          { label: 'Service URL (уведомления о платежах)', url: `${origin}/api/payments/wayforpay/callback` },
-          { label: 'approvedUrl / declinedUrl (возврат клиента)', url: `${origin}/checkout/return` },
+          { label: t.payments.serviceUrlLabel, url: `${origin}/api/payments/wayforpay/callback` },
+          { label: t.payments.approvedUrlLabel, url: `${origin}/checkout/return` },
         ]
       : [
-          { label: 'Webhook URL (уведомления о платежах)', url: `${origin}/api/payments/monobank/callback` },
-          { label: 'Redirect URL (возврат клиента)', url: `${origin}/checkout/return` },
+          { label: t.payments.webhookUrlLabel, url: `${origin}/api/payments/monobank/callback` },
+          { label: t.payments.redirectUrlLabel, url: `${origin}/checkout/return` },
         ]
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3">
       <div className="flex items-center gap-2 text-xs font-medium text-foreground">
         <Link2 className="size-3.5" />
-        Ссылки для личного кабинета {code === 'wayforpay' ? 'WayForPay' : 'Monobank'}
+        {t.payments.urlsSectionTitlePrefix} {code === 'wayforpay' ? 'WayForPay' : 'Monobank'}
       </div>
       {rows.map((r) => (
         <CopyUrlRow key={r.url + r.label} label={r.label} url={r.url} />
       ))}
       <p className="text-xs text-muted-foreground">
-        Заполнять необязательно: магазин передаёт эти адреса автоматически с каждым платежом.
-        Укажите их в кабинете {code === 'wayforpay' ? 'WayForPay (раздел «Уведомления»)' : 'Monobank'} как
-        запасной вариант.
+        {t.payments.urlsHintPrefix}{' '}
+        {code === 'wayforpay' ? t.payments.urlsHintWfpSuffix : t.payments.urlsHintMonoSuffix}{' '}
+        {t.payments.urlsHintEnd}
       </p>
     </div>
   )
 }
 
 function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const fields = GATEWAY_FIELDS[gateway.code] ?? []
+  const fields = gatewayFields(t)[gateway.code] ?? []
   const initialConfig = (gateway.config ?? {}) as Record<string, string>
 
   const [isActive, setIsActive] = useState(gateway.isActive ?? false)
@@ -132,7 +139,7 @@ function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
 
   function handleSave() {
     if (isActive && !isConfigured) {
-      toast.error('Заполните все поля перед активацией шлюза')
+      toast.error(t.payments.toastFillFields)
       return
     }
     startTransition(async () => {
@@ -156,21 +163,19 @@ function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
           <div>
             <CardTitle className="text-base">{gateway.name}</CardTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {gateway.code === 'wayforpay'
-                ? 'Оплата картой, Apple Pay, Google Pay'
-                : 'Эквайринг Monobank для бизнеса'}
+              {gateway.code === 'wayforpay' ? t.payments.wfpDesc : t.payments.monoDesc}
             </p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
           {isActive ? (
-            <Badge className="bg-success/15 text-success hover:bg-success/25">Активен</Badge>
+            <Badge className="bg-success/15 text-success hover:bg-success/25">{t.payments.badgeActiveGateway}</Badge>
           ) : (
-            <Badge variant="secondary">Отключён</Badge>
+            <Badge variant="secondary">{t.payments.badgeDisabledGateway}</Badge>
           )}
           {isTestMode && (
             <Badge variant="outline" className="border-warning/40 text-warning">
-              Тест
+              {t.payments.badgeTestMode}
             </Badge>
           )}
         </div>
@@ -182,7 +187,7 @@ function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
               <Label htmlFor={`${gateway.code}-${f.key}`} className="flex items-center gap-2">
                 {f.label}
                 {f.optional && (
-                  <span className="text-xs font-normal text-muted-foreground">(необязательно)</span>
+                  <span className="text-xs font-normal text-muted-foreground">{t.payments.optionalLabel}</span>
                 )}
               </Label>
               <Input
@@ -201,15 +206,15 @@ function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <Label htmlFor={`${gateway.code}-active`}>Активен</Label>
-              <p className="text-xs text-muted-foreground">Доступен для приёма оплат</p>
+              <Label htmlFor={`${gateway.code}-active`}>{t.payments.activeSwitchLabel}</Label>
+              <p className="text-xs text-muted-foreground">{t.payments.activeSwitchDesc}</p>
             </div>
             <Switch id={`${gateway.code}-active`} checked={isActive} onCheckedChange={setIsActive} />
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <Label htmlFor={`${gateway.code}-test`}>Тестовый режим</Label>
-              <p className="text-xs text-muted-foreground">Разрешить ручную отметку оплаты</p>
+              <Label htmlFor={`${gateway.code}-test`}>{t.payments.testSwitchLabel}</Label>
+              <p className="text-xs text-muted-foreground">{t.payments.testSwitchDesc}</p>
             </div>
             <Switch
               id={`${gateway.code}-test`}
@@ -221,7 +226,7 @@ function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={isPending}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            Сохранить
+            {t.common.save}
           </Button>
         </div>
       </CardContent>
