@@ -2,6 +2,7 @@ import { db, pool } from '@/lib/db'
 import { payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { finalizePaidOrder } from '@/lib/shop/order-fulfillment'
+import { extractGatewayReceiptUrl } from '@/lib/payments/receipt'
 
 /**
  * Applies a verified gateway status update to the payment record and the linked
@@ -27,9 +28,18 @@ export async function settlePayment(
     matchedPayment = true
     // Do not downgrade a refunded payment back to paid/pending on late callbacks.
     const keepRefunded = payment.status === 'refunded' && status !== 'refunded'
+    // If the gateway's status/webhook payload happens to include a real
+    // fiscal receipt URL (only WayForPay/Monobank accounts with
+    // fiscalization enabled do), capture it once so the order's receipt can
+    // link to it instead of the non-fiscal fallback.
+    const receiptUrl = payment.receiptUrl ?? extractGatewayReceiptUrl(payment.gatewayCode, opts.raw)
     await db
       .update(payments)
-      .set({ status: keepRefunded ? 'refunded' : status, updatedAt: new Date() })
+      .set({
+        status: keepRefunded ? 'refunded' : status,
+        receiptUrl: receiptUrl ?? payment.receiptUrl,
+        updatedAt: new Date(),
+      })
       .where(eq(payments.id, payment.id))
     await db.insert(paymentEvents).values({
       paymentId: payment.id,

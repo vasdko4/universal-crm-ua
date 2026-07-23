@@ -67,6 +67,7 @@ export default async function CheckoutPage({
         buyNow={buyNow}
         savedAddresses={savedAddresses}
         gaId={gaId}
+        minOrder={settings?.minOrder}
       />
     </div>
   )

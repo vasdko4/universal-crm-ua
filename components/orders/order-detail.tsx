@@ -42,6 +42,7 @@ import {
 } from '@/lib/order-status'
 import type { Order, OrderItem, OrderHistoryEntry } from '@/lib/db/schema'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { OrderReceiptSection } from '@/components/orders/order-receipt-section'
 
 function money(v: string | number) {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
@@ -64,10 +65,12 @@ export function OrderDetail({
   order,
   items,
   history,
+  receipt,
 }: {
   order: Order
   items: OrderItem[]
   history: OrderHistoryEntry[]
+  receipt?: { storeName: string; qrDataUrl: string; isFiscal: boolean } | null
 }) {
   const router = useRouter()
   const { locale, dict } = useAdminI18n()
@@ -219,6 +222,29 @@ export function OrderDetail({
               ))}
             </div>
           </section>
+
+          {receipt && (
+            <OrderReceiptSection
+              storeName={receipt.storeName}
+              orderNumber={order.orderNumber}
+              createdAt={order.createdAt}
+              items={items.map((i) => ({
+                name: i.name,
+                variantLabel: i.variantLabel,
+                sku: i.sku,
+                price: Number(i.price),
+                quantity: i.quantity,
+                total: Number(i.total),
+              }))}
+              itemsTotal={Number(order.itemsTotal)}
+              discountTotal={Number(order.discountTotal)}
+              deliveryCost={Number(order.deliveryCost)}
+              total={Number(order.total)}
+              currency={order.currency}
+              isFiscal={receipt.isFiscal}
+              qrDataUrl={receipt.qrDataUrl}
+            />
+          )}
 
           {/* Customer & Payment */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

@@ -73,7 +73,14 @@ export async function getOrder(id: number) {
     db.select().from(orderItems).where(eq(orderItems.orderId, id)),
     db.select().from(orderHistory).where(eq(orderHistory.orderId, id)).orderBy(desc(orderHistory.createdAt)),
   ])
-  return { order, items, history }
+  const { buildOrderReceipt } = await import('@/lib/receipts/build-receipt')
+  const receiptData = await buildOrderReceipt(order, items)
+  const receipt = {
+    storeName: receiptData.storeName,
+    qrDataUrl: receiptData.qrDataUrl,
+    isFiscal: receiptData.isFiscal,
+  }
+  return { order, items, history, receipt }
 }
 
 // Product search for the order builder.

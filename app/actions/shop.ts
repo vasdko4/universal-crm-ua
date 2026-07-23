@@ -30,6 +30,7 @@ import { notifyNewOrder } from '@/lib/notifications'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { isRateLimited } from '@/lib/api/rate-limit'
 import { validateCheckoutInput } from '@/lib/shop/checkout-validation'
+import { getStoreSettingsInternal } from '@/lib/store-settings'
 
 /** Client IP for server actions (no Request object available — use headers). */
 async function actionClientIp(): Promise<string> {
@@ -242,6 +243,18 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   }
 
   const itemsTotal = lineItems.reduce((s, i) => s + i.price * i.quantity, 0)
+
+  // Minimum order amount (Настройки → Общие). Checked against the items
+  // subtotal before any discount, and re-validated server-side here since the
+  // checkout UI's own check is only a convenience — a client could otherwise
+  // bypass it entirely.
+  const { minOrder } = await getStoreSettingsInternal()
+  if (minOrder.enabled && minOrder.amount > 0 && itemsTotal < minOrder.amount) {
+    return {
+      success: false,
+      error: `Минимальная сумма заказа — ${minOrder.amount} грн. Добавьте товаров ещё на ${(minOrder.amount - itemsTotal).toFixed(2)} грн.`,
+    }
+  }
 
   // Authoritatively re-evaluate the promo code (never trust a client discount).
   // Only the code + amount are persisted here; usage is recorded at fulfillment.
@@ -696,7 +709,14 @@ export async function getMyOrderDetail(orderId: number) {
     .limit(1)
   if (!order) return null
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id))
-  return { order, items }
+  const { buildOrderReceipt } = await import('@/lib/receipts/build-receipt')
+  const receiptData = await buildOrderReceipt(order, items)
+  const receipt = {
+    storeName: receiptData.storeName,
+    qrDataUrl: receiptData.qrDataUrl,
+    isFiscal: receiptData.isFiscal,
+  }
+  return { order, items, receipt }
 }
 
 export async function submitReview(input: {

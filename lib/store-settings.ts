@@ -169,6 +169,15 @@ export type StoreSettingsData = {
   notifications: NotificationSettings
   googleAuth: GoogleAuthSettings
   homeHero: HomeHeroSettings
+  minOrder: MinOrderSettings
+}
+
+// Минимальная сумма заказа: покупатель не может оформить заказ на чекауте,
+// пока сумма товаров (без учёта скидки/доставки) меньше amount. amount = 0
+// или enabled = false отключает проверку. Настраивается в Настройки → Общие.
+export type MinOrderSettings = {
+  enabled: boolean
+  amount: number
 }
 
 export const DEFAULTS: StoreSettingsData = {
@@ -232,6 +241,7 @@ export const DEFAULTS: StoreSettingsData = {
     uk: { badge: '', title: '', text: '', buttonText: '' },
     ru: { badge: '', title: '', text: '', buttonText: '' },
   },
+  minOrder: { enabled: false, amount: 0 },
   contact: {
     phones: [''],
     address: '',
@@ -303,6 +313,10 @@ export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
       ...((row.googleAuth ?? {}) as Partial<GoogleAuthSettings>),
     },
     homeHero: mergeHomeHero(row.homeHero as Partial<HomeHeroSettings> | null),
+    minOrder: {
+      ...DEFAULTS.minOrder,
+      ...((row.minOrder ?? {}) as Partial<MinOrderSettings>),
+    },
   }
 }
 

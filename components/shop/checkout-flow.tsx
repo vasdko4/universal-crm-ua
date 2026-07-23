@@ -55,12 +55,14 @@ export function CheckoutFlow({
   buyNow = false,
   savedAddresses = [],
   gaId,
+  minOrder,
 }: {
   deliveryMethods: Method[]
   paymentMethods: Method[]
   buyNow?: boolean
   savedAddresses?: UserAddress[]
   gaId?: string
+  minOrder?: { enabled: boolean; amount: number }
 }) {
   const router = useRouter()
   const { dict } = useI18n()
@@ -111,6 +113,13 @@ export function CheckoutFlow({
       items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
     )
   }, [gaId, items])
+
+  // Store-wide minimum order amount (Настройки → Общие). This is a UX
+  // convenience only — the server re-checks it authoritatively in
+  // createStorefrontOrder, so it can't be bypassed by editing client state.
+  const minOrderShortfall =
+    minOrder?.enabled && minOrder.amount > 0 ? Math.max(0, minOrder.amount - subtotal) : 0
+  const belowMinOrder = minOrderShortfall > 0
 
   // Route quantity edits / removal to the right store depending on the mode.
   const updateQty = (key: string, quantity: number) => {
@@ -1092,6 +1101,13 @@ export function CheckoutFlow({
             <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
           </div>
 
+          {belowMinOrder && (
+            <p className="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+              {t.minOrderPrefix} {formatPrice(minOrder!.amount)}. {t.minOrderAddMore}{' '}
+              {formatPrice(minOrderShortfall)}.
+            </p>
+          )}
+
           {error && (
             <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
@@ -1102,7 +1118,7 @@ export function CheckoutFlow({
             size="lg"
             className="mt-5 w-full gap-2"
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || belowMinOrder}
           >
             {submitting ? (
               <>

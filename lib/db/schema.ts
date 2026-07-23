@@ -218,6 +218,11 @@ export const payments = pgTable('payments', {
   customerPhone: varchar('customer_phone', { length: 50 }),
   paymentUrl: text('payment_url'),
   refundedAmount: numeric('refunded_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  // Real fiscal check URL, when the gateway's API actually returns one for
+  // this transaction (WayForPay/Monobank card payments with fiscalization
+  // enabled on the merchant's account). Null when unavailable — the order
+  // receipt then falls back to a non-fiscal QR pointing at the store.
+  receiptUrl: text('receipt_url'),
   rawResponse: jsonb('raw_response'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -577,6 +582,9 @@ export const storeSettings = pgTable('store_settings', {
   // Доп. поля Google Merchant Center фида (категория товара, ставка доставки)
   // — Настройки → Google Ads. См. app/feed/google-merchant.xml/route.ts.
   merchantFeed: jsonb('merchant_feed').notNull().default({}),
+  // Минимальная сумма заказа: можно включить/выключить и задать порог,
+  // ниже которого оформление заказа на чекауте блокируется.
+  minOrder: jsonb('min_order').notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 

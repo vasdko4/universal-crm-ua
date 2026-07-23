@@ -254,6 +254,37 @@ function GeneralSection({ data, setData, t }: SectionProps) {
           onCheckedChange={(v) => setData((d) => ({ ...d, openCartAfterAdd: v }))}
         />
       </div>
+
+      <div className="rounded-lg border border-border p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">{t.minOrderTitle}</p>
+            <p className="text-xs text-muted-foreground">{t.minOrderDesc}</p>
+          </div>
+          <Switch
+            checked={data.minOrder.enabled}
+            onCheckedChange={(v) => setData((d) => ({ ...d, minOrder: { ...d.minOrder, enabled: v } }))}
+          />
+        </div>
+        {data.minOrder.enabled && (
+          <div className="mt-3 flex flex-col gap-2">
+            <Label>{t.minOrderAmountLabel}</Label>
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              value={data.minOrder.amount || ''}
+              placeholder="500"
+              onChange={(e) =>
+                setData((d) => ({
+                  ...d,
+                  minOrder: { ...d.minOrder, amount: Math.max(0, Number(e.target.value) || 0) },
+                }))
+              }
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
