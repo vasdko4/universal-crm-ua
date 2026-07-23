@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Languages, Globe } from 'lucide-react'
-import { setLocale } from '@/app/actions/locale'
+import { setLocale, getLocaleForCurrentIp } from '@/app/actions/locale'
 import { persistLocaleClientSide } from '@/lib/i18n/client'
 import { LOCALE_COOKIE, localizedPath, stripLocalePrefix, type Locale } from '@/lib/i18n/config'
 
@@ -22,11 +22,28 @@ export function LocaleModal({ defaultLocale = 'uk' }: { defaultLocale?: string }
     const alreadyChosen = document.cookie
       .split('; ')
       .some((c) => c.startsWith(`${LOCALE_COOKIE}=`))
-    if (!alreadyChosen) setOpen(true)
+    if (alreadyChosen) return
+    // No cookie on this browser/device yet — check whether this visitor's IP
+    // already picked a language elsewhere (new browser, cleared cookies,
+    // different device on the same network) before asking again.
+    let cancelled = false
+    getLocaleForCurrentIp()
+      .then((locale) => {
+        if (cancelled) return
+        if (locale) choose(locale, { silent: true })
+        else setOpen(true)
+      })
+      .catch(() => {
+        if (!cancelled) setOpen(true)
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function choose(locale: Locale) {
-    setOpen(false)
+  async function choose(locale: Locale, opts?: { silent?: boolean }) {
+    if (!opts?.silent) setOpen(false)
     // Persist immediately on the client (cookie + live UI switch) so the
     // choice survives even if the server action response is lost.
     persistLocaleClientSide(locale)

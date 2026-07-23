@@ -444,6 +444,13 @@ function SeoSection({ data, setData, t }: SectionProps) {
           onCheckedChange={(v) => setSeo({ indexingEnabled: v })}
         />
       </div>
+      <ImageField
+        t={t}
+        label={t.ogImageLabel}
+        hint={t.ogImageHint}
+        value={seo.ogImageUrl}
+        onChange={(v) => setSeo({ ogImageUrl: v })}
+      />
     </div>
   )
 }

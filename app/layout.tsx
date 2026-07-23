@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getCanonicalSiteUrl } from '@/lib/seo'
 import { getLocale } from '@/lib/i18n/server'
+import { getDictionary } from '@/lib/i18n/dictionaries'
 import './globals.css'
 
 const OG_LOCALE: Record<'uk' | 'ru', string> = { uk: 'uk_UA', ru: 'ru_RU' }
@@ -22,17 +23,16 @@ export async function generateMetadata(): Promise<Metadata> {
   const s = await getStoreSettingsInternal().catch(() => null)
   const siteUrl = await getCanonicalSiteUrl()
   const locale = await getLocale()
-  const name = s?.storeName || 'Интернет-магазин'
+  const sd = getDictionary(locale).seoDefaults
+  const name = s?.storeName || sd.defaultStoreName
   const seo = s?.seo
-  const title = seo?.metaTitle?.trim() || `${name} — интернет-магазин`
-  const description =
-    seo?.metaDescription?.trim() ||
-    s?.storeDescription ||
-    'Качественные товары от проверенных брендов. Доставка по всей Украине и гарантия на каждый товар.'
+  const title = seo?.metaTitle?.trim() || `${name} ${sd.onlineStoreSuffix}`
+  const description = seo?.metaDescription?.trim() || s?.storeDescription || sd.defaultDescription
   const keywords = seo?.keywords?.trim()
     ? seo.keywords.split(',').map((k) => k.trim()).filter(Boolean)
-    : ['интернет-магазин', name]
+    : [sd.defaultKeyword, name]
   const indexable = seo?.indexingEnabled !== false
+  const ogImage = seo?.ogImageUrl?.trim() || '/hero-electronics.png'
 
   return {
     metadataBase: new URL(siteUrl),
@@ -63,13 +63,13 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       url: siteUrl,
       locale: OG_LOCALE[locale],
-      images: [{ url: '/hero-electronics.png', width: 1200, height: 630, alt: name }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: name }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/hero-electronics.png'],
+      images: [ogImage],
     },
   }
 }

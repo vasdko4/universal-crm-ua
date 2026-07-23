@@ -62,6 +62,13 @@ export type SeoSettings = {
   googleVerification: string
   /** When false the whole site is served with noindex (pre-launch mode). */
   indexingEnabled: boolean
+  /**
+   * Open Graph / Twitter card image shown in link previews (Telegram, Viber,
+   * Instagram, Slack, etc.) when someone shares a link to the site. Absolute
+   * URL or a /uploads/... path. Falls back to the built-in hero image when
+   * empty — see generateMetadata() in app/layout.tsx.
+   */
+  ogImageUrl: string | null
 }
 
 // Уведомления о событиях магазина: письмо покупателю, письмо и Telegram
@@ -195,6 +202,7 @@ export const DEFAULTS: StoreSettingsData = {
     keywords: '',
     googleVerification: '',
     indexingEnabled: true,
+    ogImageUrl: null,
   },
   social: {
     instagram: { url: '', enabled: false },

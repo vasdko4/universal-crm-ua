@@ -389,6 +389,17 @@ export const abandonedCarts = pgTable('abandoned_carts', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 
+// Remembers the storefront locale a visitor picked, keyed by IP, so a
+// returning visitor on a different browser/device on the same network isn't
+// asked again. See app/actions/locale.ts. Deliberately best-effort: an IP can
+// be shared by several people (office/family/mobile carrier) and changes
+// when the visitor switches networks.
+export const localeByIp = pgTable('locale_by_ip', {
+  ip: varchar('ip', { length: 64 }).primaryKey(),
+  locale: varchar('locale', { length: 5 }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export const promotionUsages = pgTable('promotion_usages', {
   id: serial('id').primaryKey(),
   promotionId: integer('promotion_id').notNull(),
