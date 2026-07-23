@@ -27,15 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Plus, Trash2 } from 'lucide-react'
-
-const CHANNEL_OPTIONS = [
-  { value: 'viber', label: 'Viber' },
-  { value: 'skype', label: 'Skype' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'telegram', label: 'Telegram' },
-  { value: 'email', label: 'Доп. email' },
-  { value: 'phone', label: 'Доп. телефон' },
-]
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type ContactRow = { key: string; type: string; value: string }
 
@@ -56,6 +48,16 @@ export function CustomerDialog({
   customer: CustomerListItem | null
   onSaved: () => void
 }) {
+  const { dict } = useAdminI18n()
+  const t = dict.customers
+  const CHANNEL_OPTIONS = [
+    { value: 'viber', label: t.contactViber },
+    { value: 'skype', label: t.contactSkype },
+    { value: 'whatsapp', label: t.contactWhatsapp },
+    { value: 'telegram', label: t.contactTelegram },
+    { value: 'email', label: t.contactEmail },
+    { value: 'phone', label: t.contactPhone },
+  ]
   const [isPending, startTransition] = useTransition()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -116,11 +118,11 @@ export function CustomerDialog({
         ? await updateCustomer(customer.id, input)
         : await createCustomer(input)
       if (res.success) {
-        toast.success(isEdit ? 'Клиент обновлён' : 'Клиент создан')
+        toast.success(isEdit ? t.toastUpdated : t.toastCreated)
         onOpenChange(false)
         onSaved()
       } else {
-        toast.error(res.error ?? 'Ошибка сохранения')
+        toast.error(res.error ?? t.toastSaveError)
       }
     })
   }
@@ -129,38 +131,38 @@ export function CustomerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Редактирование клиента' : 'Новый клиент'}</DialogTitle>
+          <DialogTitle>{isEdit ? t.dialogEditTitle : t.dialogNewTitle}</DialogTitle>
           <DialogDescription>
-            Основная информация и дополнительные каналы связи.
+            {t.dialogHint}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="cust-first">Имя *</Label>
+              <Label htmlFor="cust-first">{t.firstName}</Label>
               <Input
                 id="cust-first"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Олександр"
+                placeholder={t.firstNamePlaceholder}
                 required
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="cust-last">Фамилия</Label>
+              <Label htmlFor="cust-last">{t.lastName}</Label>
               <Input
                 id="cust-last"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                placeholder="Коваленко"
+                placeholder={t.lastNamePlaceholder}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="cust-phone">Основной телефон *</Label>
+              <Label htmlFor="cust-phone">{t.mainPhone}</Label>
               <Input
                 id="cust-phone"
                 value={phone}
@@ -170,7 +172,7 @@ export function CustomerDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="cust-email">Email</Label>
+              <Label htmlFor="cust-email">{t.email}</Label>
               <Input
                 id="cust-email"
                 type="email"
@@ -182,7 +184,7 @@ export function CustomerDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="cust-score">Оценка надежности (0–100)</Label>
+            <Label htmlFor="cust-score">{t.reliabilityScore}</Label>
             <Input
               id="cust-score"
               type="number"
@@ -196,16 +198,16 @@ export function CustomerDialog({
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <Label>Каналы связи</Label>
+              <Label>{t.contactChannels}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addRow}>
                 <Plus className="size-4" />
-                Добавить канал связи
+                {t.addChannel}
               </Button>
             </div>
 
             {contacts.length === 0 ? (
               <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
-                Нет дополнительных каналов связи
+                {t.noChannels}
               </p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -226,7 +228,7 @@ export function CustomerDialog({
                     <Input
                       value={row.value}
                       onChange={(e) => updateRow(row.key, { value: e.target.value })}
-                      placeholder="Значение"
+                      placeholder={t.channelValuePlaceholder}
                       className="flex-1"
                     />
                     <Button
@@ -235,7 +237,7 @@ export function CustomerDialog({
                       size="icon"
                       className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => removeRow(row.key)}
-                      aria-label="Удалить канал"
+                      aria-label={t.removeChannelAria}
                     >
                       <Trash2 className="size-4" />
                     </Button>
@@ -246,22 +248,22 @@ export function CustomerDialog({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="cust-note">Заметка</Label>
+            <Label htmlFor="cust-note">{t.note}</Label>
             <Textarea
               id="cust-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Комментарий о клиенте..."
+              placeholder={t.notePlaceholder}
               rows={2}
             />
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Отмена
+              {t.cancel}
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Сохранение...' : isEdit ? 'Сохранить' : 'Создать клиента'}
+              {isPending ? t.saving : isEdit ? t.save : t.create}
             </Button>
           </DialogFooter>
         </form>
