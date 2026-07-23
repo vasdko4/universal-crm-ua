@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, Mail } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
+import { useI18n } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function ForgotPasswordForm() {
+  const { dict: t } = useI18n()
   const router = useRouter()
   const [step, setStep] = useState<'email' | 'reset'>('email')
   const [email, setEmail] = useState('')
@@ -25,18 +27,18 @@ export function ForgotPasswordForm() {
     const { error } = await authClient.forgetPassword.emailOtp({ email: email.trim().toLowerCase() })
     setLoading(false)
     if (error) {
-      setError(error.message ?? 'Не удалось отправить код')
+      setError(error.message ?? t.auth.couldNotSendCode)
       return
     }
-    setInfo('Код отправлен на почту. Проверьте входящие (и папку «Спам»).')
+    setInfo(t.auth.codeSent)
     setStep('reset')
   }
 
   async function resetPassword(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    if (otp.trim().length !== 6) return setError('Код состоит из 6 цифр')
-    if (password.length < 8) return setError('Пароль должен быть не менее 8 символов')
+    if (otp.trim().length !== 6) return setError(t.auth.otpMustBe6Digits)
+    if (password.length < 8) return setError(t.auth.passwordTooShort)
     setLoading(true)
     const { error } = await authClient.emailOtp.resetPassword({
       email: email.trim().toLowerCase(),
@@ -45,7 +47,7 @@ export function ForgotPasswordForm() {
     })
     setLoading(false)
     if (error) {
-      setError(error.message ?? 'Неверный или просроченный код')
+      setError(error.message ?? t.auth.invalidOrExpiredCode)
       return
     }
     router.push('/account/login')
@@ -56,7 +58,7 @@ export function ForgotPasswordForm() {
     return (
       <form onSubmit={requestCode} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="email">Электронная почта</Label>
+          <Label htmlFor="email">{t.auth.emailLabel}</Label>
           <Input
             id="email"
             type="email"
@@ -73,7 +75,7 @@ export function ForgotPasswordForm() {
         )}
         <Button type="submit" disabled={loading} size="lg" className="w-full">
           {loading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
-          Отправить код
+          {t.auth.sendCodeButton}
         </Button>
       </form>
     )
@@ -88,7 +90,7 @@ export function ForgotPasswordForm() {
         </div>
       )}
       <div className="flex flex-col gap-2">
-        <Label htmlFor="otp">Код из письма</Label>
+        <Label htmlFor="otp">{t.auth.otpLabel}</Label>
         <Input
           id="otp"
           inputMode="numeric"
@@ -101,7 +103,7 @@ export function ForgotPasswordForm() {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="new-password">Новый пароль</Label>
+        <Label htmlFor="new-password">{t.auth.newPasswordLabel}</Label>
         <Input
           id="new-password"
           type="password"
@@ -119,14 +121,14 @@ export function ForgotPasswordForm() {
       )}
       <Button type="submit" disabled={loading} size="lg" className="w-full">
         {loading && <Loader2 className="size-4 animate-spin" />}
-        Сбросить пароль
+        {t.auth.resetPasswordButton}
       </Button>
       <button
         type="button"
         onClick={() => setStep('email')}
         className="text-sm text-muted-foreground hover:text-primary hover:underline"
       >
-        Отправить код повторно
+        {t.auth.resendCodeButton}
       </button>
     </form>
   )

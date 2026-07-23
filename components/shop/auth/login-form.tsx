@@ -6,11 +6,13 @@ import { useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { useAuthDialog } from '@/components/shop/auth/auth-dialog'
+import { useI18n } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function LoginForm() {
+  const { dict: t } = useI18n()
   const searchParams = useSearchParams()
   const authDialog = useAuthDialog()
   const [email, setEmail] = useState('')
@@ -25,12 +27,8 @@ export function LoginForm() {
     const { error } = await authClient.signIn.email({ email: email.trim().toLowerCase(), password })
     setLoading(false)
     if (error) {
-      // 429 = сработала защита от перебора пароля (5 попыток / 2 минуты).
-      setError(
-        error.status === 429
-          ? 'Слишком много попыток входа. Подождите 2 минуты и попробуйте снова.'
-          : 'Неверная почта или пароль',
-      )
+      // 429 = triggered the brute-force protection (5 attempts / 2 minutes).
+      setError(error.status === 429 ? t.auth.tooManyAttempts : t.auth.invalidCredentials)
       return
     }
     // Honor ?redirect= but only allow same-site paths to prevent open redirects.
@@ -45,7 +43,7 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Электронная почта</Label>
+        <Label htmlFor="email">{t.auth.emailLabel}</Label>
         <Input
           id="email"
           type="email"
@@ -57,13 +55,13 @@ export function LoginForm() {
       </div>
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">Пароль</Label>
+          <Label htmlFor="password">{t.auth.passwordLabel}</Label>
           <Link
             href="/account/forgot-password"
             onClick={() => authDialog?.closeDialog()}
             className="text-xs text-muted-foreground hover:text-primary hover:underline"
           >
-            Забыли пароль?
+            {t.auth.forgotPasswordLink}
           </Link>
         </div>
         <Input
@@ -82,7 +80,7 @@ export function LoginForm() {
       )}
       <Button type="submit" disabled={loading} size="lg" className="w-full">
         {loading && <Loader2 className="size-4 animate-spin" />}
-        Войти
+        {t.auth.loginButton}
       </Button>
     </form>
   )

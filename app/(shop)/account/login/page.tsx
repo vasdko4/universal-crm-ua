@@ -5,20 +5,24 @@ import { getShopUser } from '@/lib/session'
 import { LoginForm } from '@/components/shop/auth/login-form'
 import { GoogleSignInButton } from '@/components/shop/auth/google-sign-in-button'
 import { getGoogleAuthEnabled } from '@/app/actions/settings-store'
+import { getServerDictionary } from '@/lib/i18n/server'
 
 export default async function LoginPage() {
   const user = await getShopUser()
   if (user) redirect('/account')
 
-  const googleEnabled = await getGoogleAuthEnabled()
+  const [googleEnabled, { dict: t }] = await Promise.all([
+    getGoogleAuthEnabled(),
+    getServerDictionary(),
+  ])
 
   return (
     <div className="mx-auto flex max-w-md flex-col px-4 py-12">
-      <h1 className="text-2xl font-bold text-balance">Вход в аккаунт</h1>
+      <h1 className="text-2xl font-bold text-balance">{t.auth.loginTitle}</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Нет аккаунта?{' '}
+        {t.auth.loginNoAccount}{' '}
         <Link href="/account/register" className="font-medium text-primary hover:underline">
-          Зарегистрироваться
+          {t.auth.loginRegisterLink}
         </Link>
       </p>
       <div className="mt-6">
