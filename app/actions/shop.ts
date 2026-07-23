@@ -31,6 +31,8 @@ import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { isRateLimited } from '@/lib/api/rate-limit'
 import { validateCheckoutInput } from '@/lib/shop/checkout-validation'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { getLocale } from '@/lib/i18n/server'
+import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 
 /** Client IP for server actions (no Request object available — use headers). */
 async function actionClientIp(): Promise<string> {
@@ -144,19 +146,22 @@ export type CheckoutResult =
 // client prices), decrements inventory, links the customer + account, records
 // history, and prepares payment info depending on the chosen method.
 export async function createStorefrontOrder(input: CheckoutInput): Promise<CheckoutResult> {
+  const locale = await getLocale()
+  const t = getDictionary(locale).serverErrors
+
   // SECURITY: public, unauthenticated server action — rate-limit per IP to
   // stop order-spam floods (every order writes DB rows, upserts a customer and
   // fires admin/customer notifications). Two buckets: burst + sustained.
   const ip = await actionClientIp()
   if (isRateLimited('checkout', ip, 5) || isRateLimited('checkout-hourly', ip, 30, 3_600_000)) {
-    return { success: false, error: 'Слишком много заказов подряд. Попробуйте позже.' }
+    return { success: false, error: t.rateLimitOrders }
   }
 
   // Strict validation of hostile input: caps every string, requires a
   // plausible phone/email, rejects NaN / non-integer / oversized quantities
   // (NaN used to slip past the stock check: `p.quantity < NaN` is false) and
   // caps the number of cart lines. See lib/shop/checkout-validation.ts.
-  const validated = validateCheckoutInput(input)
+  const validated = validateCheckoutInput(input, locale)
   if (!validated.ok) return { success: false, error: validated.error }
   // Sanitized values are already trimmed/capped; null vs undefined is
   // equivalent for every downstream `?.` / `||` use in this function.
@@ -200,17 +205,17 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
 
   for (const it of input.items) {
     const p = byId.get(it.productId)
-    if (!p) return { success: false, error: 'Некоторые товары недоступны' }
+    if (!p) return { success: false, error: t.someItemsUnavailable }
     const qty = Math.max(1, Math.floor(it.quantity))
 
     if (it.variantId != null) {
       const v = variantById.get(it.variantId)
       if (!v || v.productId !== p.id) {
-        return { success: false, error: `Вариант товара «${p.name}» недоступен` }
+        return { success: false, error: fillTemplate(t.variantUnavailable, { name: p.name }) }
       }
       const label = variantLabel((v.options ?? {}) as VariantOptions)
       if (!v.isInStock || v.quantity < qty) {
-        return { success: false, error: `Недостаточно товара «${p.name}» (${label}) на складе` }
+        return { success: false, error: fillTemplate(t.variantOutOfStock, { name: p.name, label }) }
       }
       lineItems.push({
         productId: p.id,
@@ -227,7 +232,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     }
 
     if (p.quantity < qty) {
-      return { success: false, error: `Недостаточно товара «${p.name}» на складе` }
+      return { success: false, error: fillTemplate(t.productOutOfStock, { name: p.name }) }
     }
     lineItems.push({
       productId: p.id,
@@ -250,9 +255,10 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   // bypass it entirely.
   const { minOrder } = await getStoreSettingsInternal()
   if (minOrder.enabled && minOrder.amount > 0 && itemsTotal < minOrder.amount) {
+    const dict = getDictionary(locale)
     return {
       success: false,
-      error: `Минимальная сумма заказа — ${minOrder.amount} грн. Добавьте товаров ещё на ${(minOrder.amount - itemsTotal).toFixed(2)} грн.`,
+      error: `${dict.checkout.minOrderPrefix} ${minOrder.amount} грн. ${dict.checkout.minOrderAddMore} ${(minOrder.amount - itemsTotal).toFixed(2)} грн.`,
     }
   }
 
@@ -481,8 +487,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
           .catch(() => {})
         return {
           success: false,
-          error:
-            'Не удалось создать счёт на оплату. Попробуйте ещё раз или выберите другой способ оплаты.',
+          error: t.paymentInvoiceFailed,
         }
       }
     }
@@ -538,8 +543,9 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
 const REAL_GATEWAY_CODES = ['wayforpay', 'monobank']
 
 export async function markOrderPaid(orderNumber: string) {
+  const t = getDictionary(await getLocale()).serverErrors
   const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1)
-  if (!order) return { success: false, error: 'Заказ не найден' }
+  if (!order) return { success: false, error: t.orderNotFound }
   if (order.paymentStatus === 'paid') return { success: true }
 
   const [realGatewayPayment] = await db
@@ -548,7 +554,7 @@ export async function markOrderPaid(orderNumber: string) {
     .where(and(eq(payments.orderReference, orderNumber), inArray(payments.gatewayCode, REAL_GATEWAY_CODES)))
     .limit(1)
   if (realGatewayPayment) {
-    return { success: false, error: 'Заказ оплачивается через платёжный шлюз — используйте проверку статуса' }
+    return { success: false, error: t.orderPaidViaGateway }
   }
 
   await db
@@ -728,13 +734,15 @@ export async function submitReview(input: {
   authorName?: string
   authorEmail?: string
 }) {
+  const locale = await getLocale()
+  const dict = getDictionary(locale)
   // Public, unauthenticated write — rate-limit per IP to stop spam floods.
   if (await isFeedbackRateLimited('reviews')) {
-    return { success: false, error: 'Слишком много запросов, попробуйте позже' }
+    return { success: false, error: dict.serverErrors.rateLimitGeneric }
   }
   const user = await getShopUser()
-  const name = (input.authorName?.trim() || user?.name || 'Аноним').slice(0, 120)
-  if (!input.body?.trim()) return { success: false, error: 'Введите текст отзыва' }
+  const name = (input.authorName?.trim() || user?.name || dict.common.anonymous).slice(0, 120)
+  if (!input.body?.trim()) return { success: false, error: dict.serverErrors.reviewTextRequired }
   await db.insert(productReviews).values({
     productId: input.productId,
     authorName: name,
@@ -754,13 +762,14 @@ export async function submitQuestion(input: {
   authorName?: string
   authorEmail?: string
 }) {
+  const dict = getDictionary(await getLocale())
   // Public, unauthenticated write — rate-limit per IP to stop spam floods.
   if (await isFeedbackRateLimited('questions')) {
-    return { success: false, error: 'Слишком много запросов, попробуйте позже' }
+    return { success: false, error: dict.serverErrors.rateLimitGeneric }
   }
   const user = await getShopUser()
-  const name = (input.authorName?.trim() || user?.name || 'Аноним').slice(0, 120)
-  if (!input.question?.trim()) return { success: false, error: 'Введите вопрос' }
+  const name = (input.authorName?.trim() || user?.name || dict.common.anonymous).slice(0, 120)
+  if (!input.question?.trim()) return { success: false, error: dict.serverErrors.questionRequired }
   await db.insert(productQuestions).values({
     productId: input.productId,
     authorName: name,

@@ -11,8 +11,10 @@ import {
   customers,
 } from '@/lib/db/schema'
 import { getAdminUser, assertPermission } from '@/lib/session'
-import { ORDER_STATUSES, PAYMENT_STATUSES } from '@/lib/order-status'
+import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel } from '@/lib/order-status'
 import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
+import { fillAuditTemplate } from '@/lib/audit-log'
+import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 
 export async function listOrders(params: OrderListParams = {}) {
@@ -216,7 +218,11 @@ export async function createOrder(input: {
     )
   }
 
-  await addHistory(order.id, 'status', `Заказ создан (№${orderNumber})`)
+  await addHistory(
+    order.id,
+    'status',
+    fillAuditTemplate(getAdminDictionary(me.locale).auditLog.orderCreated, { number: orderNumber }),
+  )
   // Track order for analytics.
   await pool.query(
     `INSERT INTO analytics_events (type, order_id, amount) VALUES ('order', $1, $2)`,
@@ -261,13 +267,14 @@ export async function updateOrderStatus(id: number, status: string) {
     await db.update(orders).set({ stockRestored: false }).where(eq(orders.id, id))
   }
 
-  const label = ORDER_STATUSES.find((s) => s.value === status)?.label ?? status
-  await addHistory(id, 'status', `Статус изменён на «${label}»`)
+  const label = getOrderStatusLabel(status, user.locale)
+  const t = getAdminDictionary(user.locale).auditLog
+  await addHistory(id, 'status', fillAuditTemplate(t.orderStatusChanged, { label }))
   const { auditLog } = await import('@/lib/audit-log')
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'update', entity: 'order', entityId: current.orderNumber,
-    details: `Статус заказа: «${label}»`,
+    details: fillAuditTemplate(t.orderStatusChanged, { label }),
   })
   revalidatePath('/admin/orders')
   revalidatePath(`/admin/orders/${id}`)
@@ -275,10 +282,14 @@ export async function updateOrderStatus(id: number, status: string) {
 }
 
 export async function updateOrderPayment(id: number, paymentStatus: string) {
-  await assertPermission('orders')
+  const user = await assertPermission('orders')
   await db.update(orders).set({ paymentStatus, updatedAt: new Date() }).where(eq(orders.id, id))
-  const label = PAYMENT_STATUSES.find((s) => s.value === paymentStatus)?.label ?? paymentStatus
-  await addHistory(id, 'payment', `Оплата: ${label}`)
+  const label = getPaymentStatusLabel(paymentStatus, user.locale)
+  await addHistory(
+    id,
+    'payment',
+    fillAuditTemplate(getAdminDictionary(user.locale).auditLog.paymentStatusChanged, { label }),
+  )
   revalidatePath(`/admin/orders/${id}`)
   revalidatePath('/admin/orders')
   return { success: true }
@@ -296,7 +307,7 @@ export async function updateOrderDelivery(
     deliveryCost?: number
   },
 ) {
-  await assertPermission('orders')
+  const user = await assertPermission('orders')
   const set: Record<string, unknown> = { updatedAt: new Date() }
   if (data.deliveryMethod !== undefined) set.deliveryMethod = data.deliveryMethod
   if (data.deliveryCity !== undefined) set.deliveryCity = data.deliveryCity
@@ -306,7 +317,13 @@ export async function updateOrderDelivery(
   if (data.deliveryStatus !== undefined) set.deliveryStatus = data.deliveryStatus
   await db.update(orders).set(set).where(eq(orders.id, id))
   if (data.trackingNumber) {
-    await addHistory(id, 'delivery', `Создана ЭН ${data.trackingNumber}`)
+    await addHistory(
+      id,
+      'delivery',
+      fillAuditTemplate(getAdminDictionary(user.locale).auditLog.trackingCreated, {
+        number: data.trackingNumber,
+      }),
+    )
   }
   revalidatePath(`/admin/orders/${id}`)
   return { success: true }

@@ -19,6 +19,7 @@ export type Dictionary = {
     reset: string
     yes: string
     no: string
+    anonymous: string
   }
   nav: {
     catalog: string
@@ -348,6 +349,43 @@ export type Dictionary = {
     accept: string
     decline: string
   }
+  // Error strings generated in server actions (app/actions/shop.ts,
+  // app/actions/promotions.ts) and shown to the shopper as-is — these must be
+  // resolved via getLocale() server-side since, unlike static page text, they
+  // are only ever built once, at the moment of the error, not re-rendered
+  // per-locale by the page.
+  serverErrors: {
+    rateLimitOrders: string
+    rateLimitGeneric: string
+    someItemsUnavailable: string
+    variantUnavailable: string
+    variantOutOfStock: string
+    productOutOfStock: string
+    orderNotFound: string
+    orderPaidViaGateway: string
+    paymentInvoiceFailed: string
+    reviewTextRequired: string
+    questionRequired: string
+    promoCodeRequired: string
+    cartEmpty: string
+    promoNotFound: string
+    promoInactive: string
+    promoNotYetActive: string
+    promoExpired: string
+    promoUsageLimitReached: string
+    promoMinOrder: string
+    promoNotApplicable: string
+    promoNoDiscount: string
+    tooManyItems: string
+    invalidCartItem: string
+    invalidQuantity: string
+    invalidVariant: string
+    nameAndPhoneRequired: string
+    invalidPhone: string
+    invalidEmail: string
+    deliveryMethodRequired: string
+    paymentMethodRequired: string
+  }
 }
 
 const uk: Dictionary = {
@@ -369,6 +407,7 @@ const uk: Dictionary = {
     reset: 'Скинути',
     yes: 'Так',
     no: 'Ні',
+    anonymous: 'Анонім',
   },
   nav: {
     catalog: 'Каталог',
@@ -700,6 +739,38 @@ const uk: Dictionary = {
     accept: 'Прийняти',
     decline: 'Відхилити',
   },
+  serverErrors: {
+    rateLimitOrders: 'Забагато замовлень поспіль. Спробуйте пізніше.',
+    rateLimitGeneric: 'Забагато запитів, спробуйте пізніше',
+    someItemsUnavailable: 'Деякі товари недоступні',
+    variantUnavailable: 'Варіант товару «{{name}}» недоступний',
+    variantOutOfStock: 'Недостатньо товару «{{name}}» ({{label}}) на складі',
+    productOutOfStock: 'Недостатньо товару «{{name}}» на складі',
+    orderNotFound: 'Замовлення не знайдено',
+    orderPaidViaGateway: 'Замовлення оплачується через платіжний шлюз — скористайтесь перевіркою статусу',
+    paymentInvoiceFailed: 'Не вдалося створити рахунок на оплату. Спробуйте ще раз або оберіть інший спосіб оплати.',
+    reviewTextRequired: 'Введіть текст відгуку',
+    questionRequired: 'Введіть запитання',
+    promoCodeRequired: 'Введіть промокод',
+    cartEmpty: 'Кошик порожній',
+    promoNotFound: 'Промокод не знайдено',
+    promoInactive: 'Промокод неактивний',
+    promoNotYetActive: 'Промокод ще не діє',
+    promoExpired: 'Термін дії промокоду закінчився',
+    promoUsageLimitReached: 'Ліміт використання промокоду вичерпано',
+    promoMinOrder: 'Мінімальна сума замовлення для промокоду — {{amount}} грн',
+    promoNotApplicable: 'Промокод не застосовується до товарів у кошику',
+    promoNoDiscount: 'Промокод не дає знижки на це замовлення',
+    tooManyItems: 'Забагато позицій у замовленні (максимум {{max}})',
+    invalidCartItem: 'Некоректний товар у кошику',
+    invalidQuantity: 'Некоректна кількість товару',
+    invalidVariant: 'Некоректний варіант товару',
+    nameAndPhoneRequired: 'Вкажіть ім\u2019я та телефон',
+    invalidPhone: 'Вкажіть коректний номер телефону',
+    invalidEmail: 'Вкажіть коректний email',
+    deliveryMethodRequired: 'Оберіть спосіб доставки',
+    paymentMethodRequired: 'Оберіть спосіб оплати',
+  },
 }
 
 const ru: Dictionary = {
@@ -721,6 +792,7 @@ const ru: Dictionary = {
     reset: 'Сбросить',
     yes: 'Да',
     no: 'Нет',
+    anonymous: 'Аноним',
   },
   nav: {
     catalog: 'Каталог',
@@ -1052,10 +1124,52 @@ const ru: Dictionary = {
     accept: 'Принять',
     decline: 'Отклонить',
   },
+  serverErrors: {
+    rateLimitOrders: 'Слишком много заказов подряд. Попробуйте позже.',
+    rateLimitGeneric: 'Слишком много запросов, попробуйте позже',
+    someItemsUnavailable: 'Некоторые товары недоступны',
+    variantUnavailable: 'Вариант товара «{{name}}» недоступен',
+    variantOutOfStock: 'Недостаточно товара «{{name}}» ({{label}}) на складе',
+    productOutOfStock: 'Недостаточно товара «{{name}}» на складе',
+    orderNotFound: 'Заказ не найден',
+    orderPaidViaGateway: 'Заказ оплачивается через платёжный шлюз — используйте проверку статуса',
+    paymentInvoiceFailed: 'Не удалось создать счёт на оплату. Попробуйте ещё раз или выберите другой способ оплаты.',
+    reviewTextRequired: 'Введите текст отзыва',
+    questionRequired: 'Введите вопрос',
+    promoCodeRequired: 'Введите промокод',
+    cartEmpty: 'Корзина пуста',
+    promoNotFound: 'Промокод не найден',
+    promoInactive: 'Промокод неактивен',
+    promoNotYetActive: 'Промокод ещё не действует',
+    promoExpired: 'Срок действия промокода истёк',
+    promoUsageLimitReached: 'Лимит использования промокода исчерпан',
+    promoMinOrder: 'Минимальная сумма заказа для промокода — {{amount}} грн',
+    promoNotApplicable: 'Промокод не применяется к товарам в корзине',
+    promoNoDiscount: 'Промокод не даёт скидки на этот заказ',
+    tooManyItems: 'Слишком много позиций в заказе (максимум {{max}})',
+    invalidCartItem: 'Некорректный товар в корзине',
+    invalidQuantity: 'Некорректное количество товара',
+    invalidVariant: 'Некорректный вариант товара',
+    nameAndPhoneRequired: 'Укажите имя и телефон',
+    invalidPhone: 'Укажите корректный номер телефона',
+    invalidEmail: 'Укажите корректный email',
+    deliveryMethodRequired: 'Выберите способ доставки',
+    paymentMethodRequired: 'Выберите способ оплаты',
+  },
 }
 
 export const dictionaries: Record<Locale, Dictionary> = { uk, ru }
 
 export function getDictionary(locale: Locale): Dictionary {
   return dictionaries[locale] ?? uk
+}
+
+/**
+ * Fills `{{name}}`-style placeholders in a dictionary string, e.g.
+ * `fillTemplate(t.serverErrors.productOutOfStock, { name: p.name })`. Used by
+ * server actions that build a dynamic, locale-dependent error message instead
+ * of returning a static dictionary string as-is.
+ */
+export function fillTemplate(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => String(values[key] ?? ''))
 }

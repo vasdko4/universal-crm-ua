@@ -1530,6 +1530,32 @@ export type AdminDictionary = {
     toastSaveError: string
     saveChanges: string
   }
+  auditLog: {
+    cartReminderSent: string
+    cartsHidden: string
+    logsClearedOld: string
+    logsClearedAll: string
+    campaignCreated: string
+    campaignUpdated: string
+    campaignEnabled: string
+    campaignDisabled: string
+    campaignDeleted: string
+    orderStatusChanged: string
+    orderCreated: string
+    paymentStatusChanged: string
+    trackingCreated: string
+    productCreated: string
+    productUpdated: string
+    productsTrashed: string
+    settingsUpdated: string
+    settingsUnchanged: string
+    cacheCleared: string
+    userCreated: string
+    userRoleChanged: string
+    userActivated: string
+    userDeactivated: string
+    userDeleted: string
+  }
 }
 
 const uk: AdminDictionary = {
@@ -3108,6 +3134,32 @@ const uk: AdminDictionary = {
     toastSaveError: 'Помилка збереження',
     saveChanges: 'Зберегти зміни',
   },
+  auditLog: {
+    cartReminderSent: 'Надіслано нагадування на {{email}}',
+    cartsHidden: 'Приховано кошиків: {{count}}',
+    logsClearedOld: 'Очищення логів старіших за {{days}} дн. ({{count}})',
+    logsClearedAll: 'Повне очищення логів ({{count}})',
+    campaignCreated: 'Створено кампанію «{{name}}»',
+    campaignUpdated: 'Змінено кампанію «{{name}}»',
+    campaignEnabled: 'Кампанію увімкнено',
+    campaignDisabled: 'Кампанію вимкнено',
+    campaignDeleted: 'Кампанію видалено',
+    orderStatusChanged: 'Статус замовлення: «{{label}}»',
+    orderCreated: 'Замовлення створено (№{{number}})',
+    paymentStatusChanged: 'Оплата: {{label}}',
+    trackingCreated: 'Створено ЕН {{number}}',
+    productCreated: 'Створено товар «{{name}}»',
+    productUpdated: 'Змінено товар «{{name}}»',
+    productsTrashed: 'Товари переміщено в кошик: {{ids}}',
+    settingsUpdated: 'Оновлено налаштування: {{keys}}',
+    settingsUnchanged: 'Налаштування збережено (без змін)',
+    cacheCleared: 'Очищено кеш сайту',
+    userCreated: 'Створено користувача {{email}} (роль: {{role}})',
+    userRoleChanged: 'Зміна ролі користувача на «{{role}}»',
+    userActivated: 'Користувача активовано',
+    userDeactivated: 'Користувача деактивовано',
+    userDeleted: 'Користувача видалено',
+  },
 }
 
 const ru: AdminDictionary = {
@@ -4685,6 +4737,32 @@ const ru: AdminDictionary = {
     toastCreated: 'Товар создан',
     toastSaveError: 'Ошибка сохранения',
     saveChanges: 'Сохранить изменения',
+  },
+  auditLog: {
+    cartReminderSent: 'Отправлено напоминание на {{email}}',
+    cartsHidden: 'Скрыто корзин: {{count}}',
+    logsClearedOld: 'Очистка логов старше {{days}} дн. ({{count}})',
+    logsClearedAll: 'Полная очистка логов ({{count}})',
+    campaignCreated: 'Создана кампания «{{name}}»',
+    campaignUpdated: 'Изменена кампания «{{name}}»',
+    campaignEnabled: 'Кампания включена',
+    campaignDisabled: 'Кампания выключена',
+    campaignDeleted: 'Кампания удалена',
+    orderStatusChanged: 'Статус заказа: «{{label}}»',
+    orderCreated: 'Заказ создан (№{{number}})',
+    paymentStatusChanged: 'Оплата: {{label}}',
+    trackingCreated: 'Создана ЭН {{number}}',
+    productCreated: 'Создан товар «{{name}}»',
+    productUpdated: 'Изменён товар «{{name}}»',
+    productsTrashed: 'Товары перемещены в корзину: {{ids}}',
+    settingsUpdated: 'Обновлены настройки: {{keys}}',
+    settingsUnchanged: 'Настройки сохранены (без изменений)',
+    cacheCleared: 'Очищен кеш сайта',
+    userCreated: 'Создан пользователь {{email}} (роль: {{role}})',
+    userRoleChanged: 'Смена роли пользователя на «{{role}}»',
+    userActivated: 'Пользователь активирован',
+    userDeactivated: 'Пользователь деактивирован',
+    userDeleted: 'Пользователь удалён',
   },
 }
 

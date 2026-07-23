@@ -13,7 +13,8 @@ import { and, asc, desc, eq, ilike, inArray, isNull, isNotNull, or, sql, type SQ
 import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
 import { revalidateStorefront } from '@/lib/shop/cache'
-import { auditLog } from '@/lib/audit-log'
+import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
+import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 export type VariantInput = {
   options: VariantOptions
@@ -340,7 +341,9 @@ export async function createProduct(input: ProductInput) {
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'create', entity: 'product', entityId: created.id,
-    details: `Создан товар «${input.nameUk || input.nameRu || ''}»`,
+    details: fillAuditTemplate(getAdminDictionary(user.locale).auditLog.productCreated, {
+      name: input.nameUk || input.nameRu || '',
+    }),
   })
 
   revalidatePath('/admin/products')
@@ -362,7 +365,9 @@ export async function updateProduct(id: number, input: ProductInput) {
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'update', entity: 'product', entityId: id,
-    details: `Изменён товар «${input.nameUk || input.nameRu || ''}»`,
+    details: fillAuditTemplate(getAdminDictionary(user.locale).auditLog.productUpdated, {
+      name: input.nameUk || input.nameRu || '',
+    }),
   })
 
   revalidatePath('/admin/products')
@@ -380,7 +385,9 @@ export async function softDeleteProducts(ids: number[]) {
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'delete', entity: 'product',
-    details: `Товары перемещены в корзину: ${ids.join(', ')}`,
+    details: fillAuditTemplate(getAdminDictionary(user.locale).auditLog.productsTrashed, {
+      ids: ids.join(', '),
+    }),
   })
 
   revalidatePath('/admin/products')

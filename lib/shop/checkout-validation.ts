@@ -12,6 +12,8 @@
 // This module is pure (no DB/session imports) so it is unit-testable.
 
 import type { CheckoutItem, CheckoutInput } from '@/app/actions/shop'
+import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
+import type { Locale } from '@/lib/i18n/config'
 
 export const CHECKOUT_LIMITS = {
   maxItems: 50,
@@ -70,51 +72,52 @@ function toIntInRange(v: unknown, min: number, max: number): number | null {
   return i
 }
 
-export function validateCheckoutInput(input: CheckoutInput): CheckoutValidation {
+export function validateCheckoutInput(input: CheckoutInput, locale: Locale = 'ru'): CheckoutValidation {
   const L = CHECKOUT_LIMITS
+  const t = getDictionary(locale).serverErrors
 
   // --- items ---
   if (!Array.isArray(input?.items) || input.items.length === 0) {
-    return { ok: false, error: 'Корзина пуста' }
+    return { ok: false, error: t.cartEmpty }
   }
   if (input.items.length > L.maxItems) {
-    return { ok: false, error: `Слишком много позиций в заказе (максимум ${L.maxItems})` }
+    return { ok: false, error: fillTemplate(t.tooManyItems, { max: L.maxItems }) }
   }
   const items: SanitizedCheckout['items'] = []
   for (const raw of input.items as CheckoutItem[]) {
     const productId = toIntInRange(raw?.productId, 1, 2_147_483_647)
-    if (productId == null) return { ok: false, error: 'Некорректный товар в корзине' }
+    if (productId == null) return { ok: false, error: t.invalidCartItem }
     const quantity = toIntInRange(raw?.quantity, 1, L.maxQuantityPerLine)
-    if (quantity == null) return { ok: false, error: 'Некорректное количество товара' }
+    if (quantity == null) return { ok: false, error: t.invalidQuantity }
     const variantId =
       raw?.variantId == null ? undefined : (toIntInRange(raw.variantId, 1, 2_147_483_647) ?? undefined)
     if (raw?.variantId != null && variantId == null) {
-      return { ok: false, error: 'Некорректный вариант товара' }
+      return { ok: false, error: t.invalidVariant }
     }
     items.push(variantId != null ? { productId, quantity, variantId } : { productId, quantity })
   }
 
   // --- contact ---
   const firstName = cap(input.firstName, L.name)
-  if (!firstName) return { ok: false, error: 'Укажите имя и телефон' }
+  if (!firstName) return { ok: false, error: t.nameAndPhoneRequired }
   const lastName = cap(input.lastName, L.name)
 
   const phoneRaw = cap(input.phone, L.phone)
   const phoneDigits = (phoneRaw ?? '').replace(/\D/g, '')
   if (!phoneRaw || phoneDigits.length < L.phoneDigitsMin || phoneDigits.length > L.phoneDigitsMax) {
-    return { ok: false, error: 'Укажите корректный номер телефона' }
+    return { ok: false, error: t.invalidPhone }
   }
 
   const email = cap(input.email, L.email)
   if (email && !EMAIL_RE.test(email)) {
-    return { ok: false, error: 'Укажите корректный email' }
+    return { ok: false, error: t.invalidEmail }
   }
 
   // --- delivery / payment ---
   const deliveryMethod = cap(input.deliveryMethod, L.deliveryMethod)
-  if (!deliveryMethod) return { ok: false, error: 'Выберите способ доставки' }
+  if (!deliveryMethod) return { ok: false, error: t.deliveryMethodRequired }
   const paymentMethod = cap(input.paymentMethod, L.paymentMethod)
-  if (!paymentMethod) return { ok: false, error: 'Выберите способ оплаты' }
+  if (!paymentMethod) return { ok: false, error: t.paymentMethodRequired }
 
   const cartTokenRaw = cap(input.cartToken, L.cartToken)
 
