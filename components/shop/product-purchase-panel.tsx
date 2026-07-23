@@ -10,6 +10,8 @@ import { ProductVariantSelector } from '@/components/shop/product-variant-select
 import { FavoriteButton } from '@/components/shop/favorite-button'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import { useI18n } from '@/lib/i18n/client'
+import { fillTemplate } from '@/lib/i18n/dictionaries'
+import { pluralize } from '@/lib/i18n/plural'
 import { cn } from '@/lib/utils'
 import type { ShopProduct, ProductVariant } from '@/lib/shop/queries'
 
@@ -48,7 +50,7 @@ export function ProductPurchasePanel({
 }) {
   const router = useRouter()
   const { add, startBuyNow } = useCart()
-  const { dict, locale: uiLocale } = useI18n()
+  const { dict } = useI18n()
   const tp = dict.product
   const [qty, setQty] = useState(1)
   const hasVariants = product.variantsEnabled && product.options.length > 0 && product.variants.length > 0
@@ -165,9 +167,10 @@ export function ProductPurchasePanel({
           </span>
           {product.purchasedCount > 0 && (
             <span className="text-sm text-muted-foreground">
-              {uiLocale === 'ru'
-                ? `Купили ${product.purchasedCount} раз`
-                : `Купили ${product.purchasedCount} разів`}
+              {fillTemplate(
+                pluralize(product.purchasedCount, dict.product.purchasedOne, dict.product.purchasedFew, dict.product.purchasedMany),
+                { count: product.purchasedCount }
+              )}
             </span>
           )}
         </div>

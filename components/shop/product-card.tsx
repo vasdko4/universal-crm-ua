@@ -10,6 +10,8 @@ import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import type { ShopProduct } from '@/lib/shop/queries'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
+import { fillTemplate } from '@/lib/i18n/dictionaries'
+import { pluralize } from '@/lib/i18n/plural'
 import { FavoriteButton } from '@/components/shop/favorite-button'
 import { cn } from '@/lib/utils'
 
@@ -111,9 +113,10 @@ export function ProductCard({ product }: { product: ShopProduct }) {
 
         {product.purchasedCount > 0 && (
           <span className="text-xs text-muted-foreground">
-            {locale === 'ru'
-              ? `Купили ${product.purchasedCount} раз`
-              : `Купили ${product.purchasedCount} разів`}
+            {fillTemplate(
+              pluralize(product.purchasedCount, dict.product.purchasedOne, dict.product.purchasedFew, dict.product.purchasedMany),
+              { count: product.purchasedCount }
+            )}
           </span>
         )}
 
