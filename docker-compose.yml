@@ -47,11 +47,43 @@ services:
       CRON_SECRET: ${CRON_SECRET:-}
       # Optional: public URL for SEO (sitemap, canonical links, OG tags).
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+      # Lets the admin panel's "Updates" page (/admin/updates) trigger a
+      # self-update through the `updater` sidecar below. Both are empty by
+      # default, which the admin panel treats as "auto-update not available
+      # here" (still shows the current/latest version, just hides the button).
+      UPDATER_URL: ${UPDATER_URL:-http://updater:8787}
+      UPDATER_SECRET: ${UPDATER_SECRET:-}
     # First run only: applies db/schema.sql (+ optional demo seed) before
     # starting the server. Safe to leave in — db-setup.mjs is idempotent
     # against an already-migrated schema.
     command: >
       sh -c "node scripts/db-setup.mjs && node server.js"
+
+  # Sidecar that lets the admin panel update the app to the latest release
+  # with one click (Настройки → Обновления). It's the only container that
+  # touches the Docker socket — `app` itself never gets it — and is not
+  # published to the host, only reachable from other containers on this
+  # compose network, and only acts on requests carrying UPDATER_SECRET.
+  # Requires UPDATER_SECRET (and ideally COMPOSE_PROJECT_NAME, so it updates
+  # *this* stack rather than guessing the project name) in .env — start.sh
+  # sets both up automatically for new installs.
+  updater:
+    image: python:3.12-alpine
+    container_name: techno-store-updater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace:ro
+    working_dir: /workspace
+    environment:
+      # Left empty, the sidecar starts but refuses every /update request —
+      # safer default than blocking `docker compose up` on installs that
+      # haven't set it yet. Set it (and the matching UPDATER_SECRET on `app`
+      # above) to enable one-click updates from the admin panel.
+      UPDATER_SECRET: ${UPDATER_SECRET:-}
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-}
+    command: >
+      sh -c "apk add --no-cache docker-cli docker-cli-compose >/dev/null 2>&1 && python3 scripts/updater.py"
 
   # Optional FTP access to the uploads volume (product photos, logos) so you
   # can manage files without entering the container. Started only with the

@@ -21,6 +21,7 @@ import {
   FileUp,
   Trash2,
   ScrollText,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -47,6 +48,7 @@ export type PermissionKey =
   | 'import'
   | 'trash'
   | 'logs'
+  | 'system_updates'
 
 export type NavItem = {
   href: string
@@ -115,6 +117,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/users', label: 'Пользователи', icon: Shield, permission: 'users' },
       { href: '/admin/logs', label: 'Логи', icon: ScrollText, permission: 'logs' },
       { href: '/admin/settings', label: 'Настройки', icon: Settings, permission: 'settings' },
+      { href: '/admin/updates', label: 'Обновления', icon: RefreshCw, permission: 'system_updates' },
       { href: '/admin/trash', label: 'Корзина', icon: Trash2, permission: 'trash' },
     ],
   },
