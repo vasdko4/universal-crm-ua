@@ -90,5 +90,15 @@ SET "variants_enabled" = true
 WHERE EXISTS (SELECT 1 FROM "product_variants" pv WHERE pv."product_id" = p."id")
   AND NOT p."variants_enabled";
 
+-- ---------- Язык витрины: запоминаем выбор по IP ----------
+-- Чтобы не переспрашивать язык повторно в другом браузере/устройстве той же
+-- сети. Осознанное ограничение: IP бывает общим на нескольких людей и
+-- меняется при смене сети — это подсказка по умолчанию, не точная привязка.
+CREATE TABLE IF NOT EXISTS "locale_by_ip" (
+  "ip" varchar(64) PRIMARY KEY,
+  "locale" varchar(5) NOT NULL,
+  "updated_at" timestamptz DEFAULT now() NOT NULL
+);
+
 -- ---------- Готово ----------
 DO $$ BEGIN RAISE NOTICE 'Миграция применена успешно.'; END $$;

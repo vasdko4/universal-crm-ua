@@ -757,3 +757,14 @@ ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS min_order jsonb NOT N
 -- Реальный URL фискального чека от эквайринга (WayForPay/Monobank), если API
 -- шлюза его вернул. NULL — чек заказа показывает нефискальный QR на магазин.
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS receipt_url text;
+
+-- Запоминаем выбор языка витрины по IP посетителя, чтобы не переспрашивать
+-- его повторно в другом браузере/устройстве с той же сети (см. app/actions/locale.ts).
+-- Осознанное ограничение: IP может быть общим для нескольких людей (офис,
+-- семья, мобильный оператор) и меняться при смене сети — это подсказка по
+-- умолчанию, а не точная персональная привязка.
+CREATE TABLE IF NOT EXISTS "locale_by_ip" (
+  "ip" varchar(64) PRIMARY KEY,
+  "locale" varchar(5) NOT NULL,
+  "updated_at" timestamptz DEFAULT now() NOT NULL
+);

@@ -460,6 +460,8 @@ export type AdminDictionary = {
     logoHint: string
     faviconLabel: string
     faviconHint: string
+    ogImageLabel: string
+    ogImageHint: string
     phonesTitle: string
     phonesDesc: string
     removePhoneAria: string
@@ -2047,6 +2049,9 @@ const uk: AdminDictionary = {
       'Завантажте зображення з пристрою або вставте посилання. Відображається в шапці адмін-центру та магазину.',
     faviconLabel: 'Favicon',
     faviconHint: 'Іконка сайту (32×32). Завантажте файл або вставте посилання.',
+    ogImageLabel: 'Картинка для посилання (Open Graph)',
+    ogImageHint:
+      'Показується у прев\u2019ю, коли посилання на сайт надсилають у Telegram, Viber, Instagram, Slack тощо (1200×630). Якщо не завантажено — використовується стандартна картинка.',
     phonesTitle: 'Телефони',
     phonesDesc: 'Можна додати до 3 номерів. Відображаються у футері магазину.',
     removePhoneAria: 'Видалити номер',
@@ -2443,7 +2448,7 @@ const uk: AdminDictionary = {
     weekdaySun: 'Нд',
     pageTitle: 'Статистика',
     pageSubtitle: 'Трафік, продажі, клієнти та ефективність магазину',
-    cardVisitors: 'Відвідувачі',
+    cardVisitors: 'Унікальні відвідувачі',
     cardPageViews: 'Перегляди сторінок',
     cardProductViews: 'Перегляди товарів',
     cardAddToCart: 'У кошик',
@@ -2462,7 +2467,7 @@ const uk: AdminDictionary = {
     seriesProfit: 'Прибуток',
     seriesOrders: 'Замовлення',
     funnelTitle: 'Воронка продажів',
-    funnelVisitors: 'Відвідувачі',
+    funnelVisitors: 'Унікальні відвідувачі',
     funnelProductViews: 'Перегляди товарів',
     funnelAddToCart: 'Додали в кошик',
     funnelOrders: 'Оформили замовлення',
@@ -3651,6 +3656,9 @@ const ru: AdminDictionary = {
       'Загрузите изображение с устройства или вставьте ссылку. Отображается в шапке админ-центра и магазина.',
     faviconLabel: 'Favicon',
     faviconHint: 'Иконка сайта (32×32). Загрузите файл или вставьте ссылку.',
+    ogImageLabel: 'Картинка для ссылки (Open Graph)',
+    ogImageHint:
+      'Показывается в превью, когда ссылку на сайт отправляют в Telegram, Viber, Instagram, Slack и т.п. (1200×630). Если не загружено — используется картинка по умолчанию.',
     phonesTitle: 'Телефоны',
     phonesDesc: 'Можно добавить до 3 номеров. Отображаются в футере магазина.',
     removePhoneAria: 'Удалить номер',
@@ -4047,7 +4055,7 @@ const ru: AdminDictionary = {
     weekdaySun: 'Вс',
     pageTitle: 'Статистика',
     pageSubtitle: 'Трафик, продажи, клиенты и эффективность магазина',
-    cardVisitors: 'Посетители',
+    cardVisitors: 'Уникальные посетители',
     cardPageViews: 'Просмотры страниц',
     cardProductViews: 'Просмотры товаров',
     cardAddToCart: 'В корзину',
@@ -4066,7 +4074,7 @@ const ru: AdminDictionary = {
     seriesProfit: 'Прибыль',
     seriesOrders: 'Заказы',
     funnelTitle: 'Воронка продаж',
-    funnelVisitors: 'Посетители',
+    funnelVisitors: 'Уникальные посетители',
     funnelProductViews: 'Просмотры товаров',
     funnelAddToCart: 'Добавили в корзину',
     funnelOrders: 'Оформили заказ',

@@ -349,6 +349,16 @@ export type Dictionary = {
     accept: string
     decline: string
   }
+  // Fallback <title>/description shown when the admin hasn't filled in
+  // Настройки → SEO (custom values there are a single global string and are
+  // shown as-is regardless of locale, by design — only these defaults follow
+  // the visitor's language). See generateMetadata() in app/layout.tsx.
+  seoDefaults: {
+    defaultStoreName: string
+    onlineStoreSuffix: string
+    defaultDescription: string
+    defaultKeyword: string
+  }
   // Error strings generated in server actions (app/actions/shop.ts,
   // app/actions/promotions.ts) and shown to the shopper as-is — these must be
   // resolved via getLocale() server-side since, unlike static page text, they
@@ -739,6 +749,13 @@ const uk: Dictionary = {
     accept: 'Прийняти',
     decline: 'Відхилити',
   },
+  seoDefaults: {
+    defaultStoreName: 'Інтернет-магазин',
+    onlineStoreSuffix: '— інтернет-магазин',
+    defaultDescription:
+      'Якісні товари від перевірених брендів. Доставка по всій Україні та гарантія на кожен товар.',
+    defaultKeyword: 'інтернет-магазин',
+  },
   serverErrors: {
     rateLimitOrders: 'Забагато замовлень поспіль. Спробуйте пізніше.',
     rateLimitGeneric: 'Забагато запитів, спробуйте пізніше',
@@ -1123,6 +1140,13 @@ const ru: Dictionary = {
       'Мы используем файлы cookie для аналитики и персонализированной рекламы, чтобы улучшать сайт и предложения.',
     accept: 'Принять',
     decline: 'Отклонить',
+  },
+  seoDefaults: {
+    defaultStoreName: 'Интернет-магазин',
+    onlineStoreSuffix: '— интернет-магазин',
+    defaultDescription:
+      'Качественные товары от проверенных брендов. Доставка по всей Украине и гарантия на каждый товар.',
+    defaultKeyword: 'интернет-магазин',
   },
   serverErrors: {
     rateLimitOrders: 'Слишком много заказов подряд. Попробуйте позже.',
