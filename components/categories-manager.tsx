@@ -51,6 +51,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Plus, Pencil, Trash2, Loader2, FolderTree } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { pluralize } from '@/lib/i18n/plural'
 
 type CategoryWithCount = Category & { productCount: number }
 
@@ -76,6 +78,8 @@ const emptyForm: FormState = {
 
 export function CategoriesManager({ categories }: { categories: CategoryWithCount[] }) {
   const router = useRouter()
+  const { dict } = useAdminI18n()
+  const t = dict.categories
   const [isPending, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<CategoryWithCount | null>(null)
@@ -107,7 +111,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nameRu.trim() || !form.nameUk.trim()) {
-      toast.error('Заполните название на обоих языках')
+      toast.error(t.toastFillBothLanguages)
       return
     }
     const input: CategoryInput = {
@@ -122,11 +126,11 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
     startTransition(async () => {
       const result = editing ? await updateCategory(editing.id, input) : await createCategory(input)
       if (result.success) {
-        toast.success(editing ? 'Категория обновлена' : 'Категория создана')
+        toast.success(editing ? t.toastUpdated : t.toastCreated)
         setDialogOpen(false)
         router.refresh()
       } else {
-        toast.error(result.error ?? 'Ошибка сохранения')
+        toast.error(result.error ?? t.toastSaveError)
       }
     })
   }
@@ -136,10 +140,10 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
     startTransition(async () => {
       const result = await deleteCategory(deleting.id)
       if (result.success) {
-        toast.success('Категория удалена')
+        toast.success(t.toastDeleted)
         router.refresh()
       } else {
-        toast.error(result.error ?? 'Ошибка удаления')
+        toast.error(result.error ?? t.toastDeleteError)
       }
       setDeleting(null)
     })
@@ -156,12 +160,14 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-balance">Категории</h1>
-          <p className="text-sm text-muted-foreground">{categories.length} категорий</p>
+          <h1 className="text-xl font-semibold tracking-tight text-balance">{t.title}</h1>
+          <p className="text-sm text-muted-foreground">
+            {categories.length} {pluralize(categories.length, t.countOne, t.countFew, t.countMany)}
+          </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="size-4" />
-          Добавить категорию
+          {t.addCategory}
         </Button>
       </header>
 
@@ -169,12 +175,12 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
-              <TableHead>Название</TableHead>
-              <TableHead className="hidden md:table-cell">Slug</TableHead>
-              <TableHead className="hidden sm:table-cell">Родитель</TableHead>
-              <TableHead className="text-right">Товаров</TableHead>
-              <TableHead>Видимость</TableHead>
-              <TableHead className="w-24 text-right">Действия</TableHead>
+              <TableHead>{t.colName}</TableHead>
+              <TableHead className="hidden md:table-cell">{t.colSlug}</TableHead>
+              <TableHead className="hidden sm:table-cell">{t.colParent}</TableHead>
+              <TableHead className="text-right">{t.colProducts}</TableHead>
+              <TableHead>{t.colVisibility}</TableHead>
+              <TableHead className="w-24 text-right">{t.colActions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -183,7 +189,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                 <TableCell colSpan={6} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <FolderTree className="size-8" />
-                    <p className="text-sm">Категорий пока нет</p>
+                    <p className="text-sm">{t.notFound}</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -207,14 +213,14 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                       onClick={() => handleToggle(cat)}
                       disabled={isPending}
                       className="cursor-pointer"
-                      aria-label={cat.isVisible ? 'Скрыть категорию' : 'Показать категорию'}
+                      aria-label={cat.isVisible ? t.hideAria : t.showAria}
                     >
                       {cat.isVisible ? (
                         <Badge className="bg-success/15 text-success hover:bg-success/25">
-                          Видима
+                          {t.visible}
                         </Badge>
                       ) : (
-                        <Badge variant="secondary">Скрыта</Badge>
+                        <Badge variant="secondary">{t.hidden}</Badge>
                       )}
                     </button>
                   </TableCell>
@@ -225,7 +231,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                         size="icon"
                         className="size-8"
                         onClick={() => openEdit(cat)}
-                        aria-label={`Редактировать ${cat.nameRu}`}
+                        aria-label={`${t.editAria} ${cat.nameRu}`}
                       >
                         <Pencil className="size-4" />
                       </Button>
@@ -234,7 +240,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                         size="icon"
                         className="size-8 text-destructive hover:text-destructive"
                         onClick={() => setDeleting(cat)}
-                        aria-label={`Удалить ${cat.nameRu}`}
+                        aria-label={`${t.deleteAria} ${cat.nameRu}`}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -250,15 +256,15 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Редактировать категорию' : 'Новая категория'}</DialogTitle>
+            <DialogTitle>{editing ? t.editTitle : t.newTitle}</DialogTitle>
             <DialogDescription>
-              Название заполняется на двух языках, slug создаётся автоматически.
+              {t.dialogHint}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="catNameRu">Название (RU) *</Label>
+                <Label htmlFor="catNameRu">{t.nameRu}</Label>
                 <Input
                   id="catNameRu"
                   value={form.nameRu}
@@ -267,7 +273,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="catNameUk">Название (UK) *</Label>
+                <Label htmlFor="catNameUk">{t.nameUk}</Label>
                 <Input
                   id="catNameUk"
                   value={form.nameUk}
@@ -277,7 +283,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="catDescRu">Описание (RU)</Label>
+              <Label htmlFor="catDescRu">{t.descriptionRu}</Label>
               <Textarea
                 id="catDescRu"
                 rows={2}
@@ -287,16 +293,16 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label>Родительская категория</Label>
+                <Label>{t.parentCategory}</Label>
                 <Select
                   value={form.parentId || 'none'}
                   onValueChange={(v) => setForm((f) => ({ ...f, parentId: v === 'none' ? '' : v }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Нет" />
+                    <SelectValue placeholder={t.none} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Нет (корневая)</SelectItem>
+                    <SelectItem value="none">{t.noneRoot}</SelectItem>
                     {categories
                       .filter((c) => c.id !== editing?.id)
                       .map((c) => (
@@ -308,7 +314,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="catSort">Порядок сортировки</Label>
+                <Label htmlFor="catSort">{t.sortOrder}</Label>
                 <Input
                   id="catSort"
                   type="number"
@@ -318,7 +324,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
               </div>
             </div>
             <div className="flex items-center justify-between rounded-lg border p-3">
-              <Label htmlFor="catVisible">Показывать на сайте</Label>
+              <Label htmlFor="catVisible">{t.showOnSite}</Label>
               <Switch
                 id="catVisible"
                 checked={form.isVisible}
@@ -327,11 +333,11 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Отмена
+                {t.cancel}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                {editing ? 'Сохранить' : 'Создать'}
+                {editing ? t.save : t.create}
               </Button>
             </DialogFooter>
           </form>
@@ -341,21 +347,21 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить категорию?</AlertDialogTitle>
+            <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Категория «{deleting?.nameRu}» будет удалена без возможности восстановления.
+              «{deleting?.nameRu}» {t.deleteDescription}
               {deleting && deleting.productCount > 0 && (
-                <> Связи с {deleting.productCount} товарами также будут удалены.</>
+                <> {t.deleteWithProducts}</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
             >
-              Удалить
+              {t.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
