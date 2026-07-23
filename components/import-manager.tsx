@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table"
 import { runImport, type ImportRow } from "@/app/actions/import"
 import { startPromImport, continuePromImport } from "@/app/actions/prom-import"
+import { useAdminI18n } from "@/lib/i18n/admin/context"
+import type { AdminDictionary } from "@/lib/i18n/admin/dictionaries"
 
 type ImportTask = {
   id: number
@@ -29,6 +31,13 @@ type ImportTask = {
   failedItems: number | null
   errorLog: string | null
   createdAt: Date | null
+}
+
+function tpl(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
+    template,
+  )
 }
 
 // Header aliases: accepts either the plain English keys documented in the UI
@@ -134,11 +143,15 @@ function parseXML(text: string): ImportRow[] {
   })
 }
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  completed: { label: "Завершён", variant: "default" },
-  processing: { label: "Обработка", variant: "secondary" },
-  failed: { label: "Ошибка", variant: "destructive" },
-  pending: { label: "Ожидание", variant: "outline" },
+function statusConfig(
+  t: AdminDictionary,
+): Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> {
+  return {
+    completed: { label: t.import.statusCompleted, variant: "default" },
+    processing: { label: t.import.statusProcessing, variant: "secondary" },
+    failed: { label: t.import.statusFailed, variant: "destructive" },
+    pending: { label: t.import.statusPending, variant: "outline" },
+  }
 }
 
 /**
@@ -150,6 +163,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
  * navigating away — an unfinished job just shows a "Продолжить" button.
  */
 function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; fileName: string; totalItems: number | null; processedItems: number | null }[] }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [url, setUrl] = useState("")
   const [taskId, setTaskId] = useState<number | null>(null)
@@ -167,14 +181,14 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
       while (!done && !cancelledRef.current) {
         const res = await continuePromImport(id)
         if (!res.success) {
-          toast.error(res.error || "Ошибка импорта")
+          toast.error(res.error || t.import.errorGeneric)
           break
         }
         done = res.done
         setProgress({ processed: res.processed, total: res.total })
       }
       if (done && !cancelledRef.current) {
-        toast.success("Импорт с Prom.ua завершён")
+        toast.success(t.import.promCompleteToast)
         router.refresh()
       }
     } finally {
@@ -196,12 +210,12 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
       setProgress({ processed: 0, total: res.total })
       toast.message(
         res.capped
-          ? `Найдено ${res.shopTotal} товаров, будут импортированы первые ${res.total}`
-          : `Найдено ${res.total} товаров, начинаю импорт`,
+          ? tpl(t.import.promFoundCappedTemplate, { shopTotal: res.shopTotal, total: res.total })
+          : tpl(t.import.promFoundTemplate, { total: res.total }),
       )
       await runLoop(res.taskId)
     } catch {
-      setError("Не удалось начать импорт")
+      setError(t.import.errorStart)
       setRunning(false)
     }
   }
@@ -209,25 +223,21 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Импорт с Prom.ua</CardTitle>
-        <CardDescription>
-          Вставьте ссылку на страницу магазина на Prom.ua — все товары, фото, описания и категории
-          будут импортированы в ваш каталог. Товары с уже существующим артикулом обновятся, а не
-          задублируются.
-        </CardDescription>
+        <CardTitle className="text-base">{t.import.promCardTitle}</CardTitle>
+        <CardDescription>{t.import.promCardDescription}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <Input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://prom.ua/example.html"
+            placeholder={t.import.promUrlPlaceholder}
             disabled={running}
             className="max-w-md"
           />
           <Button onClick={handleStart} disabled={running || !url.trim()}>
             {running ? <Loader2 className="size-4 animate-spin" /> : <Link2 className="size-4" />}
-            Начать импорт
+            {t.import.promStartButton}
           </Button>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -240,23 +250,24 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              {progress.processed} из {progress.total} товаров{running ? " — идёт импорт, не закрывайте страницу" : taskId ? " — готово" : ""}
+              {tpl(t.import.promProcessedOfTotalTemplate, { processed: progress.processed, total: progress.total })}
+              {running ? t.import.promImportingSuffix : taskId ? t.import.promDoneSuffix : ""}
             </p>
           </div>
         )}
         {resumableTasks.length > 0 && !running && (
           <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
-            <p className="text-xs font-medium text-muted-foreground">Незавершённые импорты с Prom.ua</p>
-            {resumableTasks.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-3 text-sm">
-                <span className="truncate">{t.fileName}</span>
+            <p className="text-xs font-medium text-muted-foreground">{t.import.promUnfinishedTitle}</p>
+            {resumableTasks.map((tk) => (
+              <div key={tk.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate">{tk.fileName}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground tabular-nums">
-                    {t.processedItems ?? 0}/{t.totalItems ?? 0}
+                    {tk.processedItems ?? 0}/{tk.totalItems ?? 0}
                   </span>
-                  <Button size="sm" variant="outline" onClick={() => runLoop(t.id)}>
+                  <Button size="sm" variant="outline" onClick={() => runLoop(tk.id)}>
                     <Play className="size-3.5" />
-                    Продолжить
+                    {t.import.promContinueButton}
                   </Button>
                 </div>
               </div>
@@ -275,17 +286,19 @@ export function ImportManager({
   tasks: ImportTask[]
   resumablePromTasks?: { id: number; fileName: string; totalItems: number | null; processedItems: number | null }[]
 }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<{ fileName: string; type: "csv" | "xml"; rows: ImportRow[] } | null>(null)
   const [isPending, startTransition] = useTransition()
+  const STATUS = statusConfig(t)
 
   async function handleFile(file: File) {
     const text = await file.text()
     const isXml = file.name.toLowerCase().endsWith(".xml")
     const rows = isXml ? parseXML(text) : parseCSV(text)
     if (rows.length === 0) {
-      toast.error("Не удалось распознать товары в файле. Проверьте формат.")
+      toast.error(t.import.errorParsingFile)
       return
     }
     setPreview({ fileName: file.name, type: isXml ? "xml" : "csv", rows })
@@ -296,12 +309,12 @@ export function ImportManager({
     startTransition(async () => {
       const res = await runImport(preview.fileName, preview.type, preview.rows)
       if (res.success) {
-        toast.success(`Импортировано: ${res.imported}, ошибок: ${res.failed}`)
+        toast.success(tpl(t.import.importedResultTemplate, { imported: res.imported ?? 0, failed: res.failed ?? 0 }))
         setPreview(null)
         if (fileRef.current) fileRef.current.value = ""
         router.refresh()
       } else {
-        toast.error(res.error || "Ошибка импорта")
+        toast.error(res.error || t.import.errorGeneric)
       }
     })
   }
@@ -309,18 +322,14 @@ export function ImportManager({
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Импорт товаров</h1>
-        <p className="text-sm text-muted-foreground">
-          Загрузите CSV или XML файл с товарами. Поддерживаются колонки: name_ru, name_uk, sku, price, old_price, quantity, description_ru, description_uk, unit
-          — либо те же данные с русскими заголовками из кнопки «Экспорт» на странице товаров (Название (рус), Артикул, Цена, Остаток и т.д.). Разделитель (&quot;,&quot; или &quot;;&quot;) определяется автоматически.
-          Товары с указанным артикулом (sku), который уже есть в каталоге, будут обновлены (цена/остаток/название/описание), а не задублированы — товары без артикула всегда создаются заново.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.import.pageTitle}</h1>
+        <p className="text-sm text-muted-foreground">{t.import.pageSubtitle}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Загрузка файла</CardTitle>
-          <CardDescription>CSV с заголовками или XML с элементами product / item / offer</CardDescription>
+          <CardTitle className="text-base">{t.import.uploadCardTitle}</CardTitle>
+          <CardDescription>{t.import.uploadCardDescription}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -337,7 +346,7 @@ export function ImportManager({
             />
             <Button variant="outline" onClick={() => fileRef.current?.click()}>
               <Upload className="size-4" />
-              Выбрать файл
+              {t.import.chooseFileButton}
             </Button>
             {preview && (
               <div className="flex items-center gap-2 text-sm">
@@ -347,7 +356,7 @@ export function ImportManager({
                   <FileCode className="size-4 text-muted-foreground" />
                 )}
                 <span className="font-medium">{preview.fileName}</span>
-                <Badge variant="secondary">{preview.rows.length} товаров</Badge>
+                <Badge variant="secondary">{tpl(t.import.rowsBadgeTemplate, { n: preview.rows.length })}</Badge>
               </div>
             )}
           </div>
@@ -358,10 +367,10 @@ export function ImportManager({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Название (RU)</TableHead>
-                      <TableHead>Артикул</TableHead>
-                      <TableHead className="text-right">Цена</TableHead>
-                      <TableHead className="text-right">Кол-во</TableHead>
+                      <TableHead>{t.import.colName}</TableHead>
+                      <TableHead>{t.import.colSku}</TableHead>
+                      <TableHead className="text-right">{t.import.colPrice}</TableHead>
+                      <TableHead className="text-right">{t.import.colQty}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -377,12 +386,14 @@ export function ImportManager({
                 </Table>
               </div>
               {preview.rows.length > 5 && (
-                <p className="text-xs text-muted-foreground">{`Показаны первые 5 из ${preview.rows.length} строк`}</p>
+                <p className="text-xs text-muted-foreground">
+                  {tpl(t.import.showingFirstTemplate, { shown: 5, total: preview.rows.length })}
+                </p>
               )}
               <div className="flex gap-2">
                 <Button onClick={handleImport} disabled={isPending}>
                   {isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                  Импортировать {preview.rows.length} товаров
+                  {tpl(t.import.importButtonTemplate, { n: preview.rows.length })}
                 </Button>
                 <Button
                   variant="ghost"
@@ -392,7 +403,7 @@ export function ImportManager({
                     if (fileRef.current) fileRef.current.value = ""
                   }}
                 >
-                  Отмена
+                  {t.common.cancel}
                 </Button>
               </div>
             </>
@@ -404,54 +415,54 @@ export function ImportManager({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">История импорта</CardTitle>
+          <CardTitle className="text-base">{t.import.historyCardTitle}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Файл</TableHead>
-                <TableHead>Тип</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead className="text-right">Всего</TableHead>
-                <TableHead className="text-right">Успешно</TableHead>
-                <TableHead className="text-right">Ошибок</TableHead>
-                <TableHead>Дата</TableHead>
+                <TableHead>{t.import.tableFile}</TableHead>
+                <TableHead>{t.import.tableType}</TableHead>
+                <TableHead>{t.import.tableStatus}</TableHead>
+                <TableHead className="text-right">{t.import.tableTotal}</TableHead>
+                <TableHead className="text-right">{t.import.tableSuccess}</TableHead>
+                <TableHead className="text-right">{t.import.tableFailed}</TableHead>
+                <TableHead>{t.import.tableDate}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tasks.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    Импортов ещё не было
+                    {t.import.noImportsYet}
                   </TableCell>
                 </TableRow>
               ) : (
-                tasks.map((t) => {
-                  const st = statusConfig[t.status ?? "pending"] ?? statusConfig.pending
+                tasks.map((tk) => {
+                  const st = STATUS[tk.status ?? "pending"] ?? STATUS.pending
                   return (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.fileName}</TableCell>
-                      <TableCell className="uppercase text-muted-foreground">{t.sourceType}</TableCell>
+                    <TableRow key={tk.id}>
+                      <TableCell className="font-medium">{tk.fileName}</TableCell>
+                      <TableCell className="uppercase text-muted-foreground">{tk.sourceType}</TableCell>
                       <TableCell>
                         <Badge variant={st.variant}>{st.label}</Badge>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{t.totalItems ?? 0}</TableCell>
+                      <TableCell className="text-right tabular-nums">{tk.totalItems ?? 0}</TableCell>
                       <TableCell className="text-right tabular-nums text-green-600 dark:text-green-500">
-                        {t.successItems ?? 0}
+                        {tk.successItems ?? 0}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {(t.failedItems ?? 0) > 0 ? (
+                        {(tk.failedItems ?? 0) > 0 ? (
                           <span className="inline-flex items-center gap-1 text-destructive">
                             <XCircle className="size-3.5" />
-                            {t.failedItems}
+                            {tk.failedItems}
                           </span>
                         ) : (
                           0
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {t.createdAt ? new Date(t.createdAt).toLocaleString("ru-RU", { timeZone: "Europe/Kyiv" }) : "—"}
+                        {tk.createdAt ? new Date(tk.createdAt).toLocaleString("ru-RU", { timeZone: "Europe/Kyiv" }) : "—"}
                       </TableCell>
                     </TableRow>
                   )

@@ -8,12 +8,6 @@ export default async function AdminGuidesPage() {
 
   return (
     <main className="flex flex-col gap-6 p-4 md:p-6">
-      <header>
-        <h1 className="text-2xl font-semibold text-foreground">Инструкции</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Пошаговые гайды по настройке и управлению магазином через админ-центр
-        </p>
-      </header>
       <GuidesViewer />
     </main>
   )
