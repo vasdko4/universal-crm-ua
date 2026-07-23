@@ -55,6 +55,12 @@ export type NavItem = {
   label: string
   icon: LucideIcon
   permission: PermissionKey
+  // Key used to look up the translated label in dict.navItems. Defaults to
+  // `permission`, but must be set explicitly whenever an item's permission is
+  // shared with another item (e.g. guides piggybacks on the "dashboard"
+  // permission for access control) — otherwise both items would render the
+  // same translated label.
+  labelKey?: string
 }
 
 export type NavSection = {
@@ -68,7 +74,13 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/admin', label: 'Дашборд', icon: LayoutDashboard, permission: 'dashboard' },
       { href: '/admin/statistics', label: 'Статистика', icon: BarChart3, permission: 'statistics' },
-      { href: '/admin/guides', label: 'Инструкции', icon: BookOpen, permission: 'dashboard' },
+      {
+        href: '/admin/guides',
+        label: 'Инструкции',
+        icon: BookOpen,
+        permission: 'dashboard',
+        labelKey: 'guides',
+      },
     ],
   },
   {

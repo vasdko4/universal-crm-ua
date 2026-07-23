@@ -89,7 +89,7 @@ export function AdminSidebar({
                 item.href === '/admin'
                   ? pathname === '/admin'
                   : pathname === item.href || pathname.startsWith(item.href + '/')
-              const label = dict.navItems[item.permission] ?? item.label
+              const label = dict.navItems[item.labelKey ?? item.permission] ?? item.label
               return (
                 <Link
                   key={item.href}

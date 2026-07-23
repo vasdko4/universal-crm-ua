@@ -396,6 +396,13 @@ export type Dictionary = {
     deliveryMethodRequired: string
     paymentMethodRequired: string
   }
+  notFoundPage: {
+    title: string
+    heading: string
+    description: string
+    homeButton: string
+    catalogButton: string
+  }
 }
 
 const uk: Dictionary = {
@@ -788,6 +795,14 @@ const uk: Dictionary = {
     deliveryMethodRequired: 'Оберіть спосіб доставки',
     paymentMethodRequired: 'Оберіть спосіб оплати',
   },
+  notFoundPage: {
+    title: 'Сторінку не знайдено',
+    heading: 'Сторінку не знайдено',
+    description:
+      'Сторінку було видалено, переміщено або адресу введено з помилкою. Спробуйте почати з головної сторінки або загляньте в каталог товарів.',
+    homeButton: 'На головну',
+    catalogButton: 'Каталог товарів',
+  },
 }
 
 const ru: Dictionary = {
@@ -1179,6 +1194,14 @@ const ru: Dictionary = {
     invalidEmail: 'Укажите корректный email',
     deliveryMethodRequired: 'Выберите способ доставки',
     paymentMethodRequired: 'Выберите способ оплаты',
+  },
+  notFoundPage: {
+    title: 'Страница не найдена',
+    heading: 'Страница не найдена',
+    description:
+      'Страница была удалена, перемещена или адрес введён с ошибкой. Попробуйте начать с главной страницы или загляните в каталог товаров.',
+    homeButton: 'На главную',
+    catalogButton: 'Каталог товаров',
   },
 }
 
