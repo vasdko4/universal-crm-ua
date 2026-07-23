@@ -239,6 +239,80 @@ export type AdminDictionary = {
     toastDeleted: string
     toastDeleteError: string
   }
+  groups: {
+    title: string
+    subtitle: string
+    countOne: string
+    countFew: string
+    countMany: string
+    addGroup: string
+    colName: string
+    colSlug: string
+    colProducts: string
+    colSortOrder: string
+    colStatus: string
+    colActions: string
+    notFound: string
+    deactivateAria: string
+    activateAria: string
+    active: string
+    inactive: string
+    editAria: string
+    deleteAria: string
+    editTitle: string
+    newTitle: string
+    dialogHint: string
+    nameRu: string
+    nameUk: string
+    descriptionRu: string
+    sortOrder: string
+    isActive: string
+    cancel: string
+    save: string
+    create: string
+    deleteTitle: string
+    deleteDescription: string
+    delete: string
+    toastFillBothLanguages: string
+    toastUpdated: string
+    toastCreated: string
+    toastSaveError: string
+    toastDeleted: string
+    toastDeleteError: string
+  }
+  trash: {
+    title: string
+    subtitle: string
+    restore: string
+    deleteForever: string
+    deleteSelectedTitle: string
+    deleteSelectedDescription: string
+    cancel: string
+    emptyTrash: string
+    emptyTrashTitle: string
+    emptyTrashDescription: string
+    itemOne: string
+    itemFew: string
+    itemMany: string
+    empty: string
+    selectAllAria: string
+    selectRowAria: string
+    colName: string
+    colSku: string
+    colPrice: string
+    colQuantity: string
+    colDeletedAt: string
+    colActions: string
+    noName: string
+    restoreAria: string
+    deleteForeverAria: string
+    toastRestored: string
+    toastRestoreError: string
+    toastDeletedForever: string
+    toastDeleteError: string
+    toastEmptied: string
+    toastEmptyError: string
+  }
   customers: {
     title: string
     countOne: string
@@ -1236,6 +1310,80 @@ const uk: AdminDictionary = {
     toastSaveError: 'Помилка збереження',
     toastDeleted: 'Категорію видалено',
     toastDeleteError: 'Помилка видалення',
+  },
+  groups: {
+    title: 'Групи товарів',
+    subtitle: 'Добірки товарів для вітрин і акцій',
+    countOne: 'група',
+    countFew: 'групи',
+    countMany: 'груп',
+    addGroup: 'Додати групу',
+    colName: 'Назва',
+    colSlug: 'Slug',
+    colProducts: 'Товарів',
+    colSortOrder: 'Порядок',
+    colStatus: 'Статус',
+    colActions: 'Дії',
+    notFound: 'Груп поки немає',
+    deactivateAria: 'Деактивувати групу',
+    activateAria: 'Активувати групу',
+    active: 'Активна',
+    inactive: 'Неактивна',
+    editAria: 'Редагувати',
+    deleteAria: 'Видалити',
+    editTitle: 'Редагувати групу',
+    newTitle: 'Нова група',
+    dialogHint: 'Групи об’єднують товари в добірки: «Хіти продажів», «Новинки» тощо.',
+    nameRu: 'Назва (RU) *',
+    nameUk: 'Назва (UK) *',
+    descriptionRu: 'Опис (RU)',
+    sortOrder: 'Порядок сортування',
+    isActive: 'Активна',
+    cancel: 'Скасувати',
+    save: 'Зберегти',
+    create: 'Створити',
+    deleteTitle: 'Видалити групу?',
+    deleteDescription: 'буде видалена. Товари залишаться, але зв’язки з групою будуть видалені.',
+    delete: 'Видалити',
+    toastFillBothLanguages: 'Заповніть назву обома мовами',
+    toastUpdated: 'Групу оновлено',
+    toastCreated: 'Групу створено',
+    toastSaveError: 'Помилка збереження',
+    toastDeleted: 'Групу видалено',
+    toastDeleteError: 'Помилка видалення',
+  },
+  trash: {
+    title: 'Кошик',
+    subtitle: 'Видалені товари. Їх можна відновити або видалити назавжди.',
+    restore: 'Відновити',
+    deleteForever: 'Видалити назавжди',
+    deleteSelectedTitle: 'Видалити вибрані товари назавжди?',
+    deleteSelectedDescription: 'Ця дія незворотна. Товари та всі пов’язані дані будуть видалені з бази.',
+    cancel: 'Скасувати',
+    emptyTrash: 'Очистити кошик',
+    emptyTrashTitle: 'Очистити кошик повністю?',
+    emptyTrashDescription: 'будуть видалені безповоротно.',
+    itemOne: 'товар',
+    itemFew: 'товари',
+    itemMany: 'товарів',
+    empty: 'Кошик порожній',
+    selectAllAria: 'Вибрати всі',
+    selectRowAria: 'Вибрати',
+    colName: 'Назва',
+    colSku: 'Артикул',
+    colPrice: 'Ціна',
+    colQuantity: 'К-сть',
+    colDeletedAt: 'Видалено',
+    colActions: 'Дії',
+    noName: 'Без назви',
+    restoreAria: 'Відновити',
+    deleteForeverAria: 'Видалити назавжди',
+    toastRestored: 'Відновлено товарів',
+    toastRestoreError: 'Помилка відновлення',
+    toastDeletedForever: 'Видалено назавжди',
+    toastDeleteError: 'Помилка видалення',
+    toastEmptied: 'Кошик очищено',
+    toastEmptyError: 'Помилка очищення кошика',
   },
   customers: {
     title: 'Клієнти',
@@ -2249,6 +2397,80 @@ const ru: AdminDictionary = {
     toastSaveError: 'Ошибка сохранения',
     toastDeleted: 'Категория удалена',
     toastDeleteError: 'Ошибка удаления',
+  },
+  groups: {
+    title: 'Группы товаров',
+    subtitle: 'Подборки товаров для витрин и акций',
+    countOne: 'группа',
+    countFew: 'группы',
+    countMany: 'групп',
+    addGroup: 'Добавить группу',
+    colName: 'Название',
+    colSlug: 'Slug',
+    colProducts: 'Товаров',
+    colSortOrder: 'Порядок',
+    colStatus: 'Статус',
+    colActions: 'Действия',
+    notFound: 'Групп пока нет',
+    deactivateAria: 'Деактивировать группу',
+    activateAria: 'Активировать группу',
+    active: 'Активна',
+    inactive: 'Неактивна',
+    editAria: 'Редактировать',
+    deleteAria: 'Удалить',
+    editTitle: 'Редактировать группу',
+    newTitle: 'Новая группа',
+    dialogHint: 'Группы объединяют товары в подборки: «Хиты продаж», «Новинки» и т.д.',
+    nameRu: 'Название (RU) *',
+    nameUk: 'Название (UK) *',
+    descriptionRu: 'Описание (RU)',
+    sortOrder: 'Порядок сортировки',
+    isActive: 'Активна',
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    create: 'Создать',
+    deleteTitle: 'Удалить группу?',
+    deleteDescription: 'будет удалена. Товары останутся, но связи с группой будут удалены.',
+    delete: 'Удалить',
+    toastFillBothLanguages: 'Заполните название на обоих языках',
+    toastUpdated: 'Группа обновлена',
+    toastCreated: 'Группа создана',
+    toastSaveError: 'Ошибка сохранения',
+    toastDeleted: 'Группа удалена',
+    toastDeleteError: 'Ошибка удаления',
+  },
+  trash: {
+    title: 'Корзина',
+    subtitle: 'Удалённые товары. Их можно восстановить или удалить навсегда.',
+    restore: 'Восстановить',
+    deleteForever: 'Удалить навсегда',
+    deleteSelectedTitle: 'Удалить выбранные товары навсегда?',
+    deleteSelectedDescription: 'Это действие необратимо. Товары и все связанные данные будут удалены из базы.',
+    cancel: 'Отмена',
+    emptyTrash: 'Очистить корзину',
+    emptyTrashTitle: 'Очистить корзину полностью?',
+    emptyTrashDescription: 'будут удалены безвозвратно.',
+    itemOne: 'товар',
+    itemFew: 'товара',
+    itemMany: 'товаров',
+    empty: 'Корзина пуста',
+    selectAllAria: 'Выбрать все',
+    selectRowAria: 'Выбрать',
+    colName: 'Название',
+    colSku: 'Артикул',
+    colPrice: 'Цена',
+    colQuantity: 'Кол-во',
+    colDeletedAt: 'Удалён',
+    colActions: 'Действия',
+    noName: 'Без названия',
+    restoreAria: 'Восстановить',
+    deleteForeverAria: 'Удалить навсегда',
+    toastRestored: 'Восстановлено товаров',
+    toastRestoreError: 'Ошибка восстановления',
+    toastDeletedForever: 'Удалено навсегда',
+    toastDeleteError: 'Ошибка удаления',
+    toastEmptied: 'Корзина очищена',
+    toastEmptyError: 'Ошибка очистки корзины',
   },
   customers: {
     title: 'Клиенты',

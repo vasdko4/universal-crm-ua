@@ -27,6 +27,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { restoreProducts, permanentlyDeleteProducts, emptyTrash } from "@/app/actions/products"
+import { useAdminI18n } from "@/lib/i18n/admin/context"
+import { pickLocalized } from "@/lib/i18n/config"
+import { pluralize } from "@/lib/i18n/plural"
 
 type TrashedProduct = {
   id: number
@@ -40,6 +43,9 @@ type TrashedProduct = {
 
 export function TrashManager({ products }: { products: TrashedProduct[] }) {
   const router = useRouter()
+  const { dict, locale } = useAdminI18n()
+  const t = dict.trash
+  const productName = (p: TrashedProduct) => pickLocalized(locale, p.nameUk, p.nameRu) || t.noName
   const [selected, setSelected] = useState<number[]>([])
   const [isPending, startTransition] = useTransition()
 
@@ -57,11 +63,11 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
     startTransition(async () => {
       const res = await restoreProducts(ids)
       if (res.success) {
-        toast.success(`Восстановлено товаров: ${ids.length}`)
+        toast.success(`${t.toastRestored}: ${ids.length}`)
         setSelected([])
         router.refresh()
       } else {
-        toast.error(res.error || "Ошибка восстановления")
+        toast.error(res.error || t.toastRestoreError)
       }
     })
   }
@@ -70,11 +76,11 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
     startTransition(async () => {
       const res = await permanentlyDeleteProducts(ids)
       if (res.success) {
-        toast.success(`Удалено навсегда: ${ids.length}`)
+        toast.success(`${t.toastDeletedForever}: ${ids.length}`)
         setSelected([])
         router.refresh()
       } else {
-        toast.error(res.error || "Ошибка удаления")
+        toast.error(res.error || t.toastDeleteError)
       }
     })
   }
@@ -83,11 +89,11 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
     startTransition(async () => {
       const res = await emptyTrash()
       if (res.success) {
-        toast.success("Корзина очищена")
+        toast.success(t.toastEmptied)
         setSelected([])
         router.refresh()
       } else {
-        toast.error("Ошибка очистки корзины")
+        toast.error(t.toastEmptyError)
       }
     })
   }
@@ -95,10 +101,8 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Корзина</h1>
-        <p className="text-sm text-muted-foreground">
-          Удалённые товары. Их можно восстановить или удалить навсегда.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.subtitle}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -109,26 +113,26 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
           onClick={() => handleRestore(selected)}
         >
           <RotateCcw className="size-4" />
-          Восстановить ({selected.length})
+          {t.restore} ({selected.length})
         </Button>
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm" disabled={selected.length === 0 || isPending}>
               <Trash2 className="size-4" />
-              Удалить навсегда ({selected.length})
+              {t.deleteForever} ({selected.length})
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Удалить выбранные товары навсегда?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Это действие необратимо. Товары и все связанные данные будут удалены из базы.
-              </AlertDialogDescription>
+              <AlertDialogTitle>{t.deleteSelectedTitle}</AlertDialogTitle>
+              <AlertDialogDescription>{t.deleteSelectedDescription}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Отмена</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleDelete(selected)}>Удалить</AlertDialogAction>
+              <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => handleDelete(selected)}>
+                {t.deleteForever}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -138,19 +142,19 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="sm" className="ml-auto text-destructive" disabled={isPending}>
                 <AlertTriangle className="size-4" />
-                Очистить корзину
+                {t.emptyTrash}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Очистить корзину полностью?</AlertDialogTitle>
+                <AlertDialogTitle>{t.emptyTrashTitle}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  {`Все ${products.length} товаров будут удалены безвозвратно.`}
+                  {`${products.length} ${pluralize(products.length, t.itemOne, t.itemFew, t.itemMany)} ${t.emptyTrashDescription}`}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                <AlertDialogAction onClick={handleEmptyTrash}>Очистить</AlertDialogAction>
+                <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleEmptyTrash}>{t.emptyTrash}</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -162,21 +166,21 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">
-                <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Выбрать все" />
+                <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t.selectAllAria} />
               </TableHead>
-              <TableHead>Название</TableHead>
-              <TableHead>Артикул</TableHead>
-              <TableHead className="text-right">Цена</TableHead>
-              <TableHead className="text-right">Кол-во</TableHead>
-              <TableHead>Удалён</TableHead>
-              <TableHead className="w-24 text-right">Действия</TableHead>
+              <TableHead>{t.colName}</TableHead>
+              <TableHead>{t.colSku}</TableHead>
+              <TableHead className="text-right">{t.colPrice}</TableHead>
+              <TableHead className="text-right">{t.colQuantity}</TableHead>
+              <TableHead>{t.colDeletedAt}</TableHead>
+              <TableHead className="w-24 text-right">{t.colActions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {products.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  Корзина пуста
+                  {t.empty}
                 </TableCell>
               </TableRow>
             ) : (
@@ -186,10 +190,10 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
                     <Checkbox
                       checked={selected.includes(p.id)}
                       onCheckedChange={() => toggle(p.id)}
-                      aria-label={`Выбрать ${p.nameRu || p.nameUk || p.id}`}
+                      aria-label={`${t.selectRowAria} ${productName(p)}`}
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{p.nameRu || p.nameUk || "Без названия"}</TableCell>
+                  <TableCell className="font-medium">{productName(p)}</TableCell>
                   <TableCell>
                     {p.sku ? <Badge variant="outline">{p.sku}</Badge> : <span className="text-muted-foreground">—</span>}
                   </TableCell>
@@ -208,7 +212,7 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
                         className="size-8"
                         onClick={() => handleRestore([p.id])}
                         disabled={isPending}
-                        aria-label="Восстановить"
+                        aria-label={t.restoreAria}
                       >
                         <RotateCcw className="size-4" />
                       </Button>
@@ -218,7 +222,7 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
                         className="size-8 text-destructive"
                         onClick={() => handleDelete([p.id])}
                         disabled={isPending}
-                        aria-label="Удалить навсегда"
+                        aria-label={t.deleteForeverAria}
                       >
                         <Trash2 className="size-4" />
                       </Button>
