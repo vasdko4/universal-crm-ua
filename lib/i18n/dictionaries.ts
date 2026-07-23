@@ -343,6 +343,43 @@ export type Dictionary = {
     addressSaved: string
     addressDeleted: string
     genericError: string
+    // Orders list & detail (app/(shop)/account/(protected)/orders/**)
+    noOrdersDescription: string
+    goToCatalog: string
+    itemsCountUnit: string
+    orderDetailsButton: string
+    backToOrders: string
+    orderHeading: string
+    recipientAndDelivery: string
+    trackingNumber: string
+    notShippedYet: string
+    recipientName: string
+    emailShort: string
+    shippedTo: string
+    discount: string
+    grandTotal: string
+  }
+  // Personal profile form (components/shop/profile-form.tsx)
+  profile: {
+    sectionTitle: string
+    sectionDescription: string
+    nameLabel: string
+    nameRequired: string
+    phoneImmutableNote: string
+    saveError: string
+    savedLabel: string
+    emailLabel: string
+    googleLockedMessage: string
+    newEmailLabel: string
+    newEmailHint: string
+    newEmailRequired: string
+    codeSentTo: string
+    sendCodeError: string
+    codeFromEmail: string
+    codeRequired: string
+    confirmButton: string
+    invalidCode: string
+    emailChanged: string
   }
   cookieConsent: {
     message: string
@@ -785,6 +822,42 @@ const uk: Dictionary = {
     addressSaved: 'Адресу збережено',
     addressDeleted: 'Адресу видалено',
     genericError: 'Сталася помилка. Спробуйте ще раз.',
+    noOrdersDescription: 'Оформіть перше замовлення в каталозі.',
+    goToCatalog: 'Перейти в каталог',
+    itemsCountUnit: 'тов.',
+    orderDetailsButton: 'Деталі замовлення',
+    backToOrders: 'До всіх замовлень',
+    orderHeading: 'Замовлення №',
+    recipientAndDelivery: 'Отримувач і доставка',
+    trackingNumber: 'Номер накладної (ТТН)',
+    notShippedYet: 'Ще не відправлено',
+    recipientName: "Ім'я та прізвище отримувача",
+    emailShort: 'Ел. пошта',
+    shippedTo: 'Куди відправлено',
+    discount: 'Знижка',
+    grandTotal: 'Разом',
+  },
+  profile: {
+    sectionTitle: 'Особисті дані',
+    sectionDescription: 'Ці дані використовуються під час оформлення замовлень.',
+    nameLabel: "Ім'я та прізвище",
+    nameRequired: "Введіть ім'я",
+    phoneImmutableNote: 'Телефон змінити не можна. Для зміни номера зверніться в підтримку.',
+    saveError: 'Помилка збереження',
+    savedLabel: 'Збережено',
+    emailLabel: 'Електронна пошта',
+    googleLockedMessage:
+      'Ви увійшли через Google — пошта прив’язана до вашого Google-акаунту, змінити її не можна.',
+    newEmailLabel: 'Новий email',
+    newEmailHint: 'На нову адресу прийде лист із кодом підтвердження.',
+    newEmailRequired: 'Введіть новий email',
+    codeSentTo: 'Код надіслано на {{email}}. Перевірте пошту.',
+    sendCodeError: 'Помилка надсилання коду',
+    codeFromEmail: 'Код з листа',
+    codeRequired: 'Введіть код з листа',
+    confirmButton: 'Підтвердити',
+    invalidCode: 'Невірний код',
+    emailChanged: 'Email успішно змінено',
   },
   cookieConsent: {
     message:
@@ -1221,6 +1294,42 @@ const ru: Dictionary = {
     addressSaved: 'Адрес сохранён',
     addressDeleted: 'Адрес удалён',
     genericError: 'Произошла ошибка. Попробуйте ещё раз.',
+    noOrdersDescription: 'Оформите первый заказ в каталоге.',
+    goToCatalog: 'Перейти в каталог',
+    itemsCountUnit: 'тов.',
+    orderDetailsButton: 'Детали заказа',
+    backToOrders: 'Ко всем заказам',
+    orderHeading: 'Заказ №',
+    recipientAndDelivery: 'Получатель и доставка',
+    trackingNumber: 'Номер накладной (ТТН)',
+    notShippedYet: 'Ещё не отправлено',
+    recipientName: 'Имя и фамилия получателя',
+    emailShort: 'Эл. почта',
+    shippedTo: 'Куда отправлено',
+    discount: 'Скидка',
+    grandTotal: 'Итого',
+  },
+  profile: {
+    sectionTitle: 'Личные данные',
+    sectionDescription: 'Эти данные используются при оформлении заказов.',
+    nameLabel: 'Имя и фамилия',
+    nameRequired: 'Введите имя',
+    phoneImmutableNote: 'Телефон изменить нельзя. Для смены номера обратитесь в поддержку.',
+    saveError: 'Ошибка сохранения',
+    savedLabel: 'Сохранено',
+    emailLabel: 'Электронная почта',
+    googleLockedMessage:
+      'Вы вошли через Google — почта привязана к вашему Google-аккаунту, изменить её нельзя.',
+    newEmailLabel: 'Новый email',
+    newEmailHint: 'На новый адрес придёт письмо с кодом подтверждения.',
+    newEmailRequired: 'Введите новый email',
+    codeSentTo: 'Код отправлен на {{email}}. Проверьте почту.',
+    sendCodeError: 'Ошибка отправки кода',
+    codeFromEmail: 'Код из письма',
+    codeRequired: 'Введите код из письма',
+    confirmButton: 'Подтвердить',
+    invalidCode: 'Неверный код',
+    emailChanged: 'Email успешно изменён',
   },
   cookieConsent: {
     message:
