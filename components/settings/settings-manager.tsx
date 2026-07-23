@@ -33,6 +33,8 @@ import {
 } from 'lucide-react'
 import { TEMPLATES } from '@/lib/shop/templates'
 import { cn } from '@/lib/utils'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -69,42 +71,49 @@ type Section =
   | 'googleAuth'
   | 'system'
 
-const SECTIONS: { key: Section; label: string; icon: typeof Store }[] = [
-  { key: 'general', label: 'Основные', icon: Store },
-  { key: 'homepage', label: 'Главная страница', icon: LayoutTemplate },
-  { key: 'seo', label: 'SEO', icon: Search },
-  { key: 'design', label: 'Дизайн', icon: Palette },
-  { key: 'branding', label: 'Логотип', icon: ImageIcon },
-  { key: 'contacts', label: 'Контакты', icon: Phone },
-  { key: 'widget', label: 'Кнопка связи', icon: MessageCircle },
-  { key: 'social', label: 'Соцсети', icon: Share2 },
-  { key: 'email', label: 'Email', icon: Mail },
-  { key: 'notifications', label: 'Уведомления', icon: Bell },
-  { key: 'ads', label: 'Google Ads / Analytics', icon: BarChart3 },
-  { key: 'googleAuth', label: 'Вход через Google', icon: KeyRound },
-  { key: 'system', label: 'Система', icon: Power },
-]
+function getSections(t: AdminDictionary['settings']): { key: Section; label: string; icon: typeof Store }[] {
+  return [
+    { key: 'general', label: t.navGeneral, icon: Store },
+    { key: 'homepage', label: t.navHomepage, icon: LayoutTemplate },
+    { key: 'seo', label: t.navSeo, icon: Search },
+    { key: 'design', label: t.navDesign, icon: Palette },
+    { key: 'branding', label: t.navBranding, icon: ImageIcon },
+    { key: 'contacts', label: t.navContacts, icon: Phone },
+    { key: 'widget', label: t.navWidget, icon: MessageCircle },
+    { key: 'social', label: t.navSocial, icon: Share2 },
+    { key: 'email', label: t.navEmail, icon: Mail },
+    { key: 'notifications', label: t.navNotifications, icon: Bell },
+    { key: 'ads', label: t.navAds, icon: BarChart3 },
+    { key: 'googleAuth', label: t.navGoogleAuth, icon: KeyRound },
+    { key: 'system', label: t.navSystem, icon: Power },
+  ]
+}
 
-const WEEK_DAYS: { key: WeekDay; label: string }[] = [
-  { key: 'mon', label: 'Понедельник' },
-  { key: 'tue', label: 'Вторник' },
-  { key: 'wed', label: 'Среда' },
-  { key: 'thu', label: 'Четверг' },
-  { key: 'fri', label: 'Пятница' },
-  { key: 'sat', label: 'Суббота' },
-  { key: 'sun', label: 'Воскресенье' },
-]
+function getWeekDays(t: AdminDictionary['settings']): { key: WeekDay; label: string }[] {
+  return [
+    { key: 'mon', label: t.weekMon },
+    { key: 'tue', label: t.weekTue },
+    { key: 'wed', label: t.weekWed },
+    { key: 'thu', label: t.weekThu },
+    { key: 'fri', label: t.weekFri },
+    { key: 'sat', label: t.weekSat },
+    { key: 'sun', label: t.weekSun },
+  ]
+}
 
 export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
+  const { dict } = useAdminI18n()
+  const t = dict.settings
   const [data, setData] = useState<StoreSettingsData>(initial)
   const [section, setSection] = useState<Section>('general')
   const [pending, startTransition] = useTransition()
+  const SECTIONS = getSections(t)
 
   function save() {
     startTransition(async () => {
       const res = await updateStoreSettings(data)
-      if (res.success) toast.success('Настройки сохранены')
-      else toast.error('Ошибка сохранения')
+      if (res.success) toast.success(t.toastSettingsSaved)
+      else toast.error(t.toastSettingsSaveError)
     })
   }
 
@@ -128,12 +137,12 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
 
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Настройки</h1>
-          <p className="text-sm text-muted-foreground">Конфигурация магазина и интеграций</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.pageTitle}</h1>
+          <p className="text-sm text-muted-foreground">{t.pageSubtitle}</p>
         </div>
         <Button onClick={save} disabled={pending}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          Сохранить
+          {t.saveButton}
         </Button>
       </header>
 
@@ -156,19 +165,19 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
         </nav>
 
         <div className="rounded-xl border border-border bg-card p-6">
-          {section === 'general' && <GeneralSection data={data} setData={setData} />}
-          {section === 'homepage' && <HomepageSection data={data} setData={setData} />}
-          {section === 'seo' && <SeoSection data={data} setData={setData} />}
-          {section === 'design' && <DesignSection data={data} setData={setData} />}
-          {section === 'branding' && <BrandingSection data={data} setData={setData} />}
-          {section === 'contacts' && <ContactsSection data={data} setData={setData} />}
-          {section === 'widget' && <WidgetSection data={data} setData={setData} />}
-          {section === 'social' && <SocialSection data={data} setData={setData} />}
-          {section === 'email' && <EmailSection data={data} setData={setData} />}
-          {section === 'notifications' && <NotificationsSection data={data} setData={setData} />}
-          {section === 'ads' && <AdsSection data={data} setData={setData} />}
-          {section === 'googleAuth' && <GoogleAuthSection data={data} setData={setData} />}
-          {section === 'system' && <SystemSection />}
+          {section === 'general' && <GeneralSection data={data} setData={setData} t={t} />}
+          {section === 'homepage' && <HomepageSection data={data} setData={setData} t={t} />}
+          {section === 'seo' && <SeoSection data={data} setData={setData} t={t} />}
+          {section === 'design' && <DesignSection data={data} setData={setData} t={t} />}
+          {section === 'branding' && <BrandingSection data={data} setData={setData} t={t} />}
+          {section === 'contacts' && <ContactsSection data={data} setData={setData} t={t} />}
+          {section === 'widget' && <WidgetSection data={data} setData={setData} t={t} />}
+          {section === 'social' && <SocialSection data={data} setData={setData} t={t} />}
+          {section === 'email' && <EmailSection data={data} setData={setData} t={t} />}
+          {section === 'notifications' && <NotificationsSection data={data} setData={setData} t={t} />}
+          {section === 'ads' && <AdsSection data={data} setData={setData} t={t} />}
+          {section === 'googleAuth' && <GoogleAuthSection data={data} setData={setData} t={t} />}
+          {section === 'system' && <SystemSection t={t} />}
         </div>
       </div>
     </div>
@@ -178,18 +187,19 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
 type SectionProps = {
   data: StoreSettingsData
   setData: React.Dispatch<React.SetStateAction<StoreSettingsData>>
+  t: AdminDictionary['settings']
 }
 
-function SystemSection() {
+function SystemSection({ t }: { t: AdminDictionary['settings'] }) {
   const [clearing, startClearing] = useTransition()
 
   function handleClearCache() {
     startClearing(async () => {
       try {
         await clearSiteCache()
-        toast.success('Кеш очищен — витрина обновится при следующем открытии страниц')
+        toast.success(t.toastCacheCleared)
       } catch {
-        toast.error('Не удалось очистить кеш')
+        toast.error(t.toastCacheClearError)
       }
     })
   }
@@ -197,34 +207,28 @@ function SystemSection() {
   return (
     <div className="flex max-w-xl flex-col gap-5">
       <div>
-        <h2 className="text-base font-semibold text-foreground">Кеш сайта</h2>
-        <p className="text-sm text-muted-foreground">
-          Витрина кеширует каталог, страницы товаров, настройки и отзывы, чтобы работать быстро.
-          Если после изменений (импорт товаров, правки напрямую в базе) на сайте видны старые
-          данные — очистите кеш вручную.
-        </p>
+        <h2 className="text-base font-semibold text-foreground">{t.cacheTitle}</h2>
+        <p className="text-sm text-muted-foreground">{t.cacheDesc}</p>
       </div>
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Очистить кеш</p>
-          <p className="text-xs text-muted-foreground">
-            Сбрасывает кеш каталога, товаров, категорий, отзывов и настроек
-          </p>
+          <p className="text-sm font-medium text-foreground">{t.clearCacheLabel}</p>
+          <p className="text-xs text-muted-foreground">{t.clearCacheHint}</p>
         </div>
         <Button variant="outline" onClick={handleClearCache} disabled={clearing}>
           {clearing ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-          Очистить кеш
+          {t.clearCacheButton}
         </Button>
       </div>
     </div>
   )
 }
 
-function GeneralSection({ data, setData }: SectionProps) {
+function GeneralSection({ data, setData, t }: SectionProps) {
   return (
     <div className="flex max-w-xl flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="s-name">Название магазина</Label>
+        <Label htmlFor="s-name">{t.storeNameLabel}</Label>
         <Input
           id="s-name"
           value={data.storeName}
@@ -232,7 +236,7 @@ function GeneralSection({ data, setData }: SectionProps) {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="s-desc">Описание</Label>
+        <Label htmlFor="s-desc">{t.storeDescLabel}</Label>
         <Textarea
           id="s-desc"
           rows={3}
@@ -242,10 +246,8 @@ function GeneralSection({ data, setData }: SectionProps) {
       </div>
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Открывать корзину после добавления</p>
-          <p className="text-xs text-muted-foreground">
-            Автоматически показывать корзину при добавлении товара
-          </p>
+          <p className="text-sm font-medium text-foreground">{t.openCartTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.openCartDesc}</p>
         </div>
         <Switch
           checked={data.openCartAfterAdd}
@@ -258,7 +260,7 @@ function GeneralSection({ data, setData }: SectionProps) {
 
 // Hero-блок главной страницы: бейдж, заголовок, описание, текст кнопки для
 // каждого языка + картинка. Пустое поле = встроенный текст по умолчанию.
-function HomepageSection({ data, setData }: SectionProps) {
+function HomepageSection({ data, setData, t }: SectionProps) {
   const [heroLocale, setHeroLocale] = useState<'uk' | 'ru'>('uk')
 
   function setHero(field: keyof HomeHeroLocaleContent, value: string) {
@@ -290,11 +292,8 @@ function HomepageSection({ data, setData }: SectionProps) {
   return (
     <div className="flex max-w-xl flex-col gap-6">
       <div>
-        <h2 className="text-base font-semibold text-foreground">Hero-блок главной страницы</h2>
-        <p className="text-sm text-muted-foreground">
-          Большой баннер вверху главной страницы: бейдж, заголовок, описание, кнопка и картинка.
-          Пустые поля показывают стандартный текст. Тексты задаются отдельно для каждого языка.
-        </p>
+        <h2 className="text-base font-semibold text-foreground">{t.heroTitle}</h2>
+        <p className="text-sm text-muted-foreground">{t.heroDesc}</p>
       </div>
 
       <div className="flex gap-1 rounded-lg bg-muted p-1">
@@ -308,33 +307,34 @@ function HomepageSection({ data, setData }: SectionProps) {
               heroLocale === l ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {l === 'uk' ? 'Українська' : 'Русский'}
+            {l === 'uk' ? t.localeUk : t.localeRu}
           </button>
         ))}
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="hero-badge">Бейдж</Label>
-        <p className="text-xs text-muted-foreground">Маленькая надпись над заголовком.</p>
+        <Label htmlFor="hero-badge">{t.heroBadgeLabel}</Label>
+        <p className="text-xs text-muted-foreground">{t.heroBadgeHint}</p>
         <Input id="hero-badge" value={hero.badge} onChange={(e) => setHero('badge', e.target.value)} placeholder={ph.badge} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="hero-title">Заголовок</Label>
+        <Label htmlFor="hero-title">{t.heroTitleLabel}</Label>
         <Input id="hero-title" value={hero.title} onChange={(e) => setHero('title', e.target.value)} placeholder={ph.title} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="hero-text">Описание</Label>
+        <Label htmlFor="hero-text">{t.heroTextLabel}</Label>
         <Textarea id="hero-text" rows={3} value={hero.text} onChange={(e) => setHero('text', e.target.value)} placeholder={ph.text} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="hero-btn">Текст кнопки</Label>
-        <p className="text-xs text-muted-foreground">Кнопка всегда ведёт в каталог.</p>
+        <Label htmlFor="hero-btn">{t.heroButtonLabel}</Label>
+        <p className="text-xs text-muted-foreground">{t.heroButtonHint}</p>
         <Input id="hero-btn" value={hero.buttonText} onChange={(e) => setHero('buttonText', e.target.value)} placeholder={ph.buttonText} />
       </div>
 
       <ImageField
-        label="Картинка hero-блока"
-        hint="Загрузите изображение с устройства или вставьте ссылку. Пусто — стандартная картинка. Общая для обоих языков, рекомендуемое соотношение 4:3."
+        t={t}
+        label={t.heroImageLabel}
+        hint={t.heroImageHint}
         value={data.homeHero.imageUrl || null}
         onChange={(v) => setData((d) => ({ ...d, homeHero: { ...d.homeHero, imageUrl: v } }))}
       />
@@ -342,7 +342,7 @@ function HomepageSection({ data, setData }: SectionProps) {
   )
 }
 
-function SeoSection({ data, setData }: SectionProps) {
+function SeoSection({ data, setData, t }: SectionProps) {
   const seo = data.seo
   const setSeo = (patch: Partial<StoreSettingsData['seo']>) =>
     setData((d) => ({ ...d, seo: { ...d.seo, ...patch } }))
@@ -350,7 +350,7 @@ function SeoSection({ data, setData }: SectionProps) {
   return (
     <div className="flex max-w-xl flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="seo-domain">Домен магазина</Label>
+        <Label htmlFor="seo-domain">{t.domainLabel}</Label>
         <Input
           id="seo-domain"
           value={seo.siteUrl}
@@ -358,62 +358,55 @@ function SeoSection({ data, setData }: SectionProps) {
           inputMode="url"
           onChange={(e) => setSeo({ siteUrl: e.target.value })}
         />
-        <p className="text-xs text-muted-foreground">
-          Канонический адрес сайта. Используется в sitemap.xml, robots.txt, канонических ссылках и
-          Open Graph. Если пусто — определяется автоматически по хостингу.
-        </p>
+        <p className="text-xs text-muted-foreground">{t.domainHint}</p>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="seo-title">Meta title</Label>
+        <Label htmlFor="seo-title">{t.metaTitleLabel}</Label>
         <Input
           id="seo-title"
           value={seo.metaTitle}
           maxLength={70}
-          placeholder={`${data.storeName || 'Мой магазин'} — интернет-магазин`}
+          placeholder={`${data.storeName || t.storeNameLabel} ${t.onlineStoreSuffix}`}
           onChange={(e) => setSeo({ metaTitle: e.target.value })}
         />
-        <p className="text-xs text-muted-foreground">{seo.metaTitle.length}/70 символов</p>
+        <p className="text-xs text-muted-foreground">{seo.metaTitle.length}/70 {t.charsCount}</p>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="seo-desc">Meta description</Label>
+        <Label htmlFor="seo-desc">{t.metaDescLabel}</Label>
         <Textarea
           id="seo-desc"
           rows={3}
           maxLength={170}
           value={seo.metaDescription}
-          placeholder="Описание магазина для результатов поиска Google"
+          placeholder={t.metaDescPlaceholder}
           onChange={(e) => setSeo({ metaDescription: e.target.value })}
         />
-        <p className="text-xs text-muted-foreground">{seo.metaDescription.length}/170 символов</p>
+        <p className="text-xs text-muted-foreground">{seo.metaDescription.length}/170 {t.charsCount}</p>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="seo-keywords">Ключевые слова</Label>
+        <Label htmlFor="seo-keywords">{t.keywordsLabel}</Label>
         <Input
           id="seo-keywords"
           value={seo.keywords}
-          placeholder="электроника, смартфоны, наушники"
+          placeholder={t.keywordsPlaceholder}
           onChange={(e) => setSeo({ keywords: e.target.value })}
         />
-        <p className="text-xs text-muted-foreground">Через запятую.</p>
+        <p className="text-xs text-muted-foreground">{t.keywordsHint}</p>
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="seo-gsc">Google Search Console</Label>
         <Input
           id="seo-gsc"
           value={seo.googleVerification}
-          placeholder="Код подтверждения (google-site-verification)"
+          placeholder={t.gscPlaceholder}
           onChange={(e) => setSeo({ googleVerification: e.target.value })}
         />
-        <p className="text-xs text-muted-foreground">
-          Значение content из meta-тега подтверждения владения сайтом.
-        </p>
+        <p className="text-xs text-muted-foreground">{t.gscHint}</p>
       </div>
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Индексация в поисковых системах</p>
-          <p className="text-xs text-muted-foreground">
-            Выключите, чтобы скрыть сайт из Google (noindex) до запуска
-          </p>
+          <p className="text-sm font-medium text-foreground">{t.indexingTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.indexingDesc}</p>
         </div>
         <Switch
           checked={seo.indexingEnabled}
@@ -424,24 +417,22 @@ function SeoSection({ data, setData }: SectionProps) {
   )
 }
 
-function DesignSection({ data, setData }: SectionProps) {
+function DesignSection({ data, setData, t }: SectionProps) {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Шаблон витрины</h2>
-          <p className="text-sm text-muted-foreground">
-            Выберите оформление магазина. Изменения применяются ко всей витрине после сохранения.
-          </p>
+          <h2 className="text-base font-semibold text-foreground">{t.templateTitle}</h2>
+          <p className="text-sm text-muted-foreground">{t.templateDesc}</p>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {TEMPLATES.map((t) => {
-            const active = data.activeTemplate === t.id
+          {TEMPLATES.map((tpl) => {
+            const active = data.activeTemplate === tpl.id
             return (
               <button
-                key={t.id}
+                key={tpl.id}
                 type="button"
-                onClick={() => setData((d) => ({ ...d, activeTemplate: t.id }))}
+                onClick={() => setData((d) => ({ ...d, activeTemplate: tpl.id }))}
                 aria-pressed={active}
                 className={cn(
                   'group relative flex flex-col gap-3 overflow-hidden rounded-xl border-2 p-3 text-left transition-colors',
@@ -453,24 +444,24 @@ function DesignSection({ data, setData }: SectionProps) {
                     <Check className="size-4" />
                   </span>
                 )}
-                {t.premium && (
+                {tpl.premium && (
                   <span className="absolute left-2 top-2 z-10 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-background">
-                    Преміум
+                    {t.premiumBadge}
                   </span>
                 )}
                 {/* Mini storefront preview */}
                 <div
                   className="flex flex-col gap-2 rounded-lg p-3"
-                  style={{ backgroundColor: t.swatches.bg, borderRadius: t.radius }}
+                  style={{ backgroundColor: tpl.swatches.bg, borderRadius: tpl.radius }}
                 >
                   <div className="flex items-center justify-between">
                     <span
                       className="h-2 w-14 rounded-full"
-                      style={{ backgroundColor: t.swatches.primary }}
+                      style={{ backgroundColor: tpl.swatches.primary }}
                     />
                     <span
                       className="h-2 w-6 rounded-full"
-                      style={{ backgroundColor: t.swatches.accent }}
+                      style={{ backgroundColor: tpl.swatches.accent }}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -479,26 +470,26 @@ function DesignSection({ data, setData }: SectionProps) {
                         key={i}
                         className="flex flex-col gap-1.5 p-2"
                         style={{
-                          backgroundColor: t.swatches.card,
-                          borderRadius: `calc(${t.radius} * 0.6)`,
+                          backgroundColor: tpl.swatches.card,
+                          borderRadius: `calc(${tpl.radius} * 0.6)`,
                         }}
                       >
                         <span
                           className="h-6 w-full"
                           style={{
-                            backgroundColor: t.swatches.accent,
-                            borderRadius: `calc(${t.radius} * 0.4)`,
+                            backgroundColor: tpl.swatches.accent,
+                            borderRadius: `calc(${tpl.radius} * 0.4)`,
                           }}
                         />
                         <span
                           className="h-1.5 w-3/4 rounded-full"
-                          style={{ backgroundColor: t.swatches.primary, opacity: 0.7 }}
+                          style={{ backgroundColor: tpl.swatches.primary, opacity: 0.7 }}
                         />
                         <span
                           className="h-4 w-full"
                           style={{
-                            backgroundColor: t.swatches.primary,
-                            borderRadius: `calc(${t.radius} * 0.4)`,
+                            backgroundColor: tpl.swatches.primary,
+                            borderRadius: `calc(${tpl.radius} * 0.4)`,
                           }}
                         />
                       </div>
@@ -506,8 +497,8 @@ function DesignSection({ data, setData }: SectionProps) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">{t.name}</p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{t.description}</p>
+                  <p className="text-sm font-medium text-foreground">{tpl.name}</p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{tpl.description}</p>
                 </div>
               </button>
             )
@@ -518,11 +509,9 @@ function DesignSection({ data, setData }: SectionProps) {
       <div className="flex max-w-xl flex-col gap-3 border-t border-border pt-6">
         <div className="flex items-center gap-2">
           <Globe className="size-4 text-muted-foreground" />
-          <h2 className="text-base font-semibold text-foreground">Язык по умолчанию</h2>
+          <h2 className="text-base font-semibold text-foreground">{t.defaultLangTitle}</h2>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Язык, предлагаемый новым посетителям при первом входе.
-        </p>
+        <p className="text-sm text-muted-foreground">{t.defaultLangDesc}</p>
         <Select
           value={data.defaultLocale}
           onValueChange={(v) => setData((d) => ({ ...d, defaultLocale: v }))}
@@ -546,12 +535,14 @@ function ImageField({
   value,
   onChange,
   size = 96,
+  t,
 }: {
   label: string
   hint: string
   value: string | null
   onChange: (v: string) => void
   size?: number
+  t: AdminDictionary['settings']
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -565,10 +556,10 @@ function ImageField({
       fd.append('file', file)
       const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
       const data = (await res.json()) as { url?: string; error?: string }
-      if (!res.ok || !data.url) throw new Error(data.error || 'Ошибка загрузки')
+      if (!res.ok || !data.url) throw new Error(data.error || t.imageUploadError)
       onChange(data.url)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Ошибка загрузки')
+      toast.error(e instanceof Error ? e.message : t.imageUploadError)
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -591,7 +582,7 @@ function ImageField({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          aria-label={value ? `Заменить: ${label}` : `Загрузить: ${label}`}
+          aria-label={value ? `${t.imageReplaceAria}: ${label}` : `${t.imageUploadAria}: ${label}`}
           className="group relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-border bg-muted transition-colors hover:border-primary disabled:opacity-60"
           style={{ width: size, height: size }}
         >
@@ -629,7 +620,7 @@ function ImageField({
               onClick={() => inputRef.current?.click()}
             >
               {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-              {value ? 'Заменить' : 'Выбрать файл'}
+              {value ? t.imageReplace : t.imageChooseFile}
             </Button>
             {value && (
               <Button
@@ -640,13 +631,13 @@ function ImageField({
                 onClick={() => onChange('')}
               >
                 <X className="size-3.5" />
-                Удалить
+                {t.imageDelete}
               </Button>
             )}
           </div>
           <Input
             value={value ?? ''}
-            placeholder="или вставьте ссылку https://..."
+            placeholder={t.imageUrlPlaceholder}
             onChange={(e) => onChange(e.target.value)}
           />
         </div>
@@ -655,18 +646,20 @@ function ImageField({
   )
 }
 
-function BrandingSection({ data, setData }: SectionProps) {
+function BrandingSection({ data, setData, t }: SectionProps) {
   return (
     <div className="flex max-w-xl flex-col gap-6">
       <ImageField
-        label="Логотип"
-        hint="Загрузите изображение с устройства или вставьте ссылку. Отображается в шапке админ-центра и магазина."
+        t={t}
+        label={t.logoLabel}
+        hint={t.logoHint}
         value={data.logoUrl}
         onChange={(v) => setData((d) => ({ ...d, logoUrl: v }))}
       />
       <ImageField
-        label="Favicon"
-        hint="Иконка сайта (32×32). Загрузите файл или вставьте ссылку."
+        t={t}
+        label={t.faviconLabel}
+        hint={t.faviconHint}
         value={data.faviconUrl}
         onChange={(v) => setData((d) => ({ ...d, faviconUrl: v }))}
         size={48}
@@ -675,7 +668,7 @@ function BrandingSection({ data, setData }: SectionProps) {
   )
 }
 
-function ContactsSection({ data, setData }: SectionProps) {
+function ContactsSection({ data, setData, t }: SectionProps) {
   const c = data.contact
   const setContact = (patch: Partial<StoreSettingsData['contact']>) =>
     setData((d) => ({ ...d, contact: { ...d.contact, ...patch } }))
@@ -695,6 +688,7 @@ function ContactsSection({ data, setData }: SectionProps) {
     setContact({
       workingHours: { ...c.workingHours, [day]: { ...c.workingHours[day], ...patch } },
     })
+  const WEEK_DAYS = getWeekDays(t)
 
   return (
     <div className="flex max-w-xl flex-col gap-8">
@@ -702,9 +696,9 @@ function ContactsSection({ data, setData }: SectionProps) {
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <Phone className="size-4 text-muted-foreground" />
-          <h2 className="text-base font-semibold text-foreground">Телефоны</h2>
+          <h2 className="text-base font-semibold text-foreground">{t.phonesTitle}</h2>
         </div>
-        <p className="text-sm text-muted-foreground">Можно добавить до 3 номеров. Отображаются в футере магазина.</p>
+        <p className="text-sm text-muted-foreground">{t.phonesDesc}</p>
         {phones.map((phone, i) => (
           <div key={i} className="flex items-center gap-2">
             <Input
@@ -720,7 +714,7 @@ function ContactsSection({ data, setData }: SectionProps) {
                 size="icon"
                 className="shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={() => removePhone(i)}
-                aria-label="Удалить номер"
+                aria-label={t.removePhoneAria}
               >
                 <Trash2 className="size-4" />
               </Button>
@@ -729,7 +723,7 @@ function ContactsSection({ data, setData }: SectionProps) {
         ))}
         {phones.length < 3 && (
           <Button type="button" variant="outline" size="sm" className="w-fit gap-2" onClick={addPhone}>
-            <Plus className="size-4" /> Добавить номер
+            <Plus className="size-4" /> {t.addPhoneButton}
           </Button>
         )}
       </div>
@@ -739,15 +733,15 @@ function ContactsSection({ data, setData }: SectionProps) {
         <div className="flex items-center gap-2">
           <MapPin className="size-4 text-muted-foreground" />
           <Label htmlFor="c-address" className="text-base font-semibold">
-            Адрес магазина
-            <span className="ml-2 text-xs font-normal text-muted-foreground">(необязательно)</span>
+            {t.addressTitle}
+            <span className="ml-2 text-xs font-normal text-muted-foreground">{t.addressOptional}</span>
           </Label>
         </div>
         <Textarea
           id="c-address"
           rows={2}
           value={c.address}
-          placeholder="г. Киев, ул. Крещатик, 1"
+          placeholder={t.addressPlaceholder}
           onChange={(e) => setContact({ address: e.target.value })}
         />
       </div>
@@ -756,7 +750,7 @@ function ContactsSection({ data, setData }: SectionProps) {
       <div className="flex flex-col gap-3 border-t border-border pt-6">
         <div className="flex items-center gap-2">
           <Clock className="size-4 text-muted-foreground" />
-          <h2 className="text-base font-semibold text-foreground">Время работы</h2>
+          <h2 className="text-base font-semibold text-foreground">{t.hoursTitle}</h2>
         </div>
         <div className="flex flex-col gap-2">
           {WEEK_DAYS.map(({ key, label }) => {
@@ -765,7 +759,7 @@ function ContactsSection({ data, setData }: SectionProps) {
               <div key={key} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3">
                 <span className="w-28 text-sm font-medium text-foreground">{label}</span>
                 {day.closed ? (
-                  <span className="flex-1 text-sm text-muted-foreground">Выходной</span>
+                  <span className="flex-1 text-sm text-muted-foreground">{t.dayOff}</span>
                 ) : (
                   <div className="flex flex-1 items-center gap-2">
                     <Input
@@ -785,7 +779,7 @@ function ContactsSection({ data, setData }: SectionProps) {
                 )}
                 <div className="flex items-center gap-2">
                   <Switch checked={day.closed} onCheckedChange={(v) => updateDay(key, { closed: v })} />
-                  <span className="text-xs text-muted-foreground">Выходной</span>
+                  <span className="text-xs text-muted-foreground">{t.dayOff}</span>
                 </div>
               </div>
             )
@@ -796,15 +790,18 @@ function ContactsSection({ data, setData }: SectionProps) {
   )
 }
 
-const WIDGET_CHANNELS: { key: WidgetChannelKey; label: string; placeholder: string; hint: string }[] = [
-  { key: 'phone', label: 'Телефон', placeholder: '+380 00 000 00 00', hint: 'Звонок откроется в приложении телефона' },
-  { key: 'whatsapp', label: 'WhatsApp', placeholder: '+380 00 000 00 00', hint: 'Номер в международном формате' },
-  { key: 'telegram', label: 'Telegram', placeholder: '@username или ссылка', hint: 'Имя пользователя или полная ссылка t.me' },
-  { key: 'viber', label: 'Viber', placeholder: '+380 00 000 00 00', hint: 'Номер телефона Viber' },
-  { key: 'email', label: 'Email', placeholder: 'shop@example.com', hint: 'Откроется почтовый клиент' },
-]
+function getWidgetChannels(t: AdminDictionary['settings']): { key: WidgetChannelKey; label: string; placeholder: string; hint: string }[] {
+  return [
+    { key: 'phone', label: t.channelPhoneLabel, placeholder: '+380 00 000 00 00', hint: t.channelPhoneHint },
+    { key: 'whatsapp', label: t.channelWhatsappLabel, placeholder: '+380 00 000 00 00', hint: t.channelWhatsappHint },
+    { key: 'telegram', label: t.channelTelegramLabel, placeholder: t.channelTelegramPlaceholder, hint: t.channelTelegramHint },
+    { key: 'viber', label: t.channelViberLabel, placeholder: '+380 00 000 00 00', hint: t.channelViberHint },
+    { key: 'email', label: t.channelEmailLabel, placeholder: 'shop@example.com', hint: t.channelEmailHint },
+  ]
+}
 
-function WidgetSection({ data, setData }: SectionProps) {
+function WidgetSection({ data, setData, t }: SectionProps) {
+  const WIDGET_CHANNELS = getWidgetChannels(t)
   const w = data.contact.widget
   const setWidget = (patch: Partial<StoreSettingsData['contact']['widget']>) =>
     setData((d) => ({ ...d, contact: { ...d.contact, widget: { ...d.contact.widget, ...patch } } }))
@@ -823,22 +820,20 @@ function WidgetSection({ data, setData }: SectionProps) {
       {/* Master toggle */}
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Плавающая кнопка связи</p>
-          <p className="text-xs text-muted-foreground">
-            Кнопка в правом нижнем углу магазина с быстрыми контактами
-          </p>
+          <p className="text-sm font-medium text-foreground">{t.widgetTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.widgetDesc}</p>
         </div>
         <Switch checked={w.enabled} onCheckedChange={(v) => setWidget({ enabled: v })} />
       </div>
 
       {/* Bulk actions */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-sm text-muted-foreground">Каналы:</span>
+        <span className="mr-1 text-sm text-muted-foreground">{t.channelsLabel}</span>
         <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => toggleAll(true)} disabled={allOn}>
-          <Power className="size-4" /> Включить все
+          <Power className="size-4" /> {t.enableAllButton}
         </Button>
         <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => toggleAll(false)}>
-          <Power className="size-4" /> Отключить все
+          <Power className="size-4" /> {t.disableAllButton}
         </Button>
       </div>
 
@@ -862,9 +857,7 @@ function WidgetSection({ data, setData }: SectionProps) {
           )
         })}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Кнопка появляется на витрине только если включён общий переключатель и есть хотя бы один активный канал с заполненным значением.
-      </p>
+      <p className="text-xs text-muted-foreground">{t.widgetFootnote}</p>
     </div>
   )
 }
@@ -909,7 +902,7 @@ function SocialSection({ data, setData }: SectionProps) {
   )
 }
 
-function EmailSection({ data, setData }: SectionProps) {
+function EmailSection({ data, setData, t }: SectionProps) {
   const e = data.emailSettings
   const set = (patch: Partial<StoreSettingsData['emailSettings']>) =>
     setData((d) => ({ ...d, emailSettings: { ...d.emailSettings, ...patch } }))
@@ -918,14 +911,14 @@ function EmailSection({ data, setData }: SectionProps) {
     <div className="flex max-w-xl flex-col gap-5">
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Email-уведомления</p>
-          <p className="text-xs text-muted-foreground">Отправлять письма клиентам о заказах</p>
+          <p className="text-sm font-medium text-foreground">{t.emailToggleTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.emailToggleDesc}</p>
         </div>
         <Switch checked={e.enabled} onCheckedChange={(v) => set({ enabled: v })} />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <Label>Провайдер</Label>
+          <Label>{t.providerLabel}</Label>
           <Select value={e.provider} onValueChange={(v) => set({ provider: v })}>
             <SelectTrigger>
               <SelectValue />
@@ -938,12 +931,12 @@ function EmailSection({ data, setData }: SectionProps) {
           </Select>
         </div>
         <div className="flex flex-col gap-2">
-          <Label>Имя отправителя</Label>
+          <Label>{t.fromNameLabel}</Label>
           <Input value={e.fromName} onChange={(ev) => set({ fromName: ev.target.value })} />
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <Label>Email отправителя</Label>
+        <Label>{t.fromEmailLabel}</Label>
         <Input
           type="email"
           value={e.fromEmail}
@@ -952,15 +945,15 @@ function EmailSection({ data, setData }: SectionProps) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <Label>SMTP хост</Label>
+          <Label>{t.smtpHostLabel}</Label>
           <Input value={e.smtpHost} onChange={(ev) => set({ smtpHost: ev.target.value })} />
         </div>
         <div className="flex flex-col gap-2">
-          <Label>SMTP порт</Label>
+          <Label>{t.smtpPortLabel}</Label>
           <Input value={e.smtpPort} onChange={(ev) => set({ smtpPort: ev.target.value })} />
         </div>
         <div className="flex flex-col gap-2">
-          <Label>SMTP логин</Label>
+          <Label>{t.smtpUserLabel}</Label>
           <Input
             name="smtp-username"
             autoComplete="off"
@@ -973,7 +966,7 @@ function EmailSection({ data, setData }: SectionProps) {
           />
         </div>
         <div className="flex flex-col gap-2">
-          <Label>SMTP пароль</Label>
+          <Label>{t.smtpPasswordLabel}</Label>
           <Input
             type="password"
             name="smtp-password"
@@ -987,22 +980,16 @@ function EmailSection({ data, setData }: SectionProps) {
           />
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Совет: для безопасности храните пароль SMTP в переменной окружения SMTP_PASSWORD. Тогда
-        письма будут отправляться автоматически.
-      </p>
+      <p className="text-xs text-muted-foreground">{t.smtpTip}</p>
 
       <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">DKIM-подпись (антиспам)</p>
-          <p className="text-xs text-muted-foreground">
-            Нужна только если ваш SMTP-сервер сам не подписывает письма. Gmail и SendGrid
-            подписывают автоматически — оставьте поля пустыми.
-          </p>
+          <p className="text-sm font-medium text-foreground">{t.dkimTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.dkimDesc}</p>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label>DKIM селектор</Label>
+            <Label>{t.dkimSelectorLabel}</Label>
             <Input
               placeholder="mail"
               value={e.dkimSelector}
@@ -1010,7 +997,7 @@ function EmailSection({ data, setData }: SectionProps) {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>DKIM приватный ключ (PEM)</Label>
+            <Label>{t.dkimKeyLabel}</Label>
             <Input
               type="password"
               name="dkim-private-key"
@@ -1028,33 +1015,19 @@ function EmailSection({ data, setData }: SectionProps) {
       </div>
 
       <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-4">
-        <p className="text-sm font-medium text-foreground">
-          Чтобы письма не попадали в спам — настройте DNS домена отправителя:
-        </p>
+        <p className="text-sm font-medium text-foreground">{t.dnsBoxTitle}</p>
         <ul className="flex flex-col gap-1.5 text-xs leading-relaxed text-muted-foreground">
           <li>
-            <span className="font-semibold text-foreground">SPF</span> — TXT-запись:{' '}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono">
-              v=spf1 include:_spf.google.com ~all
-            </code>{' '}
-            (для Gmail; для другого SMTP — include вашего провайдера)
+            <span className="font-semibold text-foreground">SPF</span> — {t.dnsSpf}
           </li>
           <li>
-            <span className="font-semibold text-foreground">DKIM</span> — включите подпись у
-            провайдера (Gmail: Admin console → Apps → Google Workspace → Gmail → Authenticate
-            email) и добавьте выданную TXT-запись
+            <span className="font-semibold text-foreground">DKIM</span> — {t.dnsDkim}
           </li>
           <li>
-            <span className="font-semibold text-foreground">DMARC</span> — TXT-запись{' '}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono">_dmarc.ваш-домен</code>:{' '}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono">
-              v=DMARC1; p=quarantine; rua=mailto:admin@ваш-домен
-            </code>
+            <span className="font-semibold text-foreground">DMARC</span> — {t.dnsDmarc}
           </li>
           <li>
-            <span className="font-semibold text-foreground">Важно</span> — «Email отправителя»
-            должен совпадать с SMTP-логином, иначе письмо уйдёт от имени логина (иное значение
-            станет адресом для ответов)
+            <span className="font-semibold text-foreground">{t.dnsImportantLabel}</span> — {t.dnsImportant}
           </li>
         </ul>
       </div>
@@ -1062,7 +1035,7 @@ function EmailSection({ data, setData }: SectionProps) {
   )
 }
 
-function NotificationsSection({ data, setData }: SectionProps) {
+function NotificationsSection({ data, setData, t }: SectionProps) {
   const n = data.notifications
   const set = (patch: Partial<StoreSettingsData['notifications']>) =>
     setData((d) => ({ ...d, notifications: { ...d.notifications, ...patch } }))
@@ -1073,8 +1046,8 @@ function NotificationsSection({ data, setData }: SectionProps) {
     try {
       const { sendTestTelegram } = await import('@/app/actions/notifications')
       const res = await sendTestTelegram({ botToken: n.telegramBotToken, chatId: n.telegramChatId })
-      if (res.success) toast.success('Тестовое сообщение отправлено в Telegram')
-      else toast.error(res.error ?? 'Ошибка отправки')
+      if (res.success) toast.success(t.toastTelegramSent)
+      else toast.error(res.error ?? t.toastTelegramError)
     } finally {
       setTesting(false)
     }
@@ -1083,19 +1056,14 @@ function NotificationsSection({ data, setData }: SectionProps) {
   return (
     <div className="flex max-w-xl flex-col gap-5">
       <div>
-        <p className="text-sm font-medium text-foreground">Уведомления о новых заказах</p>
-        <p className="text-xs text-muted-foreground">
-          Кому и как сообщать, когда покупатель оформил заказ. Для писем должна быть настроена
-          вкладка Email (SMTP).
-        </p>
+        <p className="text-sm font-medium text-foreground">{t.notifSectionTitle}</p>
+        <p className="text-xs text-muted-foreground">{t.notifSectionDesc}</p>
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Письмо покупателю</p>
-          <p className="text-xs text-muted-foreground">
-            Подтверждение заказа на email покупателя (если он его указал)
-          </p>
+          <p className="text-sm font-medium text-foreground">{t.customerEmailTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.customerEmailDesc}</p>
         </div>
         <Switch
           checked={n.customerEmailEnabled}
@@ -1106,18 +1074,18 @@ function NotificationsSection({ data, setData }: SectionProps) {
       <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Письмо администратору</p>
-            <p className="text-xs text-muted-foreground">Оповещение о каждом новом заказе</p>
+            <p className="text-sm font-medium text-foreground">{t.adminEmailTitle}</p>
+            <p className="text-xs text-muted-foreground">{t.adminEmailDesc}</p>
           </div>
           <Switch checked={n.adminEmailEnabled} onCheckedChange={(v) => set({ adminEmailEnabled: v })} />
         </div>
         {n.adminEmailEnabled && (
           <div className="flex flex-col gap-2">
-            <Label>Email администратора</Label>
+            <Label>{t.adminEmailLabel}</Label>
             <Input
               type="email"
               value={n.adminEmail}
-              placeholder="Пусто = адрес из настроек SMTP"
+              placeholder={t.adminEmailPlaceholder}
               onChange={(ev) => set({ adminEmail: ev.target.value })}
             />
           </div>
@@ -1127,17 +1095,15 @@ function NotificationsSection({ data, setData }: SectionProps) {
       <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Telegram администратору</p>
-            <p className="text-xs text-muted-foreground">
-              Мгновенное сообщение о заказе в личку или группу
-            </p>
+            <p className="text-sm font-medium text-foreground">{t.telegramTitle}</p>
+            <p className="text-xs text-muted-foreground">{t.telegramDesc}</p>
           </div>
           <Switch checked={n.telegramEnabled} onCheckedChange={(v) => set({ telegramEnabled: v })} />
         </div>
         {n.telegramEnabled && (
           <>
             <div className="flex flex-col gap-2">
-              <Label>Токен бота</Label>
+              <Label>{t.telegramTokenLabel}</Label>
               <Input
                 type="password"
                 name="telegram-bot-token"
@@ -1150,21 +1116,16 @@ function NotificationsSection({ data, setData }: SectionProps) {
                 placeholder="123456789:AAF..."
                 onChange={(ev) => set({ telegramBotToken: ev.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Создайте бота у @BotFather в Telegram и вставьте сюда его токен
-              </p>
+              <p className="text-xs text-muted-foreground">{t.telegramTokenHint}</p>
             </div>
             <div className="flex flex-col gap-2">
-              <Label>Chat ID</Label>
+              <Label>{t.telegramChatIdLabel}</Label>
               <Input
                 value={n.telegramChatId}
-                placeholder="123456789 или -100123456789 (группа)"
+                placeholder={t.telegramChatIdPlaceholder}
                 onChange={(ev) => set({ telegramChatId: ev.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Напишите боту /start, затем узнайте свой ID у @userinfobot. Для группы добавьте
-                бота в группу.
-              </p>
+              <p className="text-xs text-muted-foreground">{t.telegramChatIdHint}</p>
             </div>
             <Button
               type="button"
@@ -1175,12 +1136,9 @@ function NotificationsSection({ data, setData }: SectionProps) {
               disabled={testing || !n.telegramBotToken || !n.telegramChatId}
             >
               {testing ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-              Отправить тест
+              {t.testButton}
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Перед тестом сохраните настройки или заполните поля выше — тест использует введённые
-              значения.
-            </p>
+            <p className="text-xs text-muted-foreground">{t.testNote}</p>
           </>
         )}
       </div>
@@ -1188,7 +1146,7 @@ function NotificationsSection({ data, setData }: SectionProps) {
   )
 }
 
-function AdsSection({ data, setData }: SectionProps) {
+function AdsSection({ data, setData, t }: SectionProps) {
   const g = data.googleAds
   const set = (patch: Partial<StoreSettingsData['googleAds']>) =>
     setData((d) => ({ ...d, googleAds: { ...d.googleAds, ...patch } }))
@@ -1197,13 +1155,13 @@ function AdsSection({ data, setData }: SectionProps) {
     <div className="flex max-w-xl flex-col gap-5">
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Отслеживание конверсий</p>
-          <p className="text-xs text-muted-foreground">Google Ads conversion tracking</p>
+          <p className="text-sm font-medium text-foreground">{t.convTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.convDesc}</p>
         </div>
         <Switch checked={g.enabled} onCheckedChange={(v) => set({ enabled: v })} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label>Conversion ID</Label>
+        <Label>{t.conversionIdLabel}</Label>
         <Input
           value={g.conversionId}
           placeholder="AW-XXXXXXXXX"
@@ -1211,7 +1169,7 @@ function AdsSection({ data, setData }: SectionProps) {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label>Conversion Label</Label>
+        <Label>{t.conversionLabelLabel}</Label>
         <Input
           value={g.conversionLabel}
           onChange={(e) => set({ conversionLabel: e.target.value })}
@@ -1221,42 +1179,33 @@ function AdsSection({ data, setData }: SectionProps) {
       <div className="border-t border-border pt-5">
         <div className="flex items-center justify-between rounded-lg border border-border p-4">
           <div>
-            <p className="text-sm font-medium text-foreground">Google Analytics (GA4)</p>
-            <p className="text-xs text-muted-foreground">
-              Просмотры страниц, товаров, добавления в корзину, покупки — воронка продаж прямо в GA4
-            </p>
+            <p className="text-sm font-medium text-foreground">{t.gaTitle}</p>
+            <p className="text-xs text-muted-foreground">{t.gaDesc}</p>
           </div>
           <Switch checked={g.gaEnabled} onCheckedChange={(v) => set({ gaEnabled: v })} />
         </div>
         <div className="mt-3 flex flex-col gap-2">
-          <Label>Measurement ID</Label>
+          <Label>{t.gaMeasurementLabel}</Label>
           <Input
             value={g.gaMeasurementId}
             placeholder="G-XXXXXXXXXX"
             onChange={(e) => set({ gaMeasurementId: e.target.value })}
           />
-          <p className="text-xs text-muted-foreground">
-            Найдите в Google Analytics: Администратор → Потоки данных → ваш веб-поток.
-          </p>
+          <p className="text-xs text-muted-foreground">{t.gaHint}</p>
         </div>
       </div>
 
       <div className="rounded-lg border border-border p-4">
-        <p className="text-sm font-medium text-foreground">Google Merchant Center</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Товарный фид для Google Shopping/Merchant Center. Добавьте эту ссылку в Merchant Center
-          (Продукты → Фиды → «Заданное время получения»), она обновляется автоматически:
-        </p>
-        <MerchantFeedUrl siteUrl={data.seo.siteUrl} />
-        <p className="mt-2 text-xs text-muted-foreground">
-          Для отдельного фида на русском добавьте <code>?locale=ru</code> к ссылке.
-        </p>
+        <p className="text-sm font-medium text-foreground">{t.merchantTitle}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t.merchantDesc}</p>
+        <MerchantFeedUrl siteUrl={data.seo.siteUrl} t={t} />
+        <p className="mt-2 text-xs text-muted-foreground">{t.merchantLocaleNote}</p>
       </div>
     </div>
   )
 }
 
-function MerchantFeedUrl({ siteUrl }: { siteUrl: string }) {
+function MerchantFeedUrl({ siteUrl, t }: { siteUrl: string; t: AdminDictionary['settings'] }) {
   const [url, setUrl] = useState('')
   useEffect(() => {
     const base = siteUrl?.trim() || window.location.origin
@@ -1272,16 +1221,16 @@ function MerchantFeedUrl({ siteUrl }: { siteUrl: string }) {
         size="sm"
         onClick={() => {
           navigator.clipboard.writeText(url)
-          toast.success('Скопировано')
+          toast.success(t.toastCopied)
         }}
       >
-        Копировать
+        {t.copyButton}
       </Button>
     </div>
   )
 }
 
-function GoogleAuthSection({ data, setData }: SectionProps) {
+function GoogleAuthSection({ data, setData, t }: SectionProps) {
   const g = data.googleAuth
   const set = (patch: Partial<StoreSettingsData['googleAuth']>) =>
     setData((d) => ({ ...d, googleAuth: { ...d.googleAuth, ...patch } }))
@@ -1291,29 +1240,26 @@ function GoogleAuthSection({ data, setData }: SectionProps) {
   return (
     <div className="flex max-w-xl flex-col gap-5">
       <div>
-        <h2 className="text-base font-semibold text-foreground">Вход через Google (OAuth 2.0)</h2>
+        <h2 className="text-base font-semibold text-foreground">{t.googleAuthTitle}</h2>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          Ключи создаются в{' '}
+          {t.googleAuthDescPrefix}{' '}
           <a
             href="https://console.cloud.google.com/apis/credentials"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"
           >
-            Google Cloud Console
+            {t.googleAuthDescLink}
           </a>{' '}
-          (APIs &amp; Services → Credentials → OAuth client ID, тип «Web application»). Хранятся в
-          базе данных магазина и применяются без перезапуска сервера.
+          {t.googleAuthDescSuffix}
         </p>
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-border p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Кнопка «Войти через Google»</p>
+          <p className="text-sm font-medium text-foreground">{t.googleAuthToggleTitle}</p>
           <p className="text-xs text-muted-foreground">
-            {configured
-              ? 'Показывать кнопку в окне входа и регистрации'
-              : 'Заполните Client ID и Client Secret, чтобы включить'}
+            {configured ? t.googleAuthToggleConfigured : t.googleAuthToggleNotConfigured}
           </p>
         </div>
         <Switch
@@ -1324,7 +1270,7 @@ function GoogleAuthSection({ data, setData }: SectionProps) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="ga-client-id">Client ID</Label>
+        <Label htmlFor="ga-client-id">{t.clientIdLabel}</Label>
         <Input
           id="ga-client-id"
           name="google-oauth-client-id"
@@ -1340,7 +1286,7 @@ function GoogleAuthSection({ data, setData }: SectionProps) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="ga-client-secret">Client Secret</Label>
+        <Label htmlFor="ga-client-secret">{t.clientSecretLabel}</Label>
         <div className="flex items-center gap-2">
           <Input
             id="ga-client-secret"
@@ -1359,27 +1305,23 @@ function GoogleAuthSection({ data, setData }: SectionProps) {
             type="button"
             variant="outline"
             size="icon"
-            aria-label={showSecret ? 'Скрыть секрет' : 'Показать секрет'}
+            aria-label={showSecret ? t.hideSecretAria : t.showSecretAria}
             onClick={() => setShowSecret((v) => !v)}
           >
             {showSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Секрет хранится в базе данных. Не передавайте его третьим лицам.
-        </p>
+        <p className="text-xs text-muted-foreground">{t.secretHint}</p>
       </div>
 
       <div className="rounded-lg border border-border bg-muted/50 p-4">
-        <p className="text-sm font-medium text-foreground">Redirect URI для Google Console</p>
+        <p className="text-sm font-medium text-foreground">{t.redirectTitle}</p>
         <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
           {typeof window !== 'undefined'
             ? `${window.location.origin}/api/auth/callback/google`
             : '/api/auth/callback/google'}
         </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Добавьте этот адрес в «Authorized redirect URIs» вашего OAuth-клиента.
-        </p>
+        <p className="mt-2 text-xs text-muted-foreground">{t.redirectHint}</p>
       </div>
     </div>
   )
