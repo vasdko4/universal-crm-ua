@@ -33,8 +33,14 @@ import {
   updateOrderDelivery,
   updateOrderNote,
 } from '@/app/actions/orders'
-import { ORDER_STATUSES, PAYMENT_STATUSES } from '@/lib/order-status'
+import {
+  getOrderStatusOptions,
+  getPaymentStatusOptions,
+  getPaymentMethodLabel,
+  getDeliveryMethodLabel,
+} from '@/lib/order-status'
 import type { Order, OrderItem, OrderHistoryEntry } from '@/lib/db/schema'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 function money(v: string | number) {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
@@ -53,20 +59,6 @@ function formatDate(d: Date | null) {
   })
 }
 
-const PAYMENT_LABELS: Record<string, string> = {
-  online: 'Онлайн-оплата',
-  cod: 'Наложенный платёж',
-  prepay: 'Предоплата на карту',
-  cash: 'Наличные',
-}
-
-const DELIVERY_LABELS: Record<string, string> = {
-  nova_poshta: 'Нова Пошта',
-  ukrposhta: 'Укрпошта',
-  courier: 'Курьер',
-  pickup: 'Самовывоз',
-}
-
 export function OrderDetail({
   order,
   items,
@@ -77,15 +69,20 @@ export function OrderDetail({
   history: OrderHistoryEntry[]
 }) {
   const router = useRouter()
+  const { locale, dict } = useAdminI18n()
+  const t = dict.orders
   const [isPending, startTransition] = useTransition()
   const [tracking, setTracking] = useState(order.trackingNumber ?? '')
   const [note, setNote] = useState(order.note ?? '')
   const [sending, setSending] = useState<string | null>(null)
 
+  const orderStatuses = getOrderStatusOptions(locale)
+  const paymentStatuses = getPaymentStatusOptions(locale)
+
   function changeStatus(status: string) {
     startTransition(async () => {
       await updateOrderStatus(order.id, status)
-      toast.success('Статус обновлён')
+      toast.success(t.toastStatusUpdated)
       router.refresh()
     })
   }
@@ -93,7 +90,7 @@ export function OrderDetail({
   function changePayment(status: string) {
     startTransition(async () => {
       await updateOrderPayment(order.id, status)
-      toast.success('Оплата обновлена')
+      toast.success(t.toastPaymentUpdated)
       router.refresh()
     })
   }
@@ -101,7 +98,7 @@ export function OrderDetail({
   function saveTracking() {
     startTransition(async () => {
       await updateOrderDelivery(order.id, { trackingNumber: tracking, deliveryStatus: 'В пути' })
-      toast.success('Накладная сохранена')
+      toast.success(t.toastTrackingSaved)
       router.refresh()
     })
   }
@@ -109,7 +106,7 @@ export function OrderDetail({
   function saveNote() {
     startTransition(async () => {
       await updateOrderNote(order.id, note)
-      toast.success('Примечание сохранено')
+      toast.success(t.toastNoteSaved)
       router.refresh()
     })
   }
@@ -124,41 +121,43 @@ export function OrderDetail({
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.error(data.error ?? 'Ошибка отправки')
+        toast.error(data.error ?? t.toastSendError)
       } else if (data.link) {
         window.open(data.link, '_blank')
-        toast.success('Открываю мессенджер')
+        toast.success(t.toastOpeningMessenger)
         router.refresh()
       } else {
-        toast.success('Письмо отправлено покупателю')
+        toast.success(t.toastEmailSent)
         router.refresh()
       }
     } catch {
-      toast.error('Ошибка сети')
+      toast.error(t.toastNetworkError)
     } finally {
       setSending(null)
     }
   }
 
   const messengers = [
-    { key: 'chat', label: 'Email', icon: Mail },
-    { key: 'viber', label: 'Viber', icon: MessageCircle },
-    { key: 'telegram', label: 'Telegram', icon: Send },
-    { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
-    { key: 'sms', label: 'SMS', icon: Phone },
+    { key: 'chat', label: dict.messengers.email, icon: Mail },
+    { key: 'viber', label: dict.messengers.viber, icon: MessageCircle },
+    { key: 'telegram', label: dict.messengers.telegram, icon: Send },
+    { key: 'whatsapp', label: dict.messengers.whatsapp, icon: MessageCircle },
+    { key: 'sms', label: dict.messengers.sms, icon: Phone },
   ]
+
+  const paidWithLabel = order.paymentMethod ? getPaymentMethodLabel(order.paymentMethod, locale) : null
 
   return (
     <div className="flex flex-col">
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 md:px-8">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="icon">
-            <Link href="/admin/orders" aria-label="Назад к заказам">
+            <Link href="/admin/orders" aria-label={t.backToOrdersAria}>
               <ArrowLeft className="size-5" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-lg font-semibold text-foreground">Заказ №{order.orderNumber}</h1>
+            <h1 className="text-lg font-semibold text-foreground">{t.orderNumber}{order.orderNumber}</h1>
             <p className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</p>
           </div>
           <StatusBadge status={order.status} />
@@ -169,7 +168,7 @@ export function OrderDetail({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {ORDER_STATUSES.map((s) => (
+              {orderStatuses.map((s) => (
                 <SelectItem key={s.value} value={s.value}>
                   {s.label}
                 </SelectItem>
@@ -177,14 +176,14 @@ export function OrderDetail({
             </SelectContent>
           </Select>
           <Button onClick={() => changeStatus('done')} disabled={isPending || order.status === 'done'}>
-            Заказ выполнен
+            {t.orderCompleted}
           </Button>
         </div>
       </header>
 
       {order.paymentStatus === 'paid' && (
         <div className="border-b border-border bg-primary/10 px-4 py-2.5 text-sm text-primary md:px-8">
-          Этот заказ оплачен{order.paymentMethod ? ` с помощью «${PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}»` : ''}
+          {t.paidWith}{paidWithLabel ? ` «${paidWithLabel}»` : ''}
         </div>
       )}
 
@@ -192,7 +191,7 @@ export function OrderDetail({
         <div className="flex flex-col gap-6">
           {/* Items */}
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 font-semibold text-foreground">Товары в заказе ({items.length})</h2>
+            <h2 className="mb-4 font-semibold text-foreground">{t.itemsInOrder} ({items.length})</h2>
             <div className="flex flex-col divide-y divide-border">
               {items.map((item) => (
                 <div key={item.id} className="flex items-center gap-3 py-3">
@@ -210,8 +209,8 @@ export function OrderDetail({
                       </span>
                     ) : null}
                     <p className="text-xs text-muted-foreground">
-                      {item.sku ? `Артикул: ${item.sku} · ` : ''}
-                      {money(item.price)} × {item.quantity} шт.
+                      {item.sku ? `${t.sku}: ${item.sku} · ` : ''}
+                      {money(item.price)} × {item.quantity} {t.units}
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-foreground">{money(item.total)}</p>
@@ -223,7 +222,7 @@ export function OrderDetail({
           {/* Customer & Payment */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <section className="rounded-xl border border-border bg-card p-5">
-              <h2 className="mb-3 font-semibold text-foreground">Покупатель</h2>
+              <h2 className="mb-3 font-semibold text-foreground">{t.customer}</h2>
               <div className="flex flex-col gap-1 text-sm">
                 <p className="font-medium text-foreground">{order.customerName ?? '—'}</p>
                 {order.customerPhone && (
@@ -243,19 +242,19 @@ export function OrderDetail({
 
             <section className="rounded-xl border border-border bg-card p-5">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold text-foreground">Оплата</h2>
+                <h2 className="font-semibold text-foreground">{t.payment}</h2>
                 <PaymentBadge status={order.paymentStatus} />
               </div>
               <div className="flex flex-col gap-2 text-sm">
                 <p className="text-muted-foreground">
-                  {order.paymentMethod ? PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod : 'Способ не выбран'}
+                  {paidWithLabel ?? t.paymentNotSelected}
                 </p>
                 <Select value={order.paymentStatus} onValueChange={changePayment} disabled={isPending}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_STATUSES.map((s) => (
+                    {paymentStatuses.map((s) => (
                       <SelectItem key={s.value} value={s.value}>
                         {s.label}
                       </SelectItem>
@@ -270,34 +269,34 @@ export function OrderDetail({
           <section className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-3 flex items-center gap-2 font-semibold text-foreground">
               <Truck className="size-4" />
-              Доставка
+              {t.delivery}
             </h2>
             <div className="flex flex-col gap-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Способ</span>
+                <span className="text-muted-foreground">{t.method}</span>
                 <span className="text-foreground">
-                  {order.deliveryMethod ? DELIVERY_LABELS[order.deliveryMethod] ?? order.deliveryMethod : '—'}
+                  {getDeliveryMethodLabel(order.deliveryMethod, locale) ?? '—'}
                 </span>
               </div>
               {(order.deliveryCity || order.deliveryBranch) && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">Адрес</span>
+                  <span className="text-muted-foreground">{t.address}</span>
                   <span className="text-right text-foreground">
                     {[order.deliveryCity, order.deliveryBranch].filter(Boolean).join(', ')}
                   </span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Стоимость</span>
+                <span className="text-muted-foreground">{t.cost}</span>
                 <span className="text-foreground">{money(order.deliveryCost)}</span>
               </div>
               <div className="mt-2 flex items-end gap-2 border-t border-border pt-3">
                 <div className="flex-1">
-                  <Label htmlFor="tracking" className="text-xs text-muted-foreground">Номер накладной (ЕН)</Label>
+                  <Label htmlFor="tracking" className="text-xs text-muted-foreground">{t.trackingLabel}</Label>
                   <Input id="tracking" value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="20450000000000" className="mt-1" />
                 </div>
                 <Button variant="outline" onClick={saveTracking} disabled={isPending}>
-                  Сохранить ЕН
+                  {t.saveTracking}
                 </Button>
               </div>
               {order.deliveryStatus && (
@@ -313,7 +312,7 @@ export function OrderDetail({
           <section className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
               <Clock className="size-4" />
-              История заказа
+              {t.history}
             </h2>
             <div className="flex flex-col gap-3">
               {history.map((h) => (
@@ -335,34 +334,34 @@ export function OrderDetail({
         {/* Right sidebar */}
         <div className="flex flex-col gap-4">
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-semibold text-foreground">Всего</h2>
+            <h2 className="font-semibold text-foreground">{t.total}</h2>
             <div className="mt-3 flex flex-col gap-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{order.itemsCount} товар(ов)</span>
+                <span className="text-muted-foreground">{order.itemsCount} {t.itemsCountLabel}</span>
                 <span className="text-foreground">{money(order.itemsTotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Доставка</span>
+                <span className="text-muted-foreground">{t.delivery}</span>
                 <span className="text-foreground">{money(order.deliveryCost)}</span>
               </div>
               {Number(order.discountTotal) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
-                    Скидка{order.promoCode ? ` (${order.promoCode})` : ''}
+                    {t.discount}{order.promoCode ? ` (${order.promoCode})` : ''}
                   </span>
                   <span className="text-primary">−{money(order.discountTotal)}</span>
                 </div>
               )}
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold">
-                <span className="text-foreground">К оплате</span>
+                <span className="text-foreground">{t.toPay}</span>
                 <span className="text-primary">{money(order.total)}</span>
               </div>
             </div>
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-semibold text-foreground">Действия</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Написать покупателю</p>
+            <h2 className="font-semibold text-foreground">{t.actions}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t.writeToCustomer}</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {messengers.map((m) => (
                 <Button
@@ -381,27 +380,27 @@ export function OrderDetail({
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-semibold text-foreground">Примечания</h2>
+            <h2 className="font-semibold text-foreground">{t.notes}</h2>
             <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value.slice(0, 300))}
-              placeholder="Размер, цвет и т.д."
+              placeholder={t.notePlaceholder}
               className="mt-3 min-h-24"
             />
             <div className="mt-2 flex justify-end">
               <Button variant="outline" size="sm" onClick={saveNote} disabled={isPending}>
-                Сохранить
+                {t.save}
               </Button>
             </div>
           </section>
 
           {Array.isArray(order.tags) && order.tags.length > 0 && (
             <section className="rounded-xl border border-border bg-card p-5">
-              <h2 className="font-semibold text-foreground">Метки</h2>
+              <h2 className="font-semibold text-foreground">{t.tags}</h2>
               <div className="mt-3 flex flex-wrap gap-2">
-                {(order.tags as string[]).map((t) => (
-                  <span key={t} className="rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
-                    {t}
+                {(order.tags as string[]).map((tag) => (
+                  <span key={tag} className="rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
+                    {tag}
                   </span>
                 ))}
               </div>

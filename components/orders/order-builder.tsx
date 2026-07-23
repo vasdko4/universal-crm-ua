@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog'
 import { createOrder, searchProductsForOrder } from '@/app/actions/orders'
 import Link from 'next/link'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type CartItem = {
   productId?: number
@@ -57,6 +58,8 @@ function money(n: number) {
 
 export function OrderBuilder() {
   const router = useRouter()
+  const { dict } = useAdminI18n()
+  const t = dict.orders
   const [isPending, startTransition] = useTransition()
 
   const [items, setItems] = useState<CartItem[]>([])
@@ -114,7 +117,7 @@ export function OrderBuilder() {
         },
       ]
     })
-    toast.success('Товар добавлен')
+    toast.success(t.toastProductAdded)
   }
 
   function updateQty(index: number, delta: number) {
@@ -130,14 +133,14 @@ export function OrderBuilder() {
   }
 
   function addTag() {
-    const t = tagInput.trim()
-    if (t && !tags.includes(t)) setTags([...tags, t])
+    const tag = tagInput.trim()
+    if (tag && !tags.includes(tag)) setTags([...tags, tag])
     setTagInput('')
   }
 
   function handleSave() {
     if (items.length === 0) {
-      toast.error('Добавьте хотя бы один товар')
+      toast.error(t.toastAddAtLeastOneItem)
       return
     }
     startTransition(async () => {
@@ -162,10 +165,10 @@ export function OrderBuilder() {
         tags,
       })
       if (res.success) {
-        toast.success(`Заказ №${res.orderNumber} создан`)
+        toast.success(t.toastOrderCreated.replace('{n}', String(res.orderNumber)))
         router.push(`/admin/orders/${res.id}`)
       } else {
-        toast.error('Не удалось создать заказ')
+        toast.error(t.toastCreateFailed)
       }
     })
   }
@@ -175,15 +178,15 @@ export function OrderBuilder() {
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-4 py-3 md:px-8">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="icon">
-            <Link href="/admin/orders" aria-label="Назад к заказам">
+            <Link href="/admin/orders" aria-label={t.backToOrdersAria}>
               <ArrowLeft className="size-5" />
             </Link>
           </Button>
-          <h1 className="text-lg font-semibold text-foreground">Новый заказ</h1>
+          <h1 className="text-lg font-semibold text-foreground">{t.newOrder}</h1>
         </div>
         <Button onClick={handleSave} disabled={isPending || items.length === 0}>
           {isPending && <Loader2 className="size-4 animate-spin" />}
-          Сохранить заказ
+          {t.saveOrder}
         </Button>
       </header>
 
@@ -192,16 +195,16 @@ export function OrderBuilder() {
           {/* Items */}
           <section className="rounded-xl border border-border bg-card p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold text-foreground">Товары в заказе ({items.length})</h2>
+              <h2 className="font-semibold text-foreground">{t.itemsInOrder} ({items.length})</h2>
               <Button variant="outline" size="sm" onClick={() => setSearchOpen(true)}>
                 <Plus className="size-4" />
-                Добавить товар
+                {t.addItem}
               </Button>
             </div>
 
             {items.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                Товары ещё не добавлены
+                {t.noItemsYet}
               </p>
             ) : (
               <div className="flex flex-col divide-y divide-border">
@@ -218,7 +221,7 @@ export function OrderBuilder() {
                       <p className="text-xs text-muted-foreground">
                         {money(item.price)}
                         {item.sku ? ` · ${item.sku}` : ''}
-                        {item.stock !== undefined ? ` · остаток: ${item.stock}` : ''}
+                        {item.stock !== undefined ? ` · ${t.stockLabel}: ${item.stock}` : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -244,19 +247,19 @@ export function OrderBuilder() {
 
           {/* Customer */}
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 font-semibold text-foreground">Покупатель</h2>
+            <h2 className="mb-4 font-semibold text-foreground">{t.customer}</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="c-name">Имя</Label>
-                <Input id="c-name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="ФИО покупателя" />
+                <Label htmlFor="c-name">{t.name}</Label>
+                <Input id="c-name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={t.namePlaceholder} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="c-phone">Телефон</Label>
-                <Input id="c-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="+380..." />
+                <Label htmlFor="c-phone">{t.phone}</Label>
+                <Input id="c-phone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder={t.phonePlaceholder} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="c-email">Email</Label>
-                <Input id="c-email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="email@example.com" />
+                <Label htmlFor="c-email">{t.emailLabel}</Label>
+                <Input id="c-email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder={t.emailPlaceholder} />
               </div>
             </div>
           </section>
@@ -264,40 +267,40 @@ export function OrderBuilder() {
           {/* Payment & Delivery */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <section className="rounded-xl border border-border bg-card p-5">
-              <h2 className="mb-4 font-semibold text-foreground">Оплата</h2>
+              <h2 className="mb-4 font-semibold text-foreground">{t.payment}</h2>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Не выбрано" />
+                  <SelectValue placeholder={t.notSelectedOption} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="online">Онлайн-оплата</SelectItem>
-                  <SelectItem value="cod">Наложенный платёж</SelectItem>
-                  <SelectItem value="prepay">Предоплата на карту</SelectItem>
-                  <SelectItem value="cash">Наличные</SelectItem>
+                  <SelectItem value="online">{dict.paymentMethods.online}</SelectItem>
+                  <SelectItem value="cod">{dict.paymentMethods.cod}</SelectItem>
+                  <SelectItem value="prepay">{dict.paymentMethods.prepay}</SelectItem>
+                  <SelectItem value="cash">{dict.paymentMethods.cash}</SelectItem>
                 </SelectContent>
               </Select>
             </section>
 
             <section className="rounded-xl border border-border bg-card p-5">
-              <h2 className="mb-4 font-semibold text-foreground">Доставка</h2>
+              <h2 className="mb-4 font-semibold text-foreground">{t.delivery}</h2>
               <div className="flex flex-col gap-3">
                 <Select value={deliveryMethod} onValueChange={setDeliveryMethod}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Не выбрано" />
+                    <SelectValue placeholder={t.notSelectedOption} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="nova_poshta">Нова Пошта</SelectItem>
-                    <SelectItem value="ukrposhta">Укрпошта</SelectItem>
-                    <SelectItem value="courier">Курьер</SelectItem>
-                    <SelectItem value="pickup">Самовывоз</SelectItem>
+                    <SelectItem value="nova_poshta">{dict.deliveryMethods.nova_poshta}</SelectItem>
+                    <SelectItem value="ukrposhta">{dict.deliveryMethods.ukrposhta}</SelectItem>
+                    <SelectItem value="courier">{dict.deliveryMethods.courier}</SelectItem>
+                    <SelectItem value="pickup">{dict.deliveryMethods.pickup}</SelectItem>
                   </SelectContent>
                 </Select>
                 {deliveryMethod && (
                   <>
-                    <Input value={deliveryCity} onChange={(e) => setDeliveryCity(e.target.value)} placeholder="Город" />
-                    <Input value={deliveryBranch} onChange={(e) => setDeliveryBranch(e.target.value)} placeholder="Отделение / адрес" />
+                    <Input value={deliveryCity} onChange={(e) => setDeliveryCity(e.target.value)} placeholder={t.city} />
+                    <Input value={deliveryBranch} onChange={(e) => setDeliveryBranch(e.target.value)} placeholder={t.branch} />
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="d-cost" className="text-sm text-muted-foreground">Стоимость</Label>
+                      <Label htmlFor="d-cost" className="text-sm text-muted-foreground">{t.cost}</Label>
                       <Input id="d-cost" type="number" value={deliveryCost} onChange={(e) => setDeliveryCost(e.target.value)} className="w-28" />
                     </div>
                   </>
@@ -310,31 +313,31 @@ export function OrderBuilder() {
         {/* Right sidebar */}
         <div className="flex flex-col gap-4">
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-semibold text-foreground">Всего</h2>
+            <h2 className="font-semibold text-foreground">{t.total}</h2>
             <div className="mt-3 flex flex-col gap-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Товары ({itemsCount})</span>
+                <span className="text-muted-foreground">{t.itemsInOrder} ({itemsCount})</span>
                 <span className="text-foreground">{money(itemsTotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Доставка</span>
+                <span className="text-muted-foreground">{t.delivery}</span>
                 <span className="text-foreground">{money(Number.parseFloat(deliveryCost) || 0)}</span>
               </div>
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold">
-                <span className="text-foreground">К оплате</span>
+                <span className="text-foreground">{t.toPay}</span>
                 <span className="text-primary">{money(total)}</span>
               </div>
             </div>
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-semibold text-foreground">Метки</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Личные заметки для фильтрации заказов</p>
+            <h2 className="font-semibold text-foreground">{t.tags}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t.tagsHint}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {tags.map((t) => (
-                <span key={t} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
-                  {t}
-                  <button onClick={() => setTags(tags.filter((x) => x !== t))} aria-label={`Удалить метку ${t}`}>
+              {tags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
+                  {tag}
+                  <button onClick={() => setTags(tags.filter((x) => x !== tag))} aria-label={`${t.removeTagAria} ${tag}`}>
                     <X className="size-3" />
                   </button>
                 </span>
@@ -350,7 +353,7 @@ export function OrderBuilder() {
                     addTag()
                   }
                 }}
-                placeholder="Новая метка"
+                placeholder={t.newTagPlaceholder}
                 className="h-8"
               />
               <Button variant="outline" size="sm" onClick={addTag}>
@@ -360,11 +363,11 @@ export function OrderBuilder() {
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-semibold text-foreground">Примечания</h2>
+            <h2 className="font-semibold text-foreground">{t.notes}</h2>
             <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value.slice(0, 300))}
-              placeholder="Размер, цвет и т.д."
+              placeholder={t.notePlaceholder}
               className="mt-3 min-h-24"
             />
             <p className="mt-1 text-right text-xs text-muted-foreground">{note.length}/300</p>
@@ -376,7 +379,7 @@ export function OrderBuilder() {
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Добавить товар</DialogTitle>
+            <DialogTitle>{t.addItem}</DialogTitle>
           </DialogHeader>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -384,14 +387,14 @@ export function OrderBuilder() {
               autoFocus
               value={query}
               onChange={(e) => runSearch(e.target.value)}
-              placeholder="Название или артикул (мин. 2 символа)"
+              placeholder={t.searchDialogPlaceholder}
               className="pl-9"
             />
           </div>
           <div className="max-h-80 overflow-y-auto">
-            {searching && <p className="p-4 text-center text-sm text-muted-foreground">Поиск...</p>}
+            {searching && <p className="p-4 text-center text-sm text-muted-foreground">{t.searching}</p>}
             {!searching && query.length >= 2 && results.length === 0 && (
-              <p className="p-4 text-center text-sm text-muted-foreground">Ничего не найдено</p>
+              <p className="p-4 text-center text-sm text-muted-foreground">{t.nothingFound}</p>
             )}
             <div className="flex flex-col divide-y divide-border">
               {results.map((p) => (
@@ -409,7 +412,7 @@ export function OrderBuilder() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {money(Number.parseFloat(p.price))} · остаток: {p.quantity}
+                      {money(Number.parseFloat(p.price))} · {t.stockLabel}: {p.quantity}
                     </p>
                   </div>
                   <Plus className="size-4 text-primary" />

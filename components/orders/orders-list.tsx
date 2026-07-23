@@ -25,8 +25,9 @@ import {
 } from '@/components/ui/select'
 import { StatusBadge, PaymentBadge } from '@/components/orders/status-badge'
 import { updateOrderStatus } from '@/app/actions/orders'
-import { ORDER_STATUSES, type OrderListParams } from '@/lib/order-status'
+import { getOrderStatusOptions, getDeliveryMethodLabel } from '@/lib/order-status'
 import type { Order } from '@/lib/db/schema'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type Stats = { total: number; new: number; active: number; revenue: number }
 
@@ -60,9 +61,12 @@ export function OrdersList({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { locale, dict } = useAdminI18n()
+  const t = dict.orders
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState(initialSearch)
   const [status, setStatus] = useState(initialStatus)
+  const orderStatuses = getOrderStatusOptions(locale)
 
   function applyFilters(next: { q?: string; status?: string; page?: number }) {
     const params = new URLSearchParams(searchParams.toString())
@@ -80,10 +84,10 @@ export function OrdersList({
     startTransition(async () => {
       const res = await updateOrderStatus(orderId, newStatus)
       if (res.success) {
-        toast.success('Статус обновлён')
+        toast.success(t.toastStatusUpdated)
         router.refresh()
       } else {
-        toast.error(res.error ?? 'Ошибка')
+        toast.error(res.error ?? t.toastError)
       }
     })
   }
@@ -91,23 +95,23 @@ export function OrdersList({
   const totalPages = Math.ceil(initialData.total / initialData.perPage)
 
   const statCards = [
-    { label: 'Всего заказов', value: stats.total, icon: ShoppingCart },
-    { label: 'Новые', value: stats.new, icon: Package },
-    { label: 'Активные', value: stats.active, icon: Truck },
-    { label: 'Выручка', value: money(stats.revenue), icon: TrendingUp },
+    { label: t.statTotal, value: stats.total, icon: ShoppingCart },
+    { label: t.statNew, value: stats.new, icon: Package },
+    { label: t.statActive, value: stats.active, icon: Truck },
+    { label: t.statRevenue, value: money(stats.revenue), icon: TrendingUp },
   ]
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Заказы</h1>
-          <p className="text-sm text-muted-foreground">Список заказов: {initialData.total}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.listTitle}</h1>
+          <p className="text-sm text-muted-foreground">{t.listSubtitle}: {initialData.total}</p>
         </div>
         <Button asChild>
           <Link href="/admin/orders/new">
             <Plus className="size-4" />
-            Создать заказ
+            {t.createOrder}
           </Link>
         </Button>
       </header>
@@ -136,7 +140,7 @@ export function OrdersList({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по номеру, имени, телефону, email, накладной"
+            placeholder={t.searchPlaceholder}
             className="pl-9"
           />
         </form>
@@ -148,11 +152,11 @@ export function OrdersList({
           }}
         >
           <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Статус" />
+            <SelectValue placeholder={t.statusPlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Все статусы</SelectItem>
-            {ORDER_STATUSES.map((s) => (
+            <SelectItem value="all">{t.allStatuses}</SelectItem>
+            {orderStatuses.map((s) => (
               <SelectItem key={s.value} value={s.value}>
                 {s.label}
               </SelectItem>
@@ -165,8 +169,8 @@ export function OrdersList({
         {initialData.items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 p-12 text-center">
             <ShoppingCart className="size-10 text-muted-foreground" />
-            <p className="font-medium text-foreground">Заказов не найдено</p>
-            <p className="text-sm text-muted-foreground">Измените фильтры или создайте новый заказ</p>
+            <p className="font-medium text-foreground">{t.notFoundTitle}</p>
+            <p className="text-sm text-muted-foreground">{t.notFoundSubtitle}</p>
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -178,7 +182,7 @@ export function OrdersList({
                   </Link>
                   <p className="text-xs text-muted-foreground">{formatDate(o.createdAt)}</p>
                   <p className="mt-1 text-sm text-foreground">
-                    {money(o.total)} · {o.itemsCount} шт.
+                    {money(o.total)} · {o.itemsCount} {t.units}
                   </p>
                 </div>
 
@@ -195,11 +199,7 @@ export function OrdersList({
                 <div className="min-w-0 text-sm">
                   <p className="flex items-center gap-1 text-foreground">
                     <Truck className="size-3.5 text-muted-foreground" />
-                    {o.deliveryMethod === 'nova_poshta'
-                      ? 'Нова Пошта'
-                      : o.deliveryMethod === 'ukrposhta'
-                        ? 'Укрпошта'
-                        : o.deliveryMethod ?? 'Не выбрано'}
+                    {getDeliveryMethodLabel(o.deliveryMethod, locale) ?? t.notSelectedOption}
                   </p>
                   {o.deliveryCity && (
                     <p className="flex items-center gap-1 text-muted-foreground">
@@ -221,7 +221,7 @@ export function OrdersList({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {ORDER_STATUSES.map((s) => (
+                      {orderStatuses.map((s) => (
                         <SelectItem key={s.value} value={s.value}>
                           {s.label}
                         </SelectItem>
@@ -243,10 +243,10 @@ export function OrdersList({
             disabled={initialData.page <= 1 || isPending}
             onClick={() => applyFilters({ page: initialData.page - 1 })}
           >
-            Назад
+            {t.back}
           </Button>
           <span className="text-sm text-muted-foreground">
-            {initialData.page} из {totalPages}
+            {initialData.page} {t.pageOf} {totalPages}
           </span>
           <Button
             variant="outline"
@@ -254,7 +254,7 @@ export function OrdersList({
             disabled={initialData.page >= totalPages || isPending}
             onClick={() => applyFilters({ page: initialData.page + 1 })}
           >
-            Вперёд
+            {t.next}
           </Button>
         </div>
       )}
