@@ -803,6 +803,175 @@ export type AdminDictionary = {
     topPagesTitle: string
     trafficSourcesTitle: string
   }
+  import: {
+    pageTitle: string
+    pageSubtitle: string
+    uploadCardTitle: string
+    uploadCardDescription: string
+    chooseFileButton: string
+    rowsBadgeTemplate: string
+    colName: string
+    colSku: string
+    colPrice: string
+    colQty: string
+    showingFirstTemplate: string
+    importButtonTemplate: string
+    historyCardTitle: string
+    tableFile: string
+    tableType: string
+    tableStatus: string
+    tableTotal: string
+    tableSuccess: string
+    tableFailed: string
+    tableDate: string
+    noImportsYet: string
+    statusCompleted: string
+    statusProcessing: string
+    statusFailed: string
+    statusPending: string
+    promCardTitle: string
+    promCardDescription: string
+    promUrlPlaceholder: string
+    promStartButton: string
+    promContinueButton: string
+    promUnfinishedTitle: string
+    promProcessedOfTotalTemplate: string
+    promImportingSuffix: string
+    promDoneSuffix: string
+    promCompleteToast: string
+    errorParsingFile: string
+    errorGeneric: string
+    errorStart: string
+    promFoundTemplate: string
+    promFoundCappedTemplate: string
+    importedResultTemplate: string
+  }
+  feedback: {
+    pageTitle: string
+    pageSubtitle: string
+    statReviews: string
+    statPending: string
+    statQuestions: string
+    statUnanswered: string
+    tabReviews: string
+    tabQuestions: string
+    filterAllTemplate: string
+    filterPendingReviewsTemplate: string
+    filterApprovedTemplate: string
+    filterRejectedTemplate: string
+    filterUnansweredTemplate: string
+    filterAnsweredTemplate: string
+    verifiedPurchase: string
+    approveButton: string
+    rejectButton: string
+    deleteAria: string
+    aboutProductPrefix: string
+    helpfulSuffix: string
+    storeReplyLabel: string
+    replyPlaceholder: string
+    replyButton: string
+    answerPlaceholder: string
+    answerButton: string
+    noReviews: string
+    noQuestions: string
+    deleteReviewTitle: string
+    deleteReviewDescription: string
+    deleteQuestionTitle: string
+    deleteQuestionDescription: string
+    statusApproved: string
+    statusRejected: string
+    statusAnswered: string
+    statusPending: string
+    ratingAriaTemplate: string
+    pageOfTemplate: string
+    backButton: string
+    forwardButton: string
+    toastReviewApproved: string
+    toastReviewRejected: string
+    toastReviewPending: string
+    toastReplySaved: string
+    toastReviewDeleted: string
+    toastEnterAnswer: string
+    toastAnswerPublished: string
+    toastQuestionDeleted: string
+    toastGenericError: string
+  }
+  logs: {
+    pageTitle: string
+    pageSubtitle: string
+    searchPlaceholder: string
+    sectionPlaceholder: string
+    allSections: string
+    actionPlaceholder: string
+    allActions: string
+    refreshAria: string
+    clearAria: string
+    clearTitle: string
+    clearDescription: string
+    clearButton: string
+    colDate: string
+    colUser: string
+    colAction: string
+    colSection: string
+    colDetails: string
+    colIp: string
+    noRecords: string
+    pageOfTotalTemplate: string
+    backButton: string
+    forwardButton: string
+    actionLogin: string
+    actionCreate: string
+    actionUpdate: string
+    actionDelete: string
+    actionToggle: string
+    actionSettings: string
+    actionSecurity: string
+    entityAuth: string
+    entityProduct: string
+    entityOrder: string
+    entityUser: string
+    entitySettings: string
+    entityModalAd: string
+    entityPromotion: string
+    entityCategory: string
+    entityLogs: string
+    entityRole: string
+  }
+  guides: {
+    pageTitle: string
+    pageSubtitle: string
+    searchPlaceholder: string
+    tocAriaLabel: string
+    nothingFound: string
+    openSection: string
+    noResultsPrefix: string
+    noResultsSuffix: string
+  }
+  abandonedCarts: {
+    pageTitle: string
+    pageSubtitle: string
+    refreshButton: string
+    statOpen: string
+    statReminded: string
+    statRecovered: string
+    statPotentialRevenue: string
+    filterActive: string
+    filterRecovered: string
+    filterAll: string
+    emptyActive: string
+    emptyGeneric: string
+    noName: string
+    orderNumberPrefix: string
+    remindedAtPrefix: string
+    hideButton: string
+    remindButton: string
+    remindNoEmailTitle: string
+    statusOpen: string
+    statusReminded: string
+    statusRecovered: string
+    itemQtyTemplate: string
+    toastReminderSent: string
+  }
 }
 
 const uk: AdminDictionary = {
@@ -1647,6 +1816,175 @@ const uk: AdminDictionary = {
     topPagesTitle: 'Популярні сторінки',
     trafficSourcesTitle: 'Джерела трафіку',
   },
+  import: {
+    pageTitle: 'Імпорт товарів',
+    pageSubtitle: 'Завантажте CSV або XML файл із товарами. Підтримуються колонки: name_ru, name_uk, sku, price, old_price, quantity, description_ru, description_uk, unit — або ті самі дані з російськими заголовками з кнопки «Експорт» на сторінці товарів (Назва (рос), Артикул, Ціна, Залишок тощо). Роздільник ("," або ";") визначається автоматично. Товари з указаним артикулом (sku), який вже є в каталозі, будуть оновлені (ціна/залишок/назва/опис), а не задубльовані — товари без артикулу завжди створюються заново.',
+    uploadCardTitle: 'Завантаження файлу',
+    uploadCardDescription: 'CSV із заголовками або XML з елементами product / item / offer',
+    chooseFileButton: 'Обрати файл',
+    rowsBadgeTemplate: '{n} товарів',
+    colName: 'Назва (RU)',
+    colSku: 'Артикул',
+    colPrice: 'Ціна',
+    colQty: 'К-сть',
+    showingFirstTemplate: 'Показані перші {shown} з {total} рядків',
+    importButtonTemplate: 'Імпортувати {n} товарів',
+    historyCardTitle: 'Історія імпорту',
+    tableFile: 'Файл',
+    tableType: 'Тип',
+    tableStatus: 'Статус',
+    tableTotal: 'Всього',
+    tableSuccess: 'Успішно',
+    tableFailed: 'Помилок',
+    tableDate: 'Дата',
+    noImportsYet: 'Імпортів ще не було',
+    statusCompleted: 'Завершено',
+    statusProcessing: 'Обробка',
+    statusFailed: 'Помилка',
+    statusPending: 'Очікування',
+    promCardTitle: 'Імпорт з Prom.ua',
+    promCardDescription: 'Вставте посилання на сторінку магазину на Prom.ua — всі товари, фото, описи та категорії будуть імпортовані у ваш каталог. Товари з артикулом, що вже існує, оновляться, а не задубляться.',
+    promUrlPlaceholder: 'https://prom.ua/example.html',
+    promStartButton: 'Почати імпорт',
+    promContinueButton: 'Продовжити',
+    promUnfinishedTitle: 'Незавершені імпорти з Prom.ua',
+    promProcessedOfTotalTemplate: '{processed} з {total} товарів',
+    promImportingSuffix: ' — триває імпорт, не закривайте сторінку',
+    promDoneSuffix: ' — готово',
+    promCompleteToast: 'Імпорт з Prom.ua завершено',
+    errorParsingFile: 'Не вдалося розпізнати товари у файлі. Перевірте формат.',
+    errorGeneric: 'Помилка імпорту',
+    errorStart: 'Не вдалося почати імпорт',
+    promFoundTemplate: 'Знайдено {total} товарів, починаю імпорт',
+    promFoundCappedTemplate: 'Знайдено {shopTotal} товарів, будуть імпортовані перші {total}',
+    importedResultTemplate: 'Імпортовано: {imported}, помилок: {failed}',
+  },
+  feedback: {
+    pageTitle: 'Відгуки та запитання',
+    pageSubtitle: 'Модерація зворотного зв\'язку щодо товарів',
+    statReviews: 'Відгуки',
+    statPending: 'На модерації',
+    statQuestions: 'Запитання',
+    statUnanswered: 'Без відповіді',
+    tabReviews: 'Відгуки',
+    tabQuestions: 'Запитання',
+    filterAllTemplate: 'Всі ({n})',
+    filterPendingReviewsTemplate: 'На модерації ({n})',
+    filterApprovedTemplate: 'Схвалені ({n})',
+    filterRejectedTemplate: 'Відхилені ({n})',
+    filterUnansweredTemplate: 'Без відповіді ({n})',
+    filterAnsweredTemplate: 'Відповідені ({n})',
+    verifiedPurchase: 'Перевірена покупка',
+    approveButton: 'Схвалити',
+    rejectButton: 'Відхилити',
+    deleteAria: 'Видалити',
+    aboutProductPrefix: 'про товар:',
+    helpfulSuffix: 'корисно',
+    storeReplyLabel: 'Відповідь магазину',
+    replyPlaceholder: 'Відповісти на відгук...',
+    replyButton: 'Відповісти',
+    answerPlaceholder: 'Написати відповідь...',
+    answerButton: 'Відповісти',
+    noReviews: 'Відгуків немає',
+    noQuestions: 'Запитань немає',
+    deleteReviewTitle: 'Видалити відгук?',
+    deleteReviewDescription: 'Відгук буде видалено безповоротно.',
+    deleteQuestionTitle: 'Видалити запитання?',
+    deleteQuestionDescription: 'Запитання буде видалено безповоротно.',
+    statusApproved: 'Схвалено',
+    statusRejected: 'Відхилено',
+    statusAnswered: 'Відповідь надано',
+    statusPending: 'На модерації',
+    ratingAriaTemplate: 'Оцінка {value} з 5',
+    pageOfTemplate: 'Сторінка {page} з {total}',
+    backButton: 'Назад',
+    forwardButton: 'Вперед',
+    toastReviewApproved: 'Відгук схвалено',
+    toastReviewRejected: 'Відгук відхилено',
+    toastReviewPending: 'Повернено на модерацію',
+    toastReplySaved: 'Відповідь збережено',
+    toastReviewDeleted: 'Відгук видалено',
+    toastEnterAnswer: 'Введіть відповідь',
+    toastAnswerPublished: 'Відповідь опубліковано',
+    toastQuestionDeleted: 'Запитання видалено',
+    toastGenericError: 'Помилка',
+  },
+  logs: {
+    pageTitle: 'Логи',
+    pageSubtitle: 'Журнал дій в адмін-центрі: входи, зміни товарів, замовлень і налаштувань',
+    searchPlaceholder: 'Пошук за користувачем, email, деталями…',
+    sectionPlaceholder: 'Розділ',
+    allSections: 'Всі розділи',
+    actionPlaceholder: 'Дія',
+    allActions: 'Всі дії',
+    refreshAria: 'Оновити',
+    clearAria: 'Очистити логи',
+    clearTitle: 'Очистити журнал?',
+    clearDescription: 'Будуть видалені записи старші за 90 днів. Свіжі записи залишаться.',
+    clearButton: 'Очистити',
+    colDate: 'Дата',
+    colUser: 'Користувач',
+    colAction: 'Дія',
+    colSection: 'Розділ',
+    colDetails: 'Деталі',
+    colIp: 'IP',
+    noRecords: 'Записів поки немає. Дії адміністраторів будуть з\'являтись тут.',
+    pageOfTotalTemplate: 'Стр. {page} з {total} · всього {count}',
+    backButton: 'Назад',
+    forwardButton: 'Вперед',
+    actionLogin: 'Вхід',
+    actionCreate: 'Створення',
+    actionUpdate: 'Зміна',
+    actionDelete: 'Видалення',
+    actionToggle: 'Увімк/вимк',
+    actionSettings: 'Налаштування',
+    actionSecurity: 'Безпека',
+    entityAuth: 'Авторизація',
+    entityProduct: 'Товар',
+    entityOrder: 'Замовлення',
+    entityUser: 'Користувач',
+    entitySettings: 'Налаштування',
+    entityModalAd: 'Реклама',
+    entityPromotion: 'Акція',
+    entityCategory: 'Категорія',
+    entityLogs: 'Логи',
+    entityRole: 'Роль',
+  },
+  guides: {
+    pageTitle: 'Інструкції',
+    pageSubtitle: 'Покрокові гайди з налаштування та керування магазином через адмін-центр',
+    searchPlaceholder: 'Пошук за інструкціями',
+    tocAriaLabel: 'Зміст інструкцій',
+    nothingFound: 'Нічого не знайдено',
+    openSection: 'Відкрити розділ',
+    noResultsPrefix: 'За запитом ',
+    noResultsSuffix: ' нічого не знайдено. Спробуйте інше слово.',
+  },
+  abandonedCarts: {
+    pageTitle: 'Покинуті кошики',
+    pageSubtitle: 'Відвідувачі, які почали оформлення, але не завершили замовлення',
+    refreshButton: 'Оновити',
+    statOpen: 'Відкриті',
+    statReminded: 'З нагадуванням',
+    statRecovered: 'Повернулись і купили',
+    statPotentialRevenue: 'Потенційний дохід',
+    filterActive: 'Активні',
+    filterRecovered: 'Відновлені',
+    filterAll: 'Всі',
+    emptyActive: 'Активних покинутих кошиків немає. Кошик потрапляє сюди, коли відвідувач ввів контакти на оформленні, але не завершив замовлення протягом 30 хвилин.',
+    emptyGeneric: 'Список порожній',
+    noName: 'Без імені',
+    orderNumberPrefix: 'замовлення №',
+    remindedAtPrefix: 'нагадування:',
+    hideButton: 'Приховати',
+    remindButton: 'Нагадати листом',
+    remindNoEmailTitle: 'Немає email — зв\'яжіться телефоном',
+    statusOpen: 'Не завершено',
+    statusReminded: 'Нагадали',
+    statusRecovered: 'Купив',
+    itemQtyTemplate: '{qty} шт. × {price}',
+    toastReminderSent: 'Нагадування надіслано',
+  },
 }
 
 const ru: AdminDictionary = {
@@ -2490,6 +2828,175 @@ const ru: AdminDictionary = {
     seriesVisitors: 'Посетители',
     topPagesTitle: 'Популярные страницы',
     trafficSourcesTitle: 'Источники трафика',
+  },
+  import: {
+    pageTitle: 'Импорт товаров',
+    pageSubtitle: 'Загрузите CSV или XML файл с товарами. Поддерживаются колонки: name_ru, name_uk, sku, price, old_price, quantity, description_ru, description_uk, unit — либо те же данные с русскими заголовками из кнопки «Экспорт» на странице товаров (Название (рус), Артикул, Цена, Остаток и т.д.). Разделитель ("," или ";") определяется автоматически. Товары с указанным артикулом (sku), который уже есть в каталоге, будут обновлены (цена/остаток/название/описание), а не задублированы — товары без артикула всегда создаются заново.',
+    uploadCardTitle: 'Загрузка файла',
+    uploadCardDescription: 'CSV с заголовками или XML с элементами product / item / offer',
+    chooseFileButton: 'Выбрать файл',
+    rowsBadgeTemplate: '{n} товаров',
+    colName: 'Название (RU)',
+    colSku: 'Артикул',
+    colPrice: 'Цена',
+    colQty: 'Кол-во',
+    showingFirstTemplate: 'Показаны первые {shown} из {total} строк',
+    importButtonTemplate: 'Импортировать {n} товаров',
+    historyCardTitle: 'История импорта',
+    tableFile: 'Файл',
+    tableType: 'Тип',
+    tableStatus: 'Статус',
+    tableTotal: 'Всего',
+    tableSuccess: 'Успешно',
+    tableFailed: 'Ошибок',
+    tableDate: 'Дата',
+    noImportsYet: 'Импортов ещё не было',
+    statusCompleted: 'Завершён',
+    statusProcessing: 'Обработка',
+    statusFailed: 'Ошибка',
+    statusPending: 'Ожидание',
+    promCardTitle: 'Импорт с Prom.ua',
+    promCardDescription: 'Вставьте ссылку на страницу магазина на Prom.ua — все товары, фото, описания и категории будут импортированы в ваш каталог. Товары с уже существующим артикулом обновятся, а не задублируются.',
+    promUrlPlaceholder: 'https://prom.ua/example.html',
+    promStartButton: 'Начать импорт',
+    promContinueButton: 'Продолжить',
+    promUnfinishedTitle: 'Незавершённые импорты с Prom.ua',
+    promProcessedOfTotalTemplate: '{processed} из {total} товаров',
+    promImportingSuffix: ' — идёт импорт, не закрывайте страницу',
+    promDoneSuffix: ' — готово',
+    promCompleteToast: 'Импорт с Prom.ua завершён',
+    errorParsingFile: 'Не удалось распознать товары в файле. Проверьте формат.',
+    errorGeneric: 'Ошибка импорта',
+    errorStart: 'Не удалось начать импорт',
+    promFoundTemplate: 'Найдено {total} товаров, начинаю импорт',
+    promFoundCappedTemplate: 'Найдено {shopTotal} товаров, будут импортированы первые {total}',
+    importedResultTemplate: 'Импортировано: {imported}, ошибок: {failed}',
+  },
+  feedback: {
+    pageTitle: 'Отзывы и вопросы',
+    pageSubtitle: 'Модерация обратной связи по товарам',
+    statReviews: 'Отзывы',
+    statPending: 'На модерации',
+    statQuestions: 'Вопросы',
+    statUnanswered: 'Без ответа',
+    tabReviews: 'Отзывы',
+    tabQuestions: 'Вопросы',
+    filterAllTemplate: 'Все ({n})',
+    filterPendingReviewsTemplate: 'На модерации ({n})',
+    filterApprovedTemplate: 'Одобренные ({n})',
+    filterRejectedTemplate: 'Отклонённые ({n})',
+    filterUnansweredTemplate: 'Без ответа ({n})',
+    filterAnsweredTemplate: 'Отвеченные ({n})',
+    verifiedPurchase: 'Проверенная покупка',
+    approveButton: 'Одобрить',
+    rejectButton: 'Отклонить',
+    deleteAria: 'Удалить',
+    aboutProductPrefix: 'о товаре:',
+    helpfulSuffix: 'полезно',
+    storeReplyLabel: 'Ответ магазина',
+    replyPlaceholder: 'Ответить на отзыв...',
+    replyButton: 'Ответить',
+    answerPlaceholder: 'Написать ответ...',
+    answerButton: 'Ответить',
+    noReviews: 'Отзывов нет',
+    noQuestions: 'Вопросов нет',
+    deleteReviewTitle: 'Удалить отзыв?',
+    deleteReviewDescription: 'Отзыв будет удалён безвозвратно.',
+    deleteQuestionTitle: 'Удалить вопрос?',
+    deleteQuestionDescription: 'Вопрос будет удалён безвозвратно.',
+    statusApproved: 'Одобрен',
+    statusRejected: 'Отклонён',
+    statusAnswered: 'Отвечен',
+    statusPending: 'На модерации',
+    ratingAriaTemplate: 'Оценка {value} из 5',
+    pageOfTemplate: 'Страница {page} из {total}',
+    backButton: 'Назад',
+    forwardButton: 'Вперёд',
+    toastReviewApproved: 'Отзыв одобрен',
+    toastReviewRejected: 'Отзыв отклонён',
+    toastReviewPending: 'Возвращён на модерацию',
+    toastReplySaved: 'Ответ сохранён',
+    toastReviewDeleted: 'Отзыв удалён',
+    toastEnterAnswer: 'Введите ответ',
+    toastAnswerPublished: 'Ответ опубликован',
+    toastQuestionDeleted: 'Вопрос удалён',
+    toastGenericError: 'Ошибка',
+  },
+  logs: {
+    pageTitle: 'Логи',
+    pageSubtitle: 'Журнал действий в админ-центре: входы, изменения товаров, заказов и настроек',
+    searchPlaceholder: 'Поиск по пользователю, email, деталям…',
+    sectionPlaceholder: 'Раздел',
+    allSections: 'Все разделы',
+    actionPlaceholder: 'Действие',
+    allActions: 'Все действия',
+    refreshAria: 'Обновить',
+    clearAria: 'Очистить логи',
+    clearTitle: 'Очистить журнал?',
+    clearDescription: 'Будут удалены записи старше 90 дней. Свежие записи останутся.',
+    clearButton: 'Очистить',
+    colDate: 'Дата',
+    colUser: 'Пользователь',
+    colAction: 'Действие',
+    colSection: 'Раздел',
+    colDetails: 'Детали',
+    colIp: 'IP',
+    noRecords: 'Записей пока нет. Действия администраторов будут появляться здесь.',
+    pageOfTotalTemplate: 'Стр. {page} из {total} · всего {count}',
+    backButton: 'Назад',
+    forwardButton: 'Вперёд',
+    actionLogin: 'Вход',
+    actionCreate: 'Создание',
+    actionUpdate: 'Изменение',
+    actionDelete: 'Удаление',
+    actionToggle: 'Вкл/выкл',
+    actionSettings: 'Настройки',
+    actionSecurity: 'Безопасность',
+    entityAuth: 'Авторизация',
+    entityProduct: 'Товар',
+    entityOrder: 'Заказ',
+    entityUser: 'Пользователь',
+    entitySettings: 'Настройки',
+    entityModalAd: 'Реклама',
+    entityPromotion: 'Акция',
+    entityCategory: 'Категория',
+    entityLogs: 'Логи',
+    entityRole: 'Роль',
+  },
+  guides: {
+    pageTitle: 'Инструкции',
+    pageSubtitle: 'Пошаговые гайды по настройке и управлению магазином через админ-центр',
+    searchPlaceholder: 'Поиск по инструкциям',
+    tocAriaLabel: 'Оглавление инструкций',
+    nothingFound: 'Ничего не найдено',
+    openSection: 'Открыть раздел',
+    noResultsPrefix: 'По запросу ',
+    noResultsSuffix: ' ничего не найдено. Попробуйте другое слово.',
+  },
+  abandonedCarts: {
+    pageTitle: 'Брошенные корзины',
+    pageSubtitle: 'Посетители, которые начали оформление, но не завершили заказ',
+    refreshButton: 'Обновить',
+    statOpen: 'Открытые',
+    statReminded: 'С напоминанием',
+    statRecovered: 'Вернулись и купили',
+    statPotentialRevenue: 'Потенциальная выручка',
+    filterActive: 'Активные',
+    filterRecovered: 'Восстановленные',
+    filterAll: 'Все',
+    emptyActive: 'Активных брошенных корзин нет. Корзина попадает сюда, когда посетитель ввёл контакты на оформлении, но не завершил заказ в течение 30 минут.',
+    emptyGeneric: 'Список пуст',
+    noName: 'Без имени',
+    orderNumberPrefix: 'заказ №',
+    remindedAtPrefix: 'напоминание:',
+    hideButton: 'Скрыть',
+    remindButton: 'Напомнить письмом',
+    remindNoEmailTitle: 'Нет email — свяжитесь по телефону',
+    statusOpen: 'Не завершена',
+    statusReminded: 'Напомнили',
+    statusRecovered: 'Купил',
+    itemQtyTemplate: '{qty} шт. × {price}',
+    toastReminderSent: 'Напоминание отправлено',
   },
 }
 

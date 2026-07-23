@@ -25,28 +25,41 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Search, Trash2, Loader2, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
-const ACTION_LABELS: Record<string, { label: string; tone: string }> = {
-  login: { label: 'Вход', tone: 'bg-primary/10 text-primary' },
-  create: { label: 'Создание', tone: 'bg-success/15 text-success' },
-  update: { label: 'Изменение', tone: 'bg-muted text-foreground' },
-  delete: { label: 'Удаление', tone: 'bg-destructive/10 text-destructive' },
-  toggle: { label: 'Вкл/выкл', tone: 'bg-muted text-foreground' },
-  settings: { label: 'Настройки', tone: 'bg-muted text-foreground' },
-  security: { label: 'Безопасность', tone: 'bg-destructive/10 text-destructive' },
+function tpl(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
+    template,
+  )
 }
 
-const ENTITY_LABELS: Record<string, string> = {
-  auth: 'Авторизация',
-  product: 'Товар',
-  order: 'Заказ',
-  user: 'Пользователь',
-  settings: 'Настройки',
-  modal_ad: 'Реклама',
-  promotion: 'Акция',
-  category: 'Категория',
-  logs: 'Логи',
-  role: 'Роль',
+function actionLabels(t: AdminDictionary): Record<string, { label: string; tone: string }> {
+  return {
+    login: { label: t.logs.actionLogin, tone: 'bg-primary/10 text-primary' },
+    create: { label: t.logs.actionCreate, tone: 'bg-success/15 text-success' },
+    update: { label: t.logs.actionUpdate, tone: 'bg-muted text-foreground' },
+    delete: { label: t.logs.actionDelete, tone: 'bg-destructive/10 text-destructive' },
+    toggle: { label: t.logs.actionToggle, tone: 'bg-muted text-foreground' },
+    settings: { label: t.logs.actionSettings, tone: 'bg-muted text-foreground' },
+    security: { label: t.logs.actionSecurity, tone: 'bg-destructive/10 text-destructive' },
+  }
+}
+
+function entityLabels(t: AdminDictionary): Record<string, string> {
+  return {
+    auth: t.logs.entityAuth,
+    product: t.logs.entityProduct,
+    order: t.logs.entityOrder,
+    user: t.logs.entityUser,
+    settings: t.logs.entitySettings,
+    modal_ad: t.logs.entityModalAd,
+    promotion: t.logs.entityPromotion,
+    category: t.logs.entityCategory,
+    logs: t.logs.entityLogs,
+    role: t.logs.entityRole,
+  }
 }
 
 function formatDate(value: string | Date | null): string {
@@ -63,6 +76,9 @@ function formatDate(value: string | Date | null): string {
 }
 
 export function LogsViewer({ initial }: { initial: LogsResult }) {
+  const { dict: t } = useAdminI18n()
+  const ACTION_LABELS = actionLabels(t)
+  const ENTITY_LABELS = entityLabels(t)
   const [data, setData] = useState<LogsResult>(initial)
   const [search, setSearch] = useState('')
   const [entity, setEntity] = useState('all')
@@ -85,6 +101,11 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <header>
+        <h1 className="text-2xl font-semibold text-foreground">{t.logs.pageTitle}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t.logs.pageSubtitle}</p>
+      </header>
+
       <Card className="p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative flex-1">
@@ -95,9 +116,9 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) load(1)
               }}
-              placeholder="Поиск по пользователю, email, деталям…"
+              placeholder={t.logs.searchPlaceholder}
               className="pl-9"
-              aria-label="Поиск в логах"
+              aria-label={t.logs.searchPlaceholder}
             />
           </div>
           <Select
@@ -108,10 +129,10 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
             }}
           >
             <SelectTrigger className="w-full md:w-44">
-              <SelectValue placeholder="Раздел" />
+              <SelectValue placeholder={t.logs.sectionPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Все разделы</SelectItem>
+              <SelectItem value="all">{t.logs.allSections}</SelectItem>
               {data.entities.map((e) => (
                 <SelectItem key={e} value={e}>
                   {ENTITY_LABELS[e] ?? e}
@@ -127,10 +148,10 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
             }}
           >
             <SelectTrigger className="w-full md:w-44">
-              <SelectValue placeholder="Действие" />
+              <SelectValue placeholder={t.logs.actionPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Все действия</SelectItem>
+              <SelectItem value="all">{t.logs.allActions}</SelectItem>
               {Object.entries(ACTION_LABELS).map(([key, v]) => (
                 <SelectItem key={key} value={key}>
                   {v.label}
@@ -139,24 +160,22 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
             </SelectContent>
           </Select>
           <div className="flex gap-2">
-            <Button variant="outline" size="icon" onClick={() => load(data.page)} disabled={pending} aria-label="Обновить">
+            <Button variant="outline" size="icon" onClick={() => load(data.page)} disabled={pending} aria-label={t.logs.refreshAria}>
               {pending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Очистить логи">
+                <Button variant="outline" size="icon" aria-label={t.logs.clearAria}>
                   <Trash2 className="size-4" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Очистить журнал?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Будут удалены записи старше 90 дней. Свежие записи останутся.
-                  </AlertDialogDescription>
+                  <AlertDialogTitle>{t.logs.clearTitle}</AlertDialogTitle>
+                  <AlertDialogDescription>{t.logs.clearDescription}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                  <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() =>
                       startTransition(async () => {
@@ -165,7 +184,7 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
                       })
                     }
                   >
-                    Очистить
+                    {t.logs.clearButton}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -179,19 +198,19 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Дата</th>
-                <th className="px-4 py-3 font-medium">Пользователь</th>
-                <th className="px-4 py-3 font-medium">Действие</th>
-                <th className="px-4 py-3 font-medium">Раздел</th>
-                <th className="px-4 py-3 font-medium">Детали</th>
-                <th className="px-4 py-3 font-medium">IP</th>
+                <th className="px-4 py-3 font-medium">{t.logs.colDate}</th>
+                <th className="px-4 py-3 font-medium">{t.logs.colUser}</th>
+                <th className="px-4 py-3 font-medium">{t.logs.colAction}</th>
+                <th className="px-4 py-3 font-medium">{t.logs.colSection}</th>
+                <th className="px-4 py-3 font-medium">{t.logs.colDetails}</th>
+                <th className="px-4 py-3 font-medium">{t.logs.colIp}</th>
               </tr>
             </thead>
             <tbody>
               {data.items.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    Записей пока нет. Действия администраторов будут появляться здесь.
+                    {t.logs.noRecords}
                   </td>
                 </tr>
               )}
@@ -229,7 +248,7 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
             <p className="text-xs text-muted-foreground">
-              Стр. {data.page} из {totalPages} · всего {data.total}
+              {tpl(t.logs.pageOfTotalTemplate, { page: data.page, total: totalPages, count: data.total })}
             </p>
             <div className="flex gap-2">
               <Button
@@ -239,7 +258,7 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
                 onClick={() => load(data.page - 1)}
               >
                 <ChevronLeft className="size-4" />
-                Назад
+                {t.logs.backButton}
               </Button>
               <Button
                 variant="outline"
@@ -247,7 +266,7 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
                 disabled={data.page >= totalPages || pending}
                 onClick={() => load(data.page + 1)}
               >
-                Вперёд
+                {t.logs.forwardButton}
                 <ChevronRight className="size-4" />
               </Button>
             </div>

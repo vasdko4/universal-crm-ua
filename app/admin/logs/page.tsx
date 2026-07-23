@@ -12,12 +12,6 @@ export default async function AdminLogsPage() {
 
   return (
     <main className="flex flex-col gap-6 p-4 md:p-6">
-      <header>
-        <h1 className="text-2xl font-semibold text-foreground">Логи</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Журнал действий в админ-центре: входы, изменения товаров, заказов и настроек
-        </p>
-      </header>
       <LogsViewer initial={initial} />
     </main>
   )

@@ -39,6 +39,8 @@ import {
   Reply,
   Clock,
 } from 'lucide-react'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 type ReviewItem = ProductReview & { productName: string | null }
 type QuestionItem = ProductQuestion & { productName: string | null }
@@ -54,6 +56,13 @@ type ListData<T> = {
 type ReviewsStats = { total: number; pending: number; approved: number; rejected: number }
 type QuestionsStats = { total: number; pending: number; answered: number }
 
+function tpl(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
+    template,
+  )
+}
+
 export function FeedbackManager({
   reviews,
   questions,
@@ -65,6 +74,7 @@ export function FeedbackManager({
   reviewsStats: ReviewsStats
   questionsStats: QuestionsStats
 }) {
+  const { dict: t } = useAdminI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -98,7 +108,9 @@ export function FeedbackManager({
   function moderate(id: number, s: 'approved' | 'rejected' | 'pending') {
     startTransition(async () => {
       await setReviewStatus(id, s)
-      toast.success(s === 'approved' ? 'Отзыв одобрен' : s === 'rejected' ? 'Отзыв отклонён' : 'Возвращён на модерацию')
+      toast.success(
+        s === 'approved' ? t.feedback.toastReviewApproved : s === 'rejected' ? t.feedback.toastReviewRejected : t.feedback.toastReviewPending,
+      )
       refresh()
     })
   }
@@ -107,7 +119,7 @@ export function FeedbackManager({
     if (!text) return
     startTransition(async () => {
       await replyToReview(id, text)
-      toast.success('Ответ сохранён')
+      toast.success(t.feedback.toastReplySaved)
       setReplyDrafts((d) => ({ ...d, [id]: '' }))
       refresh()
     })
@@ -118,7 +130,7 @@ export function FeedbackManager({
     setDeleteReviewId(null)
     startTransition(async () => {
       await deleteReview(id)
-      toast.success('Отзыв удалён')
+      toast.success(t.feedback.toastReviewDeleted)
       refresh()
     })
   }
@@ -127,17 +139,17 @@ export function FeedbackManager({
   function sendAnswer(id: number) {
     const text = answerDrafts[id]?.trim()
     if (!text) {
-      toast.error('Введите ответ')
+      toast.error(t.feedback.toastEnterAnswer)
       return
     }
     startTransition(async () => {
       const res = await answerQuestion(id, text)
       if (res.success) {
-        toast.success('Ответ опубликован')
+        toast.success(t.feedback.toastAnswerPublished)
         setAnswerDrafts((d) => ({ ...d, [id]: '' }))
         refresh()
       } else {
-        toast.error(res.error ?? 'Ошибка')
+        toast.error(res.error ?? t.feedback.toastGenericError)
       }
     })
   }
@@ -147,7 +159,7 @@ export function FeedbackManager({
     setDeleteQuestionId(null)
     startTransition(async () => {
       await deleteQuestion(id)
-      toast.success('Вопрос удалён')
+      toast.success(t.feedback.toastQuestionDeleted)
       refresh()
     })
   }
@@ -157,24 +169,24 @@ export function FeedbackManager({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Отзывы и вопросы</h1>
-        <p className="text-sm text-muted-foreground">Модерация обратной связи по товарам</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.feedback.pageTitle}</h1>
+        <p className="text-sm text-muted-foreground">{t.feedback.pageSubtitle}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Отзывы" value={reviewsStats.total} icon={MessageSquare} />
-        <StatCard label="На модерации" value={reviewsStats.pending} icon={Clock} accent="warning" />
-        <StatCard label="Вопросы" value={questionsStats.total} icon={MessageCircleQuestion} />
-        <StatCard label="Без ответа" value={questionsStats.pending} icon={Clock} accent="warning" />
+        <StatCard label={t.feedback.statReviews} value={reviewsStats.total} icon={MessageSquare} />
+        <StatCard label={t.feedback.statPending} value={reviewsStats.pending} icon={Clock} accent="warning" />
+        <StatCard label={t.feedback.statQuestions} value={questionsStats.total} icon={MessageCircleQuestion} />
+        <StatCard label={t.feedback.statUnanswered} value={questionsStats.pending} icon={Clock} accent="warning" />
       </div>
 
       <Tabs value={tab} onValueChange={changeTab}>
         <TabsList>
           <TabsTrigger value="reviews">
-            <MessageSquare className="size-4" /> Отзывы
+            <MessageSquare className="size-4" /> {t.feedback.tabReviews}
           </TabsTrigger>
           <TabsTrigger value="questions">
-            <MessageCircleQuestion className="size-4" /> Вопросы
+            <MessageCircleQuestion className="size-4" /> {t.feedback.tabQuestions}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -183,28 +195,28 @@ export function FeedbackManager({
       {tab === 'reviews' ? (
         <div className="flex flex-wrap gap-2">
           <FilterChip active={status === 'all'} onClick={() => pushParams({ status: undefined, page: undefined })}>
-            Все ({reviewsStats.total})
+            {tpl(t.feedback.filterAllTemplate, { n: reviewsStats.total })}
           </FilterChip>
           <FilterChip active={status === 'pending'} onClick={() => pushParams({ status: 'pending', page: undefined })}>
-            На модерации ({reviewsStats.pending})
+            {tpl(t.feedback.filterPendingReviewsTemplate, { n: reviewsStats.pending })}
           </FilterChip>
           <FilterChip active={status === 'approved'} onClick={() => pushParams({ status: 'approved', page: undefined })}>
-            Одобренные ({reviewsStats.approved})
+            {tpl(t.feedback.filterApprovedTemplate, { n: reviewsStats.approved })}
           </FilterChip>
           <FilterChip active={status === 'rejected'} onClick={() => pushParams({ status: 'rejected', page: undefined })}>
-            Отклонённые ({reviewsStats.rejected})
+            {tpl(t.feedback.filterRejectedTemplate, { n: reviewsStats.rejected })}
           </FilterChip>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
           <FilterChip active={status === 'all'} onClick={() => pushParams({ status: undefined, page: undefined })}>
-            Все ({questionsStats.total})
+            {tpl(t.feedback.filterAllTemplate, { n: questionsStats.total })}
           </FilterChip>
           <FilterChip active={status === 'pending'} onClick={() => pushParams({ status: 'pending', page: undefined })}>
-            Без ответа ({questionsStats.pending})
+            {tpl(t.feedback.filterUnansweredTemplate, { n: questionsStats.pending })}
           </FilterChip>
           <FilterChip active={status === 'answered'} onClick={() => pushParams({ status: 'answered', page: undefined })}>
-            Отвеченные ({questionsStats.answered})
+            {tpl(t.feedback.filterAnsweredTemplate, { n: questionsStats.answered })}
           </FilterChip>
         </div>
       )}
@@ -212,7 +224,7 @@ export function FeedbackManager({
       {/* Content */}
       {tab === 'reviews' ? (
         <div className="flex flex-col gap-4">
-          {reviews.items.length === 0 && <EmptyState label="Отзывов нет" />}
+          {reviews.items.length === 0 && <EmptyState label={t.feedback.noReviews} />}
           {reviews.items.map((r) => (
             <div key={r.id} className="rounded-lg border border-border bg-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -221,30 +233,30 @@ export function FeedbackManager({
                     <span className="font-medium text-foreground">{r.authorName}</span>
                     {r.isVerifiedPurchase && (
                       <Badge className="border-success/30 bg-success/15 text-success">
-                        <BadgeCheck className="size-3" /> Проверенная покупка
+                        <BadgeCheck className="size-3" /> {t.feedback.verifiedPurchase}
                       </Badge>
                     )}
-                    <StatusBadge status={r.status} />
+                    <StatusBadge status={r.status} t={t} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Stars value={r.rating} />
+                    <Stars value={r.rating} t={t} />
                     <span className="text-xs text-muted-foreground">
-                      о товаре: {r.productName ?? `#${r.productId}`}
+                      {t.feedback.aboutProductPrefix} {r.productName ?? `#${r.productId}`}
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
                   {r.status !== 'approved' && (
                     <Button size="sm" variant="outline" onClick={() => moderate(r.id, 'approved')} disabled={isPending}>
-                      <Check className="size-4" /> Одобрить
+                      <Check className="size-4" /> {t.feedback.approveButton}
                     </Button>
                   )}
                   {r.status !== 'rejected' && (
                     <Button size="sm" variant="outline" onClick={() => moderate(r.id, 'rejected')} disabled={isPending}>
-                      <X className="size-4" /> Отклонить
+                      <X className="size-4" /> {t.feedback.rejectButton}
                     </Button>
                   )}
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteReviewId(r.id)} aria-label="Удалить">
+                  <Button size="icon" variant="ghost" onClick={() => setDeleteReviewId(r.id)} aria-label={t.feedback.deleteAria}>
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
@@ -267,12 +279,12 @@ export function FeedbackManager({
                 )}
               </div>
               <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                <ThumbsUp className="size-3.5" /> {r.helpfulCount} полезно
+                <ThumbsUp className="size-3.5" /> {r.helpfulCount} {t.feedback.helpfulSuffix}
               </div>
 
               {r.adminReply ? (
                 <div className="mt-3 rounded-md border-l-2 border-primary bg-muted/50 p-3">
-                  <p className="text-xs font-medium text-primary">Ответ магазина</p>
+                  <p className="text-xs font-medium text-primary">{t.feedback.storeReplyLabel}</p>
                   <p className="mt-1 text-sm text-foreground/90">{r.adminReply}</p>
                 </div>
               ) : (
@@ -280,35 +292,35 @@ export function FeedbackManager({
                   <Textarea
                     value={replyDrafts[r.id] ?? ''}
                     onChange={(e) => setReplyDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
-                    placeholder="Ответить на отзыв..."
+                    placeholder={t.feedback.replyPlaceholder}
                     rows={1}
                     className="min-h-9"
                   />
                   <Button size="sm" variant="outline" onClick={() => sendReply(r.id)} disabled={isPending}>
-                    <Reply className="size-4" /> Ответить
+                    <Reply className="size-4" /> {t.feedback.replyButton}
                   </Button>
                 </div>
               )}
             </div>
           ))}
-          <Pagination data={reviews} isPending={isPending} onPage={(p) => pushParams({ page: String(p) })} />
+          <Pagination data={reviews} isPending={isPending} onPage={(p) => pushParams({ page: String(p) })} t={t} />
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {questions.items.length === 0 && <EmptyState label="Вопросов нет" />}
+          {questions.items.length === 0 && <EmptyState label={t.feedback.noQuestions} />}
           {questions.items.map((q) => (
             <div key={q.id} className="rounded-lg border border-border bg-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-foreground">{q.authorName}</span>
-                    <StatusBadge status={q.status} />
+                    <StatusBadge status={q.status} t={t} />
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    о товаре: {q.productName ?? `#${q.productId}`}
+                    {t.feedback.aboutProductPrefix} {q.productName ?? `#${q.productId}`}
                   </span>
                 </div>
-                <Button size="icon" variant="ghost" onClick={() => setDeleteQuestionId(q.id)} aria-label="Удалить">
+                <Button size="icon" variant="ghost" onClick={() => setDeleteQuestionId(q.id)} aria-label={t.feedback.deleteAria}>
                   <Trash2 className="size-4" />
                 </Button>
               </div>
@@ -320,7 +332,7 @@ export function FeedbackManager({
 
               {q.answer ? (
                 <div className="mt-3 rounded-md border-l-2 border-primary bg-muted/50 p-3">
-                  <p className="text-xs font-medium text-primary">Ответ магазина</p>
+                  <p className="text-xs font-medium text-primary">{t.feedback.storeReplyLabel}</p>
                   <p className="mt-1 text-sm text-foreground/90">{q.answer}</p>
                 </div>
               ) : (
@@ -328,30 +340,30 @@ export function FeedbackManager({
                   <Textarea
                     value={answerDrafts[q.id] ?? ''}
                     onChange={(e) => setAnswerDrafts((d) => ({ ...d, [q.id]: e.target.value }))}
-                    placeholder="Написать ответ..."
+                    placeholder={t.feedback.answerPlaceholder}
                     rows={1}
                     className="min-h-9"
                   />
                   <Button size="sm" onClick={() => sendAnswer(q.id)} disabled={isPending}>
-                    <Reply className="size-4" /> Ответить
+                    <Reply className="size-4" /> {t.feedback.answerButton}
                   </Button>
                 </div>
               )}
             </div>
           ))}
-          <Pagination data={questions} isPending={isPending} onPage={(p) => pushParams({ page: String(p) })} />
+          <Pagination data={questions} isPending={isPending} onPage={(p) => pushParams({ page: String(p) })} t={t} />
         </div>
       )}
 
       <AlertDialog open={deleteReviewId != null} onOpenChange={(o) => !o && setDeleteReviewId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить отзыв?</AlertDialogTitle>
-            <AlertDialogDescription>Отзыв будет удалён безвозвратно.</AlertDialogDescription>
+            <AlertDialogTitle>{t.feedback.deleteReviewTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{t.feedback.deleteReviewDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteReview}>Удалить</AlertDialogAction>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteReview}>{t.common.delete}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -359,12 +371,12 @@ export function FeedbackManager({
       <AlertDialog open={deleteQuestionId != null} onOpenChange={(o) => !o && setDeleteQuestionId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить вопрос?</AlertDialogTitle>
-            <AlertDialogDescription>Вопрос будет удалён безвозвратно.</AlertDialogDescription>
+            <AlertDialogTitle>{t.feedback.deleteQuestionTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{t.feedback.deleteQuestionDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteQuestion}>Удалить</AlertDialogAction>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteQuestion}>{t.common.delete}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -425,9 +437,9 @@ function FilterChip({
   )
 }
 
-function Stars({ value }: { value: number }) {
+function Stars({ value, t }: { value: number; t: AdminDictionary }) {
   return (
-    <div className="flex" aria-label={`Оценка ${value} из 5`}>
+    <div className="flex" aria-label={tpl(t.feedback.ratingAriaTemplate, { value })}>
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
@@ -438,11 +450,11 @@ function Stars({ value }: { value: number }) {
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === 'approved') return <Badge className="border-success/30 bg-success/15 text-success">Одобрен</Badge>
-  if (status === 'rejected') return <Badge variant="destructive">Отклонён</Badge>
-  if (status === 'answered') return <Badge className="border-success/30 bg-success/15 text-success">Отвечен</Badge>
-  return <Badge className="border-warning/30 bg-warning/15 text-warning">На модерации</Badge>
+function StatusBadge({ status, t }: { status: string; t: AdminDictionary }) {
+  if (status === 'approved') return <Badge className="border-success/30 bg-success/15 text-success">{t.feedback.statusApproved}</Badge>
+  if (status === 'rejected') return <Badge variant="destructive">{t.feedback.statusRejected}</Badge>
+  if (status === 'answered') return <Badge className="border-success/30 bg-success/15 text-success">{t.feedback.statusAnswered}</Badge>
+  return <Badge className="border-warning/30 bg-warning/15 text-warning">{t.feedback.statusPending}</Badge>
 }
 
 function EmptyState({ label }: { label: string }) {
@@ -458,20 +470,22 @@ function Pagination({
   data,
   isPending,
   onPage,
+  t,
 }: {
   data: { page: number; totalPages: number }
   isPending: boolean
   onPage: (p: number) => void
+  t: AdminDictionary
 }) {
   if (data.totalPages <= 1) return null
   return (
     <div className="flex items-center justify-between">
       <p className="text-sm text-muted-foreground">
-        Страница {data.page} из {data.totalPages}
+        {tpl(t.feedback.pageOfTemplate, { page: data.page, total: data.totalPages })}
       </p>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" disabled={data.page <= 1 || isPending} onClick={() => onPage(data.page - 1)}>
-          <ChevronLeft className="size-4" /> Назад
+          <ChevronLeft className="size-4" /> {t.feedback.backButton}
         </Button>
         <Button
           variant="outline"
@@ -479,7 +493,7 @@ function Pagination({
           disabled={data.page >= data.totalPages || isPending}
           onClick={() => onPage(data.page + 1)}
         >
-          Вперёд <ChevronRight className="size-4" />
+          {t.feedback.forwardButton} <ChevronRight className="size-4" />
         </Button>
       </div>
     </div>
