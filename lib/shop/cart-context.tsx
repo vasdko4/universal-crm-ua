@@ -8,6 +8,10 @@ export type CartItem = {
   // Unique line key: distinguishes the same product bought in different variants.
   key: string
   id: number
+  // Human-readable URL segment for the product-detail link in cart/checkout
+  // UI. Optional only for carts saved before this field existed — falls
+  // back to the numeric id at render time.
+  slug?: string
   name: string
   price: number
   image: string | null

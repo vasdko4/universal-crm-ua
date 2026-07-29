@@ -92,7 +92,7 @@ export default async function CategoryPage({
     itemListElement: items.map((p, i) => ({
       '@type': 'ListItem',
       position: (page - 1) * perPage + i + 1,
-      url: abs(lp(`/product/${p.id}`)),
+      url: abs(lp(`/product/${p.slug}`)),
       name: p.name,
     })),
   }

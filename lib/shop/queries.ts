@@ -1,6 +1,6 @@
 import 'server-only'
 import { unstable_cache } from 'next/cache'
-import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lte, ne, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { Locale } from '@/lib/i18n/config'
 import { db } from '@/lib/db'
 import {
@@ -147,7 +147,9 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
   return {
     id: Number(r.id),
     name: (r.name as string) ?? 'Товар',
-    slug: `${r.id}`,
+    // Falls back to the numeric id only for rows created before the slug
+    // column existed and not yet backfilled — see db/migrate.sql.
+    slug: (r.slug as string) || `${r.id}`,
     description: (r.description as string) ?? null,
     price,
     oldPrice: oldPrice && oldPrice > price ? oldPrice : null,
@@ -183,6 +185,7 @@ function buildProductSelect(locale: Locale = 'uk') {
       : sql<string>`COALESCE(NULLIF(${products.descriptionUk}, ''), ${products.descriptionRu})`
   return {
     id: products.id,
+    slug: products.slug,
     name,
     description,
     price: products.price,
@@ -440,20 +443,60 @@ async function _getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
 }
 
 export function getProductById(id: number, locale: Locale = 'uk') {
-  return unstable_cache(() => _getProductById(id, locale), ['product', String(id), locale], {
+  return unstable_cache(() => _getProductByWhere(eq(products.id, id), locale), ['product', String(id), locale], {
     tags: [CACHE_TAGS.catalog, CACHE_TAGS.product(id)],
     revalidate: STOREFRONT_TTL,
   })()
 }
 
-async function _getProductById(id: number, locale: Locale = 'uk') {
+// The product detail page (`/product/[slug]`) resolves by the human-readable
+// slug now — see db/migrate.sql for how existing products got one.
+export function getProductBySlug(slug: string, locale: Locale = 'uk') {
+  return unstable_cache(() => _getProductByWhere(eq(products.slug, slug), locale), ['product-slug', slug, locale], {
+    tags: [CACHE_TAGS.catalog],
+    revalidate: STOREFRONT_TTL,
+  })()
+}
+
+// Resolves a legacy numeric `/product/<id>` link to its current slug, purely
+// so the page can 301-redirect old bookmarks/backlinks/indexed URLs instead
+// of 404ing them.
+export async function getProductSlugById(id: number): Promise<string | null> {
+  const [row] = await db
+    .select({ slug: products.slug })
+    .from(products)
+    .where(and(eq(products.id, id), baseWhere))
+    .limit(1)
+  return row?.slug || (row ? String(id) : null)
+}
+
+/**
+ * Batch slug lookup for building `/product/<slug>` links out of contexts
+ * that only carry productId (order confirmation pages, order emails/Telegram
+ * messages, account order history) — used instead of joining products into
+ * each of those queries individually. Missing/deleted products are simply
+ * absent from the map; callers fall back to the numeric id.
+ */
+export async function getProductSlugMap(
+  productIds: (number | null | undefined)[],
+): Promise<Record<number, string>> {
+  const ids = [...new Set(productIds.filter((id): id is number => typeof id === 'number'))]
+  if (ids.length === 0) return {}
+  const rows = await db.select({ id: products.id, slug: products.slug }).from(products).where(inArray(products.id, ids))
+  const map: Record<number, string> = {}
+  for (const r of rows) if (r.slug) map[r.id] = r.slug
+  return map
+}
+
+async function _getProductByWhere(whereClause: SQL | undefined, locale: Locale = 'uk') {
   const productSelect = buildProductSelect(locale)
   const catName =
     locale === 'ru'
       ? sql<string>`COALESCE(NULLIF(${categories.nameRu}, ''), ${categories.nameUk})`
       : sql<string>`COALESCE(NULLIF(${categories.nameUk}, ''), ${categories.nameRu})`
-  const [row] = await db.select(productSelect).from(products).where(and(eq(products.id, id), baseWhere)).limit(1)
+  const [row] = await db.select(productSelect).from(products).where(and(whereClause, baseWhere)).limit(1)
   if (!row) return null
+  const id = Number(row.id)
   const [chars, cats, variantRows] = await Promise.all([
     db
       .select({ name: productCharacteristics.name, value: productCharacteristics.value })
@@ -706,7 +749,7 @@ export function getCategoryById(id: number, locale: Locale = 'uk') {
 /** Minimal product rows for building the sitemap (id + last modified). */
 export async function getSitemapProducts() {
   return db
-    .select({ id: products.id, updatedAt: products.updatedAt })
+    .select({ id: products.id, slug: products.slug, updatedAt: products.updatedAt })
     .from(products)
     .where(baseWhere)
     .orderBy(desc(products.updatedAt))

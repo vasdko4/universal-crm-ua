@@ -58,7 +58,7 @@ function buildItem(
   merchant: { googleProductCategory: string; shippingPrice: string; shippingCountry: string },
 ): string {
   const abs = (path: string) => toAbsolute(siteUrl, path)
-  const link = abs(localizedPath(`/product/${p.id}`, locale))
+  const link = abs(localizedPath(`/product/${p.slug || p.id}`, locale))
   const image = p.image ? abs(p.image) : null
   if (!image) return '' // Google rejects items with no image; skip rather than submit a broken one.
 

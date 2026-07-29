@@ -56,7 +56,7 @@ export default async function OrderConfirmationPage({
     getLocale(),
   ])
   if (!data) notFound()
-  const { order, items } = data
+  const { order, items, productSlugs } = data
   const gads = settings?.googleAds
   const t = locale === 'ru' ? T.ru : T.uk
 
@@ -174,7 +174,7 @@ export default async function OrderConfirmationPage({
               <li key={it.id}>
                 {it.productId ? (
                   <Link
-                    href={`/product/${it.productId}`}
+                    href={`/product/${productSlugs[it.productId] ?? it.productId}`}
                     className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/50"
                   >
                     {content}

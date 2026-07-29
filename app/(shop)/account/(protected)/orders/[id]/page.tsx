@@ -36,7 +36,7 @@ export default async function MyOrderDetailPage({
   const { id } = await params
   const [data, locale] = await Promise.all([getMyOrderDetail(Number(id)), getLocale()])
   if (!data) notFound()
-  const { order, items, receipt } = data
+  const { order, items, productSlugs, receipt } = data
   const dict = getDictionary(locale)
   const t = dict.account
 
@@ -179,7 +179,7 @@ export default async function MyOrderDetailPage({
               <li key={it.id}>
                 {it.productId ? (
                   <Link
-                    href={`/product/${it.productId}`}
+                    href={`/product/${productSlugs[it.productId] ?? it.productId}`}
                     className="group flex items-center gap-3 px-5 py-3"
                   >
                     {body}

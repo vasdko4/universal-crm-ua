@@ -3,6 +3,7 @@ import type { Order, OrderItem } from '@/lib/db/schema'
 import { sendMail } from '@/lib/mailer'
 import { buildOrderMessage } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { getProductSlugMap } from '@/lib/shop/queries'
 
 function money(v: string | number, currency = 'UAH') {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
@@ -123,13 +124,14 @@ export function buildAdminOrderTelegramHtml(
   order: Order,
   items: OrderItem[],
   siteUrl: string,
+  productSlugs: Record<number, string> = {},
 ): string {
   const lines = items
     .map((i) => {
       const name = escHtml(`${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''}`)
       const label =
         siteUrl && i.productId
-          ? `<a href="${siteUrl}/product/${i.productId}">${name}</a>`
+          ? `<a href="${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}">${name}</a>`
           : `<b>${name}</b>`
       return `▪️ ${label}\n      ${i.quantity} шт. × ${money(i.price, order.currency)}`
     })
@@ -179,6 +181,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
     // pg returns snake_case — normalize the fields the templates rely on.
     const o = normalizeOrder(orderRes.rows[0])
     const items = itemsRes.rows.map(normalizeItem)
+    const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
     const n = settings.notifications
 
     // Prefer the SEO site URL; fall back to the deployment URL so product
@@ -203,7 +206,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
 
     // 1) Customer confirmation email.
     if (n.customerEmailEnabled && o.customerEmail) {
-      const msg = buildOrderMessage('confirmation', o, items, storeCtx)
+      const msg = buildOrderMessage('confirmation', o, items, storeCtx, productSlugs)
       jobs.push(
         sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html }).catch(
           (e) => console.log('[v0] customer email failed:', (e as Error).message),
@@ -227,7 +230,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
     // 3) Telegram alert: photo of the first product with a rich caption.
     // Telegram caps captions at 1024 chars — longer orders fall back to text.
     if (n.telegramEnabled && n.telegramBotToken && n.telegramChatId) {
-      const html = buildAdminOrderTelegramHtml(o, items, siteUrl)
+      const html = buildAdminOrderTelegramHtml(o, items, siteUrl, productSlugs)
       const photo = items.find((i) => i.image)?.image
       const photoUrl = photo
         ? photo.startsWith('http')

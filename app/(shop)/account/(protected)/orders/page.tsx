@@ -84,7 +84,7 @@ export default async function MyOrdersPage() {
                   <li key={item.id}>
                     {item.productId ? (
                       <Link
-                        href={`/product/${item.productId}`}
+                        href={`/product/${o.productSlugs[item.productId] ?? item.productId}`}
                         className="group flex items-center gap-3 py-3"
                       >
                         {content}

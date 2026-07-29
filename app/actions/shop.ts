@@ -24,6 +24,7 @@ import {
   monobankCheckStatus,
 } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
+import { getProductSlugMap } from '@/lib/shop/queries'
 import { evaluatePromoCode, findBestAutomaticDiscount } from '@/app/actions/promotions'
 import { applyOrderFulfillment, finalizePaidOrder } from '@/lib/shop/order-fulfillment'
 import { notifyNewOrder } from '@/lib/notifications'
@@ -640,13 +641,14 @@ export async function getOrderByNumber(orderNumber: string) {
   const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1)
   if (!order) return null
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id))
+  const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
   const [payment] = await db
     .select()
     .from(payments)
     .where(eq(payments.orderReference, orderNumber))
     .orderBy(desc(payments.createdAt))
     .limit(1)
-  return { order, items, payment: payment ?? null }
+  return { order, items, productSlugs, payment: payment ?? null }
 }
 
 // Storefront "check payment status" button on the pay/return page. Re-queries
@@ -719,11 +721,13 @@ export async function getMyOrders() {
         rows.map((r) => r.id),
       ),
     )
+  const productSlugs = await getProductSlugMap(allItems.map((i) => i.productId))
   return rows.map((order) => {
     const items = allItems.filter((i) => i.orderId === order.id)
     return {
       ...order,
       items,
+      productSlugs,
       itemsCount: items.reduce((n, i) => n + i.quantity, 0),
     }
   })
@@ -747,6 +751,7 @@ export async function getMyOrderDetail(orderId: number) {
     .limit(1)
   if (!order) return null
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id))
+  const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
   const { buildOrderReceipt } = await import('@/lib/receipts/build-receipt')
   const receiptData = await buildOrderReceipt(order, items)
   const receipt = {
@@ -754,7 +759,7 @@ export async function getMyOrderDetail(orderId: number) {
     qrDataUrl: receiptData.qrDataUrl,
     isFiscal: receiptData.isFiscal,
   }
-  return { order, items, receipt }
+  return { order, items, productSlugs, receipt }
 }
 
 export async function submitReview(input: {

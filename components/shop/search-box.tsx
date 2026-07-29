@@ -13,6 +13,7 @@ import { localizedPath } from '@/lib/i18n/config'
 
 type SearchItem = {
   id: number
+  slug: string
   name: string
   price: number
   oldPrice: number | null
@@ -112,7 +113,7 @@ export function SearchBox({ onNavigate }: { onNavigate?: () => void }) {
               {items.map((p) => (
                 <li key={p.id}>
                   <Link
-                    href={lp(`/product/${p.id}`)}
+                    href={lp(`/product/${p.slug}`)}
                     onClick={close}
                     className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent"
                   >

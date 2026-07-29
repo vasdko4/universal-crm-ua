@@ -109,6 +109,7 @@ export function ProductPurchasePanel({
   function buildItem() {
     return {
       id: product.id,
+      slug: product.slug,
       name: product.name,
       price,
       image: selectedVariant?.image ?? product.image,

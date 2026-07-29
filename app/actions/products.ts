@@ -9,12 +9,36 @@ import {
   productVariants,
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
-import { and, asc, desc, eq, ilike, inArray, isNull, isNotNull, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, isNull, isNotNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
 import { revalidateStorefront } from '@/lib/shop/cache'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { slugify } from '@/lib/slug'
+
+// Generates the human-readable `/product/<slug>` URL segment from the
+// product name, disambiguating same-name products with a numeric suffix
+// (`-2`, `-3`, ...). `excludeId` skips the row being updated so re-saving a
+// product without a name change doesn't collide with itself.
+async function generateUniqueSlug(name: string, fallbackId: number, excludeId?: number): Promise<string> {
+  const base = slugify(name) || `product-${fallbackId}`
+  let candidate = base
+  let n = 2
+  for (;;) {
+    const clash = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(
+        excludeId != null
+          ? and(eq(products.slug, candidate), ne(products.id, excludeId))
+          : eq(products.slug, candidate),
+      )
+      .limit(1)
+    if (clash.length === 0) return candidate
+    candidate = `${base}-${n++}`
+  }
+}
 
 export type VariantInput = {
   options: VariantOptions
@@ -354,6 +378,11 @@ export async function createProduct(input: ProductInput) {
   const [created] = await db.insert(products).values(toProductRow(input)).returning({ id: products.id })
   await syncRelations(created.id, input)
 
+  // Auto-generate the human-readable URL slug now that we have the id (used
+  // as the disambiguation fallback for a blank/all-symbols name).
+  const slug = await generateUniqueSlug(input.nameUk || input.nameRu || '', created.id)
+  await db.update(products).set({ slug }).where(eq(products.id, created.id))
+
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'create', entity: 'product', entityId: created.id,
@@ -372,11 +401,17 @@ export async function updateProduct(id: number, input: ProductInput) {
   const error = validateProduct(input)
   if (error) return { success: false, error }
 
-  const [existing] = await db.select({ id: products.id }).from(products).where(eq(products.id, id))
+  const [existing] = await db.select({ id: products.id, slug: products.slug }).from(products).where(eq(products.id, id))
   if (!existing) return { success: false, error: 'Товар не найден' }
 
   await db.update(products).set(toProductRow(input)).where(eq(products.id, id))
   await syncRelations(id, input)
+
+  // Slugs are set once and kept stable across renames (protects links/SEO
+  // already shared or indexed) — only self-heal products that predate this
+  // column and never got one.
+  const slug = existing.slug || (await generateUniqueSlug(input.nameUk || input.nameRu || '', id, id))
+  if (!existing.slug) await db.update(products).set({ slug }).where(eq(products.id, id))
 
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
@@ -388,7 +423,7 @@ export async function updateProduct(id: number, input: ProductInput) {
 
   revalidatePath('/admin/products')
   revalidatePath(`/admin/products/${id}/edit`)
-  revalidatePath(`/product/${id}`)
+  revalidatePath(`/product/${slug}`)
   revalidateStorefront(id)
   return { success: true, id }
 }
