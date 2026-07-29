@@ -162,8 +162,24 @@ export function ProductPurchasePanel({
               {labels.sku}: {selectedVariant?.sku ?? product.sku}
             </span>
           )}
-          <span className={available ? 'text-sm font-medium text-success' : 'text-sm text-destructive'}>
-            {available ? labels.inStock : labels.outOfStock}
+          <span
+            className={
+              product.isPreorder
+                ? 'text-sm font-medium text-primary'
+                : product.isComingSoon
+                  ? 'text-sm font-medium text-warning'
+                  : available
+                    ? 'text-sm font-medium text-success'
+                    : 'text-sm text-destructive'
+            }
+          >
+            {product.isPreorder
+              ? tp.preorder
+              : product.isComingSoon
+                ? tp.comingSoon
+                : available
+                  ? labels.inStock
+                  : labels.outOfStock}
           </span>
           {product.purchasedCount > 0 && (
             <span className="text-sm text-muted-foreground">
@@ -222,7 +238,7 @@ export function ProductPurchasePanel({
                   <Plus className="size-4" />
                 </Button>
               </div>
-              {(!hasVariants || selectedVariant) && (
+              {(!hasVariants || selectedVariant) && maxQty > 0 && (
                 <span className="text-sm text-muted-foreground">
                   {tp.inStockCount} {maxQty} {tp.unitsShort}
                 </span>
@@ -232,7 +248,7 @@ export function ProductPurchasePanel({
             <div className="flex flex-col gap-3">
               <div className="flex items-stretch gap-3">
                 <Button size="lg" className="min-w-0 flex-1 rounded-full" onClick={addToCart}>
-                  <ShoppingCart className="mr-1 size-5" /> {tp.addToCart}
+                  <ShoppingCart className="mr-1 size-5" /> {product.isPreorder ? tp.preorderCta : tp.addToCart}
                 </Button>
                 <FavoriteButton productId={product.id} size="lg" className="h-11 shrink-0" />
               </div>

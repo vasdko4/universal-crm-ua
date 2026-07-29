@@ -109,5 +109,9 @@ CREATE TABLE IF NOT EXISTS "locale_by_ip" (
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "auto_discount_id" integer;
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "auto_discount_amount" numeric(12,2);
 
+-- ---------- Статус наличия: "скоро в наличии" / предзаказ ----------
+-- См. migrations/014_availability_mode.sql
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "availability_mode" varchar(20) DEFAULT 'default'::character varying NOT NULL;
+
 -- ---------- Готово ----------
 DO $$ BEGIN RAISE NOTICE 'Миграция применена успешно.'; END $$;

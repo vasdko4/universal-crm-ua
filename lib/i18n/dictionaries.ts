@@ -92,6 +92,9 @@ export type Dictionary = {
     buyNow: string
     inStock: string
     outOfStock: string
+    comingSoon: string
+    preorder: string
+    preorderCta: string
     description: string
     characteristics: string
     reviews: string
@@ -573,6 +576,9 @@ const uk: Dictionary = {
     buyNow: 'Купити зараз',
     inStock: 'В наявності',
     outOfStock: 'Немає в наявності',
+    comingSoon: 'Скоро в наявності',
+    preorder: 'Передзамовлення',
+    preorderCta: 'Замовити заздалегідь',
     description: 'Опис',
     characteristics: 'Характеристики',
     reviews: 'Відгуки',
@@ -1048,6 +1054,9 @@ const ru: Dictionary = {
     buyNow: 'Купить сейчас',
     inStock: 'В наличии',
     outOfStock: 'Нет в наличии',
+    comingSoon: 'Скоро в наличии',
+    preorder: 'Предзаказ',
+    preorderCta: 'Заказать заранее',
     description: 'Описание',
     characteristics: 'Характеристики',
     reviews: 'Отзывы',

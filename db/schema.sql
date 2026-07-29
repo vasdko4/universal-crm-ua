@@ -447,6 +447,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   "variants_enabled" boolean DEFAULT false NOT NULL,
   "is_visible" boolean DEFAULT true,
   "is_in_stock" boolean DEFAULT true,
+  "availability_mode" varchar(20) DEFAULT 'default'::character varying NOT NULL,
   "is_popular" boolean DEFAULT false,
   "sort_order" integer DEFAULT 0,
   "views_count" integer DEFAULT 0,

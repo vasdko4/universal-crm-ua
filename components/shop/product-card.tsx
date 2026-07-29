@@ -83,10 +83,20 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             -{discount}%
           </span>
         )}
-        {!product.inStock && (
-          <span className="absolute left-3 top-3 rounded-full bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
-            {dict.product.outOfStock}
+        {product.isPreorder ? (
+          <span className="absolute left-3 top-3 rounded-full bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">
+            {dict.product.preorder}
           </span>
+        ) : product.isComingSoon ? (
+          <span className="absolute left-3 top-3 rounded-full bg-warning/90 px-2 py-1 text-xs font-medium text-background">
+            {dict.product.comingSoon}
+          </span>
+        ) : (
+          !product.inStock && (
+            <span className="absolute left-3 top-3 rounded-full bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+              {dict.product.outOfStock}
+            </span>
+          )
         )}
       </Link>
 

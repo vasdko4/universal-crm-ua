@@ -71,7 +71,22 @@ export type ShopProduct = {
   sku: string | null
   /** Displayed purchase count: real orders + admin-set boost. */
   purchasedCount: number
+  /** Admin-set marketing status while quantity is 0 — see schema.ts for details. */
+  availabilityMode: 'default' | 'coming_soon' | 'preorder'
+  /** True when quantity is 0 but the admin marked it "coming soon" (visible, not purchasable). */
+  isComingSoon: boolean
+  /** True when quantity is 0 but the admin enabled pre-orders (visible, purchasable). */
+  isPreorder: boolean
 }
+
+/**
+ * SQL predicate for a plain "no stock" product: quantity is 0 (or
+ * isInStock is false) and the admin hasn't marked it coming-soon/preorder.
+ * These are the ones we hide from the homepage, exclude from the Google
+ * Merchant feed entirely, and push to the very end of catalog/search
+ * results.
+ */
+const plainOutOfStockSql = sql`(${products.isInStock} IS NOT TRUE OR ${products.quantity} <= 0) AND ${products.availabilityMode} = 'default'`
 
 function toStringArray(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string' && x.length > 0)
@@ -115,6 +130,16 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
   // them for this product — otherwise the base price/quantity are the source
   // of truth and any leftover variant rows are ignored on the storefront.
   const variantsEnabled = Boolean(r.variants_enabled)
+  const isInStockFlag = Boolean(r.is_in_stock)
+  const rawMode = (r.availability_mode as string) ?? 'default'
+  const availabilityMode: ShopProduct['availabilityMode'] =
+    rawMode === 'coming_soon' || rawMode === 'preorder' ? rawMode : 'default'
+  const genuinelyOutOfStock = !isInStockFlag || quantity <= 0
+  // Special modes only change anything once the product is actually out of
+  // stock; a product that still has quantity is simply in stock regardless
+  // of whatever mode is stored on it.
+  const isComingSoon = genuinelyOutOfStock && availabilityMode === 'coming_soon'
+  const isPreorder = genuinelyOutOfStock && availabilityMode === 'preorder'
   return {
     id: Number(r.id),
     name: (r.name as string) ?? 'Товар',
@@ -124,7 +149,9 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     oldPrice: oldPrice && oldPrice > price ? oldPrice : null,
     currency: (r.currency as string) ?? 'UAH',
     quantity,
-    inStock: Boolean(r.is_in_stock) && quantity > 0,
+    // Pre-order products stay purchasable even at zero quantity; "coming
+    // soon" and plain out-of-stock never are.
+    inStock: !genuinelyOutOfStock || isPreorder,
     stockStatus: (r.stock_status as string) ?? null,
     image: (r.image as string) ?? null,
     images: gallery,
@@ -135,6 +162,9 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     isPopular: Boolean(r.is_popular),
     sku: (r.sku as string) ?? null,
     purchasedCount: Number(r.orders_count ?? 0) + Number(r.purchases_boost ?? 0),
+    availabilityMode,
+    isComingSoon,
+    isPreorder,
   }
 }
 
@@ -157,6 +187,7 @@ function buildProductSelect(locale: Locale = 'uk') {
     quantity: products.quantity,
     is_in_stock: products.isInStock,
     stock_status: products.stockStatus,
+    availability_mode: products.availabilityMode,
     image: products.image,
     images: products.images,
     sizes: products.sizes,
@@ -170,6 +201,10 @@ function buildProductSelect(locale: Locale = 'uk') {
 }
 
 const baseWhere = and(sql`${products.deletedAt} IS NULL`, eq(products.isVisible, true))
+// Used by homepage widgets (popular/discounted/all-products) and the
+// Google Merchant feed: never surface a plain out-of-stock product there,
+// only "coming soon"/"preorder" ones or genuinely available stock.
+const homeWhere = and(baseWhere, sql`NOT (${plainOutOfStockSql})`)
 
 export type CatalogParams = {
   categoryId?: number
@@ -181,6 +216,12 @@ export type CatalogParams = {
   discountOnly?: boolean
   /** Only products manually marked as popular in the admin center. */
   popularOnly?: boolean
+  /**
+   * Fully excludes plain out-of-stock products instead of just sorting them
+   * last. Used by the homepage's "all products" widget; the catalog/search
+   * page keeps them (sorted last) so shoppers can still find and track them.
+   */
+  hideOutOfStock?: boolean
   page?: number
   perPage?: number
   locale?: Locale
@@ -197,7 +238,7 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   const page = Math.max(1, params.page ?? 1)
   const perPage = params.perPage ?? 12
   const productSelect = buildProductSelect(params.locale ?? 'uk')
-  const conditions = [baseWhere]
+  const conditions = [params.hideOutOfStock ? homeWhere : baseWhere]
 
   if (params.search) {
     const s = `%${params.search}%`
@@ -248,7 +289,13 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   }
 
   const where = and(...conditions)
-  const orderBy =
+  // Plain out-of-stock items always sink to the bottom of the results,
+  // whatever sort the shopper picked — "if you search, they're at the very
+  // end, marked unavailable" rather than mixed in with buyable products.
+  // "Coming soon"/"preorder" products are exempt: they're meant to stay
+  // visible in their normal position.
+  const outOfStockLast = asc(sql`CASE WHEN (${plainOutOfStockSql}) THEN 1 ELSE 0 END`)
+  const primaryOrderBy =
     params.sort === 'price_asc'
       ? asc(products.price)
       : params.sort === 'price_desc'
@@ -261,6 +308,10 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
                 desc(products.isPopular),
                 desc(sql`${products.ordersCount} + ${products.purchasesBoost}`),
               ]
+  const orderBy = [
+    outOfStockLast,
+    ...(Array.isArray(primaryOrderBy) ? primaryOrderBy : [primaryOrderBy]),
+  ]
 
   const [rows, countRes] = await Promise.all([
     db
@@ -293,7 +344,7 @@ async function _getPopularProducts(limit = 8, locale: Locale = 'uk') {
   const rows = await db
     .select(productSelect)
     .from(products)
-    .where(and(baseWhere, eq(products.isPopular, true)))
+    .where(and(homeWhere, eq(products.isPopular, true)))
     .orderBy(desc(sql`${products.ordersCount} + ${products.purchasesBoost}`))
     .limit(limit)
   if (rows.length > 0) return rows.map((r) => toShopProduct(r as Record<string, unknown>))
@@ -301,7 +352,7 @@ async function _getPopularProducts(limit = 8, locale: Locale = 'uk') {
   const fallback = await db
     .select(productSelect)
     .from(products)
-    .where(baseWhere)
+    .where(homeWhere)
     .orderBy(desc(products.createdAt))
     .limit(limit)
   return fallback.map((r) => toShopProduct(r as Record<string, unknown>))
@@ -338,7 +389,12 @@ export async function getFeedProducts(locale: Locale = 'uk', limit = 5000): Prom
     .where(baseWhere)
     .orderBy(asc(products.id))
     .limit(limit)
-  const mapped = rows.map((r) => toShopProduct(r as Record<string, unknown>))
+  // Google Ads/Merchant Center must never see out-of-stock or "coming soon"
+  // items — only genuinely available or explicit pre-order products, so
+  // they can never be served in Shopping ads. p.inStock already covers
+  // both cases (true for in-stock and preorder, false for coming-soon and
+  // plain out-of-stock — see toShopProduct()).
+  const mapped = rows.map((r) => toShopProduct(r as Record<string, unknown>)).filter((p) => p.inStock)
   if (mapped.length === 0) return []
 
   const ids = mapped.map((p) => p.id)
@@ -373,7 +429,7 @@ async function _getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
   const rows = await db
     .select(productSelect)
     .from(products)
-    .where(and(baseWhere, sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`))
+    .where(and(homeWhere, sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`))
     .orderBy(desc(products.updatedAt))
     .limit(limit)
   return rows.map((r) => toShopProduct(r as Record<string, unknown>))
