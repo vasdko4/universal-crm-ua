@@ -214,6 +214,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       ]} />
       <ProductViewTracker
         productId={product.id}
+        slug={product.slug}
         gaId={gaId}
         name={product.name}
         price={product.price}

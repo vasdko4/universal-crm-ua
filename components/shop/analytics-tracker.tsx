@@ -44,6 +44,7 @@ export function AnalyticsTracker({ gaId }: { gaId?: string } = {}) {
 // alongside our own internal analytics_events row.
 export function ProductViewTracker({
   productId,
+  slug,
   gaId,
   name,
   price,
@@ -51,6 +52,7 @@ export function ProductViewTracker({
   currency,
 }: {
   productId: number
+  slug?: string
   gaId?: string
   name?: string
   price?: number
@@ -62,11 +64,15 @@ export function ProductViewTracker({
   useEffect(() => {
     if (tracked.current) return
     tracked.current = true
-    sendAnalyticsEvent({ type: 'product_view', productId, path: `/product/${productId}` })
+    sendAnalyticsEvent({
+      type: 'product_view',
+      productId,
+      path: `/product/${slug || productId}`,
+    })
     if (gaId && name != null && price != null) {
       trackViewItem(gaId, { id: productId, name, price, quantity: 1, sku }, currency)
     }
-  }, [productId, gaId, name, price, sku, currency])
+  }, [productId, slug, gaId, name, price, sku, currency])
 
   return null
 }
