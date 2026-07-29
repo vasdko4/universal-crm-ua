@@ -1,6 +1,6 @@
 import 'server-only'
 import { unstable_cache } from 'next/cache'
-import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lte, ne, or, sql } from 'drizzle-orm'
 import type { Locale } from '@/lib/i18n/config'
 import { db } from '@/lib/db'
 import {
@@ -14,6 +14,8 @@ import {
   deliveryMethods,
   paymentMethods,
   paymentGateways,
+  promotions,
+  productGroupItems,
   articles,
   pages,
 } from '@/lib/db/schema'
@@ -724,4 +726,61 @@ export function getActiveGateways() {
     ['payment-gateways'],
     { tags: [CACHE_TAGS.checkout], revalidate: 300 },
   )()
+}
+
+// Soonest end date among currently-active automatic "Акція" (type: 'discount')
+// promotions that actually target this product (all products / this specific
+// product / a group the product belongs to) and have a real endsAt in the
+// future. Used to power the "Акція діє ще: HH:MM:SS" countdown on the product
+// page — deliberately returns null (no timer) when no real promotion with a
+// deadline applies, since a fabricated deadline would be misleading.
+export async function getProductPromotionDeadline(
+  productId: number,
+  categoryIds: number[] = [],
+): Promise<{ name: string; endsAt: string } | null> {
+  const now = new Date()
+  const candidates = await db
+    .select()
+    .from(promotions)
+    .where(
+      and(
+        eq(promotions.type, 'discount'),
+        eq(promotions.isActive, true),
+        isNotNull(promotions.endsAt),
+        gt(promotions.endsAt, now),
+        lte(promotions.startsAt, now),
+      ),
+    )
+  if (candidates.length === 0) return null
+
+  const allCandidates = candidates.filter((p) => p.targetType === 'all')
+  const productCandidates = candidates.filter(
+    (p) => p.targetType === 'products' && ((p.targetProductIds as number[]) ?? []).includes(productId),
+  )
+  const groupTargeted = candidates.filter((p) => p.targetType === 'groups')
+  let groupCandidates: typeof candidates = []
+  if (groupTargeted.length > 0) {
+    const groupIds = Array.from(
+      new Set(groupTargeted.flatMap((p) => (p.targetGroupIds as number[]) ?? [])),
+    )
+    if (groupIds.length > 0) {
+      const memberRows = await db
+        .select({ groupId: productGroupItems.groupId })
+        .from(productGroupItems)
+        .where(and(eq(productGroupItems.productId, productId), inArray(productGroupItems.groupId, groupIds)))
+      const memberGroupIds = new Set(memberRows.map((r) => r.groupId))
+      groupCandidates = groupTargeted.filter((p) =>
+        ((p.targetGroupIds as number[]) ?? []).some((g) => memberGroupIds.has(g)),
+      )
+    }
+  }
+  void categoryIds // reserved: promotions don't currently target categories directly
+
+  const matches = [...allCandidates, ...productCandidates, ...groupCandidates]
+  if (matches.length === 0) return null
+
+  const soonest = matches.reduce((best, p) =>
+    !best || new Date(p.endsAt as Date) < new Date(best.endsAt as Date) ? p : best,
+  )
+  return { name: soonest.name, endsAt: new Date(soonest.endsAt as Date).toISOString() }
 }

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { ProductTabs } from '@/components/shop/product-tabs'
 import { ProductCard } from '@/components/shop/product-card'
 import { ProductPurchasePanel } from '@/components/shop/product-purchase-panel'
+import { RecentlyViewed } from '@/components/shop/recently-viewed'
 import { JsonLd } from '@/components/shop/json-ld'
 import { ProductViewTracker } from '@/components/shop/analytics-tracker'
 import { formatPrice } from '@/lib/shop/format'
@@ -14,6 +15,10 @@ import {
   getApprovedReviews,
   getAnsweredQuestions,
   getReviewSummary,
+  getActiveDeliveryMethods,
+  getActivePaymentMethods,
+  getActiveGateways,
+  getProductPromotionDeadline,
 } from '@/lib/shop/queries'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -74,14 +79,28 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   if (!data) notFound()
 
   const { product, characteristics, categories } = data
-  const [related, reviews, questions, summary, settings] = await Promise.all([
-    getRelatedProducts(productId, categories.map((c) => c.id), 4, locale),
-    getApprovedReviews(productId),
-    getAnsweredQuestions(productId),
-    loadSummary(productId),
-    getStoreSettingsInternal().catch(() => null),
-  ])
+  const [related, reviews, questions, summary, settings, deliveryRows, paymentRows, gateways, promo] =
+    await Promise.all([
+      getRelatedProducts(productId, categories.map((c) => c.id), 4, locale),
+      getApprovedReviews(productId),
+      getAnsweredQuestions(productId),
+      loadSummary(productId),
+      getStoreSettingsInternal().catch(() => null),
+      getActiveDeliveryMethods(),
+      getActivePaymentMethods(),
+      getActiveGateways(),
+      getProductPromotionDeadline(productId, categories.map((c) => c.id)),
+    ])
   const gaId = settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined
+
+  // SECURITY: never forward the raw `config` column to the client (Nova
+  // Poshta apiKey, bank IBAN/EDRPOU, gateway credentials) — same rule as
+  // app/(shop)/checkout/page.tsx. Only code+name are safe to render as badges.
+  const hasGateway = gateways.length > 0
+  const deliveryMethods = deliveryRows.map((d) => ({ code: d.code, name: d.name }))
+  const paymentMethods = paymentRows
+    .filter((p) => (p.code === 'online' ? hasGateway : true))
+    .map((p) => ({ code: p.code, name: p.name }))
 
   const brand = extractBrand(characteristics)
   // Price stays valid until the end of next year — signals a stable offer.
@@ -213,6 +232,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           outOfStock: dict.product.outOfStock,
           noPhoto: locale === 'ru' ? 'Нет фото' : 'Немає фото',
         }}
+        deliveryMethods={deliveryMethods}
+        paymentMethods={paymentMethods}
+        promo={promo}
       />
 
       {/* Tabs */}
@@ -252,6 +274,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           </div>
         </section>
       )}
+
+      <RecentlyViewed productId={product.id} />
     </div>
   )
 }
