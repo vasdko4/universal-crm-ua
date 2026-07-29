@@ -16,6 +16,7 @@ import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
+import { getProductSlugMap } from '@/lib/shop/queries'
 
 export async function listOrders(params: OrderListParams = {}) {
   await assertPermission('orders')
@@ -75,14 +76,17 @@ export async function getOrder(id: number) {
     db.select().from(orderItems).where(eq(orderItems.orderId, id)),
     db.select().from(orderHistory).where(eq(orderHistory.orderId, id)).orderBy(desc(orderHistory.createdAt)),
   ])
-  const { buildOrderReceipt } = await import('@/lib/receipts/build-receipt')
+  const [{ buildOrderReceipt }, productSlugs] = await Promise.all([
+    import('@/lib/receipts/build-receipt'),
+    getProductSlugMap(items.map((i) => i.productId)),
+  ])
   const receiptData = await buildOrderReceipt(order, items)
   const receipt = {
     storeName: receiptData.storeName,
     qrDataUrl: receiptData.qrDataUrl,
     isFiscal: receiptData.isFiscal,
   }
-  return { order, items, history, receipt }
+  return { order, items, history, receipt, productSlugs }
 }
 
 // Product search for the order builder.
