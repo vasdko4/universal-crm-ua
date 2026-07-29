@@ -3,10 +3,11 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ChevronDown, LayoutGrid, Search, X } from 'lucide-react'
+import { ChevronDown, CornerDownRight, LayoutGrid, Search, X } from 'lucide-react'
 import type { HeaderCategory } from '@/components/shop/site-header'
 import { localizedPath, type Locale } from '@/lib/i18n/config'
 import { useI18n } from '@/lib/i18n/client'
+import { pluralize } from '@/lib/i18n/plural'
 import { cn } from '@/lib/utils'
 
 /**
@@ -145,7 +146,13 @@ export function CatalogCategoriesMobile({
                     <span className="block truncate text-sm font-semibold text-foreground">{parent.name}</span>
                     {children.length > 0 && (
                       <span className="block text-xs text-muted-foreground">
-                        {children.length} {dict.catalog.subcategoriesCount}
+                        {children.length}{' '}
+                        {pluralize(
+                          children.length,
+                          dict.catalog.subcategoriesCountOne,
+                          dict.catalog.subcategoriesCountFew,
+                          dict.catalog.subcategoriesCountMany,
+                        )}
                       </span>
                     )}
                   </span>
@@ -158,22 +165,27 @@ export function CatalogCategoriesMobile({
                 {open && (
                   <div className="border-t border-border px-4 py-3">
                     {children.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
+                      <ul className="flex flex-col gap-1" aria-label={dict.catalog.subcategoryBadge}>
                         {children.map((child) => (
-                          <Link
-                            key={child.id}
-                            href={lp(`/category/${child.id}`)}
-                            className={cn(
-                              'rounded-full px-3 py-1.5 text-xs font-medium active:bg-accent active:text-foreground',
-                              matchedChildIds?.has(child.id)
-                                ? 'bg-primary/10 text-primary'
-                                : 'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {child.name}
-                          </Link>
+                          <li key={child.id}>
+                            <Link
+                              href={lp(`/category/${child.id}`)}
+                              className={cn(
+                                'flex items-center gap-2 rounded-lg px-2 py-2 text-sm active:bg-accent',
+                                matchedChildIds?.has(child.id)
+                                  ? 'bg-primary/10 font-medium text-primary'
+                                  : 'text-foreground',
+                              )}
+                            >
+                              <CornerDownRight
+                                className="size-3.5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                              />
+                              <span className="truncate">{child.name}</span>
+                            </Link>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
                     )}
                     <Link
                       href={lp(`/category/${parent.id}`)}

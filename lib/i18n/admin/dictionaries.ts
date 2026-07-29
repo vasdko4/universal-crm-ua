@@ -209,11 +209,14 @@ export type AdminDictionary = {
     countMany: string
     addCategory: string
     colName: string
+    colImage: string
     colSlug: string
     colParent: string
     colProducts: string
     colVisibility: string
     colActions: string
+    image: string
+    imageHint: string
     none: string
     notFound: string
     showAria: string
@@ -1800,6 +1803,7 @@ const uk: AdminDictionary = {
     countMany: 'категорій',
     addCategory: 'Додати категорію',
     colName: 'Назва',
+    colImage: 'Фото',
     colSlug: 'Slug',
     colParent: 'Батьківська',
     colProducts: 'Товарів',
@@ -1816,6 +1820,8 @@ const uk: AdminDictionary = {
     editTitle: 'Редагувати категорію',
     newTitle: 'Нова категорія',
     dialogHint: 'Назва заповнюється двома мовами, slug створюється автоматично.',
+    image: 'Зображення категорії',
+    imageHint: 'Показується на мобільній сторінці каталогу замість типової іконки.',
     nameRu: 'Назва (RU) *',
     nameUk: 'Назва (UK) *',
     descriptionRu: 'Опис (RU)',
@@ -3415,6 +3421,7 @@ const ru: AdminDictionary = {
     countMany: 'категорий',
     addCategory: 'Добавить категорию',
     colName: 'Название',
+    colImage: 'Фото',
     colSlug: 'Slug',
     colParent: 'Родитель',
     colProducts: 'Товаров',
@@ -3431,6 +3438,8 @@ const ru: AdminDictionary = {
     editTitle: 'Редактировать категорию',
     newTitle: 'Новая категория',
     dialogHint: 'Название заполняется на двух языках, slug создаётся автоматически.',
+    image: 'Изображение категории',
+    imageHint: 'Показывается на мобильной странице каталога вместо стандартной иконки.',
     nameRu: 'Название (RU) *',
     nameUk: 'Название (UK) *',
     descriptionRu: 'Описание (RU)',

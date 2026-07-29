@@ -53,6 +53,7 @@ export type CategoryInput = {
   parentId?: number | null
   isVisible?: boolean
   sortOrder?: number
+  image?: string | null
 }
 
 function validate(input: CategoryInput): string | null {
@@ -76,6 +77,7 @@ export async function createCategory(input: CategoryInput) {
     parentId: input.parentId ?? null,
     isVisible: input.isVisible ?? true,
     sortOrder: input.sortOrder ?? 0,
+    image: input.image || null,
   })
   revalidatePath('/admin/categories')
   revalidateStorefront()
@@ -100,6 +102,7 @@ export async function updateCategory(id: number, input: CategoryInput) {
       parentId: input.parentId ?? null,
       isVisible: input.isVisible ?? true,
       sortOrder: input.sortOrder ?? 0,
+      image: input.image || null,
       updatedAt: new Date(),
     })
     .where(eq(categories.id, id))
