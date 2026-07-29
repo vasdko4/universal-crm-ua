@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Minus, Plus, ShoppingCart, Zap, Star, Truck, ShieldCheck } from 'lucide-react'
+import { Minus, Plus, ShoppingCart, Zap, Star, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ProductGallery } from '@/components/shop/product-gallery'
 import { ProductVariantSelector } from '@/components/shop/product-variant-selector'
 import { FavoriteButton } from '@/components/shop/favorite-button'
+import { PaymentDeliveryBadges, type SafeMethod } from '@/components/shop/payment-delivery-badges'
+import { PromoTimer } from '@/components/shop/promo-timer'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import { useI18n } from '@/lib/i18n/client'
 import { fillTemplate } from '@/lib/i18n/dictionaries'
@@ -42,11 +44,17 @@ export function ProductPurchasePanel({
   reviewAvg,
   reviewCount,
   labels,
+  deliveryMethods = [],
+  paymentMethods = [],
+  promo = null,
 }: {
   product: ShopProduct
   reviewAvg: number
   reviewCount: number
   labels: Labels
+  deliveryMethods?: SafeMethod[]
+  paymentMethods?: SafeMethod[]
+  promo?: { name: string; endsAt: string } | null
 }) {
   const router = useRouter()
   const { add, startBuyNow } = useCart()
@@ -210,6 +218,8 @@ export function ProductPurchasePanel({
           )}
         </div>
 
+        {discount > 0 && promo && <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} />}
+
         {hasVariants && (
           <ProductVariantSelector
             options={product.options}
@@ -263,14 +273,11 @@ export function ProductPurchasePanel({
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Truck className="size-5 text-primary" /> {tp.deliveryUkraine}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <ShieldCheck className="size-5 text-primary" /> {tp.officialWarranty}
-          </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <ShieldCheck className="size-5 text-primary" /> {tp.officialWarranty}
         </div>
+
+        <PaymentDeliveryBadges delivery={deliveryMethods} payment={paymentMethods} />
       </div>
     </div>
   )

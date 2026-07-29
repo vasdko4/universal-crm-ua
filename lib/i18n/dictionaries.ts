@@ -121,6 +121,8 @@ export type Dictionary = {
     addedToCartVariant: string
     deliveryUkraine: string
     officialWarranty: string
+    recentlyViewed: string
+    promoTimerLabel: string
     cancel: string
     noDescription: string
     rating: string
@@ -605,6 +607,8 @@ const uk: Dictionary = {
     addedToCartVariant: 'Додано в кошик',
     deliveryUkraine: 'Доставка по всій Україні',
     officialWarranty: 'Офіційна гарантія',
+    recentlyViewed: 'Недавно переглянуті товари',
+    promoTimerLabel: 'Акція діє ще:',
     cancel: 'Скасувати',
     noDescription: 'Опис відсутній.',
     rating: 'Оцінка',
@@ -1083,6 +1087,8 @@ const ru: Dictionary = {
     addedToCartVariant: 'Добавлено в корзину',
     deliveryUkraine: 'Доставка по всей Украине',
     officialWarranty: 'Официальная гарантия',
+    recentlyViewed: 'Недавно просмотренные товары',
+    promoTimerLabel: 'Акция действует ещё:',
     cancel: 'Отмена',
     noDescription: 'Описание отсутствует.',
     rating: 'Оценка',
