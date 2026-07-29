@@ -42,7 +42,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
             className="flex gap-4 rounded-2xl border border-border bg-card p-3 md:p-4"
           >
             <Link
-              href={lp(`/product/${item.id}`)}
+              href={lp(`/product/${item.slug || item.id}`)}
               className="relative size-20 shrink-0 overflow-hidden rounded-xl bg-muted md:size-24"
             >
               {item.image ? (
@@ -62,7 +62,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
 
             <div className="flex min-w-0 flex-1 flex-col">
               <Link
-                href={lp(`/product/${item.id}`)}
+                href={lp(`/product/${item.slug || item.id}`)}
                 className="line-clamp-2 text-sm font-medium text-foreground hover:text-primary"
               >
                 {item.name}

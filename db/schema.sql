@@ -419,6 +419,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   "id" serial NOT NULL,
   "name_uk" varchar(255),
   "name_ru" varchar(255),
+  "slug" varchar(255),
   "description_uk" text,
   "description_ru" text,
   "private_notes" text,

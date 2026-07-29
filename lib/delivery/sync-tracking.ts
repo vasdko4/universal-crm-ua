@@ -4,6 +4,7 @@ import { trackDocuments } from '@/lib/delivery/nova-poshta'
 import { sendMail } from '@/lib/mailer'
 import { buildOrderMessage } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { getProductSlugMap } from '@/lib/shop/queries'
 
 export type DeliverySyncResult = {
   ok: boolean
@@ -132,7 +133,8 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
           status: newOrderStatus,
         })
         const items = itemsRes.rows.map(normalizeItem)
-        const msg = buildOrderMessage('status', order, items, storeCtx)
+        const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
+        const msg = buildOrderMessage('status', order, items, storeCtx, productSlugs)
         await sendMail({ to: email, subject: msg.subject, text: msg.text, html: msg.html })
         result.emailed++
       }

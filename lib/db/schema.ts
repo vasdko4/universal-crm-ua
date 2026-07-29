@@ -27,6 +27,12 @@ export const products = pgTable('products', {
   id: serial('id').primaryKey(),
   nameUk: varchar('name_uk', { length: 255 }),
   nameRu: varchar('name_ru', { length: 255 }),
+  // Human-readable URL segment, e.g. "iphone-15-pro" — auto-generated from the
+  // product name (transliterated, see lib/slug.ts) the first time the product
+  // gets one, then kept stable so links/SEO/бэклинки never break on rename.
+  // Unique across all products; falls back to the numeric id when empty
+  // (legacy rows before this column existed, or a blank name).
+  slug: varchar('slug', { length: 255 }).unique(),
   descriptionUk: text('description_uk'),
   descriptionRu: text('description_ru'),
   privateNotes: text('private_notes'),

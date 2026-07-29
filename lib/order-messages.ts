@@ -36,6 +36,10 @@ export function buildOrderMessage(
   order: Order,
   items: OrderItem[],
   store: StoreEmailContext = {},
+  // productId → human-readable slug, so email links use the same pretty
+  // `/product/<slug>` URL as everywhere else instead of a bare id. Callers
+  // build this with getProductSlugMap() before invoking buildOrderMessage.
+  productSlugs: Record<number, string> = {},
 ): { subject: string; text: string; html: string } {
   const storeName = store.storeName || 'Наш магазин'
   const siteUrl = (store.siteUrl || '').replace(/\/$/, '')
@@ -130,7 +134,8 @@ ${siteUrl ? `Отследить заказ и историю покупок: ${s
       const img = i.image
         ? `<img src="${emailImg(i.image)}" width="64" height="64" alt="" style="display:block;width:64px;height:64px;object-fit:contain;border-radius:8px;background:#f4f4f2" />`
         : `<div style="width:64px;height:64px;border-radius:8px;background:#f4f4f2"></div>`
-      const productUrl = siteUrl && i.productId ? `${siteUrl}/product/${i.productId}` : ''
+      const productUrl =
+        siteUrl && i.productId ? `${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}` : ''
       const nameHtml = productUrl
         ? `<a href="${productUrl}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${esc(i.name)}</a>`
         : `<span style="font-weight:600">${esc(i.name)}</span>`

@@ -21,6 +21,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     items: items.map((p) => ({
       id: p.id,
+      slug: p.slug,
       name: p.name,
       price: p.price,
       oldPrice: p.oldPrice,

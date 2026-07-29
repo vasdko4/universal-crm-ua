@@ -6,6 +6,7 @@ import { buildOrderMessage, type OrderMessageKind } from '@/lib/order-messages'
 import { getAdminUserWithPermission } from '@/lib/session'
 import { db } from '@/lib/db'
 import { orderHistory } from '@/lib/db/schema'
+import { getProductSlugMap } from '@/lib/shop/queries'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Was gated only on "is some admin-center user", not on the 'orders'
@@ -25,14 +26,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!data) return NextResponse.json({ error: 'Заказ не найден' }, { status: 404 })
 
   const { order, items } = data
-  const storeSettings = await getStoreSettingsInternal()
-  const msg = buildOrderMessage(kind, order, items, {
-    storeName: storeSettings.storeName,
-    siteUrl: (storeSettings.seo?.siteUrl || '').replace(/\/$/, ''),
-    logoUrl: storeSettings.logoUrl,
-    phone: storeSettings.contact?.phones?.find(Boolean) ?? null,
-    supportEmail: (storeSettings.emailSettings?.fromEmail as string) || null,
-  })
+  const [storeSettings, productSlugs] = await Promise.all([
+    getStoreSettingsInternal(),
+    getProductSlugMap(items.map((i) => i.productId)),
+  ])
+  const msg = buildOrderMessage(
+    kind,
+    order,
+    items,
+    {
+      storeName: storeSettings.storeName,
+      siteUrl: (storeSettings.seo?.siteUrl || '').replace(/\/$/, ''),
+      logoUrl: storeSettings.logoUrl,
+      phone: storeSettings.contact?.phones?.find(Boolean) ?? null,
+      supportEmail: (storeSettings.emailSettings?.fromEmail as string) || null,
+    },
+    productSlugs,
+  )
 
   // Messenger channels: return a deep link the client can open.
   if (channel !== 'email') {

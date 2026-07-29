@@ -1,7 +1,7 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ProductTabs } from '@/components/shop/product-tabs'
 import { ProductCard } from '@/components/shop/product-card'
 import { ProductPurchasePanel } from '@/components/shop/product-purchase-panel'
@@ -10,7 +10,8 @@ import { JsonLd } from '@/components/shop/json-ld'
 import { ProductViewTracker } from '@/components/shop/analytics-tracker'
 import { formatPrice } from '@/lib/shop/format'
 import {
-  getProductById,
+  getProductBySlug,
+  getProductSlugById,
   getRelatedProducts,
   getFrequentlyBoughtTogether,
   getApprovedReviews,
@@ -29,7 +30,7 @@ import { getStoreSettingsInternal } from '@/lib/store-settings'
 export const dynamic = 'force-dynamic'
 
 // Deduped per request: generateMetadata and the page share a single DB read.
-const loadProduct = cache((id: number, locale: 'uk' | 'ru') => getProductById(id, locale))
+const loadProduct = cache((slug: string, locale: 'uk' | 'ru') => getProductBySlug(slug, locale))
 const loadSummary = cache((id: number) => getReviewSummary(id))
 
 function plainText(html: string | null, max = 160): string {
@@ -38,18 +39,26 @@ function plainText(html: string | null, max = 160): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params
-  const productId = Number(id)
-  if (!Number.isFinite(productId)) return {}
+// Old links were `/product/<numeric id>` — keep them working by resolving to
+// the current slug instead of 404ing bookmarks/backlinks/indexed search
+// results from before this URL format existed.
+async function resolveLegacyNumericSlug(slug: string, locale: 'uk' | 'ru'): Promise<never | void> {
+  if (!/^\d+$/.test(slug)) return
+  const resolved = await getProductSlugById(Number(slug)).catch(() => null)
+  if (!resolved) notFound()
+  redirect(localizedPath(`/product/${resolved}`, locale))
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
   const locale = await getLocale()
-  const data = await loadProduct(productId, locale).catch(() => null)
+  const data = await loadProduct(slug, locale).catch(() => null)
   if (!data) return {}
   const { product } = data
   const description =
     plainText(product.description) ||
     `${product.name} — купить с доставкой по Украине. ${formatPrice(product.price, product.currency)}.`
-  const path = `/product/${product.id}`
+  const path = `/product/${product.slug}`
   const canonical = localizedPath(path, locale)
   const image = product.image || '/hero-electronics.png'
   return {
@@ -70,16 +79,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
   const { locale, dict } = await getServerDictionary()
-  const productId = Number(id)
-  if (!Number.isFinite(productId)) notFound()
 
-  const data = await loadProduct(productId, locale)
-  if (!data) notFound()
+  const data = await loadProduct(slug, locale)
+  if (!data) {
+    await resolveLegacyNumericSlug(slug, locale)
+    notFound()
+  }
 
   const { product, characteristics, categories } = data
+  const productId = product.id
   const [related, boughtTogether, reviews, questions, summary, settings, deliveryRows, paymentRows, gateways, promo] =
     await Promise.all([
       getRelatedProducts(productId, categories.map((c) => c.id), 4, locale),
@@ -133,7 +144,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       priceValidUntil,
       itemCondition: 'https://schema.org/NewCondition',
       availability: product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-      url: abs(lp(`/product/${product.id}`)),
+      url: abs(lp(`/product/${product.slug}`)),
       hasMerchantReturnPolicy: merchantReturnPolicy(),
       shippingDetails: shippingDetails(product.currency),
     },
@@ -175,7 +186,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         '@type': 'ListItem',
         position: categories[0] ? 4 : 3,
         name: product.name,
-        item: abs(lp(`/product/${product.id}`)),
+        item: abs(lp(`/product/${product.slug}`)),
       },
     ],
   }

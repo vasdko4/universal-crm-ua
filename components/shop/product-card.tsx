@@ -19,12 +19,14 @@ export function ProductCard({ product }: { product: ShopProduct }) {
   const { add } = useCart()
   const router = useRouter()
   const { dict, locale } = useI18n()
-  const href = localizedPath(`/product/${product.id}`, locale)
+  const href = localizedPath(`/product/${product.slug}`, locale)
   const [added, setAdded] = useState(false)
   const needsSize = (product.sizes?.length ?? 0) > 0
 
-  // Show the full-name flyout on hover only when the title is actually
-  // truncated by line-clamp-2.
+  // On mobile the full name always shows (no clamp — see className below);
+  // only from `sm:` up is it clamped to 2 lines with a hover flyout for the
+  // truncated part (no hover on touch devices, so clamping there would hide
+  // the rest of the name with no way to read it).
   const nameRef = useRef<HTMLAnchorElement>(null)
   const [truncated, setTruncated] = useState(false)
   useEffect(() => {
@@ -52,6 +54,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
     add(
       {
         id: product.id,
+        slug: product.slug,
         name: product.name,
         price: product.price,
         image: product.image,
@@ -105,7 +108,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
           <Link
             ref={nameRef}
             href={href}
-            className="peer line-clamp-2 text-sm font-medium leading-snug text-foreground hover:text-primary"
+            className="peer text-sm font-medium leading-snug text-foreground hover:text-primary sm:line-clamp-2"
           >
             {product.name}
           </Link>

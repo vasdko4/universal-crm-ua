@@ -54,7 +54,7 @@ export function CartDrawer({ children }: { children: ReactNode }) {
                   </div>
                   <div className="flex flex-1 flex-col gap-1">
                     <Link
-                      href={lp(`/product/${item.id}`)}
+                      href={lp(`/product/${item.slug || item.id}`)}
                       onClick={() => setDrawerOpen(false)}
                       className="line-clamp-2 text-sm font-medium hover:text-primary"
                     >
