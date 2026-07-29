@@ -89,7 +89,10 @@ export type Dictionary = {
     searchCategories: string
     searchCategoriesNoResults: string
     viewAllInCategory: string
-    subcategoriesCount: string
+    subcategoriesCountOne: string
+    subcategoriesCountFew: string
+    subcategoriesCountMany: string
+    subcategoryBadge: string
   }
   product: {
     addToCart: string
@@ -581,7 +584,10 @@ const uk: Dictionary = {
     searchCategories: 'Пошук категорії...',
     searchCategoriesNoResults: 'Категорій не знайдено',
     viewAllInCategory: 'Усі товари в категорії',
-    subcategoriesCount: 'підкатегорій',
+    subcategoriesCountOne: 'підкатегорія',
+    subcategoriesCountFew: 'підкатегорії',
+    subcategoriesCountMany: 'підкатегорій',
+    subcategoryBadge: 'Підкатегорія',
   },
   product: {
     addToCart: 'До кошика',
@@ -1067,7 +1073,10 @@ const ru: Dictionary = {
     searchCategories: 'Поиск категории...',
     searchCategoriesNoResults: 'Категории не найдены',
     viewAllInCategory: 'Все товары в категории',
-    subcategoriesCount: 'подкатегорий',
+    subcategoriesCountOne: 'подкатегория',
+    subcategoriesCountFew: 'подкатегории',
+    subcategoriesCountMany: 'подкатегорий',
+    subcategoryBadge: 'Подкатегория',
   },
   product: {
     addToCart: 'В корзину',

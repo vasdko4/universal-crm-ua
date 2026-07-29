@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { toast } from 'sonner'
 import {
   createCategory,
@@ -17,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
+import { ImageUploader } from '@/components/products/image-uploader'
 import {
   Dialog,
   DialogContent,
@@ -65,6 +67,7 @@ type FormState = {
   parentId: string
   isVisible: boolean
   sortOrder: string
+  image: string | null
 }
 
 const emptyForm: FormState = {
@@ -75,6 +78,7 @@ const emptyForm: FormState = {
   parentId: '',
   isVisible: true,
   sortOrder: '0',
+  image: null,
 }
 
 export function CategoriesManager({ categories }: { categories: CategoryWithCount[] }) {
@@ -106,6 +110,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
       parentId: cat.parentId ? String(cat.parentId) : '',
       isVisible: cat.isVisible ?? true,
       sortOrder: String(cat.sortOrder ?? 0),
+      image: cat.image ?? null,
     })
     setDialogOpen(true)
   }
@@ -124,6 +129,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
       parentId: form.parentId ? Number(form.parentId) : null,
       isVisible: form.isVisible,
       sortOrder: Math.trunc(Number(form.sortOrder) || 0),
+      image: form.image,
     }
     startTransition(async () => {
       const result = editing ? await updateCategory(editing.id, input) : await createCategory(input)
@@ -177,6 +183,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="w-14">{t.colImage}</TableHead>
               <TableHead>{t.colName}</TableHead>
               <TableHead className="hidden md:table-cell">{t.colSlug}</TableHead>
               <TableHead className="hidden sm:table-cell">{t.colParent}</TableHead>
@@ -188,7 +195,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
           <TableBody>
             {categories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
+                <TableCell colSpan={7} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <FolderTree className="size-8" />
                     <p className="text-sm">{t.notFound}</p>
@@ -198,6 +205,17 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
             ) : (
               categories.map((cat) => (
                 <TableRow key={cat.id}>
+                  <TableCell>
+                    {cat.image ? (
+                      <div className="relative size-9 overflow-hidden rounded-md border bg-muted">
+                        <Image src={cat.image} alt="" fill sizes="36px" className="object-cover" />
+                      </div>
+                    ) : (
+                      <div className="flex size-9 items-center justify-center rounded-md border border-dashed text-muted-foreground">
+                        <FolderTree className="size-4" />
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <p className="font-medium">{catName(cat)}</p>
                     <p className="text-xs text-muted-foreground">
@@ -266,6 +284,15 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label>{t.image}</Label>
+              <ImageUploader
+                value={form.image}
+                onChange={(url) => setForm((f) => ({ ...f, image: url }))}
+                size="md"
+              />
+              <p className="text-xs text-muted-foreground">{t.imageHint}</p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="catNameRu">{t.nameRu}</Label>
