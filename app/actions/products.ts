@@ -153,6 +153,14 @@ export type ProductInput = {
   quantity: number
   unit?: string
   stockStatus?: string
+  /**
+   * Admin-set status shown only while quantity is 0: 'coming_soon' keeps the
+   * product visible on the storefront but not purchasable; 'preorder' keeps
+   * it visible and purchasable, and reports g:availability=preorder to
+   * Google Merchant instead of dropping it from the feed. Ignored (forced
+   * back to 'default') once the product actually has stock again.
+   */
+  availabilityMode?: 'default' | 'coming_soon' | 'preorder'
   siteGroupId?: number | null
   marketplaceCategoryId?: number | null
   width?: string | null
@@ -268,6 +276,14 @@ function toProductRow(input: ProductInput) {
     images: (input.images || []).filter(Boolean),
     isVisible: input.isVisible ?? true,
     isInStock: aggQty > 0,
+    // Only meaningful while genuinely out of stock — a product that has
+    // stock is just "in stock", regardless of whatever was selected here.
+    availabilityMode:
+      aggQty > 0
+        ? 'default'
+        : input.availabilityMode === 'coming_soon' || input.availabilityMode === 'preorder'
+          ? input.availabilityMode
+          : 'default',
     isPopular: input.isPopular ?? false,
     purchasesBoost: Math.max(0, Math.trunc(input.purchasesBoost ?? 0)),
     metaTitleUk: input.metaTitleUk || null,

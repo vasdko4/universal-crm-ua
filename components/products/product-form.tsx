@@ -46,6 +46,7 @@ export type ProductFormData = {
   costPrice: string
   quantity: string
   unit: string
+  availabilityMode: 'default' | 'coming_soon' | 'preorder'
   siteGroupId: string
   marketplaceCategoryId: string
   width: string
@@ -86,6 +87,7 @@ export const emptyProduct: ProductFormData = {
   costPrice: '',
   quantity: '0',
   unit: 'шт',
+  availabilityMode: 'default',
   siteGroupId: '',
   marketplaceCategoryId: '',
   width: '',
@@ -178,6 +180,7 @@ export function ProductForm({
       costPrice: form.costPrice || null,
       quantity: Math.max(0, Math.trunc(Number(form.quantity) || 0)),
       unit: form.unit,
+      availabilityMode: form.availabilityMode,
       siteGroupId: form.siteGroupId ? Number(form.siteGroupId) : null,
       marketplaceCategoryId: form.marketplaceCategoryId ? Number(form.marketplaceCategoryId) : null,
       width: form.width || null,
@@ -562,6 +565,23 @@ export function ProductForm({
               <div className="flex flex-col gap-2">
                 <Label htmlFor="unit">{t.unitLabel}</Label>
                 <Input id="unit" value={form.unit} onChange={(e) => set('unit', e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <Label htmlFor="availabilityMode">{t.availabilityModeLabel}</Label>
+                <Select
+                  value={form.availabilityMode}
+                  onValueChange={(v) => set('availabilityMode', v as ProductFormData['availabilityMode'])}
+                >
+                  <SelectTrigger id="availabilityMode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">{t.availabilityModeDefault}</SelectItem>
+                    <SelectItem value="coming_soon">{t.availabilityModeComingSoon}</SelectItem>
+                    <SelectItem value="preorder">{t.availabilityModePreorder}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t.availabilityModeHint}</p>
               </div>
             </CardContent>
           </Card>

@@ -68,7 +68,10 @@ function buildItem(
     .map((img) => `      <g:additional_image_link>${escapeXml(abs(img))}</g:additional_image_link>`)
     .join('\n')
 
-  const availability = p.inStock ? 'in stock' : 'out of stock'
+  // p.inStock is only ever true here for genuinely available or preorder
+  // products — everything else was already filtered out by getFeedProducts()
+  // before this is called, so Google Ads never sees an out-of-stock item.
+  const availability = p.isPreorder ? 'preorder' : 'in stock'
   const description = htmlToPlainText(p.description ?? p.name)
 
   // We don't store GTIN/MPN, and brand is only known when the admin filled a

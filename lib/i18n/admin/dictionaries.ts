@@ -158,6 +158,8 @@ export type AdminDictionary = {
     hidden: string
     inStock: string
     outOfStock: string
+    comingSoonBadge: string
+    preorderBadge: string
     popular: string
     sortPlaceholder: string
     sortNewest: string
@@ -1498,6 +1500,11 @@ export type AdminDictionary = {
     quantityHint: string
     quantityHintVariants: string
     unitLabel: string
+    availabilityModeLabel: string
+    availabilityModeHint: string
+    availabilityModeDefault: string
+    availabilityModeComingSoon: string
+    availabilityModePreorder: string
     variantsActiveNotice: string
     variantsToggleLabel: string
     variantsToggleHint: string
@@ -1742,6 +1749,8 @@ const uk: AdminDictionary = {
     hidden: 'Приховані',
     inStock: 'В наявності',
     outOfStock: 'Немає в наявності',
+    comingSoonBadge: 'Скоро в наявності',
+    preorderBadge: 'Передзамовлення',
     popular: 'Популярні',
     sortPlaceholder: 'Сортування',
     sortNewest: 'Спочатку нові',
@@ -3102,6 +3111,12 @@ const uk: AdminDictionary = {
     quantityHint: 'При нулі статус автоматично стане «Немає в наявності»',
     quantityHintVariants: 'Сума залишків усіх комбінацій на вкладці «Варіанти»',
     unitLabel: 'Одиниця виміру',
+    availabilityModeLabel: 'Статус при нульовому залишку',
+    availabilityModeHint:
+      'Діє лише поки кількість на складі дорівнює нулю. «Скоро в наявності» показує товар з міткою, але без можливості купити. «Передзамовлення» дозволяє оформити замовлення заздалегідь і передається в Google Merchant як preorder.',
+    availabilityModeDefault: 'Звичайний (просто немає в наявності)',
+    availabilityModeComingSoon: 'Скоро в наявності',
+    availabilityModePreorder: 'Передзамовлення',
     variantsActiveNotice:
       'Увімкнено варіанти товару — ціна та залишок нижче розраховуються автоматично за вкладкою «Варіанти» (мінімальна ціна серед комбінацій, сумарний залишок) і недоступні для ручного редагування. Щоб задавати їх вручну тут, вимкніть варіанти на вкладці «Варіанти».',
     variantsToggleLabel: 'Увімкнути варіанти товару',
@@ -3349,6 +3364,8 @@ const ru: AdminDictionary = {
     hidden: 'Скрытые',
     inStock: 'В наличии',
     outOfStock: 'Нет в наличии',
+    comingSoonBadge: 'Скоро в наличии',
+    preorderBadge: 'Предзаказ',
     popular: 'Популярные',
     sortPlaceholder: 'Сортировка',
     sortNewest: 'Сначала новые',
@@ -4709,6 +4726,12 @@ const ru: AdminDictionary = {
     quantityHint: 'При нуле статус автоматически станет «Нет в наличии»',
     quantityHintVariants: 'Сумма остатков всех комбинаций во вкладке «Варианты»',
     unitLabel: 'Единица измерения',
+    availabilityModeLabel: 'Статус при нулевом остатке',
+    availabilityModeHint:
+      'Действует только пока количество на складе равно нулю. «Скоро в наличии» показывает товар с меткой, но без возможности купить. «Предзаказ» позволяет оформить заказ заранее и передаётся в Google Merchant как preorder.',
+    availabilityModeDefault: 'Обычный (просто нет в наличии)',
+    availabilityModeComingSoon: 'Скоро в наличии',
+    availabilityModePreorder: 'Предзаказ',
     variantsActiveNotice:
       'Включены варианты товара — цена и остаток ниже рассчитываются автоматически по вкладке «Варианты» (минимальная цена среди комбинаций, суммарный остаток) и недоступны для ручного редактирования. Чтобы задавать их вручную здесь, выключите варианты на вкладке «Варианты».',
     variantsToggleLabel: 'Включить варианты товара',

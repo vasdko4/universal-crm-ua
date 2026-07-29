@@ -45,6 +45,10 @@ export default async function EditProductPage({
     costPrice: product.costPrice ?? '',
     quantity: String(product.quantity ?? 0),
     unit: product.unit ?? 'шт',
+    availabilityMode:
+      product.availabilityMode === 'coming_soon' || product.availabilityMode === 'preorder'
+        ? product.availabilityMode
+        : 'default',
     siteGroupId: product.siteGroupId ? String(product.siteGroupId) : '',
     marketplaceCategoryId: product.marketplaceCategoryId
       ? String(product.marketplaceCategoryId)

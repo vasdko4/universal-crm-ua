@@ -66,6 +66,15 @@ export const products = pgTable('products', {
   variantsEnabled: boolean('variants_enabled').notNull().default(false),
   isVisible: boolean('is_visible').default(true),
   isInStock: boolean('is_in_stock').default(true),
+  // Admin-controlled marketing status shown while quantity is 0, so the
+  // storefront can still surface an upcoming product instead of just
+  // hiding it. 'default' = plain out-of-stock behaviour (hidden from the
+  // homepage, excluded from the Google Merchant feed, sorted last in
+  // search). 'coming_soon' keeps it visible with a "Скоро в наличии"
+  // badge but not purchasable. 'preorder' keeps it visible, purchasable,
+  // and reported to Google Merchant with g:availability=preorder instead
+  // of being dropped from the feed.
+  availabilityMode: varchar('availability_mode', { length: 20 }).notNull().default('default'),
   isPopular: boolean('is_popular').default(false),
   sortOrder: integer('sort_order').default(0),
   viewsCount: integer('views_count').default(0),

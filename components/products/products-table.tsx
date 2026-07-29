@@ -408,6 +408,14 @@ export function ProductsTable({
                           <Badge className="bg-success/15 text-success hover:bg-success/15">
                             {t.inStock}
                           </Badge>
+                        ) : product.availabilityMode === 'preorder' ? (
+                          <Badge className="bg-primary/15 text-primary hover:bg-primary/15">
+                            {t.preorderBadge}
+                          </Badge>
+                        ) : product.availabilityMode === 'coming_soon' ? (
+                          <Badge className="bg-warning/15 text-warning hover:bg-warning/15">
+                            {t.comingSoonBadge}
+                          </Badge>
                         ) : (
                           <Badge variant="destructive" className="bg-destructive/15 text-destructive hover:bg-destructive/15">
                             {t.outOfStock}
