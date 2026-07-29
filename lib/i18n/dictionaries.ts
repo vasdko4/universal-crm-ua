@@ -86,6 +86,10 @@ export type Dictionary = {
     nothingFoundDesc: string
     showing: string
     resultsFor: string
+    searchCategories: string
+    searchCategoriesNoResults: string
+    viewAllInCategory: string
+    subcategoriesCount: string
   }
   product: {
     addToCart: string
@@ -101,6 +105,7 @@ export type Dictionary = {
     questions: string
     sku: string
     relatedProducts: string
+    frequentlyBoughtTogether: string
     priceFrom: string
     writeReview: string
     askQuestion: string
@@ -111,6 +116,7 @@ export type Dictionary = {
     decrease: string
     increase: string
     inStockCount: string
+    lowStockLeft: string
     unitsShort: string
     purchasedOne: string
     purchasedFew: string
@@ -572,6 +578,10 @@ const uk: Dictionary = {
     nothingFoundDesc: 'Спробуйте змінити параметри пошуку або фільтри',
     showing: 'Показано',
     resultsFor: 'Результати за запитом',
+    searchCategories: 'Пошук категорії...',
+    searchCategoriesNoResults: 'Категорій не знайдено',
+    viewAllInCategory: 'Усі товари в категорії',
+    subcategoriesCount: 'підкатегорій',
   },
   product: {
     addToCart: 'До кошика',
@@ -587,6 +597,7 @@ const uk: Dictionary = {
     questions: 'Питання',
     sku: 'Артикул',
     relatedProducts: 'Схожі товари',
+    frequentlyBoughtTogether: 'Часто купують разом',
     priceFrom: 'від',
     writeReview: 'Написати відгук',
     askQuestion: 'Поставити питання',
@@ -597,6 +608,7 @@ const uk: Dictionary = {
     decrease: 'Менше',
     increase: 'Більше',
     inStockCount: 'В наявності:',
+    lowStockLeft: 'Залишилось лише {count} шт!',
     unitsShort: 'шт.',
     purchasedOne: 'Купили {{count}} раз',
     purchasedFew: 'Купили {{count}} рази',
@@ -1052,6 +1064,10 @@ const ru: Dictionary = {
     nothingFoundDesc: 'Попробуйте изменить параметры поиска или фильтры',
     showing: 'Показано',
     resultsFor: 'Результаты по запросу',
+    searchCategories: 'Поиск категории...',
+    searchCategoriesNoResults: 'Категории не найдены',
+    viewAllInCategory: 'Все товары в категории',
+    subcategoriesCount: 'подкатегорий',
   },
   product: {
     addToCart: 'В корзину',
@@ -1067,6 +1083,7 @@ const ru: Dictionary = {
     questions: 'Вопросы',
     sku: 'Артикул',
     relatedProducts: 'Похожие товары',
+    frequentlyBoughtTogether: 'Часто покупают вместе',
     priceFrom: 'от',
     writeReview: 'Написать отзыв',
     askQuestion: 'Задать вопрос',
@@ -1077,6 +1094,7 @@ const ru: Dictionary = {
     decrease: 'Меньше',
     increase: 'Больше',
     inStockCount: 'В наличии:',
+    lowStockLeft: 'Осталось всего {count} шт!',
     unitsShort: 'шт.',
     purchasedOne: 'Купили {{count}} раз',
     purchasedFew: 'Купили {{count}} раза',

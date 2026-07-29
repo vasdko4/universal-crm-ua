@@ -25,6 +25,10 @@ type Labels = {
   noPhoto: string
 }
 
+// Below this remaining quantity, show an urgency badge instead of the plain
+// "in stock: N" count. Real store data, not a fabricated countdown.
+const LOW_STOCK_THRESHOLD = 5
+
 function variantLabel(v: ProductVariant): string {
   return Object.entries(v.options)
     .map(([k, val]) => `${k}: ${val}`)
@@ -249,8 +253,12 @@ export function ProductPurchasePanel({
                 </Button>
               </div>
               {(!hasVariants || selectedVariant) && maxQty > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  {tp.inStockCount} {maxQty} {tp.unitsShort}
+                <span
+                  className={cn('text-sm', maxQty <= LOW_STOCK_THRESHOLD ? 'font-semibold text-destructive' : 'text-muted-foreground')}
+                >
+                  {maxQty <= LOW_STOCK_THRESHOLD
+                    ? fillTemplate(tp.lowStockLeft, { count: maxQty })
+                    : `${tp.inStockCount} ${maxQty} ${tp.unitsShort}`}
                 </span>
               )}
             </div>

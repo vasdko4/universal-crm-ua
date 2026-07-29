@@ -12,6 +12,7 @@ import { formatPrice } from '@/lib/shop/format'
 import {
   getProductById,
   getRelatedProducts,
+  getFrequentlyBoughtTogether,
   getApprovedReviews,
   getAnsweredQuestions,
   getReviewSummary,
@@ -79,9 +80,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   if (!data) notFound()
 
   const { product, characteristics, categories } = data
-  const [related, reviews, questions, summary, settings, deliveryRows, paymentRows, gateways, promo] =
+  const [related, boughtTogether, reviews, questions, summary, settings, deliveryRows, paymentRows, gateways, promo] =
     await Promise.all([
       getRelatedProducts(productId, categories.map((c) => c.id), 4, locale),
+      getFrequentlyBoughtTogether(productId, 4, locale),
       getApprovedReviews(productId),
       getAnsweredQuestions(productId),
       loadSummary(productId),
@@ -262,6 +264,20 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           }))}
         />
       </div>
+
+      {/* Frequently bought together — real co-purchase counts from order history */}
+      {boughtTogether.length > 0 && (
+        <section className="mt-14">
+          <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">
+            {dict.product.frequentlyBoughtTogether}
+          </h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {boughtTogether.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Related */}
       {related.length > 0 && (

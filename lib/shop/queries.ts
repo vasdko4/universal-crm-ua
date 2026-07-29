@@ -18,6 +18,8 @@ import {
   productGroupItems,
   articles,
   pages,
+  orders,
+  orderItems,
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 
@@ -500,6 +502,55 @@ export function getRelatedProducts(id: number, categoryIds: number[], limit = 4,
     ['related', String(id), categoryIds.join('-'), String(limit), locale],
     { tags: [CACHE_TAGS.catalog], revalidate: STOREFRONT_TTL },
   )()
+}
+
+/**
+ * "Frequently bought together" — real co-purchase data, not category
+ * similarity: counts how often each other product appeared in the same
+ * order as `id` (excluding cancelled/unpaid-pending orders), ranked by
+ * co-occurrence count. Falls back to nothing (no fabricated guesses) if
+ * there isn't enough order history yet.
+ */
+export function getFrequentlyBoughtTogether(id: number, limit = 4, locale: Locale = 'uk') {
+  return unstable_cache(
+    () => _getFrequentlyBoughtTogether(id, limit, locale),
+    ['fbt', String(id), String(limit), locale],
+    { tags: [CACHE_TAGS.catalog], revalidate: STOREFRONT_TTL },
+  )()
+}
+
+async function _getFrequentlyBoughtTogether(id: number, limit = 4, locale: Locale = 'uk') {
+  const coOrders = db
+    .selectDistinct({ orderId: orderItems.orderId })
+    .from(orderItems)
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .where(and(eq(orderItems.productId, id), sql`${orders.status} NOT IN ('cancelled', 'pending_payment')`))
+    .as('co_orders')
+
+  const counted = await db
+    .select({ pid: orderItems.productId, cnt: sql<number>`count(distinct ${orderItems.orderId})`.as('cnt') })
+    .from(orderItems)
+    .innerJoin(coOrders, eq(coOrders.orderId, orderItems.orderId))
+    .where(and(ne(orderItems.productId, id), isNotNull(orderItems.productId)))
+    .groupBy(orderItems.productId)
+    .orderBy(desc(sql`count(distinct ${orderItems.orderId})`))
+    .limit(limit * 2) // headroom for out-of-stock/hidden products filtered below
+
+  const ids = counted.map((r) => r.pid).filter((v): v is number => v != null)
+  if (ids.length === 0) return []
+
+  const productSelect = buildProductSelect(locale)
+  const rows = await db
+    .select(productSelect)
+    .from(products)
+    .where(and(baseWhere, inArray(products.id, ids)))
+    .limit(limit * 2)
+
+  const order = new Map(ids.map((pid, i) => [pid, i]))
+  return rows
+    .map((r) => toShopProduct(r as Record<string, unknown>))
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .slice(0, limit)
 }
 
 async function _getRelatedProducts(id: number, categoryIds: number[], limit = 4, locale: Locale = 'uk') {
