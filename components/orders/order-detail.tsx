@@ -66,11 +66,13 @@ export function OrderDetail({
   items,
   history,
   receipt,
+  productSlugs = {},
 }: {
   order: Order
   items: OrderItem[]
   history: OrderHistoryEntry[]
   receipt?: { storeName: string; qrDataUrl: string; isFiscal: boolean } | null
+  productSlugs?: Record<number, string>
 }) {
   const router = useRouter()
   const { locale, dict } = useAdminI18n()
@@ -101,7 +103,11 @@ export function OrderDetail({
 
   function saveTracking() {
     startTransition(async () => {
-      await updateOrderDelivery(order.id, { trackingNumber: tracking, deliveryStatus: 'В пути' })
+      const trimmed = tracking.trim()
+      await updateOrderDelivery(order.id, {
+        trackingNumber: trimmed,
+        ...(trimmed ? { deliveryStatus: 'В пути' } : {}),
+      })
       toast.success(t.toastTrackingSaved)
       router.refresh()
     })
@@ -206,7 +212,18 @@ export function OrderDetail({
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">{item.name}</p>
+                    {item.productId ? (
+                      <Link
+                        href={`/product/${productSlugs[item.productId] ?? item.productId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-foreground hover:text-primary hover:underline"
+                      >
+                        {item.name}
+                      </Link>
+                    ) : (
+                      <p className="text-sm font-medium text-foreground">{item.name}</p>
+                    )}
                     {item.variantLabel ? (
                       <span className="mt-1 inline-block rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
                         {item.variantLabel}
