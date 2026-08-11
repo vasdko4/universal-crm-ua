@@ -376,6 +376,21 @@ export type Dictionary = {
     discount: string
     grandTotal: string
   }
+  // Order receipt (components/orders/order-receipt.tsx)
+  receipt: {
+    sectionTitle: string
+    show: string
+    hide: string
+    checkNumber: string
+    goods: string
+    discount: string
+    delivery: string
+    total: string
+    print: string
+    fiscalLabel: string
+    nonFiscalLabel: string
+    thankYou: string
+  }
   // Personal profile form (components/shop/profile-form.tsx)
   profile: {
     sectionTitle: string
@@ -871,6 +886,20 @@ const uk: Dictionary = {
     discount: 'Знижка',
     grandTotal: 'Разом',
   },
+  receipt: {
+    sectionTitle: 'Чек замовлення',
+    show: 'Показати',
+    hide: 'Сховати',
+    checkNumber: 'Чек №',
+    goods: 'Товари',
+    discount: 'Знижка',
+    delivery: 'Доставка',
+    total: 'Разом',
+    print: 'Роздрукувати чек',
+    fiscalLabel: 'Фіскальний чек',
+    nonFiscalLabel: 'Розрахунковий документ',
+    thankYou: 'Дякуємо за покупку!',
+  },
   profile: {
     sectionTitle: 'Особисті дані',
     sectionDescription: 'Ці дані використовуються під час оформлення замовлень.',
@@ -1359,6 +1388,20 @@ const ru: Dictionary = {
     shippedTo: 'Куда отправлено',
     discount: 'Скидка',
     grandTotal: 'Итого',
+  },
+  receipt: {
+    sectionTitle: 'Чек заказа',
+    show: 'Показать',
+    hide: 'Скрыть',
+    checkNumber: 'Чек №',
+    goods: 'Товары',
+    discount: 'Скидка',
+    delivery: 'Доставка',
+    total: 'Итого',
+    print: 'Распечатать чек',
+    fiscalLabel: 'Фискальный чек',
+    nonFiscalLabel: 'Расчётный документ',
+    thankYou: 'Благодарим за покупку!',
   },
   profile: {
     sectionTitle: 'Личные данные',

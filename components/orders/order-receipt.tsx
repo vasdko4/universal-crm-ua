@@ -1,8 +1,10 @@
 'use client'
 
-import { Printer, QrCode, ShieldCheck } from 'lucide-react'
+import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/shop/format'
+import type { Dictionary } from '@/lib/i18n/dictionaries'
+import type { Locale } from '@/lib/i18n/config'
 
 export type OrderReceiptItem = {
   name: string
@@ -25,6 +27,8 @@ export function OrderReceipt({
   currency,
   isFiscal,
   qrDataUrl,
+  locale,
+  dict,
 }: {
   storeName: string
   orderNumber: string
@@ -37,8 +41,11 @@ export function OrderReceipt({
   currency: string
   isFiscal: boolean
   qrDataUrl: string
+  locale: Locale
+  dict: Dictionary['receipt']
 }) {
   const date = createdAt ? new Date(createdAt) : null
+  const dateLocale = locale === 'ru' ? 'ru-RU' : 'uk-UA'
 
   return (
     <div className="flex flex-col gap-3">
@@ -46,32 +53,34 @@ export function OrderReceipt({
         @media print {
           body * { visibility: hidden; }
           #order-receipt-print, #order-receipt-print * { visibility: visible; }
-          #order-receipt-print { position: absolute; left: 0; top: 0; width: 100%; }
+          #order-receipt-print { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; }
         }
       `}</style>
 
       <div
         id="order-receipt-print"
-        className="mx-auto w-full max-w-sm rounded-xl border border-dashed border-border bg-card p-5 font-mono text-xs"
+        className="mx-auto w-full max-w-sm rounded-sm border border-neutral-200 bg-white p-5 font-mono text-[13px] leading-snug text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.15)] print:border-0 print:shadow-none"
       >
         <div className="text-center">
-          <p className="text-sm font-semibold">{storeName}</p>
-          <p className="mt-1 text-muted-foreground">Чек №{orderNumber}</p>
-          {date && <p className="text-muted-foreground">{date.toLocaleString('ru-RU')}</p>}
+          <p className="text-sm font-bold uppercase tracking-wide">{storeName}</p>
+          <div className="my-2 border-t border-dashed border-neutral-400" />
+          <p>{dict.checkNumber}{orderNumber}</p>
+          {date && <p>{date.toLocaleString(dateLocale)}</p>}
         </div>
 
-        <div className="my-3 border-t border-dashed border-border" />
+        <div className="my-3 border-t border-dashed border-neutral-400" />
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {items.map((it, idx) => (
             <div key={idx} className="flex flex-col gap-0.5">
               <div className="flex justify-between gap-2">
-                <span className="truncate">
+                <span>
                   {it.name}
                   {it.variantLabel ? ` (${it.variantLabel})` : ''}
                 </span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
+              {it.sku && <p className="text-[11px] text-neutral-500">SKU {it.sku}</p>}
+              <div className="flex justify-between text-neutral-600">
                 <span>
                   {it.quantity} × {formatPrice(it.price, currency)}
                 </span>
@@ -81,48 +90,41 @@ export function OrderReceipt({
           ))}
         </div>
 
-        <div className="my-3 border-t border-dashed border-border" />
+        <div className="my-3 border-t border-dashed border-neutral-400" />
 
         <div className="flex flex-col gap-1">
           <div className="flex justify-between">
-            <span>Товары</span>
+            <span>{dict.goods}</span>
             <span>{formatPrice(itemsTotal, currency)}</span>
           </div>
           {discountTotal > 0 && (
             <div className="flex justify-between">
-              <span>Скидка</span>
+              <span>{dict.discount}</span>
               <span>−{formatPrice(discountTotal, currency)}</span>
             </div>
           )}
           {deliveryCost > 0 && (
             <div className="flex justify-between">
-              <span>Доставка</span>
+              <span>{dict.delivery}</span>
               <span>{formatPrice(deliveryCost, currency)}</span>
             </div>
           )}
-          <div className="mt-1 flex justify-between border-t border-dashed border-border pt-1 text-sm font-semibold">
-            <span>Итого</span>
+          <div className="mt-1 flex justify-between border-t border-dashed border-neutral-400 pt-1 text-sm font-bold">
+            <span>{dict.total.toUpperCase()}</span>
             <span>{formatPrice(total, currency)}</span>
           </div>
         </div>
 
-        <div className="my-3 border-t border-dashed border-border" />
+        <div className="my-3 border-t border-dashed border-neutral-400" />
 
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element -- inline
               data: URL, Next/Image's optimizer can't handle it and it isn't needed for a tiny 240px QR. */}
           <img src={qrDataUrl} alt="QR" className="size-28" />
-          <p className="flex items-center gap-1 text-center text-[10px] text-muted-foreground">
-            {isFiscal ? (
-              <>
-                <ShieldCheck className="size-3" /> Фискальный чек платёжной системы
-              </>
-            ) : (
-              <>
-                <QrCode className="size-3" /> Нефискальный чек — QR ведёт на сайт магазина
-              </>
-            )}
+          <p className="text-center text-[10px] uppercase tracking-wide text-neutral-500">
+            {isFiscal ? dict.fiscalLabel : dict.nonFiscalLabel}
           </p>
+          <p className="text-center text-xs font-semibold">{dict.thankYou}</p>
         </div>
       </div>
 
@@ -132,7 +134,7 @@ export function OrderReceipt({
         className="mx-auto gap-2 print:hidden"
         onClick={() => window.print()}
       >
-        <Printer className="size-4" /> Распечатать чек
+        <Printer className="size-4" /> {dict.print}
       </Button>
     </div>
   )

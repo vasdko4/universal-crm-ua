@@ -226,6 +226,7 @@ export default async function MyOrderDetailPage({
           currency={order.currency}
           isFiscal={receipt.isFiscal}
           qrDataUrl={receipt.qrDataUrl}
+          locale={locale}
         />
       )}
     </div>

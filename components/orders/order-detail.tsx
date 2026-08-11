@@ -260,6 +260,7 @@ export function OrderDetail({
               currency={order.currency}
               isFiscal={receipt.isFiscal}
               qrDataUrl={receipt.qrDataUrl}
+              locale={locale}
             />
           )}
 
