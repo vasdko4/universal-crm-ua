@@ -80,7 +80,6 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             <SiteHeader
               storeName={storeName}
               logoUrl={settings?.logoUrl ?? null}
-              phone={settings?.contact.phones.find((p) => p && p.trim()) ?? null}
               categories={categories}
               googleAuthEnabled={googleAuthEnabled}
             />

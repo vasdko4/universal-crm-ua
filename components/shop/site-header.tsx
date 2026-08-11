@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ShoppingCart, User, Phone, Heart } from 'lucide-react'
+import { ShoppingCart, User, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CartDrawer } from '@/components/shop/cart-drawer'
 import { SearchBox } from '@/components/shop/search-box'
@@ -27,13 +27,11 @@ export type HeaderCategory = {
 export function SiteHeader({
   storeName,
   logoUrl,
-  phone,
   categories,
   googleAuthEnabled = false,
 }: {
   storeName: string
   logoUrl: string | null
-  phone: string | null
   categories: HeaderCategory[]
   googleAuthEnabled?: boolean
 }) {
@@ -72,15 +70,6 @@ export function SiteHeader({
 
         {/* Actions */}
         <div className="ml-auto flex items-center gap-1">
-          {phone && (
-            <a
-              href={`tel:${phone}`}
-              className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-accent xl:flex"
-            >
-              <Phone className="size-4" />
-              {phone}
-            </a>
-          )}
           <div className="hidden lg:block">
             <LocaleSwitcher />
           </div>
