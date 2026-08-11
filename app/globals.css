@@ -32,15 +32,6 @@
   --sidebar-accent: oklch(0.3 0.02 260);
   --sidebar-primary: oklch(0.7 0.11 190);
   --radius: 0.5rem;
-
-  /* Catalog/categories navigation accent — a distinct purple used only for
-     the catalog trigger button and category mega-menu/mobile panel, so it
-     stays visually consistent (Prom/zhuk.ua style) regardless of which
-     storefront color template is active. Not used for any other UI. */
-  --category-accent: #7a1f78;
-  --category-accent-hover: #641d63;
-  --category-accent-soft: #f6ecf6;
-  --category-accent-foreground: #ffffff;
 }
 
 @theme inline {
