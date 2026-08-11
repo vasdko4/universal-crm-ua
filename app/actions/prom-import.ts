@@ -13,6 +13,7 @@ import {
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { assertPermission } from '@/lib/session'
+import { generateUniqueSlug } from '@/lib/product-slug'
 import {
   fetchListingPage,
   fetchProduct,
@@ -350,19 +351,32 @@ export async function continuePromImport(taskId: number) {
       // is always present, so it's tried first and is the reliable key;
       // SKU is kept as a fallback for rows imported before this field
       // existed.
-      const existing: { id: number }[] = await db
-        .select({ id: products.id })
+      const existing: { id: number; slug: string | null }[] = await db
+        .select({ id: products.id, slug: products.slug })
         .from(products)
         .where(and(eq(products.promId, item.id), isNull(products.deletedAt)))
         .limit(1)
       if (existing.length === 0 && sku) {
         const bySku = await db
-          .select({ id: products.id })
+          .select({ id: products.id, slug: products.slug })
           .from(products)
           .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
           .limit(1)
         existing.push(...bySku)
       }
+
+      // Every product needs a working `/product/<slug>` URL — without one,
+      // the storefront falls back to the numeric id (see getShopProducts in
+      // lib/shop/queries.ts) and the product detail page's legacy-numeric-id
+      // redirect immediately bounces back to that same numeric "slug",
+      // looping forever instead of showing the page. Re-imports keep the
+      // existing slug (so published links/SEO never change); only a
+      // genuinely new product or a pre-existing row that never got one
+      // generates a fresh slug here.
+      const slug =
+        existing.length > 0 && existing[0].slug
+          ? existing[0].slug
+          : await generateUniqueSlug(p.nameUk || p.nameRu || sku || `prom-${item.id}`, item.id, existing[0]?.id)
 
       // A product with a size/color choice is only "out of stock" if every
       // choice is — otherwise it showed as unavailable just because the one
@@ -374,8 +388,19 @@ export async function continuePromImport(taskId: number) {
       const values = {
         nameUk: p.nameUk || null,
         nameRu: p.nameRu || null,
+        slug,
         descriptionUk: p.descriptionUk || null,
         descriptionRu: p.descriptionRu || null,
+        // Prom.ua's own auto-generated SEO title/description for this
+        // listing (scraped from the page's <head>, see extractHeadMeta in
+        // lib/prom-import/scraper.ts) — previously left null for every
+        // imported product, so imported listings had no SEO text at all.
+        // metaTitleUk/Ru are varchar(255) — Prom's rendered <title> includes
+        // price/seller/marketplace suffixes and can run past that.
+        metaTitleUk: p.metaTitleUk ? p.metaTitleUk.slice(0, 255) : null,
+        metaTitleRu: p.metaTitleRu ? p.metaTitleRu.slice(0, 255) : null,
+        metaDescriptionUk: p.metaDescriptionUk || null,
+        metaDescriptionRu: p.metaDescriptionRu || null,
         sku,
         promId: item.id,
         price: String(p.price ?? 0),

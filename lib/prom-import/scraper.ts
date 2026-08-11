@@ -45,6 +45,15 @@ export type PromProduct = {
   // Sibling size/color choices for this product (from ProductVariationQuery),
   // excluding this product itself. Empty when the product has no variants.
   variationItems: PromVariationItem[]
+  // Prom.ua's own auto-generated `<title>`/`<meta name="description">` for
+  // this listing (per language) — not present in the ApolloCacheState blob,
+  // only in the rendered `<head>`, so these are pulled straight from the
+  // fetched HTML. Used to seed this store's SEO meta fields instead of
+  // leaving them empty for every imported product.
+  metaTitleUk: string
+  metaTitleRu: string
+  metaDescriptionUk: string
+  metaDescriptionRu: string
 }
 
 /** Fetch a URL as a signed-out browser would, following redirects, with retries. */
@@ -196,6 +205,29 @@ function parseProductCard(p: any) {
   }
 }
 
+// Decodes the small set of HTML entities Prom.ua's SSR'd <title>/<meta>
+// tags actually use (product names/prices), without pulling in a full HTML
+// entity-decoding library for this one narrow use.
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+}
+
+/** Pulls the rendered `<title>` and `<meta name="description">` out of a fetched product page. */
+function extractHeadMeta(html: string): { title: string; description: string } {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/)
+  const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/)
+  return {
+    title: titleMatch ? decodeHtmlEntities(titleMatch[1]).trim() : '',
+    description: descMatch ? decodeHtmlEntities(descMatch[1]).trim() : '',
+  }
+}
+
 /** Product path as used on listing pages, e.g. `/ua/p3064633501-slug.html`. */
 export function productPath(item: PromListItem): string {
   return `/ua/p${item.id}-${item.urlText}.html`
@@ -217,6 +249,9 @@ export async function fetchProduct(origin: string, item: PromListItem): Promise<
   const fetchedRu = await fetchHtml(urlRu, 'ru,uk;q=0.8')
   const pRu = fetchedRu ? parseProductCard(getProductCard(extractApolloState(fetchedRu.html) ?? {})) : null
 
+  const metaUk = fetchedUk ? extractHeadMeta(fetchedUk.html) : { title: '', description: '' }
+  const metaRu = fetchedRu ? extractHeadMeta(fetchedRu.html) : { title: '', description: '' }
+
   return {
     promId: pUk.promId,
     nameUk: pUk.name,
@@ -232,6 +267,10 @@ export async function fetchProduct(origin: string, item: PromListItem): Promise<
     breadcrumbsRu: pRu?.breadcrumbs || pUk.breadcrumbs,
     attributesUk: pUk.attributes,
     variationItems,
+    metaTitleUk: metaUk.title,
+    metaTitleRu: metaRu.title || metaUk.title,
+    metaDescriptionUk: metaUk.description,
+    metaDescriptionRu: metaRu.description || metaUk.description,
   }
 }
 

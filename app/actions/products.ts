@@ -15,30 +15,7 @@ import { assertPermission } from '@/lib/session'
 import { revalidateStorefront } from '@/lib/shop/cache'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
-import { slugify } from '@/lib/slug'
-
-// Generates the human-readable `/product/<slug>` URL segment from the
-// product name, disambiguating same-name products with a numeric suffix
-// (`-2`, `-3`, ...). `excludeId` skips the row being updated so re-saving a
-// product without a name change doesn't collide with itself.
-async function generateUniqueSlug(name: string, fallbackId: number, excludeId?: number): Promise<string> {
-  const base = slugify(name) || `product-${fallbackId}`
-  let candidate = base
-  let n = 2
-  for (;;) {
-    const clash = await db
-      .select({ id: products.id })
-      .from(products)
-      .where(
-        excludeId != null
-          ? and(eq(products.slug, candidate), ne(products.id, excludeId))
-          : eq(products.slug, candidate),
-      )
-      .limit(1)
-    if (clash.length === 0) return candidate
-    candidate = `${base}-${n++}`
-  }
-}
+import { generateUniqueSlug } from '@/lib/product-slug'
 
 export type VariantInput = {
   options: VariantOptions
