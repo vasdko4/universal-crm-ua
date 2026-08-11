@@ -4,7 +4,7 @@ import { CatalogToolbar } from '@/components/shop/catalog-toolbar'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
 import { CatalogCategoriesMobile } from '@/components/shop/catalog-categories-mobile'
 import { JsonLd } from '@/components/shop/json-ld'
-import { getCatalogProducts, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
+import { getCatalogProducts, getPriceBounds, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { localizedPath } from '@/lib/i18n/config'
@@ -68,9 +68,10 @@ export default async function CatalogPage({
   const sp = await searchParams
   const { locale, dict } = await getServerDictionary()
   const params = { ...parseParams(sp), page: 1 }
-  const [{ items, total, page, perPage }, categories] = await Promise.all([
+  const [{ items, total, page, perPage }, categories, priceBounds] = await Promise.all([
     getCatalogProducts({ ...params, locale }),
     getShopCategories(locale),
+    getPriceBounds({ search: params.search }),
   ])
   // On mobile the catalog acts as a category directory; the product grid is
   // shown on mobile only when the user is searching or filtering.
@@ -132,7 +133,7 @@ export default async function CatalogPage({
       )}
 
       <div className={showCategoriesOnMobile ? 'hidden space-y-6 lg:block' : 'space-y-6'}>
-        <CatalogToolbar total={total} />
+        <CatalogToolbar total={total} priceBounds={priceBounds} />
 
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border py-20 text-center">

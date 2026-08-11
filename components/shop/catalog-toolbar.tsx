@@ -16,7 +16,16 @@ import {
 import { SlidersHorizontal, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/client'
 
-export function CatalogToolbar({ total }: { total: number }) {
+export function CatalogToolbar({
+  total,
+  priceBounds,
+}: {
+  total: number
+  /** Real min/max price across the products this filter currently applies
+   *  to, shown as placeholders so "від"/"до" reflect actual available
+   *  prices instead of empty boxes. */
+  priceBounds?: { min: number; max: number }
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -120,13 +129,21 @@ export function CatalogToolbar({ total }: { total: number }) {
                   applyPrice()
                 }}
               >
-                <p className="text-sm font-medium text-foreground">{dict.catalog.price}, ₴</p>
+                <p className="text-sm font-medium text-foreground">
+                  {dict.catalog.price}, ₴
+                  {priceBounds && priceBounds.max > priceBounds.min && (
+                    <span className="ml-1 font-normal text-muted-foreground">
+                      ({priceBounds.min} – {priceBounds.max})
+                    </span>
+                  )}
+                </p>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     inputMode="numeric"
-                    min={0}
-                    placeholder={dict.catalog.priceFrom}
+                    min={priceBounds?.min ?? 0}
+                    max={priceBounds?.max}
+                    placeholder={priceBounds ? String(priceBounds.min) : dict.catalog.priceFrom}
                     value={draftMin}
                     onChange={(e) => setDraftMin(e.target.value)}
                     aria-label={dict.catalog.priceFrom}
@@ -135,8 +152,9 @@ export function CatalogToolbar({ total }: { total: number }) {
                   <Input
                     type="number"
                     inputMode="numeric"
-                    min={0}
-                    placeholder={dict.catalog.priceTo}
+                    min={priceBounds?.min ?? 0}
+                    max={priceBounds?.max}
+                    placeholder={priceBounds ? String(priceBounds.max) : dict.catalog.priceTo}
                     value={draftMax}
                     onChange={(e) => setDraftMax(e.target.value)}
                     aria-label={dict.catalog.priceTo}

@@ -339,6 +339,46 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   }
 }
 
+/**
+ * Min/max price across the products the price filter actually applies to
+ * (same visibility + category scope as getCatalogProducts, minus the price
+ * filter itself), so the "від"/"до" filter can show real, currently
+ * available bounds instead of empty placeholders.
+ */
+export function getPriceBounds(params: { categoryId?: number; search?: string } = {}) {
+  return unstable_cache(() => _getPriceBounds(params), ['catalog-price-bounds', JSON.stringify(params)], {
+    tags: [CACHE_TAGS.catalog],
+    revalidate: STOREFRONT_TTL,
+  })()
+}
+
+async function _getPriceBounds(params: { categoryId?: number; search?: string } = {}) {
+  const conditions = [baseWhere]
+  if (params.search) {
+    const s = `%${params.search}%`
+    conditions.push(or(ilike(products.nameRu, s), ilike(products.nameUk, s), ilike(products.sku, s))!)
+  }
+  if (params.categoryId) {
+    const categoryIds = await getCategoryAndDescendantIds(params.categoryId)
+    const rows = await db
+      .select({ pid: productCategory.productId })
+      .from(productCategory)
+      .where(inArray(productCategory.categoryId, categoryIds))
+    const idFilter = rows.map((r) => r.pid)
+    if (idFilter.length === 0) return { min: 0, max: 0 }
+    conditions.push(inArray(products.id, idFilter))
+  }
+  const where = and(...conditions)
+  const [row] = await db
+    .select({
+      min: sql<number>`floor(min(${products.price}))::int`,
+      max: sql<number>`ceil(max(${products.price}))::int`,
+    })
+    .from(products)
+    .where(where)
+  return { min: row?.min ?? 0, max: row?.max ?? 0 }
+}
+
 export function getPopularProducts(limit = 8, locale: Locale = 'uk') {
   return unstable_cache(() => _getPopularProducts(limit, locale), ['popular', String(limit), locale], {
     tags: [CACHE_TAGS.catalog],

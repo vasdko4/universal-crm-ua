@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { CatalogToolbar } from '@/components/shop/catalog-toolbar'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
 import { JsonLd } from '@/components/shop/json-ld'
-import { getCatalogProducts, getCategoryById, type CatalogParams } from '@/lib/shop/queries'
+import { getCatalogProducts, getCategoryById, getPriceBounds, type CatalogParams } from '@/lib/shop/queries'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { getCanonicalSiteUrl, toAbsolute } from '@/lib/seo'
@@ -81,7 +81,10 @@ export default async function CategoryPage({
     perPage: 12,
     locale,
   }
-  const { items, total, page, perPage } = await getCatalogProducts(catalogParams)
+  const [{ items, total, page, perPage }, priceBounds] = await Promise.all([
+    getCatalogProducts(catalogParams),
+    getPriceBounds({ categoryId }),
+  ])
 
   // Product listing structured data helps this category surface in search.
   const itemListLd = {
@@ -113,7 +116,7 @@ export default async function CategoryPage({
       )}
 
       <div className="space-y-6">
-        <CatalogToolbar total={total} />
+        <CatalogToolbar total={total} priceBounds={priceBounds} />
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border py-20 text-center">
             <p className="text-muted-foreground">{dict.catalog.nothingFound}</p>
