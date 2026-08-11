@@ -114,6 +114,20 @@ export type HomeHeroSettings = {
   ru: HomeHeroLocaleContent
 }
 
+// Блок из 4 карточек-преимуществ под hero-блоком главной страницы (иконки
+// доставки/гарантии/оплаты/поддержки фиксированы по позиции, тексты
+// редактируются). Настраивается в Настройки → Главная страница. Пустая
+// строка = встроенный текст по умолчанию для соответствующего языка.
+export type HomeBenefitItem = {
+  title: string
+  text: string
+}
+
+export type HomeBenefitsSettings = {
+  uk: HomeBenefitItem[]
+  ru: HomeBenefitItem[]
+}
+
 export type StoreSettingsData = {
   storeName: string
   storeDescription: string | null
@@ -176,6 +190,7 @@ export type StoreSettingsData = {
   notifications: NotificationSettings
   googleAuth: GoogleAuthSettings
   homeHero: HomeHeroSettings
+  homeBenefits: HomeBenefitsSettings
   minOrder: MinOrderSettings
 }
 
@@ -249,6 +264,20 @@ export const DEFAULTS: StoreSettingsData = {
     uk: { badge: '', title: '', text: '', buttonText: '' },
     ru: { badge: '', title: '', text: '', buttonText: '' },
   },
+  homeBenefits: {
+    uk: [
+      { title: '', text: '' },
+      { title: '', text: '' },
+      { title: '', text: '' },
+      { title: '', text: '' },
+    ],
+    ru: [
+      { title: '', text: '' },
+      { title: '', text: '' },
+      { title: '', text: '' },
+      { title: '', text: '' },
+    ],
+  },
   minOrder: { enabled: false, amount: 0 },
   contact: {
     phones: [''],
@@ -321,6 +350,7 @@ export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
       ...((row.googleAuth ?? {}) as Partial<GoogleAuthSettings>),
     },
     homeHero: mergeHomeHero(row.homeHero as Partial<HomeHeroSettings> | null),
+    homeBenefits: mergeHomeBenefits(row.homeBenefits as Partial<HomeBenefitsSettings> | null),
     minOrder: {
       ...DEFAULTS.minOrder,
       ...((row.minOrder ?? {}) as Partial<MinOrderSettings>),
@@ -336,6 +366,19 @@ function mergeHomeHero(stored: Partial<HomeHeroSettings> | null | undefined): Ho
     imageUrl: stored.imageUrl ?? '',
     uk: { ...DEFAULTS.homeHero.uk, ...(stored.uk ?? {}) },
     ru: { ...DEFAULTS.homeHero.ru, ...(stored.ru ?? {}) },
+  }
+}
+
+// Deep-merge stored benefit cards over defaults, per-item, so a partially
+// saved array (e.g. only the first card's title changed) still resolves to
+// 4 complete items per locale.
+function mergeHomeBenefits(stored: Partial<HomeBenefitsSettings> | null | undefined): HomeBenefitsSettings {
+  if (!stored) return DEFAULTS.homeBenefits
+  const mergeLocale = (defaults: HomeBenefitItem[], items: HomeBenefitItem[] | undefined) =>
+    defaults.map((d, i) => ({ ...d, ...(items?.[i] ?? {}) }))
+  return {
+    uk: mergeLocale(DEFAULTS.homeBenefits.uk, stored.uk),
+    ru: mergeLocale(DEFAULTS.homeBenefits.ru, stored.ru),
   }
 }
 

@@ -621,6 +621,7 @@ CREATE TABLE IF NOT EXISTS "store_settings" (
   "notifications" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "google_auth" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "home_hero" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "home_benefits" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "updated_at" timestamptz DEFAULT now(),
   PRIMARY KEY ("id")
 );
@@ -735,6 +736,7 @@ ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS contact jsonb NOT NUL
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS seo jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS notifications jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS home_hero jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS home_benefits jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE public.modal_ads ADD COLUMN IF NOT EXISTS button_color varchar(20) NOT NULL DEFAULT '';
 
 -- Abandoned carts: visitors who started checkout but never placed the order

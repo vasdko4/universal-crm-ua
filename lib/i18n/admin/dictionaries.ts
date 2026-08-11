@@ -435,6 +435,10 @@ export type AdminDictionary = {
     heroButtonHint: string
     heroImageLabel: string
     heroImageHint: string
+    benefitsTitle: string
+    benefitsDesc: string
+    benefitTitleLabel: string
+    benefitTextLabel: string
     domainLabel: string
     domainHint: string
     metaTitleLabel: string
@@ -2032,6 +2036,11 @@ const uk: AdminDictionary = {
     heroImageLabel: 'Картинка hero-блоку',
     heroImageHint:
       'Завантажте зображення з пристрою або вставте посилання. Порожньо — стандартна картинка. Спільна для обох мов, рекомендоване співвідношення 4:3.',
+    benefitsTitle: 'Блок переваг',
+    benefitsDesc:
+      '4 картки під hero-блоком (доставка, гарантія, оплата, підтримка). Іконки фіксовані, тексти редагуються. Порожні поля показують стандартний текст.',
+    benefitTitleLabel: 'Заголовок',
+    benefitTextLabel: 'Опис',
     domainLabel: 'Домен магазину',
     domainHint:
       'Канонічна адреса сайту. Використовується в sitemap.xml, robots.txt, канонічних посиланнях та Open Graph. Якщо порожньо — визначається автоматично за хостингом.',
@@ -3650,6 +3659,11 @@ const ru: AdminDictionary = {
     heroImageLabel: 'Картинка hero-блока',
     heroImageHint:
       'Загрузите изображение с устройства или вставьте ссылку. Пусто — стандартная картинка. Общая для обоих языков, рекомендуемое соотношение 4:3.',
+    benefitsTitle: 'Блок преимуществ',
+    benefitsDesc:
+      '4 карточки под hero-блоком (доставка, гарантия, оплата, поддержка). Иконки фиксированы, тексты редактируются. Пустые поля показывают стандартный текст.',
+    benefitTitleLabel: 'Заголовок',
+    benefitTextLabel: 'Описание',
     domainLabel: 'Домен магазина',
     domainHint:
       'Канонический адрес сайта. Используется в sitemap.xml, robots.txt, канонических ссылках и Open Graph. Если пусто — определяется автоматически по хостингу.',

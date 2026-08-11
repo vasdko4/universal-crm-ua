@@ -90,8 +90,17 @@ export default async function HomePage() {
   }
   const heroImageUrl = settings?.homeHero?.imageUrl?.trim() || undefined
 
+  // Admin-configured benefit cards (Настройки → Главная страница) override
+  // the built-in defaults per field; empty title/text fall back to
+  // HOME_CONTENT so a fresh install (or partially filled admin form) still
+  // shows complete cards.
   const benefitIcons = [Truck, ShieldCheck, CreditCard, Headphones]
-  const benefits = c.benefits.map((b, i) => ({ ...b, icon: benefitIcons[i] }))
+  const benefitOverrides = settings?.homeBenefits?.[locale]
+  const benefits = c.benefits.map((b, i) => ({
+    title: benefitOverrides?.[i]?.title?.trim() || b.title,
+    text: benefitOverrides?.[i]?.text?.trim() || b.text,
+    icon: benefitIcons[i],
+  }))
 
   const storeName = settings?.storeName || 'Интернет-магазин электроники'
   const lp = (path: string) => localizedPath(path, locale)

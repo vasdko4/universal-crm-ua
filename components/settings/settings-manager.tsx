@@ -52,6 +52,7 @@ import {
   clearSiteCache,
   updateStoreSettings,
   type HomeHeroLocaleContent,
+  type HomeBenefitItem,
   type StoreSettingsData,
   type WeekDay,
   type WidgetChannelKey,
@@ -370,6 +371,53 @@ function HomepageSection({ data, setData, t }: SectionProps) {
         value={data.homeHero.imageUrl || null}
         onChange={(v) => setData((d) => ({ ...d, homeHero: { ...d.homeHero, imageUrl: v } }))}
       />
+
+      <div className="mt-4 flex flex-col gap-4 border-t border-border pt-6">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{t.benefitsTitle}</h2>
+          <p className="text-sm text-muted-foreground">{t.benefitsDesc}</p>
+        </div>
+        {data.homeBenefits[heroLocale].map((item, i) => (
+          <div key={i} className="flex flex-col gap-2 rounded-lg border border-border p-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`benefit-title-${i}`}>{t.benefitTitleLabel}</Label>
+              <Input
+                id={`benefit-title-${i}`}
+                value={item.title}
+                onChange={(e) =>
+                  setData((d) => ({
+                    ...d,
+                    homeBenefits: {
+                      ...d.homeBenefits,
+                      [heroLocale]: d.homeBenefits[heroLocale].map((it, idx) =>
+                        idx === i ? { ...it, title: e.target.value } : it,
+                      ) as HomeBenefitItem[],
+                    },
+                  }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`benefit-text-${i}`}>{t.benefitTextLabel}</Label>
+              <Input
+                id={`benefit-text-${i}`}
+                value={item.text}
+                onChange={(e) =>
+                  setData((d) => ({
+                    ...d,
+                    homeBenefits: {
+                      ...d.homeBenefits,
+                      [heroLocale]: d.homeBenefits[heroLocale].map((it, idx) =>
+                        idx === i ? { ...it, text: e.target.value } : it,
+                      ) as HomeBenefitItem[],
+                    },
+                  }))
+                }
+              />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

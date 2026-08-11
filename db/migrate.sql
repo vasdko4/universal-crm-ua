@@ -167,3 +167,7 @@ FROM ranked r
 WHERE r.id = p.id;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON "products" ("slug");
+
+-- Блок из 4 карточек-преимуществ на главной странице (доставка/гарантия/
+-- оплата/поддержка) — тексты uk/ru, редактируется в Настройки → Главная.
+ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "home_benefits" jsonb DEFAULT '{}'::jsonb NOT NULL;

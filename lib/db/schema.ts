@@ -617,6 +617,9 @@ export const storeSettings = pgTable('store_settings', {
   googleAuth: jsonb('google_auth').notNull().default({}),
   // Hero-блок главной страницы (тексты uk/ru + картинка), Настройки → Главная.
   homeHero: jsonb('home_hero').notNull().default({}),
+  // Блок из 4 карточек-преимуществ на главной (доставка/гарантия/оплата/
+  // поддержка) — тексты uk/ru, Настройки → Главная страница.
+  homeBenefits: jsonb('home_benefits').notNull().default({}),
   // Доп. поля Google Merchant Center фида (категория товара, ставка доставки)
   // — Настройки → Google Ads. См. app/feed/google-merchant.xml/route.ts.
   merchantFeed: jsonb('merchant_feed').notNull().default({}),
