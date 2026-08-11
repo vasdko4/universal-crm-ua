@@ -5,7 +5,6 @@ import { ArrowLeft, User, Phone, Mail, Truck, MapPin, Package } from 'lucide-rea
 import { getMyOrderDetail } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
 import { getOrderStatusLabel, getPaymentStatusLabel, getDeliveryMethodLabel } from '@/lib/order-status'
-import { OrderReceiptSection } from '@/components/orders/order-receipt-section'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 
 function InfoRow({
@@ -36,7 +35,7 @@ export default async function MyOrderDetailPage({
   const { id } = await params
   const [data, locale] = await Promise.all([getMyOrderDetail(Number(id)), getLocale()])
   if (!data) notFound()
-  const { order, items, productSlugs, receipt } = data
+  const { order, items, productSlugs } = data
   const dict = getDictionary(locale)
   const t = dict.account
 
@@ -206,29 +205,6 @@ export default async function MyOrderDetailPage({
         </div>
       </div>
 
-      {receipt && (
-        <OrderReceiptSection
-          storeName={receipt.storeName}
-          orderNumber={order.orderNumber}
-          createdAt={order.createdAt}
-          items={items.map((i) => ({
-            name: i.name,
-            variantLabel: i.variantLabel,
-            sku: i.sku,
-            price: Number(i.price),
-            quantity: i.quantity,
-            total: Number(i.total),
-          }))}
-          itemsTotal={Number(order.itemsTotal)}
-          discountTotal={Number(order.discountTotal)}
-          deliveryCost={Number(order.deliveryCost)}
-          total={Number(order.total)}
-          currency={order.currency}
-          isFiscal={receipt.isFiscal}
-          qrDataUrl={receipt.qrDataUrl}
-          locale={locale}
-        />
-      )}
     </div>
   )
 }
