@@ -9,10 +9,12 @@ import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 
 /**
- * Desktop category dropdown in the Prom.ua style: a "Каталог" trigger opens a
- * single vertical list of all top-level categories (with a highlighted "Акції"
- * row on top). Hovering a category that has children reveals a flyout panel to
- * the right with its subcategories.
+ * Desktop category dropdown, zhuk.ua style: a purple "Каталог" trigger opens
+ * a two-pane panel — a fixed-width vertical list of all top-level categories
+ * on the left (with a highlighted "Акції" row on top), and, for the hovered
+ * category, its subcategories laid out as several parallel columns (one per
+ * child, its grandchildren listed underneath) on the right — rather than a
+ * single nested list.
  */
 export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] }) {
   const { dict, locale } = useI18n()
@@ -38,10 +40,10 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
         onMouseEnter={() => setOpen(true)}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        className="flex items-center gap-2 rounded-lg bg-[var(--category-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--category-accent-foreground)] transition-colors hover:bg-[var(--category-accent-hover)]"
       >
         <LayoutGrid className="size-4" />
-        {dict.nav.categories}
+        {dict.nav.catalog}
         <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
       </button>
 
@@ -58,7 +60,7 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
                   onMouseEnter={() => setActiveId(null)}
                   className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
                 >
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--category-accent)] text-[var(--category-accent-foreground)]">
                     <Percent className="size-3.5" />
                   </span>
                   {dict.nav.promotions}
@@ -76,59 +78,68 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
                       className={cn(
                         'flex items-center justify-between gap-2 px-4 py-2.5 text-sm transition-colors',
                         activeId === c.id
-                          ? 'bg-accent text-accent-foreground'
+                          ? 'bg-[var(--category-accent-soft)] font-medium text-[var(--category-accent)]'
                           : 'text-foreground hover:bg-accent/60',
                       )}
                     >
                       <span className="truncate">{c.name}</span>
-                      {hasChildren && <ChevronRight className="size-4 shrink-0 opacity-60" />}
+                      {hasChildren && (
+                        <ChevronRight
+                          className={cn(
+                            'size-4 shrink-0',
+                            activeId === c.id ? 'text-[var(--category-accent)]' : 'opacity-60',
+                          )}
+                        />
+                      )}
                     </Link>
                   </li>
                 )
               })}
             </ul>
 
-            {/* Flyout with children (and grandchildren) of the hovered category */}
+            {/* Multi-column flyout: each child of the hovered category gets
+                its own column (header + its own children below), matching
+                zhuk.ua's layout instead of a single nested list. */}
             {activeChildren.length > 0 && (
-              <div className="max-h-[70vh] w-96 overflow-y-auto border-l border-border p-4">
+              <div className="flex max-h-[70vh] w-[46rem] flex-col overflow-y-auto border-l border-border p-5">
                 <Link
                   href={lp(`/category/${activeId}`)}
                   onClick={close}
-                  className="mb-2 inline-block text-sm font-semibold text-primary hover:underline"
+                  className="mb-3 inline-block w-fit text-sm font-semibold text-[var(--category-accent)] hover:underline"
                 >
-                  {dict.nav.goToCategory}
+                  {dict.nav.goToCategory} →
                 </Link>
-                <ul className="flex flex-col gap-1">
-                  {activeChildren.map((c) => {
-                    const grandChildren = childrenOf(c.id)
-                    return (
-                      <li key={c.id}>
-                        <Link
-                          href={lp(`/category/${c.id}`)}
-                          onClick={close}
-                          className="block rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                        >
-                          {c.name}
-                        </Link>
-                        {grandChildren.length > 0 && (
-                          <ul className="flex flex-col">
-                            {grandChildren.map((g) => (
-                              <li key={g.id}>
-                                <Link
-                                  href={lp(`/category/${g.id}`)}
-                                  onClick={close}
-                                  className="block rounded-md py-1.5 pl-6 pr-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                >
-                                  {g.name}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
+                <div className="grid auto-cols-[minmax(11rem,1fr)] grid-flow-col grid-rows-1 gap-x-8 overflow-x-auto">
+                {activeChildren.map((c) => {
+                  const grandChildren = childrenOf(c.id)
+                  return (
+                    <div key={c.id} className="flex flex-col gap-1 pb-4">
+                      <Link
+                        href={lp(`/category/${c.id}`)}
+                        onClick={close}
+                        className="mb-1 block text-sm font-semibold text-foreground transition-colors hover:text-[var(--category-accent)]"
+                      >
+                        {c.name}
+                      </Link>
+                      {grandChildren.length > 0 && (
+                        <ul className="flex flex-col gap-1.5">
+                          {grandChildren.map((g) => (
+                            <li key={g.id}>
+                              <Link
+                                href={lp(`/category/${g.id}`)}
+                                onClick={close}
+                                className="block text-sm text-muted-foreground transition-colors hover:text-[var(--category-accent)]"
+                              >
+                                {g.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                })}
+                </div>
               </div>
             )}
           </div>

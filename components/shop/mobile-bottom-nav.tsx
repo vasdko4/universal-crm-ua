@@ -73,6 +73,15 @@ export function MobileBottomNav({
       active ? 'text-primary' : 'text-muted-foreground',
     )
 
+  // The catalog/categories tab gets the same dedicated purple accent as the
+  // desktop mega-menu button, instead of the theme's --primary, so tapping
+  // it feels like one consistent "catalog" experience across devices.
+  const catalogItemClass = (active: boolean) =>
+    cn(
+      'flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium transition-colors',
+      active ? 'text-[var(--category-accent)]' : 'text-muted-foreground',
+    )
+
   const badge = (n: number) =>
     n > 0 ? (
       <span className="absolute -right-2 -top-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
@@ -113,7 +122,7 @@ export function MobileBottomNav({
             <SheetTrigger asChild>
               <button
                 type="button"
-                className={itemClass(
+                className={catalogItemClass(
                   innerPathname.startsWith('/catalog') || innerPathname.startsWith('/category'),
                 )}
               >
@@ -127,7 +136,9 @@ export function MobileBottomNav({
               className="bottom-auto flex max-h-[calc(100dvh-4.5rem)] flex-col rounded-b-2xl p-0"
             >
               <SheetHeader className="border-b border-border px-4 py-3">
-                <SheetTitle className="text-base">{dict.nav.categories}</SheetTitle>
+                <SheetTitle className="text-base text-[var(--category-accent)]">
+                  {dict.nav.catalog}
+                </SheetTitle>
               </SheetHeader>
               <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-3">
                 <CatalogCategoriesMobile categories={categories} locale={locale} className="flex flex-col gap-3" />

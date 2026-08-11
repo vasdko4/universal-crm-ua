@@ -98,7 +98,7 @@ export function CatalogCategoriesMobile({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={dict.catalog.searchCategories}
-          className="h-11 w-full rounded-xl border border-border bg-card pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="h-11 w-full rounded-xl border border-border bg-card pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--category-accent)]/40"
           aria-label={dict.catalog.searchCategories}
         />
         {query && (
@@ -173,7 +173,7 @@ export function CatalogCategoriesMobile({
                               className={cn(
                                 'flex items-center gap-2 rounded-lg px-2 py-2 text-sm active:bg-accent',
                                 matchedChildIds?.has(child.id)
-                                  ? 'bg-primary/10 font-medium text-primary'
+                                  ? 'bg-[var(--category-accent-soft)] font-medium text-[var(--category-accent)]'
                                   : 'text-foreground',
                               )}
                             >
@@ -190,7 +190,7 @@ export function CatalogCategoriesMobile({
                     <Link
                       href={lp(`/category/${parent.id}`)}
                       className={cn(
-                        'mt-3 inline-flex items-center text-xs font-semibold text-primary active:underline',
+                        'mt-3 inline-flex items-center text-xs font-semibold text-[var(--category-accent)] active:underline',
                         children.length === 0 && 'mt-0',
                       )}
                     >
