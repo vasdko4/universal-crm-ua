@@ -160,33 +160,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Categories (marketplace layout already shows them in the hero rail) */}
-      {template.layout !== 'marketplace' && topCategories.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
-          <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">{c.categories}</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-            {topCategories.map((c) => (
-              <Link
-                key={c.id}
-                href={lp(`/category/${c.id}`)}
-                className="group flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-5 text-center transition-colors hover:border-primary"
-              >
-                <div className="relative size-16 overflow-hidden rounded-full bg-muted">
-                  {c.image ? (
-                    <Image src={c.image || "/placeholder.svg"} alt={c.name} fill sizes="64px" className="object-cover" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-lg font-bold text-muted-foreground">
-                      {c.name.charAt(0)}
-                    </div>
-                  )}
-                </div>
-                <span className="text-sm font-medium text-foreground group-hover:text-primary">{c.name}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Popular */}
       {popular.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
