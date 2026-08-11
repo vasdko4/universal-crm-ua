@@ -100,6 +100,7 @@ export default async function HomePage() {
     title: benefitOverrides?.[i]?.title?.trim() || b.title,
     text: benefitOverrides?.[i]?.text?.trim() || b.text,
     icon: benefitIcons[i],
+    iconUrl: benefitOverrides?.[i]?.iconUrl?.trim() || '',
   }))
 
   const storeName = settings?.storeName || 'Интернет-магазин электроники'
@@ -143,8 +144,12 @@ export default async function HomePage() {
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {benefits.map((b) => (
             <div key={b.title} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <b.icon className="size-5" />
+              <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+                {b.iconUrl ? (
+                  <Image src={b.iconUrl} alt={b.title} width={40} height={40} className="size-full object-cover" />
+                ) : (
+                  <b.icon className="size-5" />
+                )}
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">{b.title}</h3>

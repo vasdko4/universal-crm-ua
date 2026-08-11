@@ -121,6 +121,10 @@ export type HomeHeroSettings = {
 export type HomeBenefitItem = {
   title: string
   text: string
+  /** Uploaded icon image, replacing the built-in lucide icon for this card
+   *  when set. Empty = use the fixed built-in icon (truck/shield/card/
+   *  headphones, by position). */
+  iconUrl: string
 }
 
 export type HomeBenefitsSettings = {
@@ -264,18 +268,21 @@ export const DEFAULTS: StoreSettingsData = {
     uk: { badge: '', title: '', text: '', buttonText: '' },
     ru: { badge: '', title: '', text: '', buttonText: '' },
   },
+  // Pre-filled with the same text currently hard-coded on the homepage
+  // (app/(shop)/page.tsx HOME_CONTENT.benefits) so the admin form shows the
+  // real current copy instead of empty fields on a fresh install.
   homeBenefits: {
     uk: [
-      { title: '', text: '' },
-      { title: '', text: '' },
-      { title: '', text: '' },
-      { title: '', text: '' },
+      { title: 'Швидка доставка', text: 'Нова Пошта та Укрпошта по всій Україні', iconUrl: '' },
+      { title: 'Гарантія якості', text: 'Офіційна гарантія на всі товари', iconUrl: '' },
+      { title: 'Зручна оплата', text: 'Накладений платіж або онлайн', iconUrl: '' },
+      { title: 'Підтримка 24/7', text: "Завжди на зв'язку та готові допомогти", iconUrl: '' },
     ],
     ru: [
-      { title: '', text: '' },
-      { title: '', text: '' },
-      { title: '', text: '' },
-      { title: '', text: '' },
+      { title: 'Быстрая доставка', text: 'Нова Пошта и Укрпошта по всей Украине', iconUrl: '' },
+      { title: 'Гарантия качества', text: 'Официальная гарантия на все товары', iconUrl: '' },
+      { title: 'Удобная оплата', text: 'Наложенный платёж или онлайн', iconUrl: '' },
+      { title: 'Поддержка 24/7', text: 'Всегда на связи и готовы помочь', iconUrl: '' },
     ],
   },
   minOrder: { enabled: false, amount: 0 },

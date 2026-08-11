@@ -439,6 +439,8 @@ export type AdminDictionary = {
     benefitsDesc: string
     benefitTitleLabel: string
     benefitTextLabel: string
+    benefitIconLabel: string
+    benefitIconHint: string
     domainLabel: string
     domainHint: string
     metaTitleLabel: string
@@ -2041,6 +2043,8 @@ const uk: AdminDictionary = {
       '4 картки під hero-блоком (доставка, гарантія, оплата, підтримка). Іконки фіксовані, тексти редагуються. Порожні поля показують стандартний текст.',
     benefitTitleLabel: 'Заголовок',
     benefitTextLabel: 'Опис',
+    benefitIconLabel: 'Іконка',
+    benefitIconHint: 'Завантажте зображення з пристрою або вставте посилання. Порожньо — стандартна іконка.',
     domainLabel: 'Домен магазину',
     domainHint:
       'Канонічна адреса сайту. Використовується в sitemap.xml, robots.txt, канонічних посиланнях та Open Graph. Якщо порожньо — визначається автоматично за хостингом.',
@@ -3664,6 +3668,8 @@ const ru: AdminDictionary = {
       '4 карточки под hero-блоком (доставка, гарантия, оплата, поддержка). Иконки фиксированы, тексты редактируются. Пустые поля показывают стандартный текст.',
     benefitTitleLabel: 'Заголовок',
     benefitTextLabel: 'Описание',
+    benefitIconLabel: 'Иконка',
+    benefitIconHint: 'Загрузите изображение с устройства или вставьте ссылку. Пусто — стандартная иконка.',
     domainLabel: 'Домен магазина',
     domainHint:
       'Канонический адрес сайта. Используется в sitemap.xml, robots.txt, канонических ссылках и Open Graph. Если пусто — определяется автоматически по хостингу.',
