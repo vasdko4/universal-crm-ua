@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { SearchX } from 'lucide-react'
 import { getServerDictionary } from '@/lib/i18n/server'
+import { localizedPath } from '@/lib/i18n/config'
 
 export async function generateMetadata() {
   const { dict } = await getServerDictionary()
@@ -9,7 +10,8 @@ export async function generateMetadata() {
 }
 
 export default async function NotFound() {
-  const { dict: t } = await getServerDictionary()
+  const { dict: t, locale } = await getServerDictionary()
+  const lp = (p: string) => localizedPath(p, locale)
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-4 bg-muted/30 px-4 py-16 text-center">
       <span className="flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
@@ -24,10 +26,10 @@ export default async function NotFound() {
       </p>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
         <Button asChild>
-          <Link href="/">{t.notFoundPage.homeButton}</Link>
+          <Link href={lp('/')}>{t.notFoundPage.homeButton}</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/catalog">{t.notFoundPage.catalogButton}</Link>
+          <Link href={lp('/catalog')}>{t.notFoundPage.catalogButton}</Link>
         </Button>
       </div>
     </main>

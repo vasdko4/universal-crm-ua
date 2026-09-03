@@ -6,6 +6,7 @@ import { formatPrice } from '@/lib/shop/format'
 import { getOrderStatusLabel } from '@/lib/order-status'
 import { Button } from '@/components/ui/button'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
+import { localizedPath } from '@/lib/i18n/config'
 
 export default async function MyOrdersPage() {
   const [orders, locale] = await Promise.all([getMyOrders(), getLocale()])
@@ -21,7 +22,7 @@ export default async function MyOrdersPage() {
         <h2 className="mt-4 text-lg font-semibold text-card-foreground">{t.noOrders}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{t.noOrdersDescription}</p>
         <Button asChild className="mt-5">
-          <Link href="/catalog">{t.goToCatalog}</Link>
+          <Link href={localizedPath('/catalog', locale)}>{t.goToCatalog}</Link>
         </Button>
       </div>
     )

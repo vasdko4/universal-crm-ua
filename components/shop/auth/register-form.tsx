@@ -7,12 +7,13 @@ import { finalizeCustomerRole, checkPhoneAvailable } from '@/app/actions/shop-au
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR } from '@/lib/shop/email-domains'
 import { useI18n } from '@/lib/i18n/client'
+import { localizedPath } from '@/lib/i18n/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function RegisterForm() {
-  const { dict: t } = useI18n()
+  const { dict: t, locale } = useI18n()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('+380')
@@ -57,7 +58,7 @@ export function RegisterForm() {
     // Mark as storefront customer and persist phone server-side.
     await finalizeCustomerRole(normPhone)
     // Hard navigation guarantees the fresh session cookie is picked up.
-    window.location.assign('/account')
+    window.location.assign(localizedPath('/account', locale))
   }
 
   return (

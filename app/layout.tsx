@@ -27,7 +27,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const name = s?.storeName || sd.defaultStoreName
   const seo = s?.seo
   const title = seo?.metaTitle?.trim() || `${name} ${sd.onlineStoreSuffix}`
-  const description = seo?.metaDescription?.trim() || s?.storeDescription || sd.defaultDescription
+  // Admin SEO is a single global string (usually Ukrainian). On /ru use the
+  // Russian dictionary defaults so the <meta description> matches the page.
+  const description =
+    locale === 'ru'
+      ? sd.defaultDescription
+      : seo?.metaDescription?.trim() || s?.storeDescription || sd.defaultDescription
   const keywords = seo?.keywords?.trim()
     ? seo.keywords.split(',').map((k) => k.trim()).filter(Boolean)
     : [sd.defaultKeyword, name]

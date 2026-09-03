@@ -14,6 +14,7 @@ import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { GoogleAdsPurchase } from '@/components/shop/google-ads'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
+import { localizedPath } from '@/lib/i18n/config'
 
 const T = {
   uk: {
@@ -194,10 +195,10 @@ export default async function OrderConfirmationPage({
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
         <Button asChild size="lg">
-          <Link href="/catalog">{t.continueShopping}</Link>
+          <Link href={localizedPath('/catalog', locale)}>{t.continueShopping}</Link>
         </Button>
         <Button asChild variant="outline" size="lg">
-          <Link href="/account/orders">{t.myOrders}</Link>
+          <Link href={localizedPath('/account/orders', locale)}>{t.myOrders}</Link>
         </Button>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { getShopUser, getAdminUser } from '@/lib/session'
 import { AccountNav } from '@/components/shop/account-nav'
 import { SessionExpiredRedirect } from '@/components/shop/session-expired-redirect'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
+import { localizedPath } from '@/lib/i18n/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
   // redirect instead of server redirect() to avoid aborting this Server
   // Component mid-render (which triggers React's dev profiler crash).
   const user = await getShopUser()
-  if (!user) return <SessionExpiredRedirect to="/account/login" />
+  if (!user) return <SessionExpiredRedirect to={localizedPath('/account/login', locale)} />
 
   // Show the admin center link only to users whose role has admin permissions.
   const adminUser = await getAdminUser()

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button'
 import { Languages, Globe } from 'lucide-react'
 import { setLocale, getLocaleForCurrentIp } from '@/app/actions/locale'
-import { persistLocaleClientSide } from '@/lib/i18n/client'
+import { persistLocaleClientSide, useI18n } from '@/lib/i18n/client'
 import { LOCALE_COOKIE, localizedPath, stripLocalePrefix, type Locale } from '@/lib/i18n/config'
 
 export function LocaleModal({ defaultLocale = 'uk' }: { defaultLocale?: string }) {
@@ -14,6 +14,7 @@ export function LocaleModal({ defaultLocale = 'uk' }: { defaultLocale?: string }
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { dict } = useI18n()
 
   // Open on first paint so SSR doesn't flash the modal before hydration.
   // Client-side cookie check guards against stale server HTML (e.g. a cached
@@ -64,10 +65,8 @@ export function LocaleModal({ defaultLocale = 'uk' }: { defaultLocale?: string }
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="max-w-sm [&>button]:hidden" onEscapeKeyDown={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader className="items-center text-center">
-          <DialogTitle className="text-xl">Оберіть мову / Выберите язык</DialogTitle>
-          <DialogDescription>
-            Ви завжди зможете змінити її у шапці сайту
-          </DialogDescription>
+          <DialogTitle className="text-xl">{dict.header.chooseLanguage}</DialogTitle>
+          <DialogDescription>{dict.header.chooseLanguageDesc}</DialogDescription>
         </DialogHeader>
         <div className="mt-2 grid gap-3">
           <Button

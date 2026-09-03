@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { ForgotPasswordForm } from '@/components/shop/auth/forgot-password-form'
 import { getServerDictionary } from '@/lib/i18n/server'
+import { localizedPath } from '@/lib/i18n/config'
 
 export default async function ForgotPasswordPage() {
-  const { dict: t } = await getServerDictionary()
+  const { locale, dict: t } = await getServerDictionary()
 
   return (
     <div className="mx-auto flex max-w-md flex-col px-4 py-12">
@@ -14,7 +15,7 @@ export default async function ForgotPasswordPage() {
       </div>
       <p className="mt-6 text-sm text-muted-foreground">
         {t.auth.forgotBackToLogin}{' '}
-        <Link href="/account/login" className="font-medium text-primary hover:underline">
+        <Link href={localizedPath('/account/login', locale)} className="font-medium text-primary hover:underline">
           {t.auth.registerLoginLink}
         </Link>
       </p>

@@ -6,6 +6,7 @@ import { getMyOrderDetail } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
 import { getOrderStatusLabel, getPaymentStatusLabel, getDeliveryMethodLabel } from '@/lib/order-status'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
+import { localizedPath } from '@/lib/i18n/config'
 
 function InfoRow({
   icon: Icon,
@@ -46,7 +47,7 @@ export default async function MyOrderDetailPage({
   return (
     <div className="space-y-5">
       <Link
-        href="/account/orders"
+        href={localizedPath('/account/orders', locale)}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
       >
         <ArrowLeft className="size-4" /> {t.backToOrders}
