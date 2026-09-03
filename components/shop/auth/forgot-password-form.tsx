@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, Mail } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { useI18n } from '@/lib/i18n/client'
+import { localizedPath } from '@/lib/i18n/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function ForgotPasswordForm() {
-  const { dict: t } = useI18n()
+  const { dict: t, locale } = useI18n()
   const router = useRouter()
   const [step, setStep] = useState<'email' | 'reset'>('email')
   const [email, setEmail] = useState('')
@@ -50,7 +51,7 @@ export function ForgotPasswordForm() {
       setError(error.message ?? t.auth.invalidOrExpiredCode)
       return
     }
-    router.push('/account/login')
+    router.push(localizedPath('/account/login', locale))
     router.refresh()
   }
 

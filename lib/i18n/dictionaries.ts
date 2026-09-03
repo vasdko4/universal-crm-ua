@@ -170,6 +170,15 @@ export type Dictionary = {
     remove: string
     quantity: string
     goToCatalog: string
+    inStock: string
+    itemsCount: string
+    delivery: string
+    deliveryByCarrier: string
+    toPay: string
+    minOrderPrefix: string
+    minOrderAddMore: string
+    increase: string
+    decrease: string
   }
   checkout: {
     title: string
@@ -507,6 +516,10 @@ export type Dictionary = {
     couldNotSendCode: string
     otpMustBe6Digits: string
     invalidOrExpiredCode: string
+    phoneRequiredTitle: string
+    phoneRequiredDescription: string
+    phoneSave: string
+    phoneSaveError: string
   }
 }
 
@@ -680,6 +693,15 @@ const uk: Dictionary = {
     remove: 'Видалити',
     quantity: 'Кількість',
     goToCatalog: 'До каталогу',
+    inStock: 'В наявності',
+    itemsCount: 'Товари',
+    delivery: 'Доставка',
+    deliveryByCarrier: 'за тарифами перевізника',
+    toPay: 'До сплати',
+    minOrderPrefix: 'Мінімальна сума замовлення —',
+    minOrderAddMore: 'Додайте товарів ще на',
+    increase: 'Збільшити кількість',
+    decrease: 'Зменшити кількість',
   },
   checkout: {
     title: 'Оформлення замовлення',
@@ -1010,6 +1032,11 @@ const uk: Dictionary = {
     couldNotSendCode: 'Не вдалося надіслати код',
     otpMustBe6Digits: 'Код складається з 6 цифр',
     invalidOrExpiredCode: 'Невірний або прострочений код',
+    phoneRequiredTitle: 'Вкажіть номер телефону',
+    phoneRequiredDescription:
+      'Щоб завершити реєстрацію, вкажіть номер телефону. Він потрібен для оформлення та підтвердження замовлень.',
+    phoneSave: 'Зберегти',
+    phoneSaveError: 'Не вдалося зберегти номер',
   },
 }
 
@@ -1183,6 +1210,15 @@ const ru: Dictionary = {
     remove: 'Удалить',
     quantity: 'Количество',
     goToCatalog: 'В каталог',
+    inStock: 'В наличии',
+    itemsCount: 'Товары',
+    delivery: 'Доставка',
+    deliveryByCarrier: 'по тарифам перевозчика',
+    toPay: 'К оплате',
+    minOrderPrefix: 'Минимальная сумма заказа —',
+    minOrderAddMore: 'Добавьте товаров ещё на',
+    increase: 'Увеличить количество',
+    decrease: 'Уменьшить количество',
   },
   checkout: {
     title: 'Оформление заказа',
@@ -1513,6 +1549,11 @@ const ru: Dictionary = {
     couldNotSendCode: 'Не удалось отправить код',
     otpMustBe6Digits: 'Код состоит из 6 цифр',
     invalidOrExpiredCode: 'Неверный или просроченный код',
+    phoneRequiredTitle: 'Укажите номер телефона',
+    phoneRequiredDescription:
+      'Для завершения регистрации укажите ваш номер телефона. Он нужен для оформления и подтверждения заказов.',
+    phoneSave: 'Сохранить',
+    phoneSaveError: 'Не удалось сохранить номер',
   },
 }
 

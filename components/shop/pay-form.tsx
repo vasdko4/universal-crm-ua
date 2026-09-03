@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { formatPrice, useCart } from '@/lib/shop/cart-context'
 import { markOrderPaid, checkOrderPaymentStatus } from '@/app/actions/shop'
 import { useI18n } from '@/lib/i18n/client'
+import { localizedPath } from '@/lib/i18n/config'
 
 export function PayForm({
   orderNumber,
@@ -27,8 +28,9 @@ export function PayForm({
   paymentStatus?: string | null
 }) {
   const router = useRouter()
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
   const t = dict.pay
+  const lp = (p: string) => localizedPath(p, locale)
   const { clear, clearBuyNow } = useCart()
   const [processing, setProcessing] = useState(false)
   const [checking, setChecking] = useState(false)
@@ -121,7 +123,7 @@ export function PayForm({
         </p>
         <Button
           className="mt-6 w-full"
-          onClick={() => router.push(`/order/${encodeURIComponent(orderNumber)}`)}
+          onClick={() => router.push(lp(`/order/${encodeURIComponent(orderNumber)}`))}
         >
           {t.orderDetails}
         </Button>
@@ -180,7 +182,7 @@ export function PayForm({
           variant="ghost"
           size="lg"
           className="mt-2 w-full gap-2 text-muted-foreground"
-          onClick={() => router.push('/checkout')}
+          onClick={() => router.push(lp('/checkout'))}
         >
           <ArrowLeft className="size-4" /> {t.backToCheckout}
         </Button>
@@ -243,7 +245,7 @@ export function PayForm({
         variant="ghost"
         size="lg"
         className="mt-2 w-full gap-2 text-muted-foreground"
-        onClick={() => router.push('/checkout')}
+        onClick={() => router.push(lp('/checkout'))}
         disabled={processing}
       >
         <ArrowLeft className="size-4" /> {t.backToCheckout}

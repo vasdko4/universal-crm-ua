@@ -116,7 +116,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
                   : 'border-border hover:border-primary/60',
               )}
             >
-              <Image src={src || '/placeholder.svg'} alt="" fill sizes="62px" className="object-contain p-1" />
+              <Image src={src || '/placeholder.svg'} alt={alt} fill sizes="62px" className="object-contain p-1" />
             </button>
           ))}
         </div>
@@ -402,7 +402,7 @@ function Lightbox({
                 i === index ? 'border-primary' : 'border-transparent opacity-60 hover:opacity-100',
               )}
             >
-              <Image src={src || '/placeholder.svg'} alt="" fill sizes="56px" className="object-contain p-1" />
+              <Image src={src || '/placeholder.svg'} alt={alt} fill sizes="56px" className="object-contain p-1" />
             </button>
           ))}
         </div>

@@ -7,12 +7,13 @@ import { Loader2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { useAuthDialog } from '@/components/shop/auth/auth-dialog'
 import { useI18n } from '@/lib/i18n/client'
+import { localizedPath } from '@/lib/i18n/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function LoginForm() {
-  const { dict: t } = useI18n()
+  const { dict: t, locale } = useI18n()
   const searchParams = useSearchParams()
   const authDialog = useAuthDialog()
   const [email, setEmail] = useState('')
@@ -33,7 +34,7 @@ export function LoginForm() {
     }
     // Honor ?redirect= but only allow same-site paths to prevent open redirects.
     const target = searchParams.get('redirect')
-    const safeTarget = target && target.startsWith('/') && !target.startsWith('//') ? target : '/account'
+    const safeTarget = target && target.startsWith('/') && !target.startsWith('//') ? target : localizedPath('/account', locale)
     // Use a hard navigation instead of the client router: it guarantees the
     // fresh session cookie is sent with the request and avoids stale router
     // cache showing the logged-out UI after sign-in.
@@ -57,7 +58,7 @@ export function LoginForm() {
         <div className="flex items-center justify-between">
           <Label htmlFor="password">{t.auth.passwordLabel}</Label>
           <Link
-            href="/account/forgot-password"
+            href={localizedPath('/account/forgot-password', locale)}
             onClick={() => authDialog?.closeDialog()}
             className="text-xs text-muted-foreground hover:text-primary hover:underline"
           >

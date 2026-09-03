@@ -10,7 +10,8 @@ import { localizedPath } from '@/lib/i18n/config'
 
 export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: number } } = {}) {
   const { items, setQuantity, remove, total, count } = useCart()
-  const { locale } = useI18n()
+  const { locale, dict } = useI18n()
+  const t = dict.cart
   const lp = (p: string) => localizedPath(p, locale)
   const minOrderShortfall =
     minOrder?.enabled && minOrder.amount > 0 ? Math.max(0, minOrder.amount - total) : 0
@@ -22,12 +23,10 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
         <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted">
           <ShoppingBag className="size-8 text-muted-foreground" />
         </div>
-        <h2 className="text-lg font-semibold text-foreground">Ваша корзина пуста</h2>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Добавьте товары из каталога, чтобы оформить заказ.
-        </p>
+        <h2 className="text-lg font-semibold text-foreground">{t.empty}</h2>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t.emptyDesc}</p>
         <Button asChild className="mt-6">
-          <Link href={lp('/catalog')}>Перейти в каталог</Link>
+          <Link href={lp('/catalog')}>{t.goToCatalog}</Link>
         </Button>
       </div>
     )
@@ -70,7 +69,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
               {item.variantLabel ? (
                 <p className="mt-1 text-xs text-muted-foreground">{item.variantLabel}</p>
               ) : (
-                <p className="mt-1 text-xs text-muted-foreground">В наличии</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t.inStock}</p>
               )}
 
               <div className="mt-auto flex items-center justify-between pt-2">
@@ -79,7 +78,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
                     type="button"
                     onClick={() => setQuantity(item.key, item.quantity - 1)}
                     className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label="Уменьшить количество"
+                    aria-label={t.decrease}
                   >
                     <Minus className="size-3.5" />
                   </button>
@@ -90,7 +89,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
                     type="button"
                     onClick={() => setQuantity(item.key, item.quantity + 1)}
                     className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label="Увеличить количество"
+                    aria-label={t.increase}
                   >
                     <Plus className="size-3.5" />
                   </button>
@@ -104,7 +103,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
                     type="button"
                     onClick={() => remove(item.key)}
                     className="text-muted-foreground transition-colors hover:text-destructive"
-                    aria-label="Удалить товар"
+                    aria-label={t.remove}
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -117,40 +116,40 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
 
       <aside className="lg:sticky lg:top-24 lg:self-start">
         <div className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="text-base font-semibold text-foreground">Итого</h2>
+          <h2 className="text-base font-semibold text-foreground">{t.total}</h2>
           <div className="mt-4 flex justify-between text-sm text-muted-foreground">
-            <span>Товары ({count})</span>
+            <span>{t.itemsCount} ({count})</span>
             <span className="text-foreground">{formatPrice(total)}</span>
           </div>
           <div className="mt-2 flex justify-between text-sm text-muted-foreground">
-            <span>Доставка</span>
-            <span>по тарифам перевозчика</span>
+            <span>{t.delivery}</span>
+            <span>{t.deliveryByCarrier}</span>
           </div>
           <div className="mt-4 flex justify-between border-t border-border pt-4">
-            <span className="font-semibold text-foreground">К оплате</span>
+            <span className="font-semibold text-foreground">{t.toPay}</span>
             <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
           </div>
           {belowMinOrder && (
             <p className="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
-              Минимальная сумма заказа — {formatPrice(minOrder!.amount)}. Добавьте товаров ещё на{' '}
+              {t.minOrderPrefix} {formatPrice(minOrder!.amount)}. {t.minOrderAddMore}{' '}
               {formatPrice(minOrderShortfall)}.
             </p>
           )}
           {belowMinOrder ? (
             <Button size="lg" className="mt-5 w-full gap-2" disabled>
-              Оформить заказ
+              {t.checkout}
               <ArrowRight className="size-4" />
             </Button>
           ) : (
             <Button asChild size="lg" className="mt-5 w-full gap-2">
               <Link href={lp('/checkout')}>
-                Оформить заказ
+                {t.checkout}
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
           )}
           <Button asChild variant="ghost" className="mt-2 w-full">
-            <Link href={lp('/catalog')}>Продолжить покупки</Link>
+            <Link href={lp('/catalog')}>{t.continueShopping}</Link>
           </Button>
         </div>
       </aside>

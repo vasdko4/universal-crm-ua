@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { finalizeCustomerRole, checkPhoneAvailable } from '@/app/actions/shop-auth'
-import { normalizeUaPhone } from '@/lib/shop/phone'
+import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR } from '@/lib/shop/email-domains'
 import { useI18n } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
@@ -72,7 +72,7 @@ export function RegisterForm() {
           id="phone"
           type="tel"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(formatUaPhoneInput(e.target.value))}
           placeholder="+380 67 123 45 67"
           required
           autoComplete="tel"

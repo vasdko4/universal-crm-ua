@@ -38,8 +38,10 @@ import { saveUserAddress, deleteUserAddress, type UserAddress } from '@/app/acti
 import { toast } from 'sonner'
 import { useSession } from '@/lib/auth-client'
 import { useI18n } from '@/lib/i18n/client'
+import { localizedPath } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils'
 import { trackBeginCheckout } from '@/components/shop/google-ads'
+import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 
 // No `config` here on purpose — that column holds admin secrets (Nova Poshta
 // apiKey, bank IBAN/EDRPOU). See app/(shop)/checkout/page.tsx for why it must
@@ -65,7 +67,7 @@ export function CheckoutFlow({
   minOrder?: { enabled: boolean; amount: number }
 }) {
   const router = useRouter()
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
   const { data: session } = useSession()
   const isLoggedIn = !!session?.user
   const t = dict.checkout
@@ -228,31 +230,13 @@ export function CheckoutFlow({
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [phone, setPhone] = useState('+380 ')
+  const [phone, setPhone] = useState('+380')
   const [email, setEmail] = useState('')
 
   // Auto-format Ukrainian phone: +380 XX XXX XX XX
   const handlePhoneChange = (raw: string) => {
     clearFieldError('phone')
-    // Keep only digits and leading +
-    let digits = raw.replace(/[^\d+]/g, '')
-    if (!digits.startsWith('+')) digits = '+' + digits
-    if (!digits.startsWith('+380')) {
-      // If user deleted too much, keep +380 prefix
-      if (digits.startsWith('+38')) digits = '+38' + digits.slice(3).replace(/\D/g, '')
-      else if (digits.startsWith('+3')) digits = '+3'
-      else if (digits.startsWith('+')) digits = '+'
-    }
-    const d = digits.replace(/^\+/, '')
-    // Format as +380 XX XXX XX XX
-    let formatted = '+'
-    if (d.length > 0) formatted += d.slice(0, 3)
-    if (d.length > 3) formatted += ' ' + d.slice(3, 5)
-    if (d.length > 5) formatted += ' ' + d.slice(5, 8)
-    if (d.length > 8) formatted += ' ' + d.slice(8, 10)
-    if (d.length > 10) formatted += ' ' + d.slice(10, 12)
-    // Don't allow more than 12 digits total (380 + 9 digits)
-    setPhone(formatted.slice(0, 17))
+    setPhone(formatUaPhoneInput(raw))
   }
   const [note, setNote] = useState('')
 
@@ -317,7 +301,7 @@ export function CheckoutFlow({
     setSelectedAddressId(a.id)
     setFirstName(a.firstName || '')
     setLastName(a.lastName || '')
-    if (a.phone) setPhone(a.phone)
+    if (a.phone) setPhone(formatUaPhoneInput(a.phone))
     setDelivery(a.deliveryMethod || 'nova_poshta')
     if (a.deliveryMethod === 'ukrposhta') {
       setUpCity(a.city || '')
@@ -444,14 +428,14 @@ export function CheckoutFlow({
     }
   }, [])
   useEffect(() => {
-    const digits = phone.replace(/\D/g, '')
-    const hasContact = digits.length >= 12 || /\S+@\S+\.\S+/.test(email)
+    const normalizedPhone = normalizeUaPhone(phone)
+    const hasContact = !!normalizedPhone || /\S+@\S+\.\S+/.test(email)
     if (!hasContact || items.length === 0 || !cartTokenRef.current) return
     const timer = setTimeout(() => {
       void saveAbandonedCart({
         token: cartTokenRef.current,
         name: `${firstName.trim()} ${lastName.trim()}`.trim() || undefined,
-        phone: digits.length >= 12 ? phone.trim() : undefined,
+        phone: normalizedPhone ?? undefined,
         email: /\S+@\S+\.\S+/.test(email) ? email.trim() : undefined,
         items: items.map((i) => ({
           productId: i.id,
@@ -480,8 +464,7 @@ export function CheckoutFlow({
       firstError ??= t.errLastName
       firstErrorField ??= 'lastName'
     }
-    const digits = phone.replace(/\D/g, '')
-    if (digits.length < 12) {
+    if (!normalizeUaPhone(phone)) {
       errors.phone = t.errPhone
       firstError ??= t.errPhone
       firstErrorField ??= 'phone'
@@ -542,7 +525,7 @@ export function CheckoutFlow({
       const res = await createStorefrontOrder({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        phone: phone.trim(),
+        phone: normalizeUaPhone(phone) ?? phone.trim(),
         email: email.trim() || undefined,
         deliveryMethod: delivery,
         deliveryCity: isNova ? city?.name : isUkr ? upCity.trim() : undefined,
@@ -568,7 +551,7 @@ export function CheckoutFlow({
           await saveUserAddress({
             firstName: firstName.trim(),
             lastName: lastName.trim() || null,
-            phone: phone.trim(),
+            phone: normalizeUaPhone(phone) ?? phone.trim(),
             deliveryMethod: delivery,
             city: isNova ? city?.name ?? null : upCity.trim() || null,
             cityRef: isNova ? city?.ref ?? null : null,
@@ -634,7 +617,7 @@ export function CheckoutFlow({
         <ShoppingBag className="mb-4 size-10 text-muted-foreground" />
         <h2 className="text-lg font-semibold text-foreground">{t.emptyTitle}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{t.emptyDesc}</p>
-        <Button className="mt-6" onClick={() => router.push('/catalog')}>
+        <Button className="mt-6" onClick={() => router.push(localizedPath('/catalog', locale))}>
           {t.toCatalog}
         </Button>
       </div>
@@ -656,7 +639,7 @@ export function CheckoutFlow({
             // defaults, so without the sequential gate step 3 showed a
             // checkmark before the visitor had entered anything at all.
             const step1Done =
-              !!firstName.trim() && !!lastName.trim() && phone.replace(/\D/g, '').length >= 12
+              !!firstName.trim() && !!lastName.trim() && !!normalizeUaPhone(phone)
             const step2Done =
               step1Done &&
               !!delivery &&
@@ -1296,8 +1279,9 @@ function OrderSuccess({
   } | null
 }) {
   const router = useRouter()
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
   const t = dict.checkout
+  const lp = (p: string) => localizedPath(p, locale)
   return (
     <div className="mx-auto max-w-xl">
       <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-12 text-center">
@@ -1397,10 +1381,10 @@ function OrderSuccess({
         )}
 
         <div className="mt-6 flex w-full flex-col gap-2 sm:flex-row">
-          <Button variant="outline" className="flex-1 gap-1" onClick={() => router.push('/account/orders')}>
+          <Button variant="outline" className="flex-1 gap-1" onClick={() => router.push(lp('/account/orders'))}>
             {t.myOrders} <ChevronRight className="size-4" />
           </Button>
-          <Button variant="ghost" className="flex-1" onClick={() => router.push('/catalog')}>
+          <Button variant="ghost" className="flex-1" onClick={() => router.push(lp('/catalog'))}>
             {t.continueShopping}
           </Button>
         </div>

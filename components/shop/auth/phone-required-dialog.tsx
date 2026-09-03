@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Loader2, Phone } from 'lucide-react'
 import { saveCustomerPhone } from '@/app/actions/shop-auth'
-import { normalizeUaPhone } from '@/lib/shop/phone'
+import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
+import { useI18n } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +13,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 // Blocking dialog shown to customers without a phone number (e.g. after a
 // Google sign-up). It cannot be dismissed until a valid phone is saved.
 export function PhoneRequiredDialog() {
+  const { dict } = useI18n()
+  const t = dict.auth
   const [phone, setPhone] = useState('+380')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -21,11 +24,11 @@ export function PhoneRequiredDialog() {
     e.preventDefault()
     setError(null)
     const norm = normalizeUaPhone(phone)
-    if (!norm) return setError('Введите корректный номер телефона (например, +380 67 123 45 67)')
+    if (!norm) return setError(t.invalidPhoneFormat)
     setLoading(true)
     const res = await saveCustomerPhone(norm)
     setLoading(false)
-    if (!res.success) return setError(res.error ?? 'Не удалось сохранить номер')
+    if (!res.success) return setError(res.error ?? t.phoneSaveError)
     setDone(true)
     // Refresh so server components pick up the saved phone.
     window.location.reload()
@@ -42,20 +45,17 @@ export function PhoneRequiredDialog() {
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
             <Phone className="size-6 text-primary" />
           </div>
-          <DialogTitle className="text-center">Укажите номер телефона</DialogTitle>
-          <DialogDescription className="text-center">
-            Для завершения регистрации укажите ваш номер телефона. Он нужен для оформления и
-            подтверждения заказов.
-          </DialogDescription>
+          <DialogTitle className="text-center">{t.phoneRequiredTitle}</DialogTitle>
+          <DialogDescription className="text-center">{t.phoneRequiredDescription}</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="required-phone">Номер телефона</Label>
+            <Label htmlFor="required-phone">{t.phoneLabel}</Label>
             <Input
               id="required-phone"
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(formatUaPhoneInput(e.target.value))}
               placeholder="+380 67 123 45 67"
               required
               autoComplete="tel"
@@ -69,7 +69,7 @@ export function PhoneRequiredDialog() {
           )}
           <Button type="submit" size="lg" disabled={loading} className="w-full">
             {loading && <Loader2 className="size-4 animate-spin" />}
-            Сохранить
+            {t.phoneSave}
           </Button>
         </form>
       </DialogContent>

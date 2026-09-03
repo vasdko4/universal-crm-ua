@@ -12,6 +12,7 @@ import { PaymentDeliveryBadges, type SafeMethod } from '@/components/shop/paymen
 import { PromoTimer } from '@/components/shop/promo-timer'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import { useI18n } from '@/lib/i18n/client'
+import { localizedPath } from '@/lib/i18n/config'
 import { fillTemplate } from '@/lib/i18n/dictionaries'
 import { pluralize } from '@/lib/i18n/plural'
 import { cn } from '@/lib/utils'
@@ -62,7 +63,7 @@ export function ProductPurchasePanel({
 }) {
   const router = useRouter()
   const { add, startBuyNow } = useCart()
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
   const tp = dict.product
   const [qty, setQty] = useState(1)
   const hasVariants = product.variantsEnabled && product.options.length > 0 && product.variants.length > 0
@@ -132,7 +133,7 @@ export function ProductPurchasePanel({
     // Express purchase: independent of the cart, so it never merges with or
     // affects items already in the cart.
     startBuyNow(buildItem(), qty)
-    router.push('/checkout?buynow=1')
+    router.push(localizedPath('/checkout?buynow=1', locale))
   }
 
   return (
