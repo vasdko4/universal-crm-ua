@@ -1,7 +1,19 @@
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Pool } from 'pg'
+import { Pool, Client } from 'pg'
 import * as schema from './schema'
 import { getConnectionString, sslForConnectionString, stripSslParams } from './config'
+
+// pgbouncer (Supabase transaction pooler) rejects named prepared statements.
+// Drizzle/node-postgres and Better Auth sometimes pass `{ name, text, values }`.
+// Strip `name` so every query is a simple unnamed statement.
+const originalClientQuery = Client.prototype.query
+Client.prototype.query = function patchedQuery(this: Client, config: unknown, ...rest: unknown[]) {
+  if (config && typeof config === 'object' && 'name' in (config as object) && 'text' in (config as object)) {
+    const { name: _ignored, ...unnamed } = config as { name?: string; text: string }
+    return originalClientQuery.call(this, unnamed, ...rest)
+  }
+  return originalClientQuery.call(this, config as never, ...rest)
+} as typeof Client.prototype.query
 
 const rawConnectionString = getConnectionString()
 // Decide SSL from the original URL, then strip libpq params to avoid pg's
@@ -86,4 +98,4 @@ const originalConnect = pool.connect.bind(pool) as () => Promise<import('pg').Po
   })
 }) as Pool['connect']
 
-export const db = drizzle({ client: pool, schema, prepare: false })
+export const db = drizzle(pool, { schema })
