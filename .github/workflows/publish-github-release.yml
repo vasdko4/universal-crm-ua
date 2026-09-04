@@ -1,5 +1,5 @@
 # One-shot: GitHub App cannot create tags, so this branch-triggered job
-# publishes the GitHub Release (which also creates tag v1.3.5).
+# publishes the GitHub Release (which also creates tag v1.3.6).
 name: publish-github-release
 
 on:
@@ -15,22 +15,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create GitHub Release v1.3.5
+      - name: Create GitHub Release v1.3.6
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTES: |
-            Storefront 1.3.5
+            Storefront 1.3.6
 
-            - Cart copy goes through uk/ru dictionaries (no hardcoded Russian)
-            - Shared UA phone mask (+380 XX XXX XX XX) on checkout, register, phone-required dialog
-            - Locale-aware navigation keeps /ru on checkout, pay, account, login
-            - Mobile bottom nav no longer covers checkout/cart
-            - Product gallery thumbnails use the product name as alt text
+            - 404 home/catalog buttons keep the /ru prefix
+            - Login, register, forgot-password and post-signup redirects stay on /ru
+            - Language modal copy comes from the uk/ru dictionary
+            - /ru meta description uses Russian seoDefaults instead of the admin UK string
 
-            Images: ghcr.io/vasdko4/universal-crm-ua:1.3.5 and jastindle/magazineuakraine:1.3.5
+            package.json version: 1.3.6
         run: |
-          TAG=v1.3.5
-          SHA=cd490f7f796e3166c41d5f24d7ffeac50e016131
+          TAG=v1.3.6
+          SHA=7042698bf247e1d44f8bdd0d102d0b1e83ac3e57
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists"
             gh release view "$TAG"
