@@ -4,13 +4,32 @@ import { useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { getDictionary } from '@/lib/i18n/dictionaries'
-import { localizedPath, type Locale } from '@/lib/i18n/config'
 
-function localeFromPath(): Locale {
-  if (typeof window === 'undefined') return 'uk'
+function isRuPath(): boolean {
+  if (typeof window === 'undefined') return false
   const p = window.location.pathname
-  return p === '/ru' || p.startsWith('/ru/') ? 'ru' : 'uk'
+  return p === '/ru' || p.startsWith('/ru/')
+}
+
+const COPY = {
+  uk: {
+    label: 'Помилка',
+    heading: 'Щось пішло не так',
+    description:
+      'Сталася непередбачена помилка. Спробуйте оновити сторінку — якщо проблема повториться, поверніться пізніше.',
+    retry: 'Спробувати знову',
+    home: 'На головну',
+    homeHref: '/',
+  },
+  ru: {
+    label: 'Ошибка',
+    heading: 'Что-то пошло не так',
+    description:
+      'Произошла непредвиденная ошибка. Попробуйте обновить страницу — если проблема повторяется, вернитесь позже.',
+    retry: 'Попробовать снова',
+    home: 'На главную',
+    homeHref: '/ru',
+  },
 }
 
 export default function ErrorPage({
@@ -20,8 +39,7 @@ export default function ErrorPage({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  const locale = localeFromPath()
-  const t = getDictionary(locale).errorPage
+  const t = isRuPath() ? COPY.ru : COPY.uk
 
   useEffect(() => {
     console.error('[app-error]', error)
@@ -36,7 +54,7 @@ export default function ErrorPage({
       <div className="flex gap-3">
         <Button onClick={reset}>{t.retry}</Button>
         <Button variant="outline" asChild>
-          <Link href={localizedPath('/', locale)}>{t.home}</Link>
+          <Link href={t.homeHref}>{t.home}</Link>
         </Button>
       </div>
     </main>
