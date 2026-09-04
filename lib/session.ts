@@ -19,6 +19,15 @@ export type AdminUser = {
 }
 
 export async function getAdminUser(): Promise<AdminUser | null> {
+  try {
+    return await getAdminUserInner()
+  } catch (e) {
+    console.error('[auth] getAdminUser failed:', (e as Error).message)
+    return null
+  }
+}
+
+async function getAdminUserInner(): Promise<AdminUser | null> {
   const auth = await getAuth()
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) return null
@@ -82,8 +91,14 @@ export type ShopUser = {
 // session object, which is not refreshed after a profile edit — otherwise saved
 // changes would not show up until the next sign-in.
 export async function getShopUser(): Promise<ShopUser | null> {
-  const auth = await getAuth()
-  const session = await auth.api.getSession({ headers: await headers() })
+  let session: Awaited<ReturnType<Awaited<ReturnType<typeof getAuth>>['api']['getSession']>> | null = null
+  try {
+    const auth = await getAuth()
+    session = await auth.api.getSession({ headers: await headers() })
+  } catch (e) {
+    console.error('[auth] getShopUser session failed:', (e as Error).message)
+    return null
+  }
   if (!session?.user) return null
   const u = session.user as unknown as {
     id: string

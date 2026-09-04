@@ -86,4 +86,4 @@ const originalConnect = pool.connect.bind(pool) as () => Promise<import('pg').Po
   })
 }) as Pool['connect']
 
-export const db = drizzle(pool, { schema })
+export const db = drizzle({ client: pool, schema, prepare: false })
