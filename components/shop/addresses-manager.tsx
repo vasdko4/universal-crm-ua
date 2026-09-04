@@ -14,6 +14,7 @@ import {
   type UserAddress,
 } from '@/app/actions/addresses'
 import { cn } from '@/lib/utils'
+import { formatUaPhoneInput } from '@/lib/shop/phone'
 
 type FormState = {
   id?: number
@@ -155,7 +156,7 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
               <Input
                 value={editing.phone}
                 inputMode="tel"
-                onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+                onChange={(e) => setEditing({ ...editing, phone: formatUaPhoneInput(e.target.value) })}
                 placeholder="+380 XX XXX XX XX"
               />
             </div>

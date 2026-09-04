@@ -20,6 +20,13 @@ export type Dictionary = {
     yes: string
     no: string
     anonymous: string
+    next: string
+    page: string
+    previousPhoto: string
+    nextPhoto: string
+    closeContacts: string
+    contactUs: string
+    phone: string
   }
   nav: {
     catalog: string
@@ -520,6 +527,19 @@ export type Dictionary = {
     phoneRequiredDescription: string
     phoneSave: string
     phoneSaveError: string
+    continueWithGoogle: string
+    orDivider: string
+    dialogTitle: string
+    tabLogin: string
+    tabRegister: string
+    emailDomainError: string
+  }
+  errorPage: {
+    label: string
+    heading: string
+    description: string
+    retry: string
+    home: string
   }
 }
 
@@ -543,6 +563,13 @@ const uk: Dictionary = {
     yes: 'Так',
     no: 'Ні',
     anonymous: 'Анонім',
+    next: 'Далі',
+    page: 'Сторінка',
+    previousPhoto: 'Попереднє фото',
+    nextPhoto: 'Наступне фото',
+    closeContacts: 'Закрити контакти',
+    contactUs: "Зв'язатися з магазином",
+    phone: 'Телефон',
   },
   nav: {
     catalog: 'Каталог',
@@ -1037,6 +1064,21 @@ const uk: Dictionary = {
       'Щоб завершити реєстрацію, вкажіть номер телефону. Він потрібен для оформлення та підтвердження замовлень.',
     phoneSave: 'Зберегти',
     phoneSaveError: 'Не вдалося зберегти номер',
+    continueWithGoogle: 'Продовжити з Google',
+    orDivider: 'або',
+    dialogTitle: 'Особистий кабінет',
+    tabLogin: 'Вхід',
+    tabRegister: 'Реєстрація',
+    emailDomainError:
+      'Реєстрація доступна лише з поштою Gmail або інших популярних сервісів (ukr.net, outlook.com, icloud.com тощо)',
+  },
+  errorPage: {
+    label: 'Помилка',
+    heading: 'Щось пішло не так',
+    description:
+      'Сталася непередбачена помилка. Спробуйте оновити сторінку — якщо проблема повториться, поверніться пізніше.',
+    retry: 'Спробувати знову',
+    home: 'На головну',
   },
 }
 
@@ -1060,6 +1102,13 @@ const ru: Dictionary = {
     yes: 'Да',
     no: 'Нет',
     anonymous: 'Аноним',
+    next: 'Далее',
+    page: 'Страница',
+    previousPhoto: 'Предыдущее фото',
+    nextPhoto: 'Следующее фото',
+    closeContacts: 'Закрыть контакты',
+    contactUs: 'Связаться с магазином',
+    phone: 'Телефон',
   },
   nav: {
     catalog: 'Каталог',
@@ -1554,6 +1603,21 @@ const ru: Dictionary = {
       'Для завершения регистрации укажите ваш номер телефона. Он нужен для оформления и подтверждения заказов.',
     phoneSave: 'Сохранить',
     phoneSaveError: 'Не удалось сохранить номер',
+    continueWithGoogle: 'Продолжить с Google',
+    orDivider: 'или',
+    dialogTitle: 'Личный кабинет',
+    tabLogin: 'Вход',
+    tabRegister: 'Регистрация',
+    emailDomainError:
+      'Регистрация доступна только с почтой Gmail или других популярных сервисов (ukr.net, outlook.com, icloud.com и т.д.)',
+  },
+  errorPage: {
+    label: 'Ошибка',
+    heading: 'Что-то пошло не так',
+    description:
+      'Произошла непредвиденная ошибка. Попробуйте обновить страницу — если проблема повторяется, вернитесь позже.',
+    retry: 'Попробовать снова',
+    home: 'На главную',
   },
 }
 

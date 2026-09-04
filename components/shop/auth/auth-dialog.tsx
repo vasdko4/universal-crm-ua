@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoginForm } from '@/components/shop/auth/login-form'
 import { RegisterForm } from '@/components/shop/auth/register-form'
 import { GoogleSignInButton } from '@/components/shop/auth/google-sign-in-button'
+import { useI18n } from '@/lib/i18n/client'
 
 type AuthTab = 'login' | 'register'
 
@@ -37,6 +38,7 @@ export function AuthDialogProvider({
 }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<AuthTab>('login')
+  const { dict } = useI18n()
 
   const openDialog = useCallback((t: AuthTab = 'login') => {
     setTab(t)
@@ -57,13 +59,13 @@ export function AuthDialogProvider({
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader className="px-6 pb-0 pt-6">
-            <DialogTitle className="text-xl">Личный кабинет</DialogTitle>
+            <DialogTitle className="text-xl">{dict.auth.dialogTitle}</DialogTitle>
           </DialogHeader>
           <Tabs value={tab} onValueChange={(v) => setTab(v as AuthTab)} className="w-full">
             <div className="px-6 pt-4">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Вход</TabsTrigger>
-                <TabsTrigger value="register">Регистрация</TabsTrigger>
+                <TabsTrigger value="login">{dict.auth.tabLogin}</TabsTrigger>
+                <TabsTrigger value="register">{dict.auth.tabRegister}</TabsTrigger>
               </TabsList>
             </div>
             <div className="px-6 pb-6 pt-4">

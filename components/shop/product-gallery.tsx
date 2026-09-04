@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n/client'
 
 type Props = {
   images: string[]
@@ -15,6 +16,7 @@ type Props = {
 }
 
 export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, selectedImage }: Props) {
+  const { dict } = useI18n()
   const gallery = images.filter(Boolean)
   const [active, setActive] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
@@ -162,7 +164,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
             <button
               type="button"
               onClick={prev}
-              aria-label="Попереднє фото"
+              aria-label={dict.common.previousPhoto}
               className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/90 p-2 text-foreground shadow-sm transition hover:bg-background lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronLeft className="size-5" />
@@ -170,7 +172,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
             <button
               type="button"
               onClick={next}
-              aria-label="Наступне фото"
+              aria-label={dict.common.nextPhoto}
               className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/90 p-2 text-foreground shadow-sm transition hover:bg-background lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronRight className="size-5" />
@@ -214,6 +216,11 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
           index={safeActive}
           onIndexChange={setActive}
           onClose={() => setLightboxOpen(false)}
+          labels={{
+            close: dict.common.close,
+            previousPhoto: dict.common.previousPhoto,
+            nextPhoto: dict.common.nextPhoto,
+          }}
         />
       ) : null}
     </div>
@@ -230,11 +237,13 @@ function Lightbox({
   index,
   onIndexChange,
   onClose,
+  labels,
 }: {
   gallery: string[]
   alt: string
   index: number
   onIndexChange: (i: number) => void
+  labels: { close: string; previousPhoto: string; nextPhoto: string }
   onClose: () => void
 }) {
   const [zoomed, setZoomed] = useState(false)
@@ -324,7 +333,7 @@ function Lightbox({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Закрити"
+          aria-label={labels.close}
           className="rounded-full bg-white/10 p-2 transition-colors hover:bg-white/20"
         >
           <X className="size-6" />
@@ -337,7 +346,7 @@ function Lightbox({
           <button
             type="button"
             onClick={prev}
-            aria-label="Попереднє фото"
+            aria-label={labels.previousPhoto}
             className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20 md:left-4 md:p-3"
           >
             <ChevronLeft className="size-6" />
@@ -373,7 +382,7 @@ function Lightbox({
           <button
             type="button"
             onClick={next}
-            aria-label="Наступне фото"
+            aria-label={labels.nextPhoto}
             className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20 md:right-4 md:p-3"
           >
             <ChevronRight className="size-6" />

@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/lib/i18n/client'
+import { localizedPath } from '@/lib/i18n/config'
 
 function GoogleIcon() {
   return (
@@ -35,6 +37,7 @@ function GoogleIcon() {
  */
 export function GoogleSignInButton({ withDivider = true }: { withDivider?: boolean }) {
   const [loading, setLoading] = useState(false)
+  const { dict, locale } = useI18n()
 
   async function signInWithGoogle() {
     setLoading(true)
@@ -45,8 +48,8 @@ export function GoogleSignInButton({ withDivider = true }: { withDivider?: boole
       const inIframe = typeof window !== 'undefined' && window.self !== window.top
       const { data, error } = await authClient.signIn.social({
         provider: 'google',
-        callbackURL: '/account',
-        errorCallbackURL: '/account/login?error=google',
+        callbackURL: localizedPath('/account', locale),
+        errorCallbackURL: localizedPath('/account/login', locale) + '?error=google',
         disableRedirect: true,
       })
       if (error || !data?.url) {
@@ -75,12 +78,12 @@ export function GoogleSignInButton({ withDivider = true }: { withDivider?: boole
         disabled={loading}
       >
         {loading ? <Loader2 className="size-4 animate-spin" /> : <GoogleIcon />}
-        Продолжить с Google
+        {dict.auth.continueWithGoogle}
       </Button>
       {withDivider && (
         <div className="my-4 flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">или</span>
+          <span className="text-xs text-muted-foreground">{dict.auth.orDivider}</span>
           <div className="h-px flex-1 bg-border" />
         </div>
       )}

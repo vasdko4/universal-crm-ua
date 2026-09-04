@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { finalizeCustomerRole, checkPhoneAvailable } from '@/app/actions/shop-auth'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
-import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR } from '@/lib/shop/email-domains'
+import { isAllowedEmailDomain } from '@/lib/shop/email-domains'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,7 @@ export function RegisterForm() {
     const normPhone = normalizeUaPhone(phone)
     if (!name.trim()) return setError(t.auth.nameRequired)
     if (!normPhone) return setError(t.auth.invalidPhoneFormat)
-    if (!isAllowedEmailDomain(email.trim())) return setError(EMAIL_DOMAIN_ERROR)
+    if (!isAllowedEmailDomain(email.trim())) return setError(t.auth.emailDomainError)
     if (password.length < 8) return setError(t.auth.passwordTooShort)
 
     setLoading(true)

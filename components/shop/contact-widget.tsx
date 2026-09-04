@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Phone, Mail, X, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactWidget, WidgetChannelKey } from '@/app/actions/settings-store'
+import { useI18n } from '@/lib/i18n/client'
 
 /* Brand glyphs (lucide has no brand icons). Kept minimal and monochrome. */
 function ViberIcon({ className }: { className?: string }) {
@@ -36,7 +37,7 @@ const META: Record<
   { label: string; Icon: (p: { className?: string }) => React.ReactElement; className: string; href: (v: string) => string }
 > = {
   phone: {
-    label: 'Телефон',
+    labelKey: 'phone' as const,
     Icon: (p) => <Phone {...p} />,
     className: 'bg-emerald-600 hover:bg-emerald-700',
     href: (v) => `tel:${v.replace(/[^\d+]/g, '')}`,
@@ -72,6 +73,7 @@ const ORDER: WidgetChannelKey[] = ['phone', 'whatsapp', 'telegram', 'viber', 'em
 
 export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
   const [open, setOpen] = useState(false)
+  const { dict } = useI18n()
 
   const channels = ORDER.map((key) => ({ key, ...widget.channels[key] })).filter(
     (c) => c.enabled && c.value.trim(),
@@ -102,7 +104,7 @@ export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
               style={{ transitionDelay: open ? `${i * 30}ms` : '0ms' }}
             >
               <span className="rounded-md bg-foreground/90 px-2 py-1 text-xs font-medium text-background shadow-sm">
-                {meta.label}
+                {key === 'phone' ? dict.common.phone : meta.label}
               </span>
               <span
                 className={cn(
@@ -122,7 +124,7 @@ export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-label={open ? 'Закрыть контакты' : 'Связаться с магазином'}
+        aria-label={open ? dict.common.closeContacts : dict.common.contactUs}
         className={cn(
           'flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 active:scale-95',
         )}

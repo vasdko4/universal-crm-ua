@@ -708,7 +708,7 @@ export function CheckoutFlow({
                       type="button"
                       onClick={() => removeAddress(a.id)}
                       disabled={deletingAddressId === a.id}
-                      aria-label="Удалить адрес"
+                      aria-label={t.remove}
                       className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                     >
                       {deletingAddressId === a.id ? (

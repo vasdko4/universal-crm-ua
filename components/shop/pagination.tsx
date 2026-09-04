@@ -3,11 +3,13 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/lib/i18n/client'
 
 export function Pagination({ page, total, perPage }: { page: number; total: number; perPage: number }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
+  const { dict } = useI18n()
   const pages = Math.ceil(total / perPage)
   if (pages <= 1) return null
 
@@ -23,7 +25,7 @@ export function Pagination({ page, total, perPage }: { page: number; total: numb
 
   return (
     <div className="flex items-center justify-center gap-1">
-      <Button variant="outline" size="icon" disabled={page <= 1} onClick={() => goTo(page - 1)} aria-label="Назад">
+      <Button variant="outline" size="icon" disabled={page <= 1} onClick={() => goTo(page - 1)} aria-label={dict.common.back}>
         <ChevronLeft className="size-4" />
       </Button>
       {nums.map((p, idx) => {
@@ -36,14 +38,14 @@ export function Pagination({ page, total, perPage }: { page: number; total: numb
               variant={p === page ? 'default' : 'outline'}
               size="icon"
               onClick={() => goTo(p)}
-              aria-label={`Страница ${p}`}
+              aria-label={`${dict.common.page} ${p}`}
             >
               {p}
             </Button>
           </span>
         )
       })}
-      <Button variant="outline" size="icon" disabled={page >= pages} onClick={() => goTo(page + 1)} aria-label="Вперёд">
+      <Button variant="outline" size="icon" disabled={page >= pages} onClick={() => goTo(page + 1)} aria-label={dict.common.next}>
         <ChevronRight className="size-4" />
       </Button>
     </div>
