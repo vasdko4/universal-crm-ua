@@ -1,5 +1,5 @@
 # One-shot: GitHub App cannot create tags, so this branch-triggered job
-# publishes the GitHub Release (which also creates tag v1.3.7).
+# publishes the GitHub Release (which also creates tag v1.3.8).
 name: publish-github-release
 
 on:
@@ -15,19 +15,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create GitHub Release v1.3.7
+      - name: Create GitHub Release v1.3.8
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NOTES: |
-            Storefront 1.3.7
+            Storefront 1.3.8
 
-            - Google sign-in, auth dialog, error page, contact widget, pagination and gallery labels follow uk/ru
-            - Google OAuth callback keeps /ru
-            - Address book phone field uses the UA mask
+            - Skip Next.js standalone output on Vercel so production deploys
+            - Keep standalone for Docker/self-hosted
+            - Client error page no longer imports the full i18n dictionary
             - Admin CRM screens unchanged
         run: |
-          TAG=v1.3.7
-          SHA=a8cd55db4bb8e7d3c4c9d48d2bfe7bd867d659e3
+          TAG=v1.3.8
+          SHA=31cd51ff84443a76df5d13b9700a447142dfc3a9
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists"
             gh release view "$TAG"
