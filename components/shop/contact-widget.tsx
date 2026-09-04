@@ -37,7 +37,7 @@ const META: Record<
   { label: string; Icon: (p: { className?: string }) => React.ReactElement; className: string; href: (v: string) => string }
 > = {
   phone: {
-    labelKey: 'phone' as const,
+    label: 'Телефон',
     Icon: (p) => <Phone {...p} />,
     className: 'bg-emerald-600 hover:bg-emerald-700',
     href: (v) => `tel:${v.replace(/[^\d+]/g, '')}`,
