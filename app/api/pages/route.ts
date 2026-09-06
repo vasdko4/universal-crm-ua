@@ -1,9 +1,12 @@
 import { getPublicPublishedPages, createPage, type PageInput } from '@/app/actions/pages'
 import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
 import { getAdminUserWithPermission } from '@/lib/session'
+import { localeFromRequest } from '@/lib/i18n/request-locale'
+import { pickLocalized } from '@/lib/i18n/config'
 
 export async function GET(req: Request) {
   const { page, pageSize, search } = parseListParams(req.url)
+  const locale = localeFromRequest(req)
   // Public, unauthenticated route. getPublicPublishedPages() always
   // queries published-only (getPages() now requires the 'pages' permission
   // and is not used here).
@@ -12,11 +15,21 @@ export async function GET(req: Request) {
     pageSize,
     search,
   })
-  return ok(result.items, {
+  const items = result.items.map((p) => {
+    const { titleRu, excerptRu, contentRu, ...rest } = p
+    return {
+      ...rest,
+      title: pickLocalized(locale, p.title, titleRu),
+      excerpt: pickLocalized(locale, p.excerpt, excerptRu) || p.excerpt,
+      content: pickLocalized(locale, p.content, contentRu) || p.content,
+    }
+  })
+  return ok(items, {
     total: result.total,
     page: result.page,
     pageSize: result.pageSize,
     totalPages: result.totalPages,
+    locale,
   })
 }
 

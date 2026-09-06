@@ -31,9 +31,16 @@ export function parseListParams(url: string) {
   return { page, pageSize, search, status, searchParams }
 }
 
+/**
+ * Parse a JSON body without using Request.json().
+ * Next.js App Router can surface SyntaxError from json() as an uncaught 500
+ * ("Unexpected token...") before a route-level try/catch runs.
+ */
 export async function readJson<T>(req: Request): Promise<T | null> {
   try {
-    return (await req.json()) as T
+    const raw = await req.text()
+    if (!raw.trim()) return null
+    return JSON.parse(raw) as T
   } catch {
     return null
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsePositiveInt, parseListParams } from '@/lib/api/helpers'
+import { parsePositiveInt, parseListParams, readJson } from '@/lib/api/helpers'
 
 describe('parsePositiveInt', () => {
   it('accepts 1+', () => {
@@ -26,5 +26,25 @@ describe('parseListParams search', () => {
     const { search } = parseListParams('https://x.test/api/orders?q=%00')
     expect(search).toBe('')
     expect(search.includes('\0')).toBe(false)
+  })
+})
+
+describe('readJson', () => {
+  it('returns null for invalid JSON instead of throwing', async () => {
+    const req = new Request('https://x.test/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'not-json',
+    })
+    expect(await readJson(req)).toBeNull()
+  })
+
+  it('parses a valid object', async () => {
+    const req = new Request('https://x.test/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{"items":[1]}',
+    })
+    expect(await readJson<{ items: number[] }>(req)).toEqual({ items: [1] })
   })
 })

@@ -1,17 +1,45 @@
 import { type NextRequest } from 'next/server'
 import { listOrders, createOrder } from '@/app/actions/orders'
-import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
+import { ok, fail, parsePositiveInt, sanitizeSearch, readJson } from '@/lib/api/helpers'
 import { getAdminUser } from '@/lib/session'
+import { ORDER_STATUSES } from '@/lib/order-status'
+
+const ALLOWED_STATUSES = new Set<string>(['all', ...ORDER_STATUSES.map((s) => s.value)])
+const MAX_PER_PAGE = 100
+const DEFAULT_PER_PAGE = 20
 
 export async function GET(req: NextRequest) {
   const me = await getAdminUser()
   if (!me) return fail('Не авторизован', 401)
-  const { page, search, status, searchParams } = parseListParams(req.url)
-  const perPageRaw = searchParams.get('perPage')
-  const perPage = Math.min(100, Math.max(1, Number.parseInt(perPageRaw ?? '20', 10) || 20))
+
+  const sp = req.nextUrl.searchParams
+
+  const pageRaw = sp.get('page')
+  let page = 1
+  if (pageRaw != null && pageRaw !== '') {
+    const parsed = parsePositiveInt(pageRaw)
+    if (parsed == null) return fail('Некорректный page', 400)
+    page = parsed
+  }
+
+  const perPageRaw = sp.get('perPage')
+  let perPage = DEFAULT_PER_PAGE
+  if (perPageRaw != null && perPageRaw !== '') {
+    const parsed = parsePositiveInt(perPageRaw)
+    if (parsed == null || parsed > MAX_PER_PAGE) return fail('Некорректный perPage', 400)
+    perPage = parsed
+  }
+
+  const statusRaw = sp.get('status')
+  if (statusRaw != null && statusRaw !== '' && !ALLOWED_STATUSES.has(statusRaw)) {
+    return fail(`Некорректный status. Допустимые: ${[...ALLOWED_STATUSES].join(', ')}`, 400)
+  }
+  const status = !statusRaw || statusRaw === 'all' ? undefined : statusRaw
+
+  const search = sanitizeSearch(sp.get('q') ?? sp.get('search') ?? '')
   const data = await listOrders({
     search: search || undefined,
-    status: status === 'all' ? undefined : status,
+    status,
     page,
     perPage,
   })
