@@ -1,7 +1,7 @@
 'use client'
 
-import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react'
-import { LOCALE_COOKIE, normalizeLocale, type Locale } from './config'
+import { createContext, useContext, type ReactNode } from 'react'
+import { LOCALE_COOKIE, type Locale } from './config'
 import { getDictionary, type Dictionary } from './dictionaries'
 
 export type { Locale }
@@ -14,18 +14,6 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | null>(null)
 
 const LOCALE_EVENT = 'v0-locale-change'
-
-function readLocaleCookie(): Locale | null {
-  if (typeof document === 'undefined') return null
-  const raw = document.cookie.split('; ').find((c) => c.startsWith(`${LOCALE_COOKIE}=`))
-  if (!raw) return null
-  return normalizeLocale(raw.split('=')[1])
-}
-
-function subscribeToLocaleChange(callback: () => void) {
-  window.addEventListener(LOCALE_EVENT, callback)
-  return () => window.removeEventListener(LOCALE_EVENT, callback)
-}
 
 /**
  * Writes the locale cookie directly on the client and notifies all mounted
@@ -45,22 +33,15 @@ export function LocaleProvider({
   locale: Locale
   children: ReactNode
 }) {
-  // Server HTML can come from a cache rendered before (or with a different)
-  // locale cookie — e.g. behind an nginx proxy cache — so the client cookie
-  // is the real source of truth once we can read it, and an in-page locale
-  // switch should update instantly everywhere. `useSyncExternalStore` covers
-  // both: it re-reads the cookie whenever the LOCALE_EVENT fires (dispatched
-  // by persistLocaleClientSide right after writing the cookie), and falls
-  // back to the server-rendered `locale` prop for the SSR snapshot.
-  const activeLocale = useSyncExternalStore(
-    subscribeToLocaleChange,
-    () => readLocaleCookie() ?? locale,
-    () => locale,
-  )
-
-  const dict = getDictionary(activeLocale)
+  // The URL (via proxy.ts → x-locale → this server `locale` prop) is the
+  // source of truth. Reading the cookie here used to override /ru pages with
+  // Ukrainian chrome whenever the visitor still had locale=uk from a previous
+  // visit (logo → /, bottom nav "Головна/Категорії/Кошик", footer "Нд").
+  // Cookie is still written by persistLocaleClientSide for first-visit modal
+  // and server-action fallbacks; language switches navigate to /ru or /.
+  const dict = getDictionary(locale)
   return (
-    <I18nContext.Provider value={{ locale: activeLocale, dict }}>{children}</I18nContext.Provider>
+    <I18nContext.Provider value={{ locale, dict }}>{children}</I18nContext.Provider>
   )
 }
 

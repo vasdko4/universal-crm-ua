@@ -20,12 +20,6 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-// turbopackIgnore: the dynamic join below must not make Turbopack's file
-// tracing (NFT) pull the entire project into this route's traced output —
-// on Vercel that ballooned the function and failed the deployment. The files
-// under public/uploads are runtime data (Docker volume), never build assets.
-const UPLOADS_ROOT = join(/*turbopackIgnore: true*/ process.cwd(), 'public', 'uploads')
-
 const MIME: Record<string, string> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
@@ -42,12 +36,20 @@ function resolveSafe(parts: string[]): string | null {
   if (parts.some((p) => !p || p === '.' || p === '..' || p.includes('\\') || p.includes('\0'))) {
     return null
   }
-  const filePath = normalize(join(/*turbopackIgnore: true*/ UPLOADS_ROOT, ...parts))
-  if (filePath !== UPLOADS_ROOT && !filePath.startsWith(UPLOADS_ROOT + sep)) return null
+  // Built lazily so Turbopack does not NFT-trace process.cwd() (the whole
+  // project) into this route. public/uploads is runtime data on Docker.
+  const uploadsRoot = join(/*turbopackIgnore: true*/ process.cwd(), 'public', 'uploads')
+  const filePath = normalize(join(/*turbopackIgnore: true*/ uploadsRoot, ...parts))
+  if (filePath !== uploadsRoot && !filePath.startsWith(uploadsRoot + sep)) return null
   return filePath
 }
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
+  // On Vercel product photos live in Blob (absolute URLs). Skip local-disk
+  // serving so Turbopack does not need to trace process.cwd() into this
+  // function (NFT "unexpected file" warning / oversized package).
+  if (process.env.VERCEL) return new NextResponse('Not found', { status: 404 })
+
   const { path } = await context.params
   const filePath = resolveSafe(path ?? [])
   if (!filePath) return new NextResponse('Not found', { status: 404 })

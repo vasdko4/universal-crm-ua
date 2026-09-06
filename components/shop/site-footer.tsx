@@ -42,31 +42,31 @@ function TikTokIcon(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
-const DAY_LABELS: Record<string, string> = {
-  mon: 'Пн',
-  tue: 'Вт',
-  wed: 'Ср',
-  thu: 'Чт',
-  fri: 'Пт',
-  sat: 'Сб',
-  sun: 'Нд',
+const DAY_LABELS: Record<Locale, Record<string, string>> = {
+  uk: { mon: 'Пн', tue: 'Вт', wed: 'Ср', thu: 'Чт', fri: 'Пт', sat: 'Сб', sun: 'Нд' },
+  ru: { mon: 'Пн', tue: 'Вт', wed: 'Ср', thu: 'Чт', fri: 'Пт', sat: 'Сб', sun: 'Вс' },
 }
 
 // Groups consecutive days with identical hours into ranges, e.g. "Пн–Пт 9:00–18:00".
-function formatWorkingHours(wh: ContactData['workingHours']): { label: string; value: string }[] {
+function formatWorkingHours(
+  wh: ContactData['workingHours'],
+  locale: Locale,
+): { label: string; value: string }[] {
+  const labels = DAY_LABELS[locale]
+  const closed = locale === 'ru' ? 'Выходной' : 'Вихідний'
   const order = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
   const rows: { label: string; value: string }[] = []
   let start: number | null = null
   const valueAt = (i: number) => {
     const d = wh[order[i]]
-    return d.closed ? 'Выходной' : `${d.open}–${d.close}`
+    return d.closed ? closed : `${d.open}–${d.close}`
   }
   for (let i = 0; i <= order.length; i++) {
     const cur = i < order.length ? valueAt(i) : null
     const prev = start !== null ? valueAt(start) : null
     if (start !== null && cur !== prev) {
       const end = i - 1
-      const label = start === end ? DAY_LABELS[order[start]] : `${DAY_LABELS[order[start]]}–${DAY_LABELS[order[end]]}`
+      const label = start === end ? labels[order[start]] : `${labels[order[start]]}–${labels[order[end]]}`
       rows.push({ label, value: prev as string })
       start = i < order.length ? i : null
     } else if (start === null && i < order.length) {
@@ -101,7 +101,7 @@ export function SiteFooter({
 }) {
   const lp = (p: string) => localizedPath(p, locale)
   const activePhones = phones.filter((p) => p && p.trim())
-  const hoursRows = workingHours ? formatWorkingHours(workingHours) : []
+  const hoursRows = workingHours ? formatWorkingHours(workingHours, locale) : []
   const topCategories = categories.filter((c) => !c.parentId).slice(0, 6)
   const socialLinks = [
     { key: 'instagram', label: 'Instagram', url: social.instagram, Icon: InstagramIcon },
