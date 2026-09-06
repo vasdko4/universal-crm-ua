@@ -17,11 +17,15 @@ export default function GlobalError({
     Sentry.captureException(error)
   }, [error])
 
+  const ru =
+    typeof window !== 'undefined' &&
+    (window.location.pathname === '/ru' || window.location.pathname.startsWith('/ru/'))
+
   return (
-    <html>
+    <html lang={ru ? 'ru' : 'uk'}>
       <body>
         <main style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p>Что-то пошло не так. Обновите страницу.</p>
+          <p>{ru ? 'Что-то пошло не так. Обновите страницу.' : 'Щось пішло не так. Оновіть сторінку.'}</p>
         </main>
       </body>
     </html>
