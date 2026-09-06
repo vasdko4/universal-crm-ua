@@ -31,9 +31,13 @@ export type ArticleListParams = {
   pageSize?: number
 }
 
+async function listArticleCategories() {
+  return db.select().from(articleCategories).orderBy(asc(articleCategories.sortOrder), asc(articleCategories.id))
+}
+
 export async function getArticleCategories() {
   await assertPermission('articles')
-  return db.select().from(articleCategories).orderBy(asc(articleCategories.sortOrder), asc(articleCategories.id))
+  return listArticleCategories()
 }
 
 // SECURITY: this admin listing (default status 'all') had no permission
@@ -54,7 +58,7 @@ export async function getArticles(params: ArticleListParams = {}) {
   const [rows, totalRows, cats] = await Promise.all([
     db.select().from(articles).where(where).orderBy(desc(articles.updatedAt)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ value: count() }).from(articles).where(where),
-    getArticleCategories(),
+    listArticleCategories(),
   ])
   const catMap = new Map(cats.map((c) => [c.id, c.name]))
   const items = rows.map((a) => ({ ...a, categoryName: a.categoryId ? catMap.get(a.categoryId) ?? null : null }))
@@ -87,7 +91,7 @@ export async function getPublicPublishedArticles(params: {
   const [rows, totalRows, cats] = await Promise.all([
     db.select().from(articles).where(where).orderBy(desc(articles.updatedAt)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ value: count() }).from(articles).where(where),
-    getArticleCategories(),
+    listArticleCategories(),
   ])
   const catMap = new Map(cats.map((c) => [c.id, c.name]))
   const items = rows.map((a) => ({ ...a, categoryName: a.categoryId ? catMap.get(a.categoryId) ?? null : null }))
