@@ -16,7 +16,11 @@ import { type NextRequest, NextResponse } from 'next/server'
 // routes), so this handler only receives the runtime-added ones.
 //
 // On Vercel uploads go to Blob storage (absolute URLs), so this route is
-// simply never hit there.
+// simply never hit there. The GET handler returns 404 before touching disk.
+//
+// NFT: never call process.cwd() here. Turbopack treats that as "the whole
+// project" and warns "Encountered unexpected file in NFT list" (and used to
+// fail the Vercel packager). Docker WORKDIR is /app; override with UPLOADS_DIR.
 
 export const dynamic = 'force-dynamic'
 
@@ -31,23 +35,18 @@ const MIME: Record<string, string> = {
   ico: 'image/x-icon',
 }
 
+const UPLOADS_ROOT = process.env.UPLOADS_DIR || '/app/public/uploads'
+
 function resolveSafe(parts: string[]): string | null {
-  // Reject anything that could escape the uploads root.
   if (parts.some((p) => !p || p === '.' || p === '..' || p.includes('\\') || p.includes('\0'))) {
     return null
   }
-  // Built lazily so Turbopack does not NFT-trace process.cwd() (the whole
-  // project) into this route. public/uploads is runtime data on Docker.
-  const uploadsRoot = join(/*turbopackIgnore: true*/ process.cwd(), 'public', 'uploads')
-  const filePath = normalize(join(/*turbopackIgnore: true*/ uploadsRoot, ...parts))
-  if (filePath !== uploadsRoot && !filePath.startsWith(uploadsRoot + sep)) return null
+  const filePath = normalize(join(UPLOADS_ROOT, ...parts))
+  if (filePath !== UPLOADS_ROOT && !filePath.startsWith(UPLOADS_ROOT + sep)) return null
   return filePath
 }
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  // On Vercel product photos live in Blob (absolute URLs). Skip local-disk
-  // serving so Turbopack does not need to trace process.cwd() into this
-  // function (NFT "unexpected file" warning / oversized package).
   if (process.env.VERCEL) return new NextResponse('Not found', { status: 404 })
 
   const { path } = await context.params
@@ -71,8 +70,6 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ pa
     headers: {
       'Content-Type': contentType,
       'Content-Length': String(info.size),
-      // Uploaded file names are content-addressed (timestamp + random hex),
-      // so they never change in place — safe to cache aggressively.
       'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
       'X-Content-Type-Options': 'nosniff',
     },
