@@ -34,10 +34,13 @@ const NONE = 'none'
 
 const empty: ArticleInput = {
   title: '',
+  titleRu: '',
   slug: '',
   categoryId: null,
   excerpt: '',
+  excerptRu: '',
   content: '',
+  contentRu: '',
   coverImage: '',
   author: 'Редакция',
   tags: [],
@@ -81,10 +84,13 @@ export function ArticleEditorDialog({
       if (article) {
         setForm({
           title: article.title,
+          titleRu: article.titleRu ?? '',
           slug: article.slug,
           categoryId: article.categoryId,
           excerpt: article.excerpt ?? '',
+          excerptRu: article.excerptRu ?? '',
           content: article.content ?? '',
+          contentRu: article.contentRu ?? '',
           coverImage: article.coverImage ?? '',
           author: article.author ?? 'Редакция',
           tags: (article.tags as string[]) ?? [],
@@ -164,6 +170,15 @@ export function ArticleEditorDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
+              <Label htmlFor="art-title-ru">{t.titleRuLabel}</Label>
+              <Input
+                id="art-title-ru"
+                value={form.titleRu ?? ''}
+                onChange={(e) => set('titleRu', e.target.value)}
+                placeholder={t.titleRuPlaceholder}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="art-slug">{t.slugLabel}</Label>
               <Input
                 id="art-slug"
@@ -187,6 +202,16 @@ export function ArticleEditorDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
+              <Label htmlFor="art-excerpt-ru">{t.excerptRuLabel}</Label>
+              <Textarea
+                id="art-excerpt-ru"
+                value={form.excerptRu ?? ''}
+                onChange={(e) => set('excerptRu', e.target.value)}
+                rows={2}
+                placeholder={t.excerptRuPlaceholder}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="art-content">{t.contentLabel}</Label>
               <Textarea
                 id="art-content"
@@ -195,6 +220,17 @@ export function ArticleEditorDialog({
                 rows={10}
                 className="font-mono text-sm"
                 placeholder={t.contentPlaceholder}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="art-content-ru">{t.contentRuLabel}</Label>
+              <Textarea
+                id="art-content-ru"
+                value={form.contentRu ?? ''}
+                onChange={(e) => set('contentRu', e.target.value)}
+                rows={10}
+                className="font-mono text-sm"
+                placeholder={t.contentRuPlaceholder}
               />
             </div>
           </TabsContent>

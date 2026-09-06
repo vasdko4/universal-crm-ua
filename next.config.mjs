@@ -51,7 +51,7 @@ const nextConfig = {
   // which blew up the Vercel deployment (patch_build_4xx). Those files are
   // runtime data on a Docker volume — nothing needs to be traced for them.
   outputFileTracingExcludes: {
-    '/uploads/[...path]': ['./public/uploads/**'],
+    '/uploads/[...path]': ['./app/uploads/[...path]/serve-local.ts', './public/uploads/**'],
   },
 
   // Long-lived caching for hashed static assets + security headers.

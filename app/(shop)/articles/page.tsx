@@ -30,7 +30,7 @@ export default async function ArticlesPage({
   const { dict, locale } = await getServerDictionary()
   const lp = (path: string) => localizedPath(path, locale)
   const [rawArticles, rawCategories] = await Promise.all([
-    getPublishedArticles({ categorySlug: category }),
+    getPublishedArticles({ categorySlug: category, locale }),
     getPublishedArticleCategories(),
   ])
 

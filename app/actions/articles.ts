@@ -9,10 +9,13 @@ import { assertPermission } from '@/lib/session'
 
 export type ArticleInput = {
   title: string
+  titleRu?: string
   slug?: string
   categoryId?: number | null
   excerpt?: string
+  excerptRu?: string
   content?: string
+  contentRu?: string
   coverImage?: string | null
   author?: string | null
   tags?: string[]
@@ -133,10 +136,13 @@ export async function createArticle(input: ArticleInput) {
   const isPublished = input.status === 'published'
   await db.insert(articles).values({
     title: input.title.trim(),
+    titleRu: input.titleRu?.trim() || null,
     slug,
     categoryId: input.categoryId ?? null,
     excerpt: input.excerpt ?? '',
+    excerptRu: input.excerptRu?.trim() || null,
     content: input.content ?? '',
+    contentRu: input.contentRu ?? '',
     coverImage: input.coverImage ?? null,
     author: input.author ?? 'Редакция',
     tags: input.tags ?? [],
@@ -163,10 +169,13 @@ export async function updateArticle(id: number, input: ArticleInput) {
     .update(articles)
     .set({
       title: input.title.trim(),
+      titleRu: input.titleRu?.trim() || null,
       slug,
       categoryId: input.categoryId ?? null,
       excerpt: input.excerpt ?? '',
+      excerptRu: input.excerptRu?.trim() || null,
       content: input.content ?? '',
+      contentRu: input.contentRu ?? '',
       coverImage: input.coverImage ?? null,
       author: input.author ?? 'Редакция',
       tags: input.tags ?? [],

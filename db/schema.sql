@@ -50,10 +50,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS article_categories_slug_key ON public.article_
 CREATE TABLE IF NOT EXISTS "articles" (
   "id" serial NOT NULL,
   "title" varchar(255) NOT NULL,
+  "title_ru" varchar(255),
   "slug" varchar(255) NOT NULL,
   "category_id" integer,
   "excerpt" text,
+  "excerpt_ru" text,
   "content" text,
+  "content_ru" text,
   "cover_image" varchar(500),
   "author" varchar(150),
   "tags" jsonb DEFAULT '[]'::jsonb NOT NULL,

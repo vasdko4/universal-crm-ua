@@ -125,6 +125,7 @@ export type Dictionary = {
     quantity: string
     decrease: string
     increase: string
+    enlargePhoto: string
     inStockCount: string
     lowStockLeft: string
     unitsShort: string
@@ -668,6 +669,7 @@ const uk: Dictionary = {
     quantity: 'Кількість:',
     decrease: 'Менше',
     increase: 'Більше',
+    enlargePhoto: 'збільшити фото',
     inStockCount: 'В наявності:',
     lowStockLeft: 'Залишилось лише {{count}} шт!',
     unitsShort: 'шт.',
@@ -1207,6 +1209,7 @@ const ru: Dictionary = {
     quantity: 'Количество:',
     decrease: 'Меньше',
     increase: 'Больше',
+    enlargePhoto: 'увеличить фото',
     inStockCount: 'В наличии:',
     lowStockLeft: 'Осталось всего {{count}} шт!',
     unitsShort: 'шт.',

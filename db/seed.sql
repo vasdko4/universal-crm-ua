@@ -181,3 +181,7 @@ SELECT setval(pg_get_serial_sequence('promotion_usages', 'id'), COALESCE((SELECT
 SELECT setval(pg_get_serial_sequence('promotions', 'id'), COALESCE((SELECT MAX("id") FROM "promotions"), 1), true);
 SELECT setval(pg_get_serial_sequence('roles', 'id'), COALESCE((SELECT MAX("id") FROM "roles"), 1), true);
 SELECT setval(pg_get_serial_sequence('site_groups', 'id'), COALESCE((SELECT MAX("id") FROM "site_groups"), 1), true);
+
+UPDATE "articles" SET "title_ru" = 'Как выбрать беспроводные наушники в 2026 году', "excerpt_ru" = 'Разбираем ключевые характеристики при выборе наушников.', "content_ru" = '<p>При выборе наушников обратите внимание на шумоподавление, время работы и качество звука.</p>' WHERE "slug" = 'how-to-choose-earbuds';
+UPDATE "articles" SET "title_ru" = 'ТОП-5 смартфонов по соотношению цена/качество', "excerpt_ru" = 'Наша подборка лучших смартфонов месяца.', "content_ru" = '<p>В этом обзоре мы собрали 5 моделей, которые стоит внимания.</p>' WHERE "slug" = 'top-5-smartphones';
+UPDATE "articles" SET "title_ru" = 'Как ухаживать за механической клавиатурой', "excerpt_ru" = 'Простые советы для долговечности вашей клавиатуры.', "content_ru" = '<p>Регулярно чистите переключатели и снимайте кейкапы.</p>' WHERE "slug" = 'keyboard-care';
