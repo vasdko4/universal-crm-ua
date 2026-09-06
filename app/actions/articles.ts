@@ -6,6 +6,7 @@ import { and, asc, count, desc, eq, ilike } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { slugify } from '@/lib/slug'
 import { assertPermission } from '@/lib/session'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type ArticleInput = {
   title: string
@@ -53,7 +54,8 @@ export async function getArticles(params: ArticleListParams = {}) {
   await assertPermission('articles')
   const { search = '', status = 'all', categoryId = 'all', page = 1, pageSize = 10 } = params
   const conditions = []
-  if (search.trim()) conditions.push(ilike(articles.title, `%${search.trim()}%`))
+  const q = sanitizeSearch(search).trim()
+  if (q) conditions.push(ilike(articles.title, `%${q}%`))
   if (status !== 'all') conditions.push(eq(articles.status, status))
   if (categoryId !== 'all') conditions.push(eq(articles.categoryId, categoryId as number))
   const where = conditions.length ? and(...conditions) : undefined
@@ -87,7 +89,8 @@ export async function getPublicPublishedArticles(params: {
 } = {}) {
   const { search = '', categoryId = 'all', page = 1, pageSize = 10 } = params
   const conditions = [eq(articles.status, 'published')]
-  if (search.trim()) conditions.push(ilike(articles.title, `%${search.trim()}%`))
+  const q = sanitizeSearch(search).trim()
+  if (q) conditions.push(ilike(articles.title, `%${q}%`))
   if (categoryId !== 'all') conditions.push(eq(articles.categoryId, categoryId as number))
   const where = and(...conditions)
 

@@ -6,6 +6,7 @@ import { and, count, desc, eq, ilike } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { slugify } from '@/lib/slug'
 import { assertPermission } from '@/lib/session'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type PageInput = {
   title: string
@@ -41,7 +42,8 @@ export async function getPages(params: PageListParams = {}) {
   await assertPermission('pages')
   const { search = '', status = 'all', page = 1, pageSize = 10 } = params
   const conditions = []
-  if (search.trim()) conditions.push(ilike(pages.title, `%${search.trim()}%`))
+  const q = sanitizeSearch(search).trim()
+  if (q) conditions.push(ilike(pages.title, `%${q}%`))
   if (status !== 'all') conditions.push(eq(pages.status, status))
   const where = conditions.length ? and(...conditions) : undefined
 
@@ -68,7 +70,8 @@ export async function getPublicPublishedPages(params: {
 } = {}) {
   const { search = '', page = 1, pageSize = 10 } = params
   const conditions = [eq(pages.status, 'published')]
-  if (search.trim()) conditions.push(ilike(pages.title, `%${search.trim()}%`))
+  const q = sanitizeSearch(search).trim()
+  if (q) conditions.push(ilike(pages.title, `%${q}%`))
   const where = and(...conditions)
 
   const [rows, totalRows] = await Promise.all([
