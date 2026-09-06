@@ -17,11 +17,12 @@ import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { getProductSlugMap } from '@/lib/shop/queries'
+import { parsePage } from '@/lib/api/helpers'
 
 export async function listOrders(params: OrderListParams = {}) {
   await assertPermission('orders')
-  const page = Math.max(1, Math.floor(params.page ?? 1) || 1)
-  const perPage = Math.min(100, Math.max(1, Math.floor(params.perPage ?? 20) || 20))
+  const page = parsePage(params.page)
+  const perPage = Math.min(100, parsePage(params.perPage, 20))
   const conditions = []
 
   const search = (params.search ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)

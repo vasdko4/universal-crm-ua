@@ -17,6 +17,15 @@ export function parsePositiveInt(value: string | null | undefined): number | nul
   return n
 }
 
+/** Safe list page. Infinity / NaN / negatives become fallback (default 1). */
+export function parsePage(value: string | number | null | undefined, fallback = 1): number {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value < 1) return fallback
+    return Math.min(Math.floor(value), 1_000_000)
+  }
+  return parsePositiveInt(value) ?? fallback
+}
+
 /** Strip NUL / other C0 controls so Postgres LIKE/ilike cannot 500. */
 export function sanitizeSearch(raw: string): string {
   return raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)

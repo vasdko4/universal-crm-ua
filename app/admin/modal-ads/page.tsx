@@ -1,6 +1,7 @@
 import { requirePermission } from '@/lib/session'
 import { getModalAds } from '@/app/actions/modal-ads'
 import { ModalAdsManager } from '@/components/modal-ads/modal-ads-manager'
+import { parsePage } from '@/lib/api/helpers'
 
 export default async function ModalAdsPage(props: {
   searchParams: Promise<{ q?: string; status?: string; page?: string }>
@@ -9,7 +10,7 @@ export default async function ModalAdsPage(props: {
   const sp = await props.searchParams
   const search = sp.q ?? ''
   const status = (sp.status as 'all' | 'active' | 'inactive') ?? 'all'
-  const page = Number(sp.page ?? '1') || 1
+  const page = parsePage(sp.page)
 
   const data = await getModalAds({ search, status, page })
 

@@ -16,7 +16,7 @@ import { revalidateStorefront } from '@/lib/shop/cache'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueSlug } from '@/lib/product-slug'
-import { sanitizeSearch } from '@/lib/api/helpers'
+import { parsePage, sanitizeSearch } from '@/lib/api/helpers'
 
 export type VariantInput = {
   options: VariantOptions
@@ -37,7 +37,9 @@ export type ProductFilters = {
 }
 
 export async function getProducts(filters: ProductFilters = {}) {
-  const { search, categoryId, status = 'all', sort = 'newest', page = 1, perPage = 10 } = filters
+  const { search, categoryId, status = 'all', sort = 'newest' } = filters
+  const page = parsePage(filters.page)
+  const perPage = parsePage(filters.perPage, 10)
 
   const conditions: SQL[] = [isNull(products.deletedAt)]
 

@@ -1,6 +1,7 @@
 import { getCustomers } from '@/app/actions/customers'
 import { CustomersManager } from '@/components/customers/customers-manager'
 import { requirePermission } from '@/lib/session'
+import { parsePage } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +12,7 @@ export default async function CustomersPage(props: {
   const sp = await props.searchParams
   const data = await getCustomers({
     search: sp.q,
-    page: sp.page ? Number(sp.page) : 1,
+    page: parsePage(sp.page),
     minScore: sp.score ? Number(sp.score) : 0,
   })
 

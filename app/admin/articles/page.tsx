@@ -1,6 +1,7 @@
 import { getArticles, getArticleCategories } from '@/app/actions/articles'
 import { ArticlesManager } from '@/components/articles/articles-manager'
 import { requirePermission } from '@/lib/session'
+import { parsePage, parsePositiveInt } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,8 +16,8 @@ export default async function ArticlesPage({
     getArticles({
       search: sp.q ?? '',
       status: (sp.status as 'all' | 'draft' | 'published') ?? 'all',
-      categoryId: sp.category ? Number(sp.category) : 'all',
-      page: Number(sp.page ?? '1') || 1,
+      categoryId: parsePositiveInt(sp.category) ?? 'all',
+      page: parsePage(sp.page),
     }),
     getArticleCategories(),
   ])

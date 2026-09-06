@@ -2,6 +2,7 @@ import { getProducts, type ProductFilters } from '@/app/actions/products'
 import { getCategories } from '@/app/actions/categories'
 import { ProductsTable } from '@/components/products/products-table'
 import { requirePermission } from '@/lib/session'
+import { parsePage, parsePositiveInt } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,10 +20,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
 
   const filters: ProductFilters = {
     search: params.search,
-    categoryId: params.category ? Number(params.category) : undefined,
+    categoryId: parsePositiveInt(params.category) ?? undefined,
     status: (params.status as ProductFilters['status']) || 'all',
     sort: (params.sort as ProductFilters['sort']) || 'newest',
-    page: Math.max(1, Number(params.page) || 1),
+    page: parsePage(params.page),
     perPage: 10,
   }
 

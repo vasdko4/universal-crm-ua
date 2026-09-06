@@ -1,6 +1,7 @@
 import { getPages } from '@/app/actions/pages'
 import { PagesManager } from '@/components/pages/pages-manager'
 import { requirePermission } from '@/lib/session'
+import { parsePage } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ export default async function PagesPage({
   const data = await getPages({
     search: sp.q ?? '',
     status: (sp.status as 'all' | 'draft' | 'published') ?? 'all',
-    page: Number(sp.page ?? '1') || 1,
+    page: parsePage(sp.page),
   })
 
   return (
