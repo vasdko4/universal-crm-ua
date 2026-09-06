@@ -7,6 +7,7 @@ import { getAdminUserWithPermission } from '@/lib/session'
 import { db } from '@/lib/db'
 import { orderHistory } from '@/lib/db/schema'
 import { getProductSlugMap } from '@/lib/shop/queries'
+import { readJson, parsePositiveInt } from '@/lib/api/helpers'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Was gated only on "is some admin-center user", not on the 'orders'
@@ -17,8 +18,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!me) return NextResponse.json({ error: 'Не авторизован' }, { status: 403 })
 
   const { id } = await params
-  const orderId = Number.parseInt(id, 10)
-  const body = await req.json().catch(() => ({}))
+  const orderId = parsePositiveInt(id)
+  if (orderId == null) return NextResponse.json({ error: 'Некорректный id' }, { status: 400 })
+  const body = (await readJson<{ channel?: string; kind?: OrderMessageKind }>(req)) ?? {}
   const channel: string = body.channel ?? 'email'
   const kind: OrderMessageKind = body.kind ?? 'confirmation'
 

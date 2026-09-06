@@ -7,6 +7,7 @@ import { formatPrice } from '@/lib/shop/format'
 import { getOrderStatusLabel, getPaymentStatusLabel, getDeliveryMethodLabel } from '@/lib/order-status'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
+import { parsePositiveInt } from '@/lib/api/helpers'
 
 function InfoRow({
   icon: Icon,
@@ -34,7 +35,9 @@ export default async function MyOrderDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [data, locale] = await Promise.all([getMyOrderDetail(Number(id)), getLocale()])
+  const idNum = parsePositiveInt(id)
+  if (idNum == null) notFound()
+  const [data, locale] = await Promise.all([getMyOrderDetail(idNum), getLocale()])
   if (!data) notFound()
   const { order, items, productSlugs } = data
   const dict = getDictionary(locale)

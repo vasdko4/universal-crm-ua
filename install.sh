@@ -115,12 +115,74 @@ FTP_USER=techno
 FTP_PASSWORD=$(gen_password)
 FTP_ADDRESS=${FTP_ADDRESS}
 DOMAIN=${DOMAIN}
+UPDATER_SECRET=$(gen_secret)
+COMPOSE_PROJECT_NAME=magazine
 ENVEOF
   chmod 600 .env
   ok "Файл .env создан: адрес ${PUBLIC_URL}, секреты и пароли сгенерированы"
 else
   ok "Файл .env уже существует — используем его"
 fi
+
+# Sidecar for one-click updates from /admin/updates. install.sh does not
+# clone the repo, so write updater.py next to the generated compose file.
+mkdir -p scripts
+cat > scripts/updater.py <<'PYEOF'
+#!/usr/bin/env python3
+import os
+import subprocess
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+SECRET = os.environ.get("UPDATER_SECRET", "")
+PORT = int(os.environ.get("PORT", "8787"))
+BIND_HOST = os.environ.get("BIND_HOST", "127.0.0.1")
+COMPOSE_FILE = os.environ.get("COMPOSE_FILE", "/workspace/docker-compose.yml")
+PROJECT_DIR = os.environ.get("COMPOSE_PROJECT_DIR", "/workspace")
+SERVICE = os.environ.get("APP_SERVICE", "app")
+COMPOSE_BASE = ["docker", "compose", "-f", COMPOSE_FILE, "--project-directory", PROJECT_DIR]
+_lock = threading.Lock()
+_running = False
+
+def run_update() -> None:
+    global _running
+    with _lock:
+        if _running:
+            return
+        _running = True
+    try:
+        subprocess.run(COMPOSE_BASE + ["pull", SERVICE], check=False)
+        subprocess.run(COMPOSE_BASE + ["up", "-d", SERVICE], check=False)
+    finally:
+        with _lock:
+            _running = False
+
+class Handler(BaseHTTPRequestHandler):
+    def _json(self, code: int, body: bytes) -> None:
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(body)
+    def do_GET(self) -> None:
+        self._json(200 if self.path == "/health" else 404, b'{"status":"ok"}' if self.path == "/health" else b'{"error":"not_found"}')
+    def do_POST(self) -> None:
+        if self.path != "/update":
+            self._json(404, b'{"error":"not_found"}')
+            return
+        if not SECRET:
+            self._json(503, b'{"error":"not_configured"}')
+            return
+        if self.headers.get("X-Updater-Secret") != SECRET:
+            self._json(401, b'{"error":"unauthorized"}')
+            return
+        threading.Thread(target=run_update, daemon=True).start()
+        self._json(202, b'{"status":"started"}')
+    def log_message(self, fmt: str, *args) -> None:
+        print("[updater] " + (fmt % args), flush=True)
+
+if __name__ == "__main__":
+    ThreadingHTTPServer((BIND_HOST, PORT), Handler).serve_forever()
+PYEOF
 
 # ── 4. docker-compose.yml (образ с Docker Hub, без сборки) ──────────
 cat > docker-compose.yml <<COMPOSEEOF
@@ -158,8 +220,25 @@ services:
       BETTER_AUTH_URL: \${BETTER_AUTH_URL:-http://localhost:3000}
       CRON_SECRET: \${CRON_SECRET:-}
       NEXT_PUBLIC_SITE_URL: \${NEXT_PUBLIC_SITE_URL:-}
+      UPDATER_URL: \${UPDATER_URL:-http://updater:8787}
+      UPDATER_SECRET: \${UPDATER_SECRET:-}
     command: >
       sh -c "node scripts/db-setup.mjs && node server.js"
+
+  updater:
+    image: python:3.12-alpine
+    container_name: magazine-updater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace:ro
+    working_dir: /workspace
+    environment:
+      UPDATER_SECRET: \${UPDATER_SECRET:-}
+      COMPOSE_PROJECT_NAME: \${COMPOSE_PROJECT_NAME:-magazine}
+      BIND_HOST: "0.0.0.0"
+    command: >
+      sh -c "apk add --no-cache docker-cli docker-cli-compose >/dev/null 2>&1 && python3 scripts/updater.py"
 
   ftp:
     image: delfer/alpine-ftp-server:latest
