@@ -13,7 +13,7 @@ export default async function CustomersPage(props: {
   const data = await getCustomers({
     search: sp.q,
     page: parsePage(sp.page),
-    minScore: sp.score ? Number(sp.score) : 0,
+    minScore: parsePage(sp.score, 0),
   })
 
   return <CustomersManager initialData={data} initialSearch={sp.q ?? ''} initialScore={sp.score ?? '0'} />
