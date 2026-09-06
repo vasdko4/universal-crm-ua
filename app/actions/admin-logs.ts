@@ -3,7 +3,7 @@
 import { pool } from '@/lib/db'
 import { requirePermission } from '@/lib/session'
 import type { AdminLog } from '@/lib/db/schema'
-import { sanitizeSearch } from '@/lib/api/helpers'
+import { parsePage, sanitizeSearch } from '@/lib/api/helpers'
 
 export type LogsFilter = {
   entity?: string
@@ -26,7 +26,7 @@ const PAGE_SIZE = 50
 export async function getAdminLogs(filter: LogsFilter = {}): Promise<LogsResult> {
   await requirePermission('logs')
 
-  const page = Math.max(1, Math.floor(Number(filter.page) || 1))
+  const page = parsePage(filter.page)
   const where: string[] = []
   const params: unknown[] = []
 

@@ -6,6 +6,7 @@ import {
 } from '@/app/actions/feedback'
 import { FeedbackManager } from '@/components/feedback/feedback-manager'
 import { requirePermission } from '@/lib/session'
+import { parsePage } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +18,7 @@ export default async function ReviewsPage({
   await requirePermission('reviews')
   const sp = await searchParams
   const tab = sp.tab === 'questions' ? 'questions' : 'reviews'
-  const page = Number(sp.page ?? '1') || 1
+  const page = parsePage(sp.page)
 
   const [reviews, questions, reviewsStats, questionsStats] = await Promise.all([
     getReviews(

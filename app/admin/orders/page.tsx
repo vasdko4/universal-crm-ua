@@ -1,6 +1,7 @@
 import { requirePermission } from '@/lib/session'
 import { listOrders, getOrderStats } from '@/app/actions/orders'
 import { OrdersList } from '@/components/orders/orders-list'
+import { parsePage } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,7 @@ export default async function OrdersPage(props: {
     listOrders({
       search: sp.q,
       status: sp.status,
-      page: sp.page ? Number(sp.page) : 1,
+      page: parsePage(sp.page),
     }),
     getOrderStats(),
   ])
