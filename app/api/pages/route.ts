@@ -5,7 +5,8 @@ import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { pickLocalized } from '@/lib/i18n/config'
 
 export async function GET(req: Request) {
-  const { page, pageSize, search } = parseListParams(req.url)
+  const { page, pageSize, search, error } = parseListParams(req.url)
+  if (error) return fail(error, 400)
   const locale = localeFromRequest(req)
   // Public, unauthenticated route. getPublicPublishedPages() always
   // queries published-only (getPages() now requires the 'pages' permission
