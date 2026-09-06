@@ -96,8 +96,11 @@ export async function getPublicPublishedArticles(params: {
     db.select({ value: count() }).from(articles).where(where),
     listArticleCategories(),
   ])
-  const catMap = new Map(cats.map((c) => [c.id, c.name]))
-  const items = rows.map((a) => ({ ...a, categoryName: a.categoryId ? catMap.get(a.categoryId) ?? null : null }))
+  const catMap = new Map(cats.map((c) => [c.id, { name: c.name, slug: c.slug }]))
+  const items = rows.map((a) => {
+    const cat = a.categoryId ? catMap.get(a.categoryId) : undefined
+    return { ...a, categoryName: cat?.name ?? null, categorySlug: cat?.slug ?? null }
+  })
   const total = totalRows[0]?.value ?? 0
   return { items, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) }
 }

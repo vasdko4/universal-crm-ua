@@ -47,9 +47,11 @@ export async function getReviews(params: ReviewListParams = {}) {
 // 'reviews' permission) instead of that function forcing safe defaults
 // itself, so a direct call to the admin action can never accidentally leak
 // pending/rejected reviews or emails regardless of what a caller requests.
-export async function getPublicApprovedReviews(params: { page?: number; pageSize?: number } = {}) {
-  const { page = 1, pageSize = 10 } = params
-  const where = eq(productReviews.status, 'approved')
+export async function getPublicApprovedReviews(params: { page?: number; pageSize?: number; productId?: number } = {}) {
+  const { page = 1, pageSize = 10, productId } = params
+  const conditions = [eq(productReviews.status, 'approved')]
+  if (productId != null) conditions.push(eq(productReviews.productId, productId))
+  const where = and(...conditions)
   const [rows, totalRows] = await Promise.all([
     db
       .select({
@@ -169,9 +171,11 @@ export async function getQuestions(params: QuestionListParams = {}) {
 // and never includes the asker's email. See getPublicApprovedReviews above
 // for why this is a separate function rather than a safe default baked into
 // the now permission-gated getQuestions().
-export async function getPublicAnsweredQuestions(params: { page?: number; pageSize?: number } = {}) {
-  const { page = 1, pageSize = 10 } = params
-  const where = eq(productQuestions.status, 'answered')
+export async function getPublicAnsweredQuestions(params: { page?: number; pageSize?: number; productId?: number } = {}) {
+  const { page = 1, pageSize = 10, productId } = params
+  const conditions = [eq(productQuestions.status, 'answered')]
+  if (productId != null) conditions.push(eq(productQuestions.productId, productId))
+  const where = and(...conditions)
   const [rows, totalRows] = await Promise.all([
     db
       .select({
