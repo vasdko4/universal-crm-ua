@@ -21,4 +21,10 @@ describe('parseListParams search', () => {
     expect(search).toBe('hello')
     expect(search.includes('\0')).toBe(false)
   })
+
+  it('strips NUL from q= used by /api/orders', () => {
+    const { search } = parseListParams('https://x.test/api/orders?q=%00')
+    expect(search).toBe('')
+    expect(search.includes('\0')).toBe(false)
+  })
 })
