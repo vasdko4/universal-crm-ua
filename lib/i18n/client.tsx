@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, type ReactNode } from 'react'
 import { LOCALE_COOKIE, type Locale } from './config'
 import { getDictionary, type Dictionary } from './dictionaries'
 
@@ -40,6 +40,9 @@ export function LocaleProvider({
   // Cookie is still written by persistLocaleClientSide for first-visit modal
   // and server-action fallbacks; language switches navigate to /ru or /.
   const dict = getDictionary(locale)
+  useEffect(() => {
+    persistLocaleClientSide(locale)
+  }, [locale])
   return (
     <I18nContext.Provider value={{ locale, dict }}>{children}</I18nContext.Provider>
   )

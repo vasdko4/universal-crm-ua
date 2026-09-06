@@ -9,13 +9,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Store, Loader2, ShieldCheck } from 'lucide-react'
+import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 export function SignInForm({
   needsBootstrap,
   storeName,
+  copy,
 }: {
   needsBootstrap: boolean
   storeName: string
+  copy: AdminDictionary['signIn']
 }) {
   const router = useRouter()
   const [name, setName] = useState('')
@@ -32,15 +35,14 @@ export function SignInForm({
     if (needsBootstrap) {
       const res = await bootstrapAdmin({ name, email, password })
       if (!res.success) {
-        setError(res.error ?? 'Ошибка')
+        setError(res.error ?? copy.error)
         setLoading(false)
         return
       }
-      // Auto sign-in after creating admin.
       const { error } = await authClient.signIn.email({ email, password })
       setLoading(false)
       if (error) {
-        setError(error.message ?? 'Ошибка входа')
+        setError(error.message ?? copy.signInError)
         return
       }
       router.push('/admin')
@@ -51,12 +53,7 @@ export function SignInForm({
     const { error } = await authClient.signIn.email({ email, password })
     setLoading(false)
     if (error) {
-      // 429 = сработала защита от перебора пароля (5 попыток / 2 минуты).
-      setError(
-        error.status === 429
-          ? 'Слишком много попыток входа. Подождите 2 минуты и попробуйте снова.'
-          : 'Неверный email или пароль',
-      )
+      setError(error.status === 429 ? copy.tooMany : copy.invalid)
       return
     }
     router.push('/admin')
@@ -71,19 +68,17 @@ export function SignInForm({
             {needsBootstrap ? <ShieldCheck className="size-6" /> : <Store className="size-6" />}
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground text-balance">
-            {needsBootstrap ? 'Создание администратора' : storeName}
+            {needsBootstrap ? copy.bootstrapTitle : storeName}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
-            {needsBootstrap
-              ? 'Это первый вход. Создайте учётную запись администратора.'
-              : 'Войдите в админ-центр'}
+            {needsBootstrap ? copy.bootstrapSubtitle : copy.subtitle}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {needsBootstrap && (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="name">Имя</Label>
+              <Label htmlFor="name">{copy.bootstrapName}</Label>
               <Input
                 id="name"
                 value={name}
@@ -105,7 +100,7 @@ export function SignInForm({
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Пароль</Label>
+            <Label htmlFor="password">{copy.password}</Label>
             <Input
               id="password"
               type="password"
@@ -125,7 +120,7 @@ export function SignInForm({
 
           <Button type="submit" disabled={loading} className="w-full">
             {loading && <Loader2 className="size-4 animate-spin" />}
-            {needsBootstrap ? 'Создать и войти' : 'Войти'}
+            {needsBootstrap ? copy.bootstrapSubmit : copy.submit}
           </Button>
         </form>
       </Card>
