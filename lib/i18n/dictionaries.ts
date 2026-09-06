@@ -27,6 +27,7 @@ export type Dictionary = {
     closeContacts: string
     contactUs: string
     phone: string
+    notNowThanks: string
   }
   nav: {
     catalog: string
@@ -572,6 +573,7 @@ const uk: Dictionary = {
     closeContacts: 'Закрити контакти',
     contactUs: "Зв'язатися з магазином",
     phone: 'Телефон',
+    notNowThanks: 'Не зараз, дякую',
   },
   nav: {
     catalog: 'Каталог',
@@ -1113,6 +1115,7 @@ const ru: Dictionary = {
     closeContacts: 'Закрыть контакты',
     contactUs: 'Связаться с магазином',
     phone: 'Телефон',
+    notNowThanks: 'Не сейчас, спасибо',
   },
   nav: {
     catalog: 'Каталог',

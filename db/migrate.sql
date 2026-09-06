@@ -195,3 +195,19 @@ UPDATE "articles" SET
   "excerpt_ru" = 'Простые советы для долговечности вашей клавиатуры.',
   "content_ru" = '<p>Регулярно чистите переключатели и снимайте кейкапы.</p>'
 WHERE "slug" = 'keyboard-care' AND ("title_ru" IS NULL OR "title_ru" = '');
+
+-- Bilingual CMS pages that were seeded without title_ru/content_ru.
+UPDATE "pages" SET
+  "title_ru" = 'О компании',
+  "content_ru" = '<h2>О нашем магазине</h2><p>Мы продаём качественную электронику с 2015 года.</p>'
+WHERE "slug" = 'about' AND ("title_ru" IS NULL OR "title_ru" = '' OR "content_ru" IS NULL OR "content_ru" = '');
+
+UPDATE "pages" SET
+  "title_ru" = 'Доставка и оплата',
+  "content_ru" = '<h2>Условия доставки</h2><p>Доставляем Новой Почтой и Укрпочтой по всей Украине.</p>'
+WHERE "slug" = 'delivery-payment' AND ("title_ru" IS NULL OR "title_ru" = '' OR "content_ru" IS NULL OR "content_ru" = '');
+
+UPDATE "pages" SET
+  "title_ru" = 'Контакты',
+  "content_ru" = '<h2>Наши контакты</h2><p>Телефон: +380 44 123 45 67</p>'
+WHERE "slug" = 'contacts' AND ("title_ru" IS NULL OR "title_ru" = '' OR "content_ru" IS NULL OR "content_ru" = '');
