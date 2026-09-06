@@ -5,6 +5,7 @@ import { customers, customerContacts } from '@/lib/db/schema'
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type ContactInput = {
   type: string
@@ -41,7 +42,7 @@ const PAGE_SIZE = 10
 export async function getCustomers(opts?: { search?: string; page?: number; minScore?: number }) {
   await assertPermission('customers')
   const page = Math.max(1, opts?.page ?? 1)
-  const search = opts?.search?.trim()
+  const search = sanitizeSearch(opts?.search ?? '').trim()
   const minScore = opts?.minScore
 
   const conditions = [isNull(customers.deletedAt)]

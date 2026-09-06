@@ -93,7 +93,9 @@ export async function getOrder(id: number) {
 // Product search for the order builder.
 export async function searchProductsForOrder(query: string) {
   await assertPermission('orders')
-  const s = `%${query}%`
+  const cleaned = query.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)
+  if (!cleaned.trim()) return []
+  const s = `%${cleaned}%`
   const rows = await db
     .select({
       id: products.id,

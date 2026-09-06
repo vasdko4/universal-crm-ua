@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { getLocale } from '@/lib/i18n/server'
+import { localizedPath } from '@/lib/i18n/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,11 +51,15 @@ async function resolveOrderRef(req: Request): Promise<string | undefined> {
   return undefined
 }
 
-function redirectTo(req: Request, orderRef: string | undefined) {
+async function redirectTo(req: Request, orderRef: string | undefined) {
   const base = new URL(req.url).origin
+  const locale = await getLocale()
   // Fall back to the home page: /account/orders requires auth and would
-  // bounce guest shoppers to the sign-in screen.
-  const target = orderRef ? `/checkout/pay/${encodeURIComponent(orderRef)}` : '/'
+  // bounce guest shoppers to the sign-in screen. Keep /ru when the shopper
+  // returned from the gateway on a Russian URL.
+  const target = orderRef
+    ? localizedPath(`/checkout/pay/${encodeURIComponent(orderRef)}`, locale)
+    : localizedPath('/', locale)
   return NextResponse.redirect(new URL(target, base), 303)
 }
 
