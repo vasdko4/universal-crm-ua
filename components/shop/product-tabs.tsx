@@ -1,6 +1,7 @@
 'use client'
 
-import { sanitizeContent } from '@/lib/shop/sanitize'
+import sanitizeHtml from 'sanitize-html'
+import { RICH_TEXT_SANITIZE_OPTIONS } from '@/lib/shop/sanitize'
 import { useI18n } from '@/lib/i18n/client'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ProductReviews } from '@/components/shop/product-reviews'
@@ -38,7 +39,7 @@ export function ProductTabs({
         {description ? (
           <div
             className="prose prose-sm max-w-none text-sm leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_li]:my-1 [&_p]:my-3 [&_strong]:font-semibold [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5"
-            dangerouslySetInnerHTML={{ __html: sanitizeContent(description) }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(description, RICH_TEXT_SANITIZE_OPTIONS) }}
           />
         ) : (
           <p className="text-muted-foreground">{tp.noDescription}</p>

@@ -17,10 +17,10 @@ const loadCategory = cache((id: number, locale: 'uk' | 'ru') => getCategoryById(
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const categoryId = Number(id)
-  if (!Number.isFinite(categoryId)) return {}
+  if (!Number.isInteger(categoryId) || categoryId < 1) notFound()
   const locale = await getLocale()
   const category = await loadCategory(categoryId, locale).catch(() => null)
-  if (!category) return {}
+  if (!category) notFound()
   const description =
     category.description || `${category.name} — большой выбор с доставкой по всей Украине и гарантией.`
   const path = `/category/${category.id}`
@@ -47,7 +47,7 @@ export default async function CategoryPage({
   const sp = await searchParams
   const { locale, dict } = await getServerDictionary()
   const categoryId = Number(id)
-  if (!Number.isFinite(categoryId)) notFound()
+  if (!Number.isInteger(categoryId) || categoryId < 1) notFound()
 
   const category = await loadCategory(categoryId, locale)
   if (!category) notFound()

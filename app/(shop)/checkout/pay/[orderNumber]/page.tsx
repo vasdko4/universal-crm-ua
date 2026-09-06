@@ -4,10 +4,18 @@ import { getOrderByNumber } from '@/app/actions/shop'
 import { PayForm } from '@/components/shop/pay-form'
 import { getLocale } from '@/lib/i18n/server'
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ orderNumber: string }>
+}): Promise<Metadata> {
+  const { orderNumber } = await params
+  const data = await getOrderByNumber(orderNumber)
+  if (!data) notFound()
   const locale = await getLocale()
   return {
     title: locale === 'ru' ? 'Оплата заказа' : 'Оплата замовлення',
+    robots: { index: false, follow: false },
   }
 }
 

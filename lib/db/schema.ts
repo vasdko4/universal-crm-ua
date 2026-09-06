@@ -458,10 +458,13 @@ export const articleCategories = pgTable('article_categories', {
 export const articles = pgTable('articles', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
+  titleRu: varchar('title_ru', { length: 255 }),
   slug: varchar('slug', { length: 255 }).notNull().unique(),
   categoryId: integer('category_id'),
   excerpt: text('excerpt'),
+  excerptRu: text('excerpt_ru'),
   content: text('content'),
+  contentRu: text('content_ru'),
   coverImage: varchar('cover_image', { length: 500 }),
   author: varchar('author', { length: 150 }),
   tags: jsonb('tags').notNull().default([]),

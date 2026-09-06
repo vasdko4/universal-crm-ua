@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const locale = await getLocale()
   const data = await loadProduct(slug, locale).catch(() => null)
-  if (!data) return {}
+  if (!data) notFound()
   const { product } = data
   const description =
     plainText(product.description) ||

@@ -42,7 +42,7 @@ export function SearchBox({ onNavigate }: { onNavigate?: () => void }) {
   }, [query])
 
   const { data, isLoading } = useSWR<SearchResponse>(
-    debounced.length >= 2 ? `/api/search?q=${encodeURIComponent(debounced)}` : null,
+    debounced.length >= 2 ? `/api/search?q=${encodeURIComponent(debounced)}&locale=${locale}` : null,
     fetcher,
     { keepPreviousData: true, revalidateOnFocus: false, dedupingInterval: 5000 },
   )

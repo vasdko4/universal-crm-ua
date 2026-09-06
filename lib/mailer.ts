@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import nodemailer from 'nodemailer'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 
@@ -72,7 +73,7 @@ export async function sendMail(payload: MailPayload): Promise<{ sent: boolean; f
     envelope: { from: alignedFrom, to: safeTo },
     // Message-ID on the sender's own domain: mismatched/missing Message-ID
     // domains are a common spam-filter heuristic.
-    messageId: `<${Date.now()}.${Math.random().toString(36).slice(2)}@${senderDomain}>`,
+    messageId: `<${Date.now()}.${randomBytes(8).toString('hex')}@${senderDomain}>`,
     headers: {
       // Transactional signal + easy opt-out lower the spam score.
       'X-Auto-Response-Suppress': 'OOF, AutoReply',

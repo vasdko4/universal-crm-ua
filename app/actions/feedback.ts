@@ -47,9 +47,11 @@ export async function getReviews(params: ReviewListParams = {}) {
 // 'reviews' permission) instead of that function forcing safe defaults
 // itself, so a direct call to the admin action can never accidentally leak
 // pending/rejected reviews or emails regardless of what a caller requests.
-export async function getPublicApprovedReviews(params: { page?: number; pageSize?: number } = {}) {
-  const { page = 1, pageSize = 10 } = params
-  const where = eq(productReviews.status, 'approved')
+export async function getPublicApprovedReviews(params: { page?: number; pageSize?: number; productId?: number } = {}) {
+  const { page = 1, pageSize = 10, productId } = params
+  const conditions = [eq(productReviews.status, 'approved')]
+  if (productId != null) conditions.push(eq(productReviews.productId, productId))
+  const where = and(...conditions)
   const [rows, totalRows] = await Promise.all([
     db
       .select({
@@ -91,6 +93,20 @@ export async function getReviewsStats() {
   }
 }
 
+async function requireExistingProduct(productId: unknown): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
+  if (typeof productId !== 'number' || !Number.isInteger(productId) || productId < 1) {
+    return { ok: false, error: 'Некорректный productId' }
+  }
+  const [row] = await db.select({ id: products.id }).from(products).where(eq(products.id, productId)).limit(1)
+  if (!row) return { ok: false, error: 'Товар не найден' }
+  return { ok: true, id: productId }
+}
+
+function parseRating(rating: unknown): number | null {
+  if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 5) return null
+  return rating
+}
+
 export async function createReview(input: {
   productId: number
   authorName: string
@@ -101,12 +117,14 @@ export async function createReview(input: {
   pros?: string
   cons?: string
 }) {
-  if (!input.productId) return { success: false, error: 'Не указан товар' }
+  const product = await requireExistingProduct(input.productId)
+  if (!product.ok) return { success: false, error: product.error }
   if (!input.authorName?.trim()) return { success: false, error: 'Имя обязательно' }
   if (!input.body?.trim()) return { success: false, error: 'Текст отзыва обязателен' }
-  const rating = Math.min(5, Math.max(1, Math.round(input.rating || 5)))
+  const rating = parseRating(input.rating)
+  if (rating == null) return { success: false, error: 'Оценка должна быть целым числом от 1 до 5' }
   await db.insert(productReviews).values({
-    productId: input.productId,
+    productId: product.id,
     authorName: input.authorName.trim().slice(0, 120),
     authorEmail: input.authorEmail?.trim().slice(0, 255) || null,
     rating,
@@ -169,9 +187,11 @@ export async function getQuestions(params: QuestionListParams = {}) {
 // and never includes the asker's email. See getPublicApprovedReviews above
 // for why this is a separate function rather than a safe default baked into
 // the now permission-gated getQuestions().
-export async function getPublicAnsweredQuestions(params: { page?: number; pageSize?: number } = {}) {
-  const { page = 1, pageSize = 10 } = params
-  const where = eq(productQuestions.status, 'answered')
+export async function getPublicAnsweredQuestions(params: { page?: number; pageSize?: number; productId?: number } = {}) {
+  const { page = 1, pageSize = 10, productId } = params
+  const conditions = [eq(productQuestions.status, 'answered')]
+  if (productId != null) conditions.push(eq(productQuestions.productId, productId))
+  const where = and(...conditions)
   const [rows, totalRows] = await Promise.all([
     db
       .select({
@@ -215,11 +235,12 @@ export async function createQuestion(input: {
   authorEmail?: string
   question: string
 }) {
-  if (!input.productId) return { success: false, error: 'Не указан товар' }
+  const product = await requireExistingProduct(input.productId)
+  if (!product.ok) return { success: false, error: product.error }
   if (!input.authorName?.trim()) return { success: false, error: 'Имя обязательно' }
   if (!input.question?.trim()) return { success: false, error: 'Текст вопроса обязателен' }
   await db.insert(productQuestions).values({
-    productId: input.productId,
+    productId: product.id,
     authorName: input.authorName.trim().slice(0, 120),
     authorEmail: input.authorEmail?.trim().slice(0, 255) || null,
     question: input.question.trim().slice(0, 3000),

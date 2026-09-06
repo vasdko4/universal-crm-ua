@@ -8,6 +8,20 @@ export function fail(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status })
 }
 
+/** Positive integer path/query id. Rejects '', 'abc', '0', negatives, decimals. */
+export function parsePositiveInt(value: string | null | undefined): number | null {
+  if (value == null || value === '') return null
+  if (!/^\d+$/.test(value)) return null
+  const n = Number(value)
+  if (!Number.isSafeInteger(n) || n < 1) return null
+  return n
+}
+
+/** Strip NUL / other C0 controls so Postgres LIKE/ilike cannot 500. */
+export function sanitizeSearch(raw: string): string {
+  return raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)
+}
+
 export function parseListParams(url: string) {
   const { searchParams } = new URL(url)
   const rawPage = Number(searchParams.get('page') ?? '1')
@@ -16,14 +30,21 @@ export function parseListParams(url: string) {
   const pageSize = Number.isFinite(rawPageSize)
     ? Math.min(100, Math.max(1, rawPageSize))
     : 10
-  const search = searchParams.get('search') ?? searchParams.get('q') ?? ''
+  const search = sanitizeSearch(searchParams.get('search') ?? searchParams.get('q') ?? '')
   const status = searchParams.get('status') ?? 'all'
   return { page, pageSize, search, status, searchParams }
 }
 
+/**
+ * Parse a JSON body without using Request.json().
+ * Next.js App Router can surface SyntaxError from json() as an uncaught 500
+ * ("Unexpected token...") before a route-level try/catch runs.
+ */
 export async function readJson<T>(req: Request): Promise<T | null> {
   try {
-    return (await req.json()) as T
+    const raw = await req.text()
+    if (!raw.trim()) return null
+    return JSON.parse(raw) as T
   } catch {
     return null
   }

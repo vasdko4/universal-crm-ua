@@ -9,10 +9,13 @@ import { assertPermission } from '@/lib/session'
 
 export type ArticleInput = {
   title: string
+  titleRu?: string
   slug?: string
   categoryId?: number | null
   excerpt?: string
+  excerptRu?: string
   content?: string
+  contentRu?: string
   coverImage?: string | null
   author?: string | null
   tags?: string[]
@@ -31,9 +34,13 @@ export type ArticleListParams = {
   pageSize?: number
 }
 
+async function listArticleCategories() {
+  return db.select().from(articleCategories).orderBy(asc(articleCategories.sortOrder), asc(articleCategories.id))
+}
+
 export async function getArticleCategories() {
   await assertPermission('articles')
-  return db.select().from(articleCategories).orderBy(asc(articleCategories.sortOrder), asc(articleCategories.id))
+  return listArticleCategories()
 }
 
 // SECURITY: this admin listing (default status 'all') had no permission
@@ -54,7 +61,7 @@ export async function getArticles(params: ArticleListParams = {}) {
   const [rows, totalRows, cats] = await Promise.all([
     db.select().from(articles).where(where).orderBy(desc(articles.updatedAt)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ value: count() }).from(articles).where(where),
-    getArticleCategories(),
+    listArticleCategories(),
   ])
   const catMap = new Map(cats.map((c) => [c.id, c.name]))
   const items = rows.map((a) => ({ ...a, categoryName: a.categoryId ? catMap.get(a.categoryId) ?? null : null }))
@@ -87,10 +94,13 @@ export async function getPublicPublishedArticles(params: {
   const [rows, totalRows, cats] = await Promise.all([
     db.select().from(articles).where(where).orderBy(desc(articles.updatedAt)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ value: count() }).from(articles).where(where),
-    getArticleCategories(),
+    listArticleCategories(),
   ])
-  const catMap = new Map(cats.map((c) => [c.id, c.name]))
-  const items = rows.map((a) => ({ ...a, categoryName: a.categoryId ? catMap.get(a.categoryId) ?? null : null }))
+  const catMap = new Map(cats.map((c) => [c.id, { name: c.name, slug: c.slug }]))
+  const items = rows.map((a) => {
+    const cat = a.categoryId ? catMap.get(a.categoryId) : undefined
+    return { ...a, categoryName: cat?.name ?? null, categorySlug: cat?.slug ?? null }
+  })
   const total = totalRows[0]?.value ?? 0
   return { items, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) }
 }
@@ -129,10 +139,13 @@ export async function createArticle(input: ArticleInput) {
   const isPublished = input.status === 'published'
   await db.insert(articles).values({
     title: input.title.trim(),
+    titleRu: input.titleRu?.trim() || null,
     slug,
     categoryId: input.categoryId ?? null,
     excerpt: input.excerpt ?? '',
+    excerptRu: input.excerptRu?.trim() || null,
     content: input.content ?? '',
+    contentRu: input.contentRu ?? '',
     coverImage: input.coverImage ?? null,
     author: input.author ?? 'Редакция',
     tags: input.tags ?? [],
@@ -159,10 +172,13 @@ export async function updateArticle(id: number, input: ArticleInput) {
     .update(articles)
     .set({
       title: input.title.trim(),
+      titleRu: input.titleRu?.trim() || null,
       slug,
       categoryId: input.categoryId ?? null,
       excerpt: input.excerpt ?? '',
+      excerptRu: input.excerptRu?.trim() || null,
       content: input.content ?? '',
+      contentRu: input.contentRu ?? '',
       coverImage: input.coverImage ?? null,
       author: input.author ?? 'Редакция',
       tags: input.tags ?? [],

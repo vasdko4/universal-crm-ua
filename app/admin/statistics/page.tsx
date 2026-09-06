@@ -16,7 +16,6 @@ import {
 import { StatsDashboard } from '@/components/statistics/stats-dashboard'
 import { requirePermission } from '@/lib/session'
 
-export const metadata = { title: 'Статистика · Админ-центр' }
 export const dynamic = 'force-dynamic'
 
 export default async function StatisticsPage(props: {

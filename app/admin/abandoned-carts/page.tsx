@@ -4,8 +4,6 @@ import { AbandonedCartsManager } from '@/components/abandoned-carts/abandoned-ca
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = { title: 'Брошенные корзины' }
-
 export default async function AbandonedCartsPage() {
   await requirePermission('abandoned_carts')
   const { carts, stats } = await getAbandonedCarts()

@@ -30,6 +30,19 @@ export type AdminDictionary = {
     back: string
     language: string
   }
+  signIn: {
+    subtitle: string
+    password: string
+    submit: string
+    invalid: string
+    tooMany: string
+    bootstrapTitle: string
+    bootstrapSubtitle: string
+    bootstrapName: string
+    bootstrapSubmit: string
+    error: string
+    signInError: string
+  }
   sidebar: {
     goToSite: string
     adminCenter: string
@@ -1290,11 +1303,17 @@ export type AdminDictionary = {
     tabSeo: string
     titleLabel: string
     titlePlaceholder: string
+    titleRuLabel: string
+    titleRuPlaceholder: string
     slugLabel: string
     excerptLabel: string
     excerptPlaceholder: string
+    excerptRuLabel: string
+    excerptRuPlaceholder: string
     contentLabel: string
     contentPlaceholder: string
+    contentRuLabel: string
+    contentRuPlaceholder: string
     categoryLabel: string
     noCategory: string
     authorLabel: string
@@ -1593,6 +1612,19 @@ const uk: AdminDictionary = {
     close: 'Закрити',
     back: 'Назад',
     language: 'Мова',
+  },
+  signIn: {
+    subtitle: 'Увійдіть в адмін-центр',
+    password: 'Пароль',
+    submit: 'Увійти',
+    invalid: 'Невірний email або пароль',
+    tooMany: 'Забагато спроб входу. Зачекайте 2 хвилини і спробуйте знову.',
+    bootstrapTitle: 'Створення адміністратора',
+    bootstrapSubtitle: 'Це перший вхід. Створіть обліковий запис адміністратора.',
+    bootstrapName: "Ім'я",
+    bootstrapSubmit: 'Створити і увійти',
+    error: 'Помилка',
+    signInError: 'Помилка входу',
   },
   sidebar: {
     goToSite: 'Перейти на сайт',
@@ -2908,13 +2940,19 @@ const uk: AdminDictionary = {
     tabContent: 'Вміст',
     tabSettings: 'Налаштування',
     tabSeo: 'SEO',
-    titleLabel: 'Заголовок',
+    titleLabel: 'Заголовок (UK)',
     titlePlaceholder: 'Заголовок статті',
+    titleRuLabel: 'Заголовок (RU)',
+    titleRuPlaceholder: 'Заголовок російською',
     slugLabel: 'URL (slug)',
-    excerptLabel: 'Короткий опис',
+    excerptLabel: 'Короткий опис (UK)',
     excerptPlaceholder: 'Анонс статті для картки і списків',
-    contentLabel: 'Вміст (HTML)',
+    excerptRuLabel: 'Короткий опис (RU)',
+    excerptRuPlaceholder: 'Анонс російською',
+    contentLabel: 'Вміст (HTML, UK)',
     contentPlaceholder: '<p>Текст статті...</p>',
+    contentRuLabel: 'Вміст (HTML, RU)',
+    contentRuPlaceholder: '<p>Текст статті російською...</p>',
     categoryLabel: 'Категорія',
     noCategory: 'Без категорії',
     authorLabel: 'Автор',
@@ -3218,6 +3256,19 @@ const ru: AdminDictionary = {
     close: 'Закрыть',
     back: 'Назад',
     language: 'Язык',
+  },
+  signIn: {
+    subtitle: 'Войдите в админ-центр',
+    password: 'Пароль',
+    submit: 'Войти',
+    invalid: 'Неверный email или пароль',
+    tooMany: 'Слишком много попыток входа. Подождите 2 минуты и попробуйте снова.',
+    bootstrapTitle: 'Создание администратора',
+    bootstrapSubtitle: 'Это первый вход. Создайте учётную запись администратора.',
+    bootstrapName: 'Имя',
+    bootstrapSubmit: 'Создать и войти',
+    error: 'Ошибка',
+    signInError: 'Ошибка входа',
   },
   sidebar: {
     goToSite: 'Перейти на сайт',
@@ -4533,13 +4584,19 @@ const ru: AdminDictionary = {
     tabContent: 'Содержимое',
     tabSettings: 'Настройки',
     tabSeo: 'SEO',
-    titleLabel: 'Заголовок',
+    titleLabel: 'Заголовок (UK)',
     titlePlaceholder: 'Заголовок статьи',
+    titleRuLabel: 'Заголовок (RU)',
+    titleRuPlaceholder: 'Заголовок на русском',
     slugLabel: 'URL (slug)',
-    excerptLabel: 'Краткое описание',
+    excerptLabel: 'Краткое описание (UK)',
     excerptPlaceholder: 'Анонс статьи для карточки и списков',
-    contentLabel: 'Содержимое (HTML)',
+    excerptRuLabel: 'Краткое описание (RU)',
+    excerptRuPlaceholder: 'Анонс на русском',
+    contentLabel: 'Содержимое (HTML, UK)',
     contentPlaceholder: '<p>Текст статьи...</p>',
+    contentRuLabel: 'Содержимое (HTML, RU)',
+    contentRuPlaceholder: '<p>Текст статьи на русском...</p>',
     categoryLabel: 'Категория',
     noCategory: 'Без категории',
     authorLabel: 'Автор',

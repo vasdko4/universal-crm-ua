@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { getCatalogProducts } from '@/lib/shop/queries'
-import { LOCALE_COOKIE } from '@/lib/i18n/config'
-import type { Locale } from '@/lib/i18n/config'
+import { localeFromRequest } from '@/lib/i18n/request-locale'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -12,10 +10,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ items: [], total: 0 })
   }
 
-  const cookieStore = await cookies()
-  const localeCookie = cookieStore.get(LOCALE_COOKIE)?.value
-  const locale: Locale = localeCookie === 'ru' ? 'ru' : 'uk'
-
+  const locale = localeFromRequest(request)
   const { items, total } = await getCatalogProducts({ search: q, perPage: 6, locale })
 
   return NextResponse.json({
@@ -30,5 +25,6 @@ export async function GET(request: Request) {
       inStock: p.inStock,
     })),
     total,
+    locale,
   })
 }

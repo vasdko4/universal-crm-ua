@@ -4,8 +4,6 @@ import { LogsViewer } from '@/components/admin-logs/logs-viewer'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = { title: 'Логи — Админ-центр' }
-
 export default async function AdminLogsPage() {
   await requirePermission('logs')
   const initial = await getAdminLogs()
