@@ -1290,11 +1290,17 @@ export type AdminDictionary = {
     tabSeo: string
     titleLabel: string
     titlePlaceholder: string
+    titleRuLabel: string
+    titleRuPlaceholder: string
     slugLabel: string
     excerptLabel: string
     excerptPlaceholder: string
+    excerptRuLabel: string
+    excerptRuPlaceholder: string
     contentLabel: string
     contentPlaceholder: string
+    contentRuLabel: string
+    contentRuPlaceholder: string
     categoryLabel: string
     noCategory: string
     authorLabel: string
@@ -2908,13 +2914,19 @@ const uk: AdminDictionary = {
     tabContent: 'Вміст',
     tabSettings: 'Налаштування',
     tabSeo: 'SEO',
-    titleLabel: 'Заголовок',
+    titleLabel: 'Заголовок (UK)',
     titlePlaceholder: 'Заголовок статті',
+    titleRuLabel: 'Заголовок (RU)',
+    titleRuPlaceholder: 'Заголовок російською',
     slugLabel: 'URL (slug)',
-    excerptLabel: 'Короткий опис',
+    excerptLabel: 'Короткий опис (UK)',
     excerptPlaceholder: 'Анонс статті для картки і списків',
-    contentLabel: 'Вміст (HTML)',
+    excerptRuLabel: 'Короткий опис (RU)',
+    excerptRuPlaceholder: 'Анонс російською',
+    contentLabel: 'Вміст (HTML, UK)',
     contentPlaceholder: '<p>Текст статті...</p>',
+    contentRuLabel: 'Вміст (HTML, RU)',
+    contentRuPlaceholder: '<p>Текст статті російською...</p>',
     categoryLabel: 'Категорія',
     noCategory: 'Без категорії',
     authorLabel: 'Автор',
@@ -4533,13 +4545,19 @@ const ru: AdminDictionary = {
     tabContent: 'Содержимое',
     tabSettings: 'Настройки',
     tabSeo: 'SEO',
-    titleLabel: 'Заголовок',
+    titleLabel: 'Заголовок (UK)',
     titlePlaceholder: 'Заголовок статьи',
+    titleRuLabel: 'Заголовок (RU)',
+    titleRuPlaceholder: 'Заголовок на русском',
     slugLabel: 'URL (slug)',
-    excerptLabel: 'Краткое описание',
+    excerptLabel: 'Краткое описание (UK)',
     excerptPlaceholder: 'Анонс статьи для карточки и списков',
-    contentLabel: 'Содержимое (HTML)',
+    excerptRuLabel: 'Краткое описание (RU)',
+    excerptRuPlaceholder: 'Анонс на русском',
+    contentLabel: 'Содержимое (HTML, UK)',
     contentPlaceholder: '<p>Текст статьи...</p>',
+    contentRuLabel: 'Содержимое (HTML, RU)',
+    contentRuPlaceholder: '<p>Текст статьи на русском...</p>',
     categoryLabel: 'Категория',
     noCategory: 'Без категории',
     authorLabel: 'Автор',

@@ -171,3 +171,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON "products" ("slug");
 -- Блок из 4 карточек-преимуществ на главной странице (доставка/гарантия/
 -- оплата/поддержка) — тексты uk/ru, редактируется в Настройки → Главная.
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "home_benefits" jsonb DEFAULT '{}'::jsonb NOT NULL;
+
+-- Bilingual article body (uk in title/excerpt/content, ru in *_ru). Empty ru
+-- falls back to uk on the storefront.
+ALTER TABLE "articles" ADD COLUMN IF NOT EXISTS "title_ru" varchar(255);
+ALTER TABLE "articles" ADD COLUMN IF NOT EXISTS "excerpt_ru" text;
+ALTER TABLE "articles" ADD COLUMN IF NOT EXISTS "content_ru" text;
+
+UPDATE "articles" SET
+  "title_ru" = 'Как выбрать беспроводные наушники в 2026 году',
+  "excerpt_ru" = 'Разбираем ключевые характеристики при выборе наушников.',
+  "content_ru" = '<p>При выборе наушников обратите внимание на шумоподавление, время работы и качество звука.</p>'
+WHERE "slug" = 'how-to-choose-earbuds' AND ("title_ru" IS NULL OR "title_ru" = '');
+
+UPDATE "articles" SET
+  "title_ru" = 'ТОП-5 смартфонов по соотношению цена/качество',
+  "excerpt_ru" = 'Наша подборка лучших смартфонов месяца.',
+  "content_ru" = '<p>В этом обзоре мы собрали 5 моделей, которые стоит внимания.</p>'
+WHERE "slug" = 'top-5-smartphones' AND ("title_ru" IS NULL OR "title_ru" = '');
+
+UPDATE "articles" SET
+  "title_ru" = 'Как ухаживать за механической клавиатурой',
+  "excerpt_ru" = 'Простые советы для долговечности вашей клавиатуры.',
+  "content_ru" = '<p>Регулярно чистите переключатели и снимайте кейкапы.</p>'
+WHERE "slug" = 'keyboard-care' AND ("title_ru" IS NULL OR "title_ru" = '');

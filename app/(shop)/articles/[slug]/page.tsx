@@ -22,7 +22,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const { locale } = await getServerDictionary()
-  const article = await getArticleBySlug(slug)
+  const article = await getArticleBySlug(slug, locale)
   if (!article) return { title: 'Not found', robots: { index: false } }
   const path = `/articles/${slug}`
   return {
@@ -45,11 +45,11 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
   const { slug } = await params
   const { dict, locale } = await getServerDictionary()
   const lp = (p: string) => localizedPath(p, locale)
-  const article = await getArticleBySlug(slug)
+  const article = await getArticleBySlug(slug, locale)
   if (!article) notFound()
 
   const [relatedRaw, settings] = await Promise.all([
-    getRelatedArticles(article.id, article.categoryId),
+    getRelatedArticles(article.id, article.categoryId, 3, locale),
     getStoreSettingsInternal().catch(() => null),
   ])
 

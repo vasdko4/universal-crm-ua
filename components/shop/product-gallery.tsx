@@ -140,7 +140,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
             className="relative block h-full w-full cursor-zoom-in touch-pan-y"
-            aria-label={`${alt} — збільшити фото`}
+            aria-label={`${alt} — ${dict.product.enlargePhoto}`}
           >
             <Image
               src={current || '/placeholder.svg'}

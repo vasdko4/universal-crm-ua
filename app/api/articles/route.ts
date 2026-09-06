@@ -1,6 +1,8 @@
 import { getPublicPublishedArticles, createArticle, type ArticleInput } from '@/app/actions/articles'
 import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
 import { getAdminUserWithPermission } from '@/lib/session'
+import { localeFromRequest } from '@/lib/i18n/request-locale'
+import { pickLocalized } from '@/lib/i18n/config'
 
 export async function GET(req: Request) {
   const { page, pageSize, search, searchParams } = parseListParams(req.url)
@@ -10,26 +12,29 @@ export async function GET(req: Request) {
     if (!/^\d+$/.test(catParam)) return fail('Некорректный categoryId', 400)
     categoryId = Number(catParam)
   }
-  // Public, unauthenticated route. getPublicPublishedArticles() always
-  // queries published-only (getArticles() now requires the 'articles'
-  // permission and is not used here).
+  const locale = localeFromRequest(req)
   const result = await getPublicPublishedArticles({
     page,
     pageSize,
     search,
     categoryId,
   })
-  return ok(result.items, {
+  const items = result.items.map((a) => ({
+    ...a,
+    title: pickLocalized(locale, a.title, a.titleRu),
+    excerpt: pickLocalized(locale, a.excerpt, a.excerptRu) || a.excerpt,
+    content: pickLocalized(locale, a.content, a.contentRu) || a.content,
+  }))
+  return ok(items, {
     total: result.total,
     page: result.page,
     pageSize: result.pageSize,
     totalPages: result.totalPages,
+    locale,
   })
 }
 
 export async function POST(req: Request) {
-  // Check auth here for a clean 403 — the action's own assertPermission()
-  // would still block the write, but it throws (500 + noisy error log).
   if (!(await getAdminUserWithPermission('articles'))) return fail('Не авторизовано', 403)
   const body = await readJson<ArticleInput>(req)
   if (!body) return fail('Некорректный JSON')
