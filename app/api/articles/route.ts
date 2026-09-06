@@ -1,17 +1,19 @@
 import { getPublicPublishedArticles, createArticle, type ArticleInput } from '@/app/actions/articles'
-import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
+import { ok, fail, parseListParams, readJson, parsePositiveInt } from '@/lib/api/helpers'
 import { getAdminUserWithPermission } from '@/lib/session'
 import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { pickLocalized } from '@/lib/i18n/config'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 
 export async function GET(req: Request) {
-  const { page, pageSize, search, searchParams } = parseListParams(req.url)
+  const { page, pageSize, search, searchParams, error } = parseListParams(req.url)
+  if (error) return fail(error, 400)
   const catParam = searchParams.get('categoryId')
   let categoryId: number | 'all' = 'all'
   if (catParam != null && catParam !== '') {
-    if (!/^\d+$/.test(catParam)) return fail('Некорректный categoryId', 400)
-    categoryId = Number(catParam)
+    const parsed = parsePositiveInt(catParam)
+    if (parsed == null) return fail('Некорректный categoryId', 400)
+    categoryId = parsed
   }
   const locale = localeFromRequest(req)
   const dict = getDictionary(locale)

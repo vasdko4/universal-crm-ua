@@ -22,17 +22,31 @@ export function sanitizeSearch(raw: string): string {
   return raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)
 }
 
+const MAX_PAGE_SIZE = 100
+const DEFAULT_PAGE_SIZE = 10
+
 export function parseListParams(url: string) {
   const { searchParams } = new URL(url)
-  const rawPage = Number(searchParams.get('page') ?? '1')
-  const rawPageSize = Number(searchParams.get('pageSize') ?? '10')
-  const page = Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1
-  const pageSize = Number.isFinite(rawPageSize)
-    ? Math.min(100, Math.max(1, rawPageSize))
-    : 10
+  let error: string | null = null
+
+  const pageRaw = searchParams.get('page')
+  let page = 1
+  if (pageRaw != null && pageRaw !== '') {
+    const parsed = parsePositiveInt(pageRaw)
+    if (parsed == null) error = 'Некорректный page'
+    else page = parsed
+  }
+
+  const pageSizeRaw = searchParams.get('pageSize')
+  let pageSize = DEFAULT_PAGE_SIZE
+  if (pageSizeRaw != null && pageSizeRaw !== '') {
+    const parsed = parsePositiveInt(pageSizeRaw)
+    if (parsed == null || parsed > MAX_PAGE_SIZE) error = error ?? 'Некорректный pageSize'
+    else pageSize = parsed
+  }
   const search = sanitizeSearch(searchParams.get('search') ?? searchParams.get('q') ?? '')
   const status = searchParams.get('status') ?? 'all'
-  return { page, pageSize, search, status, searchParams }
+  return { page, pageSize, search, status, searchParams, error }
 }
 
 /**
