@@ -123,7 +123,12 @@ export async function runSetup(input: SetupInput) {
     if (input.installDemo) {
       try {
         const seed = readFileSync(join(process.cwd(), 'db', 'seed.sql'), 'utf8')
-        if (seed.trim()) await pool.query(seed)
+        if (seed.trim()) {
+          await pool.query(seed)
+          // Seeded products come without `slug`; migrate.sql backfills it and is safe to re-run.
+          const migrate = readFileSync(join(process.cwd(), 'db', 'migrate.sql'), 'utf8')
+          if (migrate.trim()) await pool.query(migrate)
+        }
       } catch {
         // Demo data is optional; ignore if the file is missing in this deploy.
       }

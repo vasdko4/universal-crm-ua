@@ -82,6 +82,9 @@ async function main() {
     await run('applying migrate.sql', readFileSync(join(root, 'db/migrate.sql'), 'utf8'))
     if (withSeed) {
       await run('applying seed.sql', readFileSync(join(root, 'db/seed.sql'), 'utf8'))
+      // seed.sql inserts rows without derived columns (e.g. products.slug);
+      // migrate.sql is idempotent and backfills them, so re-run it after seeding.
+      await run('backfilling seeded rows (migrate.sql)', readFileSync(join(root, 'db/migrate.sql'), 'utf8'))
     }
     console.log('\n✓ Database ready.')
     if (withSeed) {

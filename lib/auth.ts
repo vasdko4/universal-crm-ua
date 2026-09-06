@@ -148,7 +148,12 @@ function buildAuth(google: GoogleCreds) {
       // (e.g. a TLS-terminating proxy/domain in front of the VPS).
       ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
       ...(process.env.APP_URL ? [process.env.APP_URL] : []),
+      // v0 preview can be served from several hostnames (runtime, build,
+      // direct sandbox *.vercel.run) — trust each exact one, never a wildcard.
       ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
+      ...(process.env.V0_DEV_APP_URL ? [process.env.V0_DEV_APP_URL] : []),
+      ...(process.env.V0_BUILD_URL ? [process.env.V0_BUILD_URL] : []),
+      ...(process.env.V0_SANDBOX_URL ? [process.env.V0_SANDBOX_URL] : []),
       ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
       ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
         ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
