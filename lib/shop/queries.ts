@@ -851,12 +851,15 @@ export function getActivePaymentMethods() {
 
 export function getActiveGateways() {
   return unstable_cache(
-    () =>
-      db
+    async () => {
+      const { isGatewayConfigured } = await import('@/lib/payments/clients')
+      const rows = await db
         .select()
         .from(paymentGateways)
         .where(eq(paymentGateways.isActive, true))
-        .orderBy(asc(paymentGateways.sortOrder)),
+        .orderBy(asc(paymentGateways.sortOrder))
+      return rows.filter((g) => isGatewayConfigured(g.code, g.config))
+    },
     ['payment-gateways'],
     { tags: [CACHE_TAGS.checkout], revalidate: 300 },
   )()

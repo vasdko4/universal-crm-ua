@@ -1,5 +1,5 @@
 import { getPublicAnsweredQuestions, createQuestion } from '@/app/actions/feedback'
-import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
+import { ok, fail, parseListParams, readJson, parsePositiveInt } from '@/lib/api/helpers'
 import { isRateLimited, clientIp } from '@/lib/api/rate-limit'
 
 export async function GET(req: Request) {
@@ -7,8 +7,9 @@ export async function GET(req: Request) {
   const rawId = searchParams.get('productId')
   let productId: number | undefined
   if (rawId != null && rawId !== '') {
-    if (!/^\d+$/.test(rawId)) return fail('Некорректный productId', 400)
-    productId = Number(rawId)
+    const parsed = parsePositiveInt(rawId)
+    if (parsed == null) return fail('Некорректный productId', 400)
+    productId = parsed
   }
   const result = await getPublicAnsweredQuestions({ page, pageSize, productId })
   return ok(result.items, {
