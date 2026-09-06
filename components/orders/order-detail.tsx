@@ -42,6 +42,7 @@ import {
 } from '@/lib/order-status'
 import type { Order, OrderItem, OrderHistoryEntry } from '@/lib/db/schema'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { localizedPath } from '@/lib/i18n/config'
 import { OrderReceiptSection } from '@/components/orders/order-receipt-section'
 
 function money(v: string | number) {
@@ -214,7 +215,7 @@ export function OrderDetail({
                   <div className="min-w-0 flex-1">
                     {item.productId ? (
                       <Link
-                        href={`/product/${productSlugs[item.productId] ?? item.productId}`}
+                        href={localizedPath(`/product/${productSlugs[item.productId] ?? item.productId}`, locale)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm font-medium text-foreground hover:text-primary hover:underline"
