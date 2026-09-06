@@ -7,7 +7,14 @@ import { usePathname } from 'next/navigation'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { trackModalAdEvent, type PublicModalAd } from '@/app/actions/modal-ads'
-import { stripLocalePrefix } from '@/lib/i18n/config'
+import { useI18n } from '@/lib/i18n/client'
+import { localizedPath, stripLocalePrefix, type Locale } from '@/lib/i18n/config'
+
+function localizeHref(href: string, locale: Locale): string {
+  if (!href || href.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(href)) return href
+  if (!href.startsWith('/')) return href
+  return localizedPath(href, locale)
+}
 
 // Frequency capping is inherently per-browser state, so localStorage /
 // sessionStorage is the correct storage here (not app data).
@@ -71,6 +78,7 @@ function contrastText(hex: string): string {
 
 export function ModalAdHost({ ads }: { ads: PublicModalAd[] }) {
   const pathname = usePathname()
+  const { locale, dict } = useI18n()
   const [current, setCurrent] = useState<PublicModalAd | null>(null)
   const firedRef = useRef(false)
 
@@ -185,7 +193,7 @@ export function ModalAdHost({ ads }: { ads: PublicModalAd[] }) {
             <div className="mt-3">
               {current.buttonUrl ? (
                 <Button asChild className="w-full font-semibold" size="lg" style={buttonStyle}>
-                  <Link href={current.buttonUrl} onClick={clickLink}>
+                  <Link href={localizeHref(current.buttonUrl, locale)} onClick={clickLink}>
                     {current.buttonText}
                   </Link>
                 </Button>
@@ -201,7 +209,7 @@ export function ModalAdHost({ ads }: { ads: PublicModalAd[] }) {
             onClick={close}
             className="mx-auto mt-1 text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
           >
-            Не зараз, дякую
+            {dict.common.notNowThanks}
           </button>
         </div>
       </DialogContent>
