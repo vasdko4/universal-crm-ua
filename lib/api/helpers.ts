@@ -10,8 +10,12 @@ export function fail(message: string, status = 400) {
 
 export function parseListParams(url: string) {
   const { searchParams } = new URL(url)
-  const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1)
-  const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize') ?? '10') || 10))
+  const rawPage = Number(searchParams.get('page') ?? '1')
+  const rawPageSize = Number(searchParams.get('pageSize') ?? '10')
+  const page = Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1
+  const pageSize = Number.isFinite(rawPageSize)
+    ? Math.min(100, Math.max(1, rawPageSize))
+    : 10
   const search = searchParams.get('search') ?? searchParams.get('q') ?? ''
   const status = searchParams.get('status') ?? 'all'
   return { page, pageSize, search, status, searchParams }

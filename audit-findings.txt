@@ -1,0 +1,23 @@
+АУДИТ PROJECT — НОВЫЙ СПИСОК
+Дата начала нового прохода: 2026-09-06
+Среда: https://magazine-test-ten.vercel.app/
+
+Новые подтверждённые проблемы будут добавляться ниже.
+
+1. Публичные list API возвращают HTTP 500 при значении page=Infinity
+Приоритет: СРЕДНИЙ
+Воспроизведение без авторизации:
+- GET /api/questions?page=Infinity возвращает HTTP 500 без JSON-ответа.
+- GET /api/reviews?page=Infinity возвращает HTTP 500.
+- GET /api/pages?page=Infinity возвращает HTTP 500.
+- GET /api/articles?page=Infinity возвращает HTTP 500.
+Фактическая причина: общий разбор параметров принимает Infinity как число,
+после чего бесконечное значение попадает в offset/limit запроса к базе данных.
+Ожидаемый результат: HTTP 400 для нечислового/неограниченного значения либо
+безопасная нормализация к допустимой странице.
+Связанные файлы:
+- lib/api/helpers.ts
+- app/api/questions/route.ts
+- app/api/reviews/route.ts
+- app/api/pages/route.ts
+- app/api/articles/route.ts
