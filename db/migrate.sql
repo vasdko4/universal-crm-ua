@@ -171,3 +171,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON "products" ("slug");
 -- Блок из 4 карточек-преимуществ на главной странице (доставка/гарантия/
 -- оплата/поддержка) — тексты uk/ru, редактируется в Настройки → Главная.
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "home_benefits" jsonb DEFAULT '{}'::jsonb NOT NULL;
+
+-- Импорт с Prom.ua: URL источника и состояние возобновляемого задания.
+ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "source_url" text;
+ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "state" jsonb;
