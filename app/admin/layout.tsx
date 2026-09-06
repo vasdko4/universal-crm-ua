@@ -1,7 +1,8 @@
 import type React from 'react'
+import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { requireAdmin } from '@/lib/session'
+import { getAdminUser, requireAdmin } from '@/lib/session'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { AdminSidebar } from '@/components/admin-sidebar'
 import { AdminHeader } from '@/components/admin-header'
@@ -9,6 +10,22 @@ import { permissionForPath, hasPermission, NAV_SECTIONS } from '@/lib/permission
 import { AdminLocaleProvider } from '@/lib/i18n/admin/context'
 
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [user, settings] = await Promise.all([
+    getAdminUser(),
+    getStoreSettingsInternal().catch(() => null),
+  ])
+  const locale = user?.locale ?? 'uk'
+  const name = settings?.storeName || 'Techno Store'
+  const suffix = locale === 'ru' ? 'интернет-магазин' : 'інтернет-магазин'
+  return {
+    title: {
+      default: `${name} — ${suffix}`,
+      template: `%s — ${name}`,
+    },
+  }
+}
 
 // First admin section the user is allowed to open (their "home" in the admin).
 function firstAllowedPath(permissions: string[]): string | null {

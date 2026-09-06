@@ -2,8 +2,6 @@ import { getPromotions, getPromotionsCount } from '@/app/actions/promotions'
 import { PromotionsList } from '@/components/promotions/promotions-list'
 import { requirePermission } from '@/lib/session'
 
-export const metadata = { title: 'Акции · Magazine CRM' }
-
 export default async function PromotionsPage(props: {
   searchParams: Promise<{ q?: string; status?: string; page?: string }>
 }) {

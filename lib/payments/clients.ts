@@ -1,5 +1,19 @@
 import crypto from 'crypto'
 
+/** True when the gateway row is active AND has real credentials (not seed placeholders). */
+export function isGatewayConfigured(code: string, config: unknown): boolean {
+  const c = config && typeof config === 'object' ? (config as Record<string, unknown>) : {}
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+  if (code === 'wayforpay') {
+    return Boolean(str(c.merchantAccount) && str(c.merchantSecretKey) && str(c.merchantDomainName))
+  }
+  if (code === 'monobank') {
+    const token = str(c.token)
+    return token.length > 0 && !token.startsWith('test_')
+  }
+  return false
+}
+
 export type GatewayResult = {
   ok: boolean
   status?: string

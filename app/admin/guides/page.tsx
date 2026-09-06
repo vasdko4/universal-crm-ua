@@ -1,8 +1,6 @@
 import { requirePermission } from '@/lib/session'
 import { GuidesViewer } from '@/components/guides/guides-viewer'
 
-export const metadata = { title: 'Инструкции — Админ-центр' }
-
 export default async function AdminGuidesPage() {
   await requirePermission('dashboard')
 

@@ -2,8 +2,6 @@ import { requirePermission } from '@/lib/session'
 import { getModalAds } from '@/app/actions/modal-ads'
 import { ModalAdsManager } from '@/components/modal-ads/modal-ads-manager'
 
-export const metadata = { title: 'Модальная реклама · Magazine CRM' }
-
 export default async function ModalAdsPage(props: {
   searchParams: Promise<{ q?: string; status?: string; page?: string }>
 }) {
