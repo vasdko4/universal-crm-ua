@@ -34,5 +34,5 @@ export async function generateUniqueOrderNumber(maxAttempts = 5): Promise<string
       .limit(1)
     if (!existing) return candidate
   }
-  return `${Date.now()}${Math.floor(Math.random() * 100)}`
+  return `${Date.now()}${randomInt(100)}`
 }

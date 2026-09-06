@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { sanitizeContent } from '@/lib/shop/sanitize'
+import sanitizeHtml from 'sanitize-html'
+import { RICH_TEXT_SANITIZE_OPTIONS } from '@/lib/shop/sanitize'
 import { notFound } from 'next/navigation'
 import { getPageBySlug } from '@/lib/shop/pages'
 import { getServerDictionary } from '@/lib/i18n/server'
@@ -48,7 +49,7 @@ export default async function LegalPage({ params }: { params: Promise<{ slug: st
         <h1 className="mb-6 text-3xl font-bold tracking-tight text-foreground text-balance">{page.title}</h1>
         <div
           className="prose prose-neutral max-w-none text-pretty leading-relaxed text-foreground [&_a]:text-primary [&_h2]:mt-6 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:my-1 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6"
-          dangerouslySetInnerHTML={{ __html: sanitizeContent(page.content || '') }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content || '', RICH_TEXT_SANITIZE_OPTIONS) }}
         />
       </article>
     </div>

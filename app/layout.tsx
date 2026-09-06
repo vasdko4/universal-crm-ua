@@ -79,27 +79,6 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-// Dev-only workaround for a known Next.js/React bug: React's experimental
-// component performance tracking may call performance.measure() with a
-// negative timestamp when notFound() or an aborted render happens on a
-// dynamic route ("'ProductPage' cannot have a negative time stamp").
-// This swallows only that specific error; all other errors pass through.
-// Safe to remove once the fix lands upstream in a future Next.js release.
-const devPerfPatch = `(function(){try{var p=window.performance;if(!p||typeof p.measure!=='function'||p.__v0Patched)return;var o=p.measure.bind(p);p.measure=function(){try{return o.apply(p,arguments)}catch(e){if(e&&e.message&&e.message.indexOf('negative time stamp')!==-1)return;throw e}};p.__v0Patched=true}catch(_){}})();`
-
-// Fix for a common browser-extension conflict (Grammarly, Google Translate,
-// password managers, etc.): these tools inject/move DOM nodes inside React's
-// tree behind its back. When React later tries to remove/insert a node it
-// thinks is still there, the browser throws "Failed to execute 'removeChild'/
-// 'insertBefore' on 'Node': ... is not a child of this node." React treats
-// this as a render error and the whole page crashes to app/error.tsx, even
-// though nothing is actually broken. This patches the two DOM methods to
-// no-op instead of throwing when the node isn't actually a child — the
-// standard, widely-used mitigation for this class of bug. Runs on every
-// environment (prod included), since it's the browser extension timing that
-// triggers it, not app code.
-const domPatch = `(function(){try{if(window.__domPatched)return;window.__domPatched=true;var rc=Node.prototype.removeChild;Node.prototype.removeChild=function(child){if(child&&child.parentNode!==this){return child}return rc.apply(this,arguments)};var ib=Node.prototype.insertBefore;Node.prototype.insertBefore=function(newNode,refNode){if(refNode&&refNode.parentNode!==this){this.appendChild(newNode);return newNode}return ib.apply(this,arguments)}}catch(_){}})();`
-
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Reflect the visitor's actual selected locale (defaults to 'uk', the
   // store's default locale) — this was hardcoded to "ru" regardless of the
@@ -109,9 +88,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} className="bg-background">
       <body className="font-sans antialiased">
-        <script dangerouslySetInnerHTML={{ __html: domPatch }} />
+        <script src="/dom-patch.js" />
         {process.env.NODE_ENV === 'development' && (
-          <script dangerouslySetInnerHTML={{ __html: devPerfPatch }} />
+          <script src="/dev-perf-patch.js" />
         )}
         {children}
         {/* On mobile Sonner ignores `position` and always renders toasts

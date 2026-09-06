@@ -82,6 +82,7 @@ services:
       # above) to enable one-click updates from the admin panel.
       UPDATER_SECRET: ${UPDATER_SECRET:-}
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-}
+      BIND_HOST: "0.0.0.0"
     command: >
       sh -c "apk add --no-cache docker-cli docker-cli-compose >/dev/null 2>&1 && python3 scripts/updater.py"
 

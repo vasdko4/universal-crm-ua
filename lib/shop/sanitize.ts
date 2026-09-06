@@ -1,25 +1,24 @@
 import sanitizeHtml from 'sanitize-html'
 
 /**
- * Sanitizes admin-authored rich text (legal pages, articles, product
- * descriptions) before rendering with `dangerouslySetInnerHTML`.
+ * Options for admin-authored rich text (legal pages, articles, product
+ * descriptions) rendered with `dangerouslySetInnerHTML`.
  *
- * Uses `sanitize-html` (pure JS, no DOM) rather than `isomorphic-dompurify`
- * (which pulls in `jsdom`): jsdom's transitive dependency chain
- * (`html-encoding-sniffer` -> `@exodus/bytes`) ships an ESM-only module that
- * Next's bundler cannot `require()` at runtime, which 500'd every page that
- * called `DOMPurify.sanitize()` in production on Vercel even though
- * `next build` succeeded locally and in CI.
+ * `sanitize-html` is called at each sink (not only via a wrapper) so CodeQL
+ * models it as a sanitizer. Uses the pure-JS library rather than
+ * `isomorphic-dompurify` / jsdom, which Next cannot `require()` on Vercel.
  */
+export const RICH_TEXT_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat(['h1', 'h2', 'h3', 'h4', 'span', 'img']),
+  allowedAttributes: {
+    ...sanitizeHtml.defaults.allowedAttributes,
+    a: ['href', 'name', 'target', 'rel'],
+    img: ['src', 'alt', 'width', 'height'],
+    '*': ['class'],
+  },
+  allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+}
+
 export function sanitizeContent(html: string): string {
-  return sanitizeHtml(html, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['h1', 'h2', 'h3', 'h4', 'span', 'img']),
-    allowedAttributes: {
-      ...sanitizeHtml.defaults.allowedAttributes,
-      a: ['href', 'name', 'target', 'rel'],
-      img: ['src', 'alt', 'width', 'height'],
-      '*': ['class'],
-    },
-    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
-  })
+  return sanitizeHtml(html, RICH_TEXT_SANITIZE_OPTIONS)
 }
