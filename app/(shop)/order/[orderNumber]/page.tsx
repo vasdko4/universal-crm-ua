@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CheckCircle2, Package, Truck, CreditCard, Copy } from 'lucide-react'
@@ -43,6 +44,19 @@ const T = {
     continueShopping: 'Продолжить покупки',
     myOrders: 'Мои заказы',
   },
+}
+
+export const dynamic = 'force-dynamic'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ orderNumber: string }>
+}): Promise<Metadata> {
+  const { orderNumber } = await params
+  const data = await getOrderByNumber(orderNumber)
+  if (!data) notFound()
+  return { title: data.order.orderNumber, robots: { index: false, follow: false } }
 }
 
 export default async function OrderConfirmationPage({

@@ -3,6 +3,7 @@ import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
 import { getAdminUserWithPermission } from '@/lib/session'
 import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { pickLocalized } from '@/lib/i18n/config'
+import { getDictionary } from '@/lib/i18n/dictionaries'
 
 export async function GET(req: Request) {
   const { page, pageSize, search, searchParams } = parseListParams(req.url)
@@ -13,18 +14,25 @@ export async function GET(req: Request) {
     categoryId = Number(catParam)
   }
   const locale = localeFromRequest(req)
+  const dict = getDictionary(locale)
   const result = await getPublicPublishedArticles({
     page,
     pageSize,
     search,
     categoryId,
   })
-  const items = result.items.map((a) => ({
-    ...a,
-    title: pickLocalized(locale, a.title, a.titleRu),
-    excerpt: pickLocalized(locale, a.excerpt, a.excerptRu) || a.excerpt,
-    content: pickLocalized(locale, a.content, a.contentRu) || a.content,
-  }))
+  const items = result.items.map((a) => {
+    const { titleRu, excerptRu, contentRu, ...rest } = a
+    return {
+      ...rest,
+      title: pickLocalized(locale, a.title, titleRu),
+      excerpt: pickLocalized(locale, a.excerpt, excerptRu) || a.excerpt,
+      content: pickLocalized(locale, a.content, contentRu) || a.content,
+      categoryName: a.categorySlug
+        ? (dict.articles.categoryNames[a.categorySlug] ?? a.categoryName)
+        : a.categoryName,
+    }
+  })
   return ok(items, {
     total: result.total,
     page: result.page,

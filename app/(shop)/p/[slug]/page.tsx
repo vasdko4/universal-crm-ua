@@ -17,7 +17,7 @@ export async function generateMetadata({
   const { slug } = await params
   const { locale } = await getServerDictionary()
   const page = await getPageBySlug(slug, locale)
-  if (!page) return { title: 'Not found', robots: { index: false } }
+  if (!page) notFound()
   const path = `/p/${slug}`
   return {
     title: page.title,
