@@ -8,11 +8,15 @@ import { getConnectionString, sslForConnectionString, stripSslParams } from './c
 // Strip `name` so every query is a simple unnamed statement.
 const originalClientQuery = Client.prototype.query
 Client.prototype.query = function patchedQuery(this: Client, config: unknown, ...rest: unknown[]) {
+  // Use apply() instead of call(...rest): TypeScript rejects spreading a
+  // non-tuple `unknown[]` into .call() (`TS2556`), which failed `next build`
+  // on Vercel even though the runtime is fine.
+  let queryArg: unknown = config
   if (config && typeof config === 'object' && 'name' in (config as object) && 'text' in (config as object)) {
     const { name: _ignored, ...unnamed } = config as { name?: string; text: string }
-    return originalClientQuery.call(this, unnamed, ...rest)
+    queryArg = unnamed
   }
-  return originalClientQuery.call(this, config as never, ...rest)
+  return originalClientQuery.apply(this, [queryArg, ...rest] as never)
 } as typeof Client.prototype.query
 
 const rawConnectionString = getConnectionString()
