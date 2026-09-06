@@ -24,8 +24,9 @@ export async function listOrders(params: OrderListParams = {}) {
   const perPage = params.perPage ?? 20
   const conditions = []
 
-  if (params.search) {
-    const s = `%${params.search}%`
+  const search = (params.search ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)
+  if (search) {
+    const s = `%${search}%`
     conditions.push(
       or(
         ilike(orders.orderNumber, s),

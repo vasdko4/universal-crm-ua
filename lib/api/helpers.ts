@@ -17,8 +17,8 @@ export function parsePositiveInt(value: string | null | undefined): number | nul
   return n
 }
 
-function sanitizeSearch(raw: string): string {
-  // NUL / other C0 controls make Postgres throw (HTTP 500). Keep printable text.
+/** Strip NUL / other C0 controls so Postgres LIKE/ilike cannot 500. */
+export function sanitizeSearch(raw: string): string {
   return raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)
 }
 

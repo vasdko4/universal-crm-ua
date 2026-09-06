@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { getAdminUser } from '@/lib/session'
 import { hasPermission } from '@/lib/permissions'
+import { readJson } from '@/lib/api/helpers'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8 MB
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
@@ -144,7 +145,11 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const { url } = (await request.json()) as { url?: string }
+    const body = await readJson<{ url?: string }>(request)
+    if (!body) {
+      return NextResponse.json({ error: 'Некорректный JSON' }, { status: 400 })
+    }
+    const url = body.url
     if (!url) {
       return NextResponse.json({ error: 'URL не передан' }, { status: 400 })
     }
