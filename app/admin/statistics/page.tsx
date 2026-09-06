@@ -15,6 +15,7 @@ import {
 } from '@/app/actions/analytics'
 import { StatsDashboard } from '@/components/statistics/stats-dashboard'
 import { requirePermission } from '@/lib/session'
+import { parsePage } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +24,7 @@ export default async function StatisticsPage(props: {
 }) {
   await requirePermission('statistics')
   const sp = await props.searchParams
-  const days = Number(sp.days ?? '30') || 30
+  const days = parsePage(sp.days, 30)
 
   const [
     summary,
