@@ -7,16 +7,18 @@ import { usePathname } from 'next/navigation'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { trackModalAdEvent, type PublicModalAd } from '@/app/actions/modal-ads'
+import { stripLocalePrefix } from '@/lib/i18n/config'
 
 // Frequency capping is inherently per-browser state, so localStorage /
 // sessionStorage is the correct storage here (not app data).
 const LS_KEY = 'modal-ad-seen' // { [id]: epoch ms of last view }
 
 function pageType(pathname: string): 'home' | 'catalog' | 'product' | 'cart' | 'other' {
-  if (pathname === '/') return 'home'
-  if (pathname === '/catalog' || pathname.startsWith('/catalog/')) return 'catalog'
-  if (pathname.startsWith('/product/')) return 'product'
-  if (pathname === '/cart' || pathname === '/checkout') return 'cart'
+  const path = stripLocalePrefix(pathname)
+  if (path === '/') return 'home'
+  if (path === '/catalog' || path.startsWith('/catalog/')) return 'catalog'
+  if (path.startsWith('/product/')) return 'product'
+  if (path === '/cart' || path === '/checkout') return 'cart'
   return 'other'
 }
 
