@@ -4,6 +4,7 @@ import { paymentGateways, payments } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { monobankCheckStatus } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
+import { readJson } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,10 +22,8 @@ export async function GET(req: Request) {
 // we treat the notification as a trigger and re-fetch the authoritative status
 // from Monobank's API using our secret token before settling anything.
 export async function POST(req: Request) {
-  let body: Record<string, unknown> = {}
-  try {
-    body = await req.json()
-  } catch {
+  const body = await readJson<Record<string, unknown>>(req)
+  if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'bad request' }, { status: 400 })
   }
 

@@ -53,6 +53,7 @@ export type Dictionary = {
     notFound: string
     author: string
     categoryNames: Record<string, string>
+    tagNames: Record<string, string>
   }
   header: {
     login: string
@@ -597,6 +598,7 @@ const uk: Dictionary = {
     notFound: 'Статтю не знайдено',
     author: 'Автор',
     categoryNames: { news: 'Новини', reviews: 'Огляди', guides: 'Гайди' },
+    tagNames: { 'навушники': 'навушники', 'гайд': 'гайд' },
   },
   header: {
     login: 'Увійти',
@@ -1137,6 +1139,7 @@ const ru: Dictionary = {
     notFound: 'Статья не найдена',
     author: 'Автор',
     categoryNames: { news: 'Новости', reviews: 'Обзоры', guides: 'Гайды' },
+    tagNames: { 'навушники': 'наушники', 'гайд': 'гайд' },
   },
   header: {
     login: 'Войти',

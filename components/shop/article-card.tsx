@@ -17,7 +17,11 @@ export function ArticleCard({
 }) {
   const href = localizedPath(`/articles/${article.slug}`, locale)
   const date = article.publishedAt
-    ? new Date(article.publishedAt).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(article.publishedAt).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'uk-UA', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
     : null
 
   const cover = (

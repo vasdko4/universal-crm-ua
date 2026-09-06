@@ -6,6 +6,7 @@ import { localizedPath } from '@/lib/i18n/config'
 import { ArticleCard } from '@/components/shop/article-card'
 import { JsonLd } from '@/components/shop/json-ld'
 import { getCanonicalSiteUrl, toAbsolute } from '@/lib/seo'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,8 +30,9 @@ export default async function ArticlesPage({
   const { category } = await searchParams
   const { dict, locale } = await getServerDictionary()
   const lp = (path: string) => localizedPath(path, locale)
+  const categorySlug = sanitizeSearch(category ?? '').trim() || undefined
   const [rawArticles, rawCategories] = await Promise.all([
-    getPublishedArticles({ categorySlug: category, locale }),
+    getPublishedArticles({ categorySlug, locale }),
     getPublishedArticleCategories(),
   ])
 
@@ -74,7 +76,7 @@ export default async function ArticlesPage({
           <Link
             href={lp('/articles')}
             className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-              !category
+              !categorySlug
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border bg-card text-foreground hover:border-primary'
             }`}
@@ -86,7 +88,7 @@ export default async function ArticlesPage({
               key={c.id}
               href={lp(`/articles?category=${c.slug}`)}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-                category === c.slug
+                categorySlug === c.slug
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-card text-foreground hover:border-primary'
               }`}
@@ -103,11 +105,11 @@ export default async function ArticlesPage({
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          {!category && featured && (
+          {!categorySlug && featured && (
             <ArticleCard article={featured} minutesLabel={dict.articles.readMinutes} featured locale={locale} />
           )}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {(category ? articles : rest).map((a) => (
+            {(categorySlug ? articles : rest).map((a) => (
               <ArticleCard key={a.id} article={a} minutesLabel={dict.articles.readMinutes} locale={locale} />
             ))}
           </div>

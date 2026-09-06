@@ -38,7 +38,7 @@ export default async function MyOrdersPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <Link
-                    href={`/account/orders/${o.id}`}
+                    href={localizedPath(`/account/orders/${o.id}`, locale)}
                     className="font-semibold text-card-foreground hover:text-primary"
                   >
                     №{o.orderNumber}
@@ -48,7 +48,7 @@ export default async function MyOrdersPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {o.createdAt ? new Date(o.createdAt).toLocaleDateString('uk-UA') : ''} ·{' '}
+                  {o.createdAt ? new Date(o.createdAt).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'uk-UA') : ''} ·{' '}
                   {o.itemsCount} {t.itemsCountUnit}
                 </p>
               </div>
@@ -85,7 +85,7 @@ export default async function MyOrdersPage() {
                   <li key={item.id}>
                     {item.productId ? (
                       <Link
-                        href={`/product/${o.productSlugs[item.productId] ?? item.productId}`}
+                        href={localizedPath(`/product/${o.productSlugs[item.productId] ?? item.productId}`, locale)}
                         className="group flex items-center gap-3 py-3"
                       >
                         {content}
@@ -100,7 +100,7 @@ export default async function MyOrdersPage() {
 
             <div className="mt-4 flex justify-end">
               <Button asChild variant="outline" size="sm">
-                <Link href={`/account/orders/${o.id}`}>{t.orderDetailsButton}</Link>
+                <Link href={localizedPath(`/account/orders/${o.id}`, locale)}>{t.orderDetailsButton}</Link>
               </Button>
             </div>
           </div>
