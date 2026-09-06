@@ -1,5 +1,6 @@
 'use server'
 
+import { randomInt } from 'node:crypto'
 import { db } from '@/lib/db'
 import { paymentGateways, payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
@@ -120,7 +121,7 @@ async function logEvent(
 }
 
 function genOrderRef() {
-  return `WFP-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+  return `WFP-${Date.now()}-${randomInt(1000)}`
 }
 
 export async function createPayment(input: {

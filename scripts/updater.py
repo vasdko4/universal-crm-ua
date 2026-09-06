@@ -24,6 +24,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 SECRET = os.environ.get("UPDATER_SECRET", "")
 PORT = int(os.environ.get("PORT", "8787"))
+# Default to loopback so CodeQL BindToAllInterfaces is clean. Docker Compose
+# overrides BIND_HOST=0.0.0.0 so the sidecar is reachable on the compose network.
+BIND_HOST = os.environ.get("BIND_HOST", "127.0.0.1")
 COMPOSE_FILE = os.environ.get("COMPOSE_FILE", "/workspace/docker-compose.yml")
 PROJECT_DIR = os.environ.get("COMPOSE_PROJECT_DIR", "/workspace")
 SERVICE = os.environ.get("APP_SERVICE", "app")
@@ -82,5 +85,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"[updater] listening on :{PORT}", flush=True)
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    print(f"[updater] listening on {BIND_HOST}:{PORT}", flush=True)
+    ThreadingHTTPServer((BIND_HOST, PORT), Handler).serve_forever()

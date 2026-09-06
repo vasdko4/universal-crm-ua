@@ -1,5 +1,6 @@
 'use server'
 
+import { randomInt } from 'node:crypto'
 import { headers } from 'next/headers'
 import { db } from '@/lib/db'
 import { promotions, promotionUsages, productGroups, productGroupItems, products } from '@/lib/db/schema'
@@ -56,7 +57,7 @@ function validate(input: PromotionInput): string | null {
 export async function generatePromoCode(): Promise<string> {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
-  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)]
+  for (let i = 0; i < 8; i++) code += chars[randomInt(chars.length)]
   return code
 }
 
