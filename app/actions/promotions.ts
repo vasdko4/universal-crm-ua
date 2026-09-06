@@ -10,6 +10,7 @@ import { assertPermission } from '@/lib/session'
 import { isRateLimited } from '@/lib/api/rate-limit'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type PromotionInput = {
   type: 'promocode' | 'discount'
@@ -65,7 +66,8 @@ export async function getPromotions(params: PromotionListParams = {}) {
   await assertPermission('promotions')
   const { search = '', status = 'all', page = 1, pageSize = 8 } = params
   const conditions = []
-  if (search.trim()) conditions.push(ilike(promotions.name, `%${search.trim()}%`))
+  const q = sanitizeSearch(search).trim()
+  if (q) conditions.push(ilike(promotions.name, `%${q}%`))
   if (status === 'active') conditions.push(eq(promotions.isActive, true))
   if (status === 'inactive') conditions.push(eq(promotions.isActive, false))
   const where = conditions.length ? and(...conditions) : undefined

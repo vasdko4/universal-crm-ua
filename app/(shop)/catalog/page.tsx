@@ -25,7 +25,7 @@ export async function generateMetadata({
   // Search, filter and paginated views are near-duplicates of the canonical
   // catalog — keep them out of the index while still following links.
   const isFiltered = Boolean(get('search') || get('inStock')) || Number(get('page') ?? 1) > 1
-  const search = get('search')
+  const search = sanitizeSearch(get('search') ?? '')
   const title = search ? `${dict.catalog.resultsFor}: «${search}»` : dict.catalog.title
   return {
     title,

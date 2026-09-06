@@ -33,6 +33,7 @@ import { isRateLimited } from '@/lib/api/rate-limit'
 import { validateCheckoutInput } from '@/lib/shop/checkout-validation'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
+import { localizedPath } from '@/lib/i18n/config'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 
 /** Client IP for server actions (no Request object available — use headers). */
@@ -446,7 +447,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     if (gateway && baseUrl) {
       // Real gateway flow: create an invoice and send the shopper to the gateway.
       const serviceUrl = `${baseUrl}/api/payments/${gateway.code}/callback`
-      const returnUrl = `${baseUrl}/checkout/return?orderReference=${encodeURIComponent(orderNumber)}`
+      const returnUrl = `${baseUrl}${localizedPath('/checkout/return', locale)}?orderReference=${encodeURIComponent(orderNumber)}`
       const result =
         gateway.code === 'wayforpay'
           ? await wayforpayCreateInvoice(gateway.config, {

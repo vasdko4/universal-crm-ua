@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type ModalAdTargetPage = 'all' | 'home' | 'catalog' | 'product' | 'cart'
 export type ModalAdTrigger = 'delay' | 'scroll' | 'exit'
@@ -86,9 +87,10 @@ export async function getModalAds(params: ModalAdListParams = {}) {
   await assertPermission('modal_ads')
   const { search = '', status = 'all', page = 1, pageSize = 8 } = params
   const conditions = []
-  if (search.trim()) {
+  const q = sanitizeSearch(search).trim()
+  if (q) {
     conditions.push(
-      or(ilike(modalAds.name, `%${search.trim()}%`), ilike(modalAds.title, `%${search.trim()}%`)),
+      or(ilike(modalAds.name, `%${q}%`), ilike(modalAds.title, `%${q}%`)),
     )
   }
   if (status === 'active') conditions.push(eq(modalAds.isActive, true))

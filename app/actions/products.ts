@@ -16,6 +16,7 @@ import { revalidateStorefront } from '@/lib/shop/cache'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueSlug } from '@/lib/product-slug'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type VariantInput = {
   options: VariantOptions
@@ -41,7 +42,7 @@ export async function getProducts(filters: ProductFilters = {}) {
   const conditions: SQL[] = [isNull(products.deletedAt)]
 
   if (search?.trim()) {
-    const q = `%${search.trim()}%`
+    const q = `%${sanitizeSearch(search.trim())}%`
     const searchCond = or(
       ilike(products.nameRu, q),
       ilike(products.nameUk, q),
