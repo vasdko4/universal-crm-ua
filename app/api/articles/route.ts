@@ -6,7 +6,8 @@ import { pickLocalized } from '@/lib/i18n/config'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 
 export async function GET(req: Request) {
-  const { page, pageSize, search, searchParams } = parseListParams(req.url)
+  const { page, pageSize, search, searchParams, error } = parseListParams(req.url)
+  if (error) return fail(error, 400)
   const catParam = searchParams.get('categoryId')
   let categoryId: number | 'all' = 'all'
   if (catParam != null && catParam !== '') {

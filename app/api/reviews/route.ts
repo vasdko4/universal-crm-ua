@@ -3,7 +3,8 @@ import { ok, fail, parseListParams, readJson, parsePositiveInt } from '@/lib/api
 import { isRateLimited, clientIp } from '@/lib/api/rate-limit'
 
 export async function GET(req: Request) {
-  const { page, pageSize, searchParams } = parseListParams(req.url)
+  const { page, pageSize, searchParams, error } = parseListParams(req.url)
+  if (error) return fail(error, 400)
   const rawId = searchParams.get('productId')
   let productId: number | undefined
   if (rawId != null && rawId !== '') {
