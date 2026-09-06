@@ -179,7 +179,10 @@ export default async function MyOrderDetailPage({
               <li key={it.id}>
                 {it.productId ? (
                   <Link
-                    href={`/product/${productSlugs[it.productId] ?? it.productId}`}
+                    href={localizedPath(
+                      `/product/${productSlugs[it.productId] ?? it.productId}`,
+                      locale,
+                    )}
                     className="group flex items-center gap-3 px-5 py-3"
                   >
                     {body}
