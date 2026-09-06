@@ -30,6 +30,19 @@ export type AdminDictionary = {
     back: string
     language: string
   }
+  signIn: {
+    subtitle: string
+    password: string
+    submit: string
+    invalid: string
+    tooMany: string
+    bootstrapTitle: string
+    bootstrapSubtitle: string
+    bootstrapName: string
+    bootstrapSubmit: string
+    error: string
+    signInError: string
+  }
   sidebar: {
     goToSite: string
     adminCenter: string
@@ -1599,6 +1612,19 @@ const uk: AdminDictionary = {
     close: 'Закрити',
     back: 'Назад',
     language: 'Мова',
+  },
+  signIn: {
+    subtitle: 'Увійдіть в адмін-центр',
+    password: 'Пароль',
+    submit: 'Увійти',
+    invalid: 'Невірний email або пароль',
+    tooMany: 'Забагато спроб входу. Зачекайте 2 хвилини і спробуйте знову.',
+    bootstrapTitle: 'Створення адміністратора',
+    bootstrapSubtitle: 'Це перший вхід. Створіть обліковий запис адміністратора.',
+    bootstrapName: "Ім'я",
+    bootstrapSubmit: 'Створити і увійти',
+    error: 'Помилка',
+    signInError: 'Помилка входу',
   },
   sidebar: {
     goToSite: 'Перейти на сайт',
@@ -3230,6 +3256,19 @@ const ru: AdminDictionary = {
     close: 'Закрыть',
     back: 'Назад',
     language: 'Язык',
+  },
+  signIn: {
+    subtitle: 'Войдите в админ-центр',
+    password: 'Пароль',
+    submit: 'Войти',
+    invalid: 'Неверный email или пароль',
+    tooMany: 'Слишком много попыток входа. Подождите 2 минуты и попробуйте снова.',
+    bootstrapTitle: 'Создание администратора',
+    bootstrapSubtitle: 'Это первый вход. Создайте учётную запись администратора.',
+    bootstrapName: 'Имя',
+    bootstrapSubmit: 'Создать и войти',
+    error: 'Ошибка',
+    signInError: 'Ошибка входа',
   },
   sidebar: {
     goToSite: 'Перейти на сайт',
