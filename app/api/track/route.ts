@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { trackEvent } from '@/app/actions/analytics'
+import { readJson } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,16 +34,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Too many events' }, { status: 429 })
   }
 
-  let body: {
+  const body = await readJson<{
     type?: string
     path?: string
     productId?: number
     sessionId?: string
     referrer?: string
-  }
-  try {
-    body = await req.json()
-  } catch {
+  }>(req)
+  if (!body || typeof body !== 'object') {
     return NextResponse.json({ success: false, error: 'Bad JSON' }, { status: 400 })
   }
 

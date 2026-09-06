@@ -69,7 +69,7 @@ export default async function MyOrderDetailPage({
           </div>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          {order.createdAt ? new Date(order.createdAt).toLocaleString('uk-UA') : ''}
+          {order.createdAt ? new Date(order.createdAt).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA') : ''}
         </p>
       </div>
 
@@ -179,7 +179,7 @@ export default async function MyOrderDetailPage({
               <li key={it.id}>
                 {it.productId ? (
                   <Link
-                    href={`/product/${productSlugs[it.productId] ?? it.productId}`}
+                    href={localizedPath(`/product/${productSlugs[it.productId] ?? it.productId}`, locale)}
                     className="group flex items-center gap-3 px-5 py-3"
                   >
                     {body}

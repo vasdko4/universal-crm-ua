@@ -2,6 +2,7 @@ import 'server-only'
 import { unstable_cache } from 'next/cache'
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { Locale } from '@/lib/i18n/config'
+import { sanitizeSearch } from '@/lib/api/helpers'
 import { db } from '@/lib/db'
 import {
   products,
@@ -247,8 +248,9 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   const productSelect = buildProductSelect(params.locale ?? 'uk')
   const conditions = [params.hideOutOfStock ? homeWhere : baseWhere]
 
-  if (params.search) {
-    const s = `%${params.search}%`
+  const search = sanitizeSearch(params.search ?? '')
+  if (search) {
+    const s = `%${search}%`
     conditions.push(or(ilike(products.nameRu, s), ilike(products.nameUk, s), ilike(products.sku, s))!)
   }
   if (params.minPrice != null) conditions.push(sql`${products.price} >= ${params.minPrice}`)
@@ -354,8 +356,9 @@ export function getPriceBounds(params: { categoryId?: number; search?: string } 
 
 async function _getPriceBounds(params: { categoryId?: number; search?: string } = {}) {
   const conditions = [baseWhere]
-  if (params.search) {
-    const s = `%${params.search}%`
+  const search = sanitizeSearch(params.search ?? '')
+  if (search) {
+    const s = `%${search}%`
     conditions.push(or(ilike(products.nameRu, s), ilike(products.nameUk, s), ilike(products.sku, s))!)
   }
   if (params.categoryId) {

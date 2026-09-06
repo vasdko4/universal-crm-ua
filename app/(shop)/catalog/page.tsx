@@ -9,6 +9,7 @@ import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { localizedPath } from '@/lib/i18n/config'
 import { getCanonicalSiteUrl, toAbsolute } from '@/lib/seo'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,7 +49,7 @@ function parseParams(sp: Record<string, string | string[] | undefined>): Catalog
     return v != null && Number.isFinite(n) && n >= 0 ? n : undefined
   }
   return {
-    search: get('search'),
+    search: sanitizeSearch(get('search') ?? '') || undefined,
     sort: sort ?? 'popular',
     inStockOnly: get('inStock') === '1',
     discountOnly: get('discount') === '1',

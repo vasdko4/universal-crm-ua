@@ -41,13 +41,22 @@ export async function POST(req: Request) {
   try {
     const raw = await req.text()
     try {
-      body = JSON.parse(raw)
+      const parsed = JSON.parse(raw)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return NextResponse.json({ error: 'bad request' }, { status: 400 })
+      }
+      body = parsed as Record<string, unknown>
     } catch {
       const params = new URLSearchParams(raw)
       const first = [...params.keys()][0]
       if (first) {
         try {
-          body = JSON.parse(first)
+          const nested = JSON.parse(first)
+          if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+            body = nested as Record<string, unknown>
+          } else {
+            body = Object.fromEntries(params.entries())
+          }
         } catch {
           body = Object.fromEntries(params.entries())
         }

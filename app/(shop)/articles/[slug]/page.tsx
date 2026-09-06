@@ -65,9 +65,14 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
   }))
 
   const date = article.publishedAt
-    ? new Date(article.publishedAt).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(article.publishedAt).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'uk-UA', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
     : null
-  const tags = Array.isArray(article.tags) ? (article.tags as string[]) : []
+  const rawTags = Array.isArray(article.tags) ? (article.tags as string[]) : []
+  const tags = rawTags.map((tag) => dict.articles.tagNames[tag] ?? tag)
 
   const publishedIso = article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined
   const storeName = settings?.storeName || 'Интернет-магазин электроники'
