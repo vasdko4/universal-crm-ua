@@ -1,131 +1,261 @@
-# 🛒 Universal CRM UA 2.0 — универсальная платформа интернет-магазина + CRM
+# Universal CRM UA
 
-Готовая универсальная платформа интернет-магазина с полноценной CRM-панелью для украинского рынка.
-Подходит для любой ниши: электроника, одежда, косметика, автотовары — каталог, дизайн и контент полностью настраиваются из админки.
-Ставится на чистый сервер **одной командой** и работает полностью на вашей машине:
-база данных, файлы, загрузки — всё хранится у вас, без внешних сервисов.
+Самохостинг-движок интернет-магазина + CRM для украинского рынка.
+Каталог, заказы, клиенты, Новая Почта, Monobank / WayForPay — на вашей машине,
+без SaaS и без обязательного облака.
 
-**Демо (пример магазина на этой платформе):** https://techno-store-chi.vercel.app
-
----
-
-## ⚡ Установка с нуля на чистом Ubuntu
-
-Нужен только чистый сервер (VPS/VDS) с **Ubuntu 22.04 / 24.04** (рекомендуется), 2 ГБ RAM и root-доступ. Выполните одну команду:
+**Версия:** 2.0.0
+**Демо:** https://magazine-test-ten.vercel.app
+**Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.0.0`
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
 ```
 
-Скрипт всё сделает сам на **чистой виртуальной машине**:
+---
 
-1. **Подготовит ОС** — пакеты (`curl`, `ca-certificates`, `ufw`), часовой пояс `Europe/Kyiv`, swap 2 ГБ на VPS с RAM < 4 ГБ, автообновления безопасности;
-2. **Поставит Docker + Compose**, если их нет (без интерактивного вопроса — `curl | bash` иначе зависает), дождётся демона и при необходимости использует `sudo`;
-3. **Откроет firewall** — 22/80/443, плюс 3000 если домена нет, плюс 21 и 21000–21010 если включён FTP;
-4. **Спросит домен** (например `shop.example.com`; Enter — пропустить, магазин будет доступен по `http://IP-сервера:3000`);
-5. **Сгенерирует секреты** — пароль базы данных, FTP-логин/пароль, ключи авторизации (файл `.env` в `~/magazine`);
-6. **Скачает готовый образ** `ghcr.io/vasdko4/universal-crm-ua` из GitHub Container Registry — без исходников и без сборки;
-7. **Запустит всё**: PostgreSQL, магазин, FTP-доступ к фото товаров и — если указан домен — встроенный HTTPS-прокси Caddy, который **сам получает и продлевает SSL-сертификат Let's Encrypt** (nginx и certbot не нужны).
+## Что это
 
-Неинтерактивно: `DOMAIN=shop.example.com bash install.sh`. Пропустить подготовку ОС: `SKIP_VM_SETUP=1`.
+Один процесс Next.js отдаёт витрину и админку. Данные — PostgreSQL на том же сервере.
+Фото товаров — локальный том (или Vercel Blob, если деплой на Vercel).
 
-После запуска откройте сайт — вас автоматически перенаправит на **мастер установки**: выбор «чистая CRM или демо-данные», название и описание магазина, ключ Новой Почты, дизайн, логин/пароль администратора. После завершения мастер больше недоступен.
+Подходит любой нише: техника, одежда, косметика, автотовары. Название, дизайн,
+категории и контент задаются в `/admin`, не в коде.
 
-### Если домен указан — что нужно от вас
+| | |
+|---|---|
+| Витрина | `/` украинский, `/ru` русский |
+| Админка | `/admin` |
+| Мастер первой установки | `/setup` (после завершения закрывается) |
+| Health | `GET /api/health` → `{ status, db }` |
 
-- A-запись домена указывает на IP сервера;
-- порты **80** и **443** открыты (плюс **21** и **21000-21010**, если нужен FTP снаружи).
+---
 
-### Ubuntu 20.04 (focal) и старее
+## Требования
 
-Эта версия снята с поддержки — лучше переустановить сервер на Ubuntu 24.04 (в панели хостинга это одна кнопка «Reinstall OS»). Если переустановка невозможна, поставьте Docker вручную до запуска установщика:
+| | Минимум | Рекомендуется |
+|---|---|---|
+| ОС | Ubuntu 22.04 / 24.04 | 24.04 |
+| RAM | 2 ГБ (+ swap, инсталятор поставит сам) | 4 ГБ |
+| Диск | 10 ГБ | 20 ГБ |
+| Доступ | root или sudo | |
+| Домен | не обязателен (`http://IP:3000`) | A-запись на IP, порты 80 и 443 |
+
+Другие ОС: поставьте Docker сами, затем тот же `install.sh`.
+
+---
+
+## Установка на чистый VPS
+
+Одна команда. Исходники и Node.js на хосте не нужны — ставится готовый образ из GHCR.
 
 ```bash
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu focal stable" > /etc/apt/sources.list.d/docker.list
-apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-systemctl enable --now docker
+curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
 ```
 
-### Обновление до новой версии
+Скрипт:
+
+1. Ставит пакеты, часовой пояс `Europe/Kyiv`, swap 2 ГБ (если RAM < 4 ГБ), UFW.
+2. Ставит Docker + Compose, если их нет (без вопроса Y/n — иначе `curl | bash` зависает).
+3. Спрашивает домен. Enter — магазин на `http://IP:3000`.
+4. Пишет `~/magazine/.env` (секреты auth, пароль БД, FTP).
+5. Тянет `ghcr.io/vasdko4/universal-crm-ua:latest`, поднимает Postgres + приложение.
+6. Если домен указан — поднимает Caddy и выпускает Let's Encrypt (nginx/certbot не нужны).
+
+Неинтерактивно:
 
 ```bash
-cd ~/magazine && docker compose pull && docker compose up -d
+DOMAIN=shop.example.com bash install.sh
 ```
 
-Данные (база, загрузки, сертификаты) при обновлении сохраняются — они лежат в Docker-томах.
+Другая версия образа:
 
-### Демо-данные
+```bash
+IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.0.0 bash install.sh
+```
 
-Хотите посмотреть магазин с товарами, категориями и тестовыми заказами? До первого захода на сайт выполните:
+Пропустить подготовку ОС (Docker уже стоит):
+
+```bash
+SKIP_VM_SETUP=1 bash install.sh
+```
+
+### После запуска
+
+Откройте адрес, который вывел скрипт. Откроется мастер:
+
+- чистая CRM или демо-каталог;
+- название и описание магазина;
+- ключ Новой Почты (можно позже);
+- логин и пароль администратора.
+
+Мастер одноразовый. Дальше — `/admin`.
+
+Демо-данные **до** первого захода в мастер (иначе мастер уже создаст магазин):
 
 ```bash
 cd ~/magazine && docker compose exec app node scripts/db-setup.mjs --seed
 ```
 
-Демо-администратор: `admin@techno.store / Admin12345` (смените пароль после входа).
+Демо-админ: `admin@techno.store` / `Admin12345` — смените пароль сразу.
+
+### Домен и HTTPS
+
+Нужно от вас:
+
+- A-запись домена → IP сервера;
+- порты **80** и **443** открыты;
+- для FTP снаружи — ещё **21** и **21000–21010**.
+
+Добавить домен к уже стоящему магазину: пропишите в `~/magazine/.env`
+
+```
+DOMAIN=shop.example.com
+BETTER_AUTH_URL=https://shop.example.com
+NEXT_PUBLIC_SITE_URL=https://shop.example.com
+```
+
+и перезапустите с профилем прокси:
+
+```bash
+cd ~/magazine
+COMPOSE_PROFILES=ftp,proxy docker compose up -d
+```
+
+### Обновление
+
+```bash
+cd ~/magazine && docker compose pull && docker compose up -d
+```
+
+База, загрузки и сертификаты в Docker-томах — не сносятся. Схема на старте контейнера
+дотягивается через `db/migrate.sql` (идемпотентно).
+
+Из админки: **Настройки → Обновления** (нужен сайдкар `updater` — `install.sh` его поднимает).
 
 ---
 
-## 🧩 Что умеет CRM
+## Другие способы поставить
 
-### Витрина магазина
-- Каталог с категориями, группами и фильтрами, поиск, страница товара;
-- Два языка — украинский и русский;
-- Корзина, оформление заказа, отслеживание доставки, личный кабинет, избранное;
-- Отзывы и вопросы о товарах;
-- Блог/статьи и произвольные страницы;
-- SEO из коробки: sitemap.xml, robots.txt, canonical, Open Graph, товарный фид для Google Merchant Center.
+### Из исходников, тоже Docker
 
-### Админ-панель (`/admin`)
-- **Заказы** — статусы, история, брошенные корзины;
-- **Товары** — карточки на двух языках, фото, импорт, бестселлеры, акции и промокоды;
-- **Категории и группы** товаров;
-- **Клиенты** и пользователи с ролями и правами доступа;
-- **Доставка** — интеграция с Новой Почтой (отделения, трекинг, автосинхронизация статусов);
-- **Оплата** — Monobank и WayForPay (подключаются своими ключами в настройках);
-- **Контент** — статьи, страницы, модальные объявления/баннеры, настройка главной;
-- **Статистика** продаж, журнал действий администраторов, корзина удалённых записей;
-- Кнопка **«Очистить кеш»** в настройках.
+Когда нужен билд с этой машины, а не готовый образ:
 
-### Технологии
-Next.js 16 (App Router) · PostgreSQL 16 · Better Auth · Tailwind CSS + Radix UI · Docker Compose · Caddy (авто-HTTPS).
+```bash
+git clone https://github.com/vasdko4/universal-crm-ua.git
+cd universal-crm-ua
+chmod +x start.sh
+./start.sh
+```
+
+`start.sh` готовит ВМ, пишет `.env`, собирает `docker compose up -d --build`.
+
+### Без Docker, systemd + nginx
+
+С корня репозитория на Ubuntu:
+
+```bash
+sudo DOMAIN=shop.example.com bash scripts/vps-install.sh
+```
+
+Ставит Node 22, pnpm, PostgreSQL, nginx, systemd-сервис `techno-store`, ежедневный бэкап БД.
+HTTPS: `certbot --nginx -d shop.example.com`.
+
+### Локальная разработка
+
+Нужны Node.js 20+, pnpm, Docker (только для Postgres).
+
+```bash
+pnpm setup          # .env.local, зависимости, Postgres, пустая схема
+pnpm dev            # http://localhost:3000 — мастер установки
+pnpm setup --seed   # то же + демо-каталог (admin@techno.store / Admin12345)
+pnpm test
+```
+
+Подробности: [README.local.md](README.local.md). Переменные: [.env.example](.env.example).
 
 ---
 
-## 🗂 Что где хранится
+## Движок
 
-| Что | Где |
+### Витрина
+
+- Каталог, категории, группы, фильтры, поиск, карточка товара, варианты
+- Корзина, оформление, личный кабинет, адреса, избранное, промокоды
+- Отзывы и вопросы по товару
+- Статьи и произвольные страницы (`/p/...`)
+- UA / RU: отдельные поля `*_uk` / `*_ru`, URL `/ru/...`
+- SEO: sitemap, robots, canonical, Open Graph, фид Google Merchant (`/feed/google-merchant.xml`)
+
+### CRM (`/admin`)
+
+| Раздел | Зачем |
 |---|---|
-| Файлы установки и пароли | `~/magazine` (`.env` — не удаляйте) |
-| База данных | Docker-том `magazine_pgdata` |
-| Фото товаров и загрузки | Docker-том `magazine_uploads` (доступен по FTP) |
-| SSL-сертификаты | Docker-том `magazine_caddy_data` |
+| Заказы | статусы, история, новое заказ из админки, брошенные корзины |
+| Товары | карточки UA/RU, фото, варианты, импорт, корзина удалённых |
+| Категории / группы | дерево каталога |
+| Клиенты | карточки, заказы клиента |
+| Пользователи | роли и права на разделы админки |
+| Доставка | Новая Почта: отделения, трекинг, cron-синхронизация статусов |
+| Оплата | Monobank, WayForPay — ключи в настройках |
+| Акции | скидки, промокоды |
+| Контент | статьи, страницы, модальные баннеры, главная |
+| Статистика | продажи, бестселлеры |
+| Журнал | действия администраторов |
+| Обновления | текущая / последняя версия, кнопка обновить образ |
 
-Полезные команды (выполнять из `~/magazine`):
+Интеграции, которые включаются ключами, а не отдельным хостингом: SMTP, Telegram-бот,
+Google Ads / Analytics, ключ Новой Почты.
 
-```bash
-docker compose logs -f app      # логи приложения
-docker compose restart app      # перезапуск
-docker compose down             # остановить
-docker compose exec db pg_dump -U techno magazine > backup.sql   # бэкап БД
-```
+### Стек 2.0
+
+| Слой | |
+|---|---|
+| Приложение | Next.js 16 (App Router), React 19, TypeScript |
+| Данные | PostgreSQL 16, Drizzle ORM, схема в `db/schema.sql` |
+| Миграции | `db/migrate.sql` + `migrations/*.sql` (`IF NOT EXISTS`, без ORM-мигратора) |
+| Auth | Better Auth (админка и кабинет покупателя) |
+| UI | Tailwind CSS 4, Radix UI |
+| Картинки | sharp; self-host — `public/uploads`, Vercel — Blob |
+| Прод | Docker Compose, Caddy (авто-HTTPS) или nginx |
+| Релизы | тег `v*`, образ в GHCR, опционально Docker Hub |
+
+Схема меняется SQL-файлами, не `drizzle-kit`. Новая колонка — сразу в `schema.sql`,
+`migrate.sql` и `migrations/00N_*.sql`.
 
 ---
 
-## 📚 Подробная документация
+## Эксплуатация
 
-- **[README.docker.md](README.docker.md)** — установка из исходников, Makefile, бэкапы по расписанию, FTP, Google Merchant/Ads/Analytics, переменные окружения, устранение неполадок;
-- **[README.local.md](README.local.md)** — локальная разработка без Docker;
-- **[УСТАНОВКА.txt](УСТАНОВКА.txt)** — краткая памятка по установке.
+Файлы установки: `~/magazine` (`.env` не удалять).
 
-## 🛠 Разработка
+| Данные | Том |
+|---|---|
+| PostgreSQL | `magazine_pgdata` |
+| Фото / загрузки | `magazine_uploads` (есть FTP) |
+| Сертификаты Caddy | `magazine_caddy_data` |
+
+Команды из `~/magazine`:
 
 ```bash
-pnpm install
-pnpm db:setup        # применить схему БД (нужен PostgreSQL и .env.local)
-pnpm dev             # http://localhost:3000
-pnpm test            # тесты
+docker compose logs -f app
+docker compose restart app
+docker compose down
+docker compose exec db pg_dump -U techno magazine > backup.sql
 ```
 
-Релизы: тег `v*` собирает Docker-образ и публикует его в GHCR и Docker Hub с SLSA-подписью (workflow в `.github/workflows-available/release.yml`).
+Healthcheck контейнера бьёт в `/api/health` (приложение + БД).
+
+Cron доставки: `GET /api/cron/delivery-sync` с `Authorization: Bearer $CRON_SECRET`.
+Без секрета эндпоинт открыт — не оставляйте так в проде.
+
+---
+
+## Документация
+
+- [README.docker.md](README.docker.md) — Compose из исходников, Makefile, FTP, SEO/Ads, env, поломки
+- [README.local.md](README.local.md) — разработка без полного Docker-стека
+- [db/README.md](db/README.md) — схема и миграции
+
+Релиз образа: `git tag vX.Y.Z && git push origin vX.Y.Z` (workflow `.github/workflows/release.yml`).
+GitHub App теги не создаёт — для CI без тега достаточно ветки `v2.0.0`.
