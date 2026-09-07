@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# Techno Store — запуск в одну команду через Docker
+# Techno Store 2.0 — запуск в одну команду через Docker
 #
 # Использование:
 #   chmod +x start.sh
 #   ./start.sh
 #
 # Скрипт полностью автоматический:
-#   1. Проверяет что Docker установлен и запущен
+#   0. На Linux-ВМ: пакеты, timezone, swap, firewall
+#   1. Проверяет что Docker установлен и запущен (ставит сам, если нет)
 #   2. Генерирует .env файл с безопасными секретами (если не существует)
 #   3. Собирает и запускает приложение + базу данных
-#   4. Применяет схему БД и загружает данные магазина
+#   4. Применяет схему БД (мастер установки — при первом заходе)
 #
 # Для остановки:  docker compose down
 # Для удаления данных: docker compose down -v
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
@@ -31,22 +31,70 @@ info() { printf "  %s\n" "$1"; }
 
 cd "$(dirname "$0")"
 
+as_root() {
+  if [ "$(id -u)" = "0" ]; then
+    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    return 1
+  fi
+}
+
+docker_bin() {
+  if docker info >/dev/null 2>&1; then
+    docker "$@"
+  elif command -v sudo >/dev/null 2>&1 && sudo docker info >/dev/null 2>&1; then
+    sudo docker "$@"
+  else
+    docker "$@"
+  fi
+}
+
+# ── 0. Подготовка Linux-ВМ ──────────────────────────────────────────
+if [ "$(uname -s)" = "Linux" ] && [ "${SKIP_VM_SETUP:-0}" != "1" ] && as_root true >/dev/null 2>&1; then
+  say "Подготовка виртуальной машины"
+  export DEBIAN_FRONTEND=noninteractive
+  if command -v apt-get >/dev/null 2>&1; then
+    as_root apt-get update -qq || true
+    as_root apt-get install -y -qq curl ca-certificates openssl ufw >/dev/null || true
+  fi
+  command -v timedatectl >/dev/null 2>&1 && as_root timedatectl set-timezone Europe/Kyiv >/dev/null 2>&1 || true
+  if [ -r /proc/meminfo ]; then
+    TOTAL_MEM_MB="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
+    SWAP_COUNT="$(swapon --show=NAME --noheadings 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "${SWAP_COUNT:-0}" -eq 0 ] && [ "${TOTAL_MEM_MB:-0}" -lt 4000 ]; then
+      SWAP_FILE=/swapfile
+      if [ ! -f "$SWAP_FILE" ]; then
+        as_root fallocate -l 2G "$SWAP_FILE" 2>/dev/null \
+          || as_root dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048 status=none
+        as_root chmod 600 "$SWAP_FILE"
+        as_root mkswap "$SWAP_FILE" >/dev/null
+      fi
+      as_root swapon "$SWAP_FILE" 2>/dev/null || true
+      if [ -f /etc/fstab ] && ! grep -q "$SWAP_FILE" /etc/fstab; then
+        echo "$SWAP_FILE none swap sw 0 0" | as_root tee -a /etc/fstab >/dev/null
+      fi
+      ok "Swap 2G — RAM было ${TOTAL_MEM_MB}MB"
+    fi
+  fi
+fi
+
 # ── 1. Prerequisites ────────────────────────────────────────────────
 say "Проверка Docker"
 
 if ! command -v docker &>/dev/null; then
   err "Docker не найден!"
-  if [ "$(uname -s)" = "Linux" ] && [ -t 0 ]; then
-    read -r -p "  Установить Docker автоматически? [Y/n] " REPLY_DOCKER
-    case "${REPLY_DOCKER:-y}" in
-      [Yy]*|"")
-        say "Установка Docker (get.docker.com)"
-        curl -fsSL https://get.docker.com | sh
-        command -v systemctl &>/dev/null && systemctl enable --now docker || true
-        ok "Docker установлен"
-        ;;
-      *) exit 1 ;;
-    esac
+  if [ "$(uname -s)" = "Linux" ]; then
+    say "Установка Docker (get.docker.com)"
+    if ! as_root true >/dev/null 2>&1; then
+      echo "  Нужен root/sudo. Установите Docker: curl -fsSL https://get.docker.com | sh"
+      exit 1
+    fi
+    curl -fsSL https://get.docker.com | as_root sh
+    command -v systemctl &>/dev/null && as_root systemctl enable --now docker || true
+    [ "$(id -u)" != "0" ] && as_root usermod -aG docker "$USER" || true
+    ok "Docker установлен"
   else
     echo ""
     echo "  Установите Docker:"
@@ -58,26 +106,26 @@ if ! command -v docker &>/dev/null; then
   fi
 fi
 
-if ! docker info &>/dev/null; then
-  err "Docker демон не запущен. Запустите Docker Desktop или службу docker."
-  exit 1
-fi
+for i in $(seq 1 30); do
+  docker_bin info >/dev/null 2>&1 && break
+  if [ "$i" -eq 30 ]; then
+    err "Docker-демон не запущен. Запустите Docker Desktop или службу docker."
+    exit 1
+  fi
+  sleep 1
+done
 
-if ! docker compose version &>/dev/null; then
+if ! docker_bin compose version >/dev/null 2>&1; then
   err "Docker Compose не найден (нужен docker compose v2+)."
   exit 1
 fi
 
-ok "Docker $(docker --version | grep -oP '\d+\.\d+\.\d+') готов"
+ok "Docker готов"
 
 # ── 2. Environment file ─────────────────────────────────────────────
 say "Настройка окружения"
 
 if [ ! -f .env ]; then
-  # ── Domain ─────────────────────────────────────────────────────────
-  # The domain configures Better Auth callbacks AND storefront SEO
-  # (canonical links, sitemap.xml, robots.txt, OG tags). It can be passed
-  # non-interactively: DOMAIN=shop.example.com ./start.sh
   if [ -z "${DOMAIN:-}" ] && [ -t 0 ]; then
     echo ""
     echo "  Укажите домен, на котором будет работать магазин"
@@ -85,15 +133,24 @@ if [ ! -f .env ]; then
     read -r -p "  Домен: " DOMAIN || DOMAIN=""
   fi
   DOMAIN="${DOMAIN:-}"
-  # Strip protocol/trailing slash if the user pasted a full URL.
   DOMAIN="${DOMAIN#https://}"; DOMAIN="${DOMAIN#http://}"; DOMAIN="${DOMAIN%/}"
+  DOMAIN="${DOMAIN%%/*}"
+
+  PUBLIC_IP="$(curl -fsS4 --max-time 5 https://api.ipify.org 2>/dev/null || true)"
+  if [ -z "$PUBLIC_IP" ]; then
+    PUBLIC_IP="$(curl -fsS4 --max-time 5 https://ifconfig.me 2>/dev/null || true)"
+  fi
+  if [ -z "$PUBLIC_IP" ]; then
+    PUBLIC_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  fi
   if [ -n "$DOMAIN" ]; then
     PUBLIC_URL="https://${DOMAIN}"
+  elif [ -n "$PUBLIC_IP" ]; then
+    PUBLIC_URL="http://${PUBLIC_IP}:3000"
   else
     PUBLIC_URL="http://localhost:3000"
   fi
 
-  # ── Secrets ────────────────────────────────────────────────────────
   gen_secret() {
     if command -v openssl &>/dev/null; then openssl rand -base64 32; else head -c 32 /dev/urandom | base64; fi
   }
@@ -106,13 +163,10 @@ if [ ! -f .env ]; then
   DB_PASSWORD=$(gen_password)
   FTP_USER_VAL="techno"
   FTP_PASSWORD_VAL=$(gen_password)
-  # Project name docker-compose derives from this directory's name — pinned
-  # into .env so the "Обновления" admin page's self-update sidecar always
-  # targets *this* stack, even if it's ever invoked from a different path.
   PROJECT_NAME_VAL="$(basename "$PWD")"
 
   cat > .env <<ENVEOF
-# Сгенерировано автоматически скриптом start.sh
+# Сгенерировано автоматически скриптом start.sh (Magazine 2.0)
 # Не редактируйте вручную, если не знаете что делаете.
 
 # Публичный адрес магазина (авторизация + SEO: canonical, sitemap, robots).
@@ -136,7 +190,7 @@ POSTGRES_PASSWORD=${DB_PASSWORD}
 FTP_USER=${FTP_USER_VAL}
 FTP_PASSWORD=${FTP_PASSWORD_VAL}
 # Для доступа к FTP извне укажите внешний IP или домен сервера:
-FTP_ADDRESS=${DOMAIN}
+FTP_ADDRESS=${PUBLIC_IP}
 
 # Домен магазина. Если указан — запускается встроенный реверс-прокси Caddy:
 # он сам получает и продлевает SSL-сертификат Let's Encrypt (nginx не нужен).
@@ -148,38 +202,51 @@ else
   ok "Файл .env уже существует — используем его"
 fi
 
+# ── 2b. Firewall ────────────────────────────────────────────────────
+if [ "$(uname -s)" = "Linux" ] && command -v ufw >/dev/null 2>&1 && as_root true >/dev/null 2>&1; then
+  as_root ufw allow OpenSSH >/dev/null 2>&1 || as_root ufw allow 22/tcp >/dev/null 2>&1 || true
+  as_root ufw allow 80/tcp >/dev/null 2>&1 || true
+  as_root ufw allow 443/tcp >/dev/null 2>&1 || true
+  if ! grep -qE '^DOMAIN=[^[:space:]]+' .env 2>/dev/null; then
+    as_root ufw allow 3000/tcp >/dev/null 2>&1 || true
+  fi
+  if grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null; then
+    as_root ufw allow 21/tcp >/dev/null 2>&1 || true
+    as_root ufw allow 21000:21010/tcp >/dev/null 2>&1 || true
+  fi
+  as_root ufw --force enable >/dev/null 2>&1 || true
+fi
+
 # ── 3. Build & Start ────────────────────────────────────────────────
 say "Запуск контейнеров (первая сборка может занять 2-5 минут)"
 
-# Optional services are enabled by what's in .env:
-#   • ftp   — only when FTP credentials exist (fresh installs);
-#   • proxy — Caddy with automatic HTTPS, only when a domain is set.
-# Older .env files without these values keep working without the services.
 PROFILES=""
 if grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null; then
   PROFILES="ftp"
 fi
-if grep -qE '^DOMAIN=.+' .env 2>/dev/null; then
+if grep -qE '^DOMAIN=[^[:space:]]+' .env 2>/dev/null; then
   PROFILES="${PROFILES:+${PROFILES},}proxy"
 fi
-COMPOSE_PROFILES="$PROFILES" docker compose up -d --build 2>&1 | tail -5
+COMPOSE_PROFILES="$PROFILES" docker_bin compose up -d --build
 
-# Wait for the app to be healthy
 printf "Ожидание готовности"
-for i in $(seq 1 60); do
-  if curl -sf http://localhost:3000/api/health &>/dev/null; then
+READY=0
+for i in $(seq 1 90); do
+  if curl -sf http://127.0.0.1:3000/api/health &>/dev/null; then
     printf '\n'
     ok "Приложение готово!"
+    READY=1
     break
   fi
-  if [ "$i" -eq 60 ]; then
-    printf '\n'
-    err "Превышено время ожидания. Проверьте логи: docker compose logs app"
-    exit 1
-  fi
   printf '.'
-  sleep 2
+  sleep 3
 done
+if [ "$READY" != "1" ]; then
+  printf '\n'
+  err "Превышено время ожидания. Логи:"
+  docker_bin compose logs --tail=80 app db || true
+  exit 1
+fi
 
 # ── Done ────────────────────────────────────────────────────────────
 SITE_URL="$(grep -E '^BETTER_AUTH_URL=' .env | cut -d= -f2- || true)"
@@ -189,9 +256,9 @@ FTP_PASS_SHOW="$(grep -E '^FTP_PASSWORD=' .env | cut -d= -f2- || true)"
 DOMAIN_SHOW="$(grep -E '^DOMAIN=' .env | cut -d= -f2- || true)"
 echo ""
 printf "${GREEN}${BOLD}"
-echo "  ╔══════════════════════════════════════════════╗"
-echo "  ║       🎉 МАГАЗИН УСПЕШНО ЗАПУЩЕН! 🎉        ║"
-echo "  ╚══════════════════════════════════════════════╝"
+echo "  ╔═══════════════════════════════════════════════╗"
+echo "  ║       🎉 МАГАЗИН 2.0 УСПЕШНО ЗАПУЩЕН! 🎉        ║"
+echo "  ╚═══════════════════════════════════════════════╝"
 printf "${NC}"
 echo ""
 echo "  Откройте:  ${SITE_URL}"
