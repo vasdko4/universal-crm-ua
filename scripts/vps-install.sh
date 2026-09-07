@@ -31,7 +31,11 @@ cd "$APP_DIR"
 [ -f package.json ] || { err "package.json not found — run from the project directory"; exit 1; }
 
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-PUBLIC_URL="http://${DOMAIN:-$SERVER_IP}"
+if [ -n "${DOMAIN:-}" ]; then
+  PUBLIC_URL="https://${DOMAIN}"
+else
+  PUBLIC_URL="http://${SERVER_IP}"
+fi
 DB_NAME="techno_store"
 DB_USER="techno"
 
@@ -55,11 +59,14 @@ else
   ok "Swap already present or enough RAM (${TOTAL_MEM_MB}MB) — skipping"
 fi
 
+command -v timedatectl >/dev/null 2>&1 && timedatectl set-timezone Europe/Kyiv >/dev/null 2>&1 || true
+
 # ── 1. System packages ──────────────────────────────────────────────
 say "Installing system packages (Node.js 22, PostgreSQL, nginx)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq curl ca-certificates gnupg ufw nginx postgresql postgresql-contrib >/dev/null
+apt-get install -y -qq curl ca-certificates gnupg ufw nginx postgresql postgresql-contrib unattended-upgrades >/dev/null
+dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
 
 if ! command -v node >/dev/null || [ "$(node -v | cut -c2-3)" -lt 20 ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
@@ -90,6 +97,7 @@ if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NA
   ok "Database ${DB_NAME} created"
   say "Applying database schema (db/schema.sql)"
   sudo -u postgres psql -d "$DB_NAME" -q -f db/schema.sql >/dev/null
+  [ -f db/migrate.sql ] && sudo -u postgres psql -d "$DB_NAME" -q -f db/migrate.sql >/dev/null
   sudo -u postgres psql -d "$DB_NAME" -q -c "
     GRANT ALL ON ALL TABLES IN SCHEMA public TO ${DB_USER};
     GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};
@@ -98,6 +106,7 @@ if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NA
   ok "Schema applied — the store is configured via the web setup wizard on first visit"
 else
   ok "Database ${DB_NAME} already exists — keeping data"
+  [ -f db/migrate.sql ] && sudo -u postgres psql -d "$DB_NAME" -q -f db/migrate.sql >/dev/null || true
 fi
 
 # ── 3. Environment ──────────────────────────────────────────────────
@@ -114,6 +123,7 @@ if [ ! -f .env.production ]; then
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@127.0.0.1:5432/${DB_NAME}
 BETTER_AUTH_SECRET=${AUTH_SECRET}
 BETTER_AUTH_URL=${PUBLIC_URL}
+NEXT_PUBLIC_SITE_URL=${PUBLIC_URL}
 CRON_SECRET=${DELIVERY_CRON_SECRET}
 NODE_ENV=production
 ENV
@@ -152,6 +162,20 @@ UNIT
 systemctl daemon-reload
 systemctl enable --now techno-store >/dev/null
 ok "Service techno-store started"
+printf "Waiting for health"
+READY=0
+for i in $(seq 1 60); do
+  if curl -sf http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
+    printf '\n'; ok "App is healthy"; READY=1; break
+  fi
+  printf '.'
+  sleep 2
+done
+if [ "$READY" != "1" ]; then
+  printf '\n'; err "App did not become healthy. journalctl -u techno-store -n 80"
+  journalctl -u techno-store -n 40 --no-pager || true
+  exit 1
+fi
 
 # ── 5b. Automated daily DB backup ───────────────────────────────────
 # Local-disk-only, but still far better than the previous "no backup at all".
