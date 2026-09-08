@@ -27,18 +27,9 @@
 
 name: APIsec
 
-# Controls when the workflow will run
+# Disabled on push/PR: secrets.apisec_username / apisec_password are not set,
+# and apisec-project is still the VAmPI starter sample. Manual run stays available.
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  # Customize trigger events based on your DevSecOps processes.
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  schedule:
-    - cron: '40 14 * * 2'
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 
