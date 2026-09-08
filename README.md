@@ -1,16 +1,28 @@
 # Universal CRM UA
 
+[![Release](https://img.shields.io/github/v/release/vasdko4/universal-crm-ua)](https://github.com/vasdko4/universal-crm-ua/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GHCR](https://img.shields.io/badge/GHCR-universal--crm--ua-blue)](https://github.com/vasdko4/universal-crm-ua/pkgs/container/universal-crm-ua)
+
 Самохостинг-движок интернет-магазина + CRM для украинского рынка.
 Каталог, заказы, клиенты, Новая Почта, Monobank / WayForPay — на вашей машине,
 без SaaS и без обязательного облака.
 
-**Версия:** 2.0.0
+**Version 2.0.0** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
+
 **Демо:** https://magazine-test-ten.vercel.app
+**Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/tag/v2.0.0
 **Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.0.0`
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
 ```
+
+<p>
+  <img src="docs/screenshots/home.png" alt="Витрина" width="32%" />
+  <img src="docs/screenshots/catalog.png" alt="Каталог" width="32%" />
+  <img src="docs/screenshots/product.png" alt="Карточка товара" width="32%" />
+</p>
 
 ---
 
