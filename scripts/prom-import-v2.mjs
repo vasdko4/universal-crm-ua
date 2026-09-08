@@ -1,4 +1,4 @@
-// Full re-import of PowerFox products from prom-products-v2.json:
+// Full re-import of demo products from prom-products-v2.json:
 // hierarchical categories (from breadcrumbs), characteristics (from attributes).
 import fs from 'node:fs'
 import path from 'node:path'
