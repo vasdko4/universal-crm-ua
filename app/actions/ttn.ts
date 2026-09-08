@@ -8,8 +8,9 @@ import { assertWritePermission } from '@/lib/session'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { buildInternetDocumentPayload } from '@/lib/delivery/ttn'
-import { saveInternetDocument } from '@/lib/delivery/nova-poshta'
+import { fetchSenderProfile, saveInternetDocument } from '@/lib/delivery/nova-poshta'
 import { updateOrderDelivery } from '@/app/actions/orders'
+import type { NpSenderRefs } from '@/lib/delivery/np-sender'
 
 type NpConfig = {
   apiKey?: string
@@ -45,11 +46,25 @@ export async function createTtnForOrder(
   const cfg = await npConfig()
   const apiKey = (cfg.apiKey || process.env.NOVA_POSHTA_API_KEY || '').trim()
   if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти' }
-  if (!cfg.senderCityRef || !cfg.senderRef || !cfg.senderAddressRef || !cfg.contactSenderRef) {
-    return {
-      ok: false,
-      error: 'Заповніть реквізити відправника в Доставка → Нова Пошта (місто, відправник, відділення, контакт)',
+
+  let sender: NpSenderRefs = {
+    senderCityRef: cfg.senderCityRef || '',
+    senderRef: cfg.senderRef || '',
+    senderAddressRef: cfg.senderAddressRef || '',
+    contactSenderRef: cfg.contactSenderRef || '',
+    senderPhone: cfg.senderPhone || '',
+  }
+  if (!sender.senderCityRef || !sender.senderRef || !sender.senderAddressRef || !sender.contactSenderRef) {
+    const fetched = await fetchSenderProfile(apiKey)
+    if (!fetched.ok) {
+      return {
+        ok: false,
+        error:
+          fetched.error ||
+          'Заповніть реквізити відправника в Доставка → Нова Пошта (або натисніть «Підтягнути з кабінету»)',
+      }
     }
+    sender = fetched.refs
   }
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId))
@@ -66,11 +81,11 @@ export async function createTtnForOrder(
 
   const props = buildInternetDocumentPayload({
     sender: {
-      cityRef: cfg.senderCityRef,
-      senderRef: cfg.senderRef,
-      senderAddressRef: cfg.senderAddressRef,
-      contactSenderRef: cfg.contactSenderRef,
-      phone: cfg.senderPhone || '',
+      cityRef: sender.senderCityRef,
+      senderRef: sender.senderRef,
+      senderAddressRef: sender.senderAddressRef,
+      contactSenderRef: sender.contactSenderRef,
+      phone: sender.senderPhone,
     },
     recipient: {
       name: order.customerName || 'Отримувач',

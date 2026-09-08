@@ -66,6 +66,18 @@ export async function searchCities(query: string): Promise<NpCity[]> {
 
 export type NpWarehouse = { ref: string; name: string; number: string }
 
+export async function loadNovaPoshtaSender(): Promise<
+  | { ok: true; refs: import('@/lib/delivery/np-sender').NpSenderRefs }
+  | { ok: false; error: string }
+> {
+  const { assertWritePermission } = await import('@/lib/session')
+  await assertWritePermission('delivery')
+  const apiKey = await getApiKey()
+  if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти' }
+  const { fetchSenderProfile } = await import('@/lib/delivery/nova-poshta')
+  return fetchSenderProfile(apiKey)
+}
+
 export async function searchWarehouses(cityRef: string, query = ''): Promise<NpWarehouse[]> {
   if (!cityRef) return []
   if (await isNpSearchRateLimited()) return []

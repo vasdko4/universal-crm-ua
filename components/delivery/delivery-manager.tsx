@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { updateDeliveryMethod } from '@/app/actions/settings'
+import { loadNovaPoshtaSender } from '@/app/actions/nova-poshta'
 import type { DeliveryMethod } from '@/lib/db/schema'
 import { NovaPoshtaSearch } from './nova-poshta-search'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,26 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
   const [contactSenderRef, setContactSenderRef] = useState(initialConfig.contactSenderRef ?? '')
   const [senderPhone, setSenderPhone] = useState(initialConfig.senderPhone ?? '')
   const [defaultWeight, setDefaultWeight] = useState(initialConfig.defaultWeight ?? '0.5')
+
+  function pullSender() {
+    startTransition(async () => {
+      const result = await loadNovaPoshtaSender()
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+      setSenderCityRef(result.refs.senderCityRef)
+      setSenderRef(result.refs.senderRef)
+      setSenderAddressRef(result.refs.senderAddressRef)
+      setContactSenderRef(result.refs.contactSenderRef)
+      if (result.refs.senderPhone) setSenderPhone(result.refs.senderPhone)
+      toast.success(
+        result.refs.senderName
+          ? `${result.refs.senderName}${result.refs.senderAddress ? ` · ${result.refs.senderAddress}` : ''}`
+          : 'Реквізити відправника підтягнуто',
+      )
+    })
+  }
 
   function handleSave() {
     startTransition(async () => {
@@ -112,9 +133,13 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Ref-и з кабінету Нової Пошти потрібні, щоб створювати ТТН з картки замовлення.
+          Ref-и можна вставити вручну або підтягнути з кабінету за API-ключем. Без них ТТН з картки замовлення не створиться.
         </p>
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="outline" onClick={pullSender} disabled={isPending || !apiKey.trim()}>
+            {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            Підтягнути з кабінету
+          </Button>
           <Button onClick={handleSave} disabled={isPending}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             {t.common.save}
