@@ -10,7 +10,7 @@ repository.
 
 ## Project Overview
 
-"Techno Store" / PowerFox — a Ukrainian-market e-commerce storefront + admin
+Universal Magazine — a Ukrainian-market e-commerce storefront + admin
 CRM built with **Next.js 16 (App Router)**, **PostgreSQL** via **Drizzle ORM**,
 and **Better Auth**. TypeScript throughout, Tailwind v4 for styling.
 

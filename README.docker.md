@@ -3,7 +3,7 @@
 Исходный код не нужен — на чистом Linux-сервере выполните:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vasdko4/techno-store/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
 ```
 
 Скрипт спросит домен (Enter — пропустить), сам установит Docker при
@@ -15,10 +15,10 @@ curl -fsSL https://raw.githubusercontent.com/vasdko4/techno-store/main/install.s
 Обновление до новой версии:
 
 ```bash
-cd ~/techno-store && docker compose pull && docker compose up -d
+cd ~/magazine && docker compose pull && docker compose up -d
 ```
 
-# 🐳 Techno Store — установка через Docker
+# 🐳 Universal Magazine — установка через Docker
 
 Самый простой способ запустить CRM-магазин. Нужен только Docker.
 
@@ -41,8 +41,8 @@ chmod +x start.sh
 5. Применит схему базы данных (без демо-данных — магазин настраивается через мастер)
 
 Все данные хранятся на этой же машине в Docker-томах:
-- `techno_store_pgdata` — база данных (товары, заказы, клиенты, настройки)
-- `techno_store_uploads` — загруженные фото товаров/логотипы
+- `magazine_pgdata` — база данных (товары, заказы, клиенты, настройки)
+- `magazine_uploads` — загруженные фото товаров/логотипы
   (доступны также по FTP: порт 21, логин/пароль в `.env`)
 
 После запуска откройте **http://localhost:3000** — вас автоматически
@@ -55,7 +55,7 @@ http://localhost:3000/admin.
 ```bash
 docker compose exec app node scripts/db-setup.mjs --seed
 ```
-Это создаст демо-аккаунт `admin@techno.store` / `Admin12345`
+Это создаст демо-аккаунт `admin@magazine.store` / `Admin12345`
 (⚠️ смените пароль сразу после входа).
 
 ## Управление через Makefile
@@ -88,10 +88,10 @@ docker compose down -v        # Удалить вместе с данными
 
 | Контейнер | Порт | Описание |
 |-----------|------|----------|
-| `techno-store-app` | 3000 | Next.js приложение |
-| `techno-store-db` | 5433 | PostgreSQL 16 |
-| `techno-store-caddy` | 80/443 | Реверс-прокси + авто-HTTPS (профиль `proxy`, если указан домен) |
-| `techno-store-ftp` | 21, 21000-21010 | FTP-доступ к загрузкам (профиль `ftp`) |
+| `magazine-app` | 3000 | Next.js приложение |
+| `magazine-db` | 5433 | PostgreSQL 16 |
+| `magazine-caddy` | 80/443 | Реверс-прокси + авто-HTTPS (профиль `proxy`, если указан домен) |
+| `magazine-ftp` | 21, 21000-21010 | FTP-доступ к загрузкам (профиль `ftp`) |
 
 ## Продакшен-настройка
 
@@ -153,7 +153,7 @@ crontab -e
 
 Фото товаров в админ-центре по умолчанию сохраняются **локально**, в папку
 `public/uploads/products` внутри контейнера — она вынесена в отдельный Docker
-volume (`techno_store_uploads`), поэтому фото не пропадут при перезапуске или
+volume (`magazine_uploads`), поэтому фото не пропадут при перезапуске или
 пересборке контейнера (`docker compose down` без `-v`, `make rebuild`).
 
 Ничего дополнительно настраивать не нужно — это работает "из коробки".
@@ -201,10 +201,10 @@ docker compose cp app:/app/public/uploads ./uploads-backup
 
 ```bash
 # Через docker compose:
-docker compose exec db psql -U techno -d techno_store
+docker compose exec db psql -U magazine -d magazine
 
 # Или напрямую (порт 5433 на хосте):
-psql postgres://techno:techno@localhost:5433/techno_store
+psql postgres://magazine:magazine@localhost:5433/magazine
 ```
 
 ## Обновление
@@ -248,14 +248,14 @@ fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /
 ## Проверка подлинности сборок (SLSA)
 
 Каждый релиз (тег `v*`) автоматически собирается в GitHub Actions: Docker-образ
-публикуется в `ghcr.io/<owner>/techno-store`, а SLSA-провенанс (криптографическое
+публикуется в `ghcr.io/vasdko4/universal-crm-ua`, а SLSA-провенанс (криптографическое
 доказательство того, что образ собран именно из этого репозитория этим
-workflow) прикладывается к GitHub-релизу файлом `techno-store.intoto.jsonl`.
+workflow) прикладывается к GitHub-релизу файлом `universal-crm-ua.intoto.jsonl`.
 
 Проверка перед развёртыванием ([slsa-verifier](https://github.com/slsa-framework/slsa-verifier)):
 
 ```bash
 slsa-verifier verify-artifact \
-  --provenance-path techno-store.intoto.jsonl \
-  --source-uri github.com/<owner>/techno-store <артефакт>
+  --provenance-path universal-crm-ua.intoto.jsonl \
+  --source-uri github.com/vasdko4/universal-crm-ua <артефакт>
 ```

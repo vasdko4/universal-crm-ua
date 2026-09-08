@@ -109,7 +109,7 @@ SKIP_VM_SETUP=1 bash install.sh
 cd ~/magazine && docker compose exec app node scripts/db-setup.mjs --seed
 ```
 
-Демо-админ: `admin@techno.store` / `Admin12345` — смените пароль сразу.
+Демо-админ: `admin@magazine.store` / `Admin12345` — смените пароль сразу.
 
 ### Домен и HTTPS
 
@@ -170,7 +170,7 @@ chmod +x start.sh
 sudo DOMAIN=shop.example.com bash scripts/vps-install.sh
 ```
 
-Ставит Node 22, pnpm, PostgreSQL, nginx, systemd-сервис `techno-store`, ежедневный бэкап БД.
+Ставит Node 22, pnpm, PostgreSQL, nginx, systemd-сервис `magazine`, ежедневный бэкап БД.
 HTTPS: `certbot --nginx -d shop.example.com`.
 
 ### Локальная разработка
@@ -180,7 +180,7 @@ HTTPS: `certbot --nginx -d shop.example.com`.
 ```bash
 pnpm setup          # .env.local, зависимости, Postgres, пустая схема
 pnpm dev            # http://localhost:3000 — мастер установки
-pnpm setup --seed   # то же + демо-каталог (admin@techno.store / Admin12345)
+pnpm setup --seed   # то же + демо-каталог (admin@magazine.store / Admin12345)
 pnpm test
 ```
 
@@ -253,7 +253,7 @@ Google Ads / Analytics, ключ Новой Почты.
 docker compose logs -f app
 docker compose restart app
 docker compose down
-docker compose exec db pg_dump -U techno magazine > backup.sql
+docker compose exec db pg_dump -U magazine magazine > backup.sql
 ```
 
 Healthcheck контейнера бьёт в `/api/health` (приложение + БД).

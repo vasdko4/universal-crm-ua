@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# Techno Store 2.0 — запуск в одну команду через Docker
+# Universal Magazine 2.0 — запуск в одну команду через Docker
 #
 # Использование:
 #   chmod +x start.sh
@@ -161,7 +161,7 @@ if [ ! -f .env ]; then
   CRON_SECRET_VAL=$(gen_secret)
   UPDATER_SECRET_VAL=$(gen_secret)
   DB_PASSWORD=$(gen_password)
-  FTP_USER_VAL="techno"
+  FTP_USER_VAL="magazine"
   FTP_PASSWORD_VAL=$(gen_password)
   PROJECT_NAME_VAL="$(basename "$PWD")"
 
@@ -183,7 +183,7 @@ UPDATER_SECRET=${UPDATER_SECRET_VAL}
 # именно этот стек контейнеров.
 COMPOSE_PROJECT_NAME=${PROJECT_NAME_VAL}
 
-# Пользователь БД: techno / пароль ниже (создаётся при первом запуске).
+# Пользователь БД: magazine / пароль ниже (создаётся при первом запуске).
 POSTGRES_PASSWORD=${DB_PASSWORD}
 
 # FTP-доступ к папке загрузок (фото товаров): порт 21, пассивные 21000-21010.
@@ -276,7 +276,7 @@ if [ -n "${FTP_PASS_SHOW}" ]; then
   echo ""
   echo "  FTP-доступ к загрузкам (фото товаров):"
   echo "    Хост:         порт 21 этого сервера (пассивные 21000-21010)"
-  echo "    Пользователь: ${FTP_USER_SHOW:-techno}"
+  echo "    Пользователь: ${FTP_USER_SHOW:-magazine}"
   echo "    Пароль:       ${FTP_PASS_SHOW}"
 fi
 echo ""
@@ -292,6 +292,6 @@ echo ""
 echo "  Хотите сразу загрузить демо-данные (товары, категории, тестовые"
 echo "  заказы) вместо мастера установки? Выполните ДО первого захода:"
 echo "    docker compose exec app node scripts/db-setup.mjs --seed"
-echo "  Это создаст демо-аккаунт admin@techno.store / Admin12345"
+echo "  Это создаст демо-аккаунт admin@magazine.store / Admin12345"
 echo "  (смените пароль сразу после входа)."
 echo ""
