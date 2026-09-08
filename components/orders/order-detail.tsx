@@ -35,7 +35,8 @@ import {
   updateOrderNote,
   refundOrder,
 } from '@/app/actions/orders'
-import { createTtnForOrder } from '@/app/actions/ttn'
+import { createTtnForOrder, printTtnForOrder } from '@/app/actions/ttn'
+import { novaPoshtaTrackingUrl } from '@/lib/delivery/ttn'
 import {
   getOrderStatusOptions,
   getPaymentStatusOptions,
@@ -83,6 +84,7 @@ export function OrderDetail({
   const [tracking, setTracking] = useState(order.trackingNumber ?? '')
   const [note, setNote] = useState(order.note ?? '')
   const [sending, setSending] = useState<string | null>(null)
+  const [refundAmount, setRefundAmount] = useState('')
 
   const orderStatuses = getOrderStatusOptions(locale)
   const paymentStatuses = getPaymentStatusOptions(locale)
@@ -117,15 +119,29 @@ export function OrderDetail({
     })
   }
 
-  function refundViaGateway() {
+  function refundViaGateway(partial?: boolean) {
     startTransition(async () => {
-      const res = await refundOrder(order.id)
+      const parsed = Number(refundAmount.replace(',', '.'))
+      const amount = partial && Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+      const res = await refundOrder(order.id, amount)
       if (!res.ok) {
         toast.error(res.message ?? t.toastError)
         return
       }
       toast.success(res.message ?? t.toastRefunded)
+      setRefundAmount('')
       router.refresh()
+    })
+  }
+
+  function printLabel() {
+    startTransition(async () => {
+      const res = await printTtnForOrder(order.id)
+      if (!res.ok || !res.printUrl) {
+        toast.error(res.error ?? t.toastError)
+        return
+      }
+      window.open(res.printUrl, '_blank')
     })
   }
 
@@ -378,10 +394,32 @@ export function OrderDetail({
                     ))}
                   </SelectContent>
                 </Select>
-                {order.paymentStatus === 'paid' && (
-                  <Button variant="outline" size="sm" onClick={refundViaGateway} disabled={isPending}>
-                    {t.refundViaGateway}
-                  </Button>
+                {(order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded') && (
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="refund-amount" className="text-xs text-muted-foreground">
+                      {t.refundAmountLabel}
+                    </Label>
+                    <Input
+                      id="refund-amount"
+                      inputMode="decimal"
+                      value={refundAmount}
+                      onChange={(e) => setRefundAmount(e.target.value)}
+                      placeholder={String(order.total)}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={() => refundViaGateway(false)} disabled={isPending}>
+                        {t.refundViaGateway}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refundViaGateway(true)}
+                        disabled={isPending || !refundAmount.trim()}
+                      >
+                        {t.refundPartial}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </section>
@@ -426,15 +464,20 @@ export function OrderDetail({
                   </Button>
                 )}
                 {order.trackingNumber && (
-                  <Button asChild variant="outline">
-                    <a
-                      href={`https://novaposhta.ua/tracking/?cargo_number=${encodeURIComponent(order.trackingNumber)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                  <>
+                    <Button variant="outline" onClick={printLabel} disabled={isPending}>
                       {t.printTtn}
-                    </a>
-                  </Button>
+                    </Button>
+                    <Button asChild variant="outline">
+                      <a
+                        href={novaPoshtaTrackingUrl(order.trackingNumber)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t.trackTtn}
+                      </a>
+                    </Button>
+                  </>
                 )}
               </div>
               {order.deliveryStatus && (

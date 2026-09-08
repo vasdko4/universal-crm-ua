@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { buildInternetDocumentPayload, parseTtnFromSaveResponse, parcelWeightKg } from '@/lib/delivery/ttn'
+import {
+  buildInternetDocumentPayload,
+  parseTtnFromSaveResponse,
+  parcelWeightKg,
+  novaPoshtaPrintUrl,
+  novaPoshtaTrackingUrl,
+} from '@/lib/delivery/ttn'
 
 const sender = {
   cityRef: 'city-sender',
@@ -89,5 +95,15 @@ describe('parseTtnFromSaveResponse', () => {
   it('reads IntDocNumber from the NP save payload', () => {
     expect(parseTtnFromSaveResponse([{ IntDocNumber: '20450123456789' }])).toBe('20450123456789')
     expect(parseTtnFromSaveResponse({})).toBeNull()
+  })
+})
+
+describe('novaPoshta print vs tracking URLs', () => {
+  it('builds a printDocument PDF URL, not the public tracking page', () => {
+    const url = novaPoshtaPrintUrl('key-1', '20450123456789')
+    expect(url).toContain('printDocument')
+    expect(url).toContain('20450123456789')
+    expect(url).not.toContain('novaposhta.ua/tracking')
+    expect(novaPoshtaTrackingUrl('20450123456789')).toContain('cargo_number=20450123456789')
   })
 })
