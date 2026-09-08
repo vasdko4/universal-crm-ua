@@ -41,8 +41,8 @@ export function useAdminI18n(): AdminI18nValue {
   if (!ctx) {
     // Safe fallback so components never crash if rendered outside the
     // provider (e.g. in isolated tests).
-    const dict = getAdminDictionary('ru')
-    return { locale: 'ru', dict, setLocale: () => {} }
+    const dict = getAdminDictionary('uk')
+    return { locale: 'uk', dict, setLocale: () => {} }
   }
   return ctx
 }
