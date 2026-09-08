@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const upstream = await fetch(url.toString(), {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PowerFoxMailer/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; UniversalMagazineMailer/1.0)' },
       signal: AbortSignal.timeout(10_000),
     })
     if (!upstream.ok) return new NextResponse('Upstream error', { status: 502 })

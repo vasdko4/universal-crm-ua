@@ -41,7 +41,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     getActiveModalAds().catch(() => []),
   ])
 
-  const storeName = settings?.storeName ?? 'Techno Store'
+  const storeName = settings?.storeName ?? 'Universal Magazine'
   const template = settings?.activeTemplate ?? 'classic'
   const categories: HeaderCategory[] = categoriesRaw.map((c) => ({
     id: c.id,

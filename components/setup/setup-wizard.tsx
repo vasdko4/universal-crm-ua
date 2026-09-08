@@ -267,7 +267,7 @@ export function SetupWizard() {
                     id="s-store"
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    placeholder="Например, Techno Store"
+                    placeholder="Например, Universal Magazine"
                   />
                 </div>
                 <div className="flex flex-col gap-2">

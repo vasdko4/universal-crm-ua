@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
     getStoreSettingsInternal().catch(() => null),
   ])
   const locale = user?.locale ?? 'uk'
-  const name = settings?.storeName || 'Techno Store'
+  const name = settings?.storeName || 'Universal Magazine'
   const suffix = locale === 'ru' ? 'интернет-магазин' : 'інтернет-магазин'
   return {
     title: {
