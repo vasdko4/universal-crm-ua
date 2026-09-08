@@ -128,7 +128,7 @@ async function main() {
         `INSERT INTO articles (title, slug, category_id, excerpt, content, cover_image, author, tags, status, is_featured, views_count, reading_minutes, meta_title, meta_description, published_at, created_at, updated_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'published',$9,$10,$11,$1,$4,$12,$12,NOW())
          ON CONFLICT (slug) DO UPDATE SET cover_image=EXCLUDED.cover_image, content=EXCLUDED.content, excerpt=EXCLUDED.excerpt`,
-        [a.title, a.slug, catBySlug[a.cat] ?? null, a.excerpt, a.content, a.cover, 'Команда Techno Store', '{}', a.featured, rint(150, 2400), a.minutes, daysAgo(3 + i * 5)],
+        [a.title, a.slug, catBySlug[a.cat] ?? null, a.excerpt, a.content, a.cover, 'Команда Universal Magazine', '{}', a.featured, rint(150, 2400), a.minutes, daysAgo(3 + i * 5)],
       )
     }
     console.log('articles upserted:', ARTICLES.length)

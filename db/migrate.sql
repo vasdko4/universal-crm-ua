@@ -196,7 +196,7 @@ UPDATE "articles" SET
   "content_ru" = '<p>Регулярно чистите переключатели и снимайте кейкапы.</p>'
 WHERE "slug" = 'keyboard-care' AND ("title_ru" IS NULL OR "title_ru" = '');
 
--- RU copy for Techno Store demo CMS pages only. Match the original seed body
+-- RU copy for Universal Magazine demo CMS pages only. Match the original seed body
 -- so a merchant who rewrote about/contacts/delivery-payment is never overwritten.
 UPDATE "pages" SET
   "title_ru" = 'О компании',

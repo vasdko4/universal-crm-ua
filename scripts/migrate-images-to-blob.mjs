@@ -24,7 +24,7 @@ async function migrateUrl(url) {
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(20_000),
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PowerFoxBot/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; UniversalMagazineBot/1.0)' },
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const buf = Buffer.from(await res.arrayBuffer())

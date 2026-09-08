@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# Techno Store — production install on a clean Ubuntu/Debian VPS.
+# Universal Magazine — production install on a clean Ubuntu/Debian VPS.
 #
 # Usage (run as root from the project directory on the server):
 #
@@ -36,8 +36,8 @@ if [ -n "${DOMAIN:-}" ]; then
 else
   PUBLIC_URL="http://${SERVER_IP}"
 fi
-DB_NAME="techno_store"
-DB_USER="techno"
+DB_NAME="magazine"
+DB_USER="magazine"
 
 # ── 0. Swap (weak VPS survival) ──────────────────────────────────────
 # `pnpm build` on this app can need 1.5-2GB+ of memory. A 1-2GB-RAM VPS with
@@ -81,7 +81,7 @@ ok "pnpm $(pnpm -v)"
 say "Configuring PostgreSQL"
 systemctl enable --now postgresql >/dev/null 2>&1
 
-DB_PASS_FILE="/root/.techno_db_pass"
+DB_PASS_FILE="/root/.magazine_db_pass"
 if [ ! -f "$DB_PASS_FILE" ]; then
   openssl rand -hex 24 > "$DB_PASS_FILE"
   chmod 600 "$DB_PASS_FILE"
@@ -142,9 +142,9 @@ ok "Build finished"
 
 # ── 5. systemd service ──────────────────────────────────────────────
 say "Registering systemd service"
-cat > /etc/systemd/system/techno-store.service <<UNIT
+cat > /etc/systemd/system/magazine.service <<UNIT
 [Unit]
-Description=Techno Store (Next.js)
+Description=Universal Magazine (Next.js)
 After=network.target postgresql.service
 
 [Service]
@@ -160,8 +160,8 @@ User=root
 WantedBy=multi-user.target
 UNIT
 systemctl daemon-reload
-systemctl enable --now techno-store >/dev/null
-ok "Service techno-store started"
+systemctl enable --now magazine >/dev/null
+ok "Service magazine started"
 printf "Waiting for health"
 READY=0
 for i in $(seq 1 60); do
@@ -172,8 +172,8 @@ for i in $(seq 1 60); do
   sleep 2
 done
 if [ "$READY" != "1" ]; then
-  printf '\n'; err "App did not become healthy. journalctl -u techno-store -n 80"
-  journalctl -u techno-store -n 40 --no-pager || true
+  printf '\n'; err "App did not become healthy. journalctl -u magazine -n 80"
+  journalctl -u magazine -n 40 --no-pager || true
   exit 1
 fi
 
@@ -184,9 +184,9 @@ fi
 # bad rm shouldn't be able to destroy both the live DB and its backups.
 say "Setting up daily DB backup (systemd timer)"
 chmod +x scripts/db-backup.sh
-cat > /etc/systemd/system/techno-store-backup.service <<UNIT
+cat > /etc/systemd/system/magazine-backup.service <<UNIT
 [Unit]
-Description=Techno Store backup DB
+Description=Universal Magazine backup DB
 After=postgresql.service
 
 [Service]
@@ -195,9 +195,9 @@ WorkingDirectory=${APP_DIR}
 EnvironmentFile=${APP_DIR}/.env.production
 ExecStart=${APP_DIR}/scripts/db-backup.sh
 UNIT
-cat > /etc/systemd/system/techno-store-backup.timer <<TIMER
+cat > /etc/systemd/system/magazine-backup.timer <<TIMER
 [Unit]
-Description=Run techno-store-backup daily
+Description=Run magazine-backup daily
 
 [Timer]
 OnCalendar=*-*-* 03:30:00
@@ -208,12 +208,12 @@ Persistent=true
 WantedBy=timers.target
 TIMER
 systemctl daemon-reload
-systemctl enable --now techno-store-backup.timer >/dev/null
-ok "Daily backup timer enabled (03:30 UTC, /var/backups/techno-store)"
+systemctl enable --now magazine-backup.timer >/dev/null
+ok "Daily backup timer enabled (03:30 UTC, /var/backups/magazine)"
 
 # ── 6. nginx ────────────────────────────────────────────────────────
 say "Configuring nginx"
-cat > /etc/nginx/sites-available/techno-store <<NGINX
+cat > /etc/nginx/sites-available/magazine <<NGINX
 # If a TLS-terminating proxy (Cloudflare, another nginx, etc.) sits in front
 # of this server, keep ITS X-Forwarded-Proto (https) instead of overwriting
 # it with our local scheme (http). Auth cookies depend on the correct proto.
@@ -249,7 +249,7 @@ server {
     }
 }
 NGINX
-ln -sf /etc/nginx/sites-available/techno-store /etc/nginx/sites-enabled/techno-store
+ln -sf /etc/nginx/sites-available/magazine /etc/nginx/sites-enabled/magazine
 rm -f /etc/nginx/sites-enabled/default
 nginx -t >/dev/null && systemctl reload nginx
 ok "nginx proxies :80 → :3000"
@@ -265,8 +265,8 @@ say "Installation complete!"
 echo "  Store:        ${PUBLIC_URL}"
 echo "  Admin panel:  ${PUBLIC_URL}/admin"
 echo ""
-echo "  Service:      systemctl status techno-store"
-echo "  Logs:         journalctl -u techno-store -f"
+echo "  Service:      systemctl status magazine"
+echo "  Logs:         journalctl -u magazine -f"
 echo "  DB password:  ${DB_PASS_FILE}"
 if [ -n "${DOMAIN:-}" ]; then
   echo ""

@@ -27,7 +27,7 @@ pnpm dev
 
 ```bash
 pnpm setup --seed       # схема + фейковые товары/заказы
-# демо-админ: admin@techno.store / Admin12345 (сразу смените!)
+# демо-админ: admin@magazine.store / Admin12345 (сразу смените!)
 ```
 
 ## Перенос своего магазина (dump/restore)

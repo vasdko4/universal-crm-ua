@@ -85,7 +85,7 @@ async function main() {
     }
     console.log('\n✓ Database ready.')
     if (withSeed) {
-      console.log('  Demo data loaded. Admin login: admin@techno.store / Admin12345')
+      console.log('  Demo data loaded. Admin login: admin@magazine.store / Admin12345')
     } else {
       console.log('  Schema applied. Open http://localhost:3000 to run the setup wizard.')
     }
