@@ -8,21 +8,21 @@ import {
   orderItems,
   orderHistory,
   products,
+  productVariants,
   customers,
 } from '@/lib/db/schema'
-import { getAdminUser, assertPermission } from '@/lib/session'
+import { getAdminUser, assertPermission, assertWritePermission } from '@/lib/session'
 import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel } from '@/lib/order-status'
 import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { getProductSlugMap } from '@/lib/shop/queries'
-import { parsePage } from '@/lib/api/helpers'
 
 export async function listOrders(params: OrderListParams = {}) {
   await assertPermission('orders')
-  const page = parsePage(params.page)
-  const perPage = Math.min(100, parsePage(params.perPage, 20))
+  const page = Math.max(1, Math.floor(params.page ?? 1) || 1)
+  const perPage = Math.min(100, Math.max(1, Math.floor(params.perPage ?? 20) || 20))
   const conditions = []
 
   const search = (params.search ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)
@@ -40,6 +40,23 @@ export async function listOrders(params: OrderListParams = {}) {
   }
   if (params.status && params.status !== 'all') {
     conditions.push(eq(orders.status, params.status))
+  }
+  if (params.paymentStatus && params.paymentStatus !== 'all') {
+    conditions.push(eq(orders.paymentStatus, params.paymentStatus))
+  }
+  if (params.deliveryMethod && params.deliveryMethod !== 'all') {
+    conditions.push(eq(orders.deliveryMethod, params.deliveryMethod))
+  }
+  if (params.missingTtn) {
+    conditions.push(
+      sql`${orders.deliveryMethod} = 'nova_poshta' AND (${orders.trackingNumber} IS NULL OR ${orders.trackingNumber} = '')`,
+    )
+  }
+  if (params.from) {
+    conditions.push(sql`${orders.createdAt} >= ${params.from}::timestamptz`)
+  }
+  if (params.to) {
+    conditions.push(sql`${orders.createdAt} < (${params.to}::date + interval '1 day')`)
   }
   const where = conditions.length ? and(...conditions) : undefined
 
@@ -118,7 +135,35 @@ export async function searchProductsForOrder(query: string) {
       ),
     )
     .limit(15)
-  return rows
+
+  const productIds = rows.map((r) => r.id)
+  const variants = productIds.length
+    ? await db
+        .select()
+        .from(productVariants)
+        .where(inArray(productVariants.productId, productIds))
+    : []
+  const byProduct = new Map<number, typeof variants>()
+  for (const v of variants) {
+    const list = byProduct.get(v.productId) ?? []
+    list.push(v)
+    byProduct.set(v.productId, list)
+  }
+
+  return rows.flatMap((r) => {
+    const vs = byProduct.get(r.id) ?? []
+    if (!vs.length) return [{ ...r, variantId: null as number | null, variantLabel: null as string | null }]
+    return vs.map((v) => ({
+      id: r.id,
+      name: r.name,
+      sku: v.sku ?? r.sku,
+      price: v.price,
+      image: v.image ?? r.image,
+      quantity: v.quantity,
+      variantId: v.id,
+      variantLabel: Object.values((v.options ?? {}) as Record<string, string>).join(' / ') || null,
+    }))
+  })
 }
 
 async function addHistory(orderId: number, type: string, message: string) {
@@ -129,6 +174,78 @@ async function addHistory(orderId: number, type: string, message: string) {
     message,
     actor: me?.name ?? 'Система',
   })
+}
+
+export async function getOpsQueue() {
+  await assertPermission('dashboard')
+  const res = await pool.query(`
+    SELECT
+      COUNT(*) FILTER (WHERE status = 'new')::int AS new_orders,
+      COUNT(*) FILTER (WHERE payment_status = 'unpaid' AND status NOT IN ('cancelled','done'))::int AS unpaid,
+      COUNT(*) FILTER (
+        WHERE delivery_method = 'nova_poshta'
+          AND (tracking_number IS NULL OR tracking_number = '')
+          AND status NOT IN ('cancelled','done','pending_payment')
+      )::int AS missing_ttn,
+      COUNT(*) FILTER (
+        WHERE status = 'shipped'
+          AND updated_at < NOW() - interval '5 days'
+      )::int AS overdue_shipped
+  `)
+  let pendingReviews = 0
+  try {
+    const r = await pool.query(`SELECT COUNT(*)::int AS c FROM product_reviews WHERE status = 'pending'`)
+    pendingReviews = r.rows[0]?.c ?? 0
+  } catch {
+    pendingReviews = 0
+  }
+  const row = res.rows[0] as {
+    new_orders: number
+    unpaid: number
+    missing_ttn: number
+    overdue_shipped: number
+  }
+  return {
+    newOrders: row.new_orders,
+    unpaid: row.unpaid,
+    missingTtn: row.missing_ttn,
+    overdueShipped: row.overdue_shipped,
+    pendingReviews,
+  }
+}
+
+export async function bulkUpdateOrderStatus(ids: number[], status: string) {
+  await assertWritePermission('orders')
+  const unique = [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))].slice(0, 100)
+  if (!unique.length) return { success: false, error: 'Немає замовлень' }
+  if (!ORDER_STATUSES.some((s) => s.value === status)) return { success: false, error: 'Невідомий статус' }
+  let ok = 0
+  for (const id of unique) {
+    const res = await updateOrderStatus(id, status)
+    if (res.success) ok += 1
+  }
+  revalidatePath('/admin/orders')
+  return { success: true, updated: ok }
+}
+
+export async function refundOrder(orderId: number, amount?: number) {
+  await assertWritePermission('orders')
+  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1)
+  if (!order) return { ok: false, message: 'Замовлення не знайдено' }
+  const { payments } = await import('@/lib/db/schema')
+  const [payment] = await db
+    .select()
+    .from(payments)
+    .where(eq(payments.orderReference, order.orderNumber))
+    .limit(1)
+  if (!payment) return { ok: false, message: 'Онлайн-платіж не знайдено — змініть статус вручну' }
+  const { refundPayment } = await import('@/app/actions/payments')
+  const result = await refundPayment(payment.id, amount)
+  if (result.ok) {
+    revalidatePath(`/admin/orders/${orderId}`)
+    revalidatePath('/admin/orders')
+  }
+  return result
 }
 
 export async function createOrder(input: {
@@ -147,7 +264,7 @@ export async function createOrder(input: {
   note?: string
   tags?: string[]
 }) {
-  const me = await assertPermission('orders')
+  const me = await assertWritePermission('orders')
   const itemsTotal = input.items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const deliveryCost = input.deliveryCost ?? 0
   const total = itemsTotal + deliveryCost
@@ -259,7 +376,7 @@ async function adjustStockForOrder(orderId: number, sign: 1 | -1) {
 }
 
 export async function updateOrderStatus(id: number, status: string) {
-  const user = await assertPermission('orders')
+  const user = await assertWritePermission('orders')
   const [current] = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
   if (!current) return { success: false, error: 'Заказ не найден' }
   await db.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id))
@@ -290,7 +407,7 @@ export async function updateOrderStatus(id: number, status: string) {
 }
 
 export async function updateOrderPayment(id: number, paymentStatus: string) {
-  const user = await assertPermission('orders')
+  const user = await assertWritePermission('orders')
   await db.update(orders).set({ paymentStatus, updatedAt: new Date() }).where(eq(orders.id, id))
   const label = getPaymentStatusLabel(paymentStatus, user.locale)
   await addHistory(
@@ -315,7 +432,7 @@ export async function updateOrderDelivery(
     deliveryCost?: number
   },
 ) {
-  const user = await assertPermission('orders')
+  const user = await assertWritePermission('orders')
   const set: Record<string, unknown> = { updatedAt: new Date() }
   if (data.deliveryMethod !== undefined) set.deliveryMethod = data.deliveryMethod
   if (data.deliveryCity !== undefined) set.deliveryCity = data.deliveryCity
@@ -338,14 +455,14 @@ export async function updateOrderDelivery(
 }
 
 export async function updateOrderNote(id: number, note: string) {
-  await assertPermission('orders')
+  await assertWritePermission('orders')
   await db.update(orders).set({ note, updatedAt: new Date() }).where(eq(orders.id, id))
   revalidatePath(`/admin/orders/${id}`)
   return { success: true }
 }
 
 export async function updateOrderTags(id: number, tags: string[]) {
-  await assertPermission('orders')
+  await assertWritePermission('orders')
   await db.update(orders).set({ tags, updatedAt: new Date() }).where(eq(orders.id, id))
   revalidatePath(`/admin/orders/${id}`)
   return { success: true }

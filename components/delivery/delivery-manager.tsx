@@ -21,12 +21,26 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
   const [isPending, startTransition] = useTransition()
   const initialConfig = (method.config ?? {}) as Record<string, string>
   const [apiKey, setApiKey] = useState(initialConfig.apiKey ?? '')
+  const [senderCityRef, setSenderCityRef] = useState(initialConfig.senderCityRef ?? '')
+  const [senderRef, setSenderRef] = useState(initialConfig.senderRef ?? '')
+  const [senderAddressRef, setSenderAddressRef] = useState(initialConfig.senderAddressRef ?? '')
+  const [contactSenderRef, setContactSenderRef] = useState(initialConfig.contactSenderRef ?? '')
+  const [senderPhone, setSenderPhone] = useState(initialConfig.senderPhone ?? '')
+  const [defaultWeight, setDefaultWeight] = useState(initialConfig.defaultWeight ?? '0.5')
 
   function handleSave() {
     startTransition(async () => {
       const result = await updateDeliveryMethod('nova_poshta', {
         isActive: true,
-        config: { apiKey },
+        config: {
+          apiKey,
+          senderCityRef,
+          senderRef,
+          senderAddressRef,
+          contactSenderRef,
+          senderPhone,
+          defaultWeight,
+        },
       })
       if (result.ok) {
         toast.success(result.message)
@@ -71,6 +85,35 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
             {apiKey.trim() ? t.delivery.npApiKeyHintReal : t.delivery.npApiKeyHintDemo}
           </p>
         </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label>CitySender Ref</Label>
+            <Input value={senderCityRef} onChange={(e) => setSenderCityRef(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Sender Ref</Label>
+            <Input value={senderRef} onChange={(e) => setSenderRef(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>SenderAddress Ref</Label>
+            <Input value={senderAddressRef} onChange={(e) => setSenderAddressRef(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>ContactSender Ref</Label>
+            <Input value={contactSenderRef} onChange={(e) => setContactSenderRef(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Телефон відправника</Label>
+            <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="+380..." />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Вага за замовч. (кг)</Label>
+            <Input value={defaultWeight} onChange={(e) => setDefaultWeight(e.target.value)} />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Ref-и з кабінету Нової Пошти потрібні, щоб створювати ТТН з картки замовлення.
+        </p>
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={isPending}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}

@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const suffix = locale === 'ru' ? 'интернет-магазин' : 'інтернет-магазин'
   return {
     title: {
-      absolute: `${name} — ${suffix}`,
+      default: `${name} — ${suffix}`,
       template: `%s — ${name}`,
     },
   }

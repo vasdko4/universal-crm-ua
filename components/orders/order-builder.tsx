@@ -35,6 +35,7 @@ import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type CartItem = {
   productId?: number
+  variantId?: number
   name: string
   sku?: string
   image?: string | null
@@ -50,6 +51,8 @@ type ProductResult = {
   price: string
   image: string | null
   quantity: number
+  variantId?: number | null
+  variantLabel?: string | null
 }
 
 function money(n: number) {
@@ -98,17 +101,20 @@ export function OrderBuilder() {
 
   function addProduct(p: ProductResult) {
     setItems((prev) => {
-      const existing = prev.find((i) => i.productId === p.id)
+      const existing = prev.find((i) => i.productId === p.id && i.variantId === (p.variantId ?? undefined))
       if (existing) {
         return prev.map((i) =>
-          i.productId === p.id ? { ...i, quantity: i.quantity + 1 } : i,
+          i.productId === p.id && i.variantId === (p.variantId ?? undefined)
+            ? { ...i, quantity: i.quantity + 1 }
+            : i,
         )
       }
       return [
         ...prev,
         {
           productId: p.id,
-          name: p.name,
+          variantId: p.variantId ?? undefined,
+          name: p.variantLabel ? `${p.name} (${p.variantLabel})` : p.name,
           sku: p.sku ?? undefined,
           image: p.image,
           price: Number.parseFloat(p.price),

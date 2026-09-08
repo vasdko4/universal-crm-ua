@@ -144,12 +144,39 @@ export const ALL_PERMISSIONS: { key: PermissionKey; label: string; group: string
     })),
   )
 
+export function writePermission(key: PermissionKey): string {
+  return `${key}:write`
+}
+
+export function readPermission(key: PermissionKey): string {
+  return `${key}:read`
+}
+
 export function hasPermission(
   permissions: string[] | undefined | null,
   key: PermissionKey,
 ): boolean {
   if (!permissions) return false
-  return permissions.includes('*') || permissions.includes(key)
+  if (permissions.includes('*')) return true
+  return (
+    permissions.includes(key) ||
+    permissions.includes(writePermission(key)) ||
+    permissions.includes(readPermission(key))
+  )
+}
+
+/**
+ * Mutating a section: `*` or `{key}:write`.
+ * A bare `{key}` (legacy roles) still writes. `{key}:read` alone does not.
+ */
+export function canWrite(
+  permissions: string[] | undefined | null,
+  key: PermissionKey,
+): boolean {
+  if (!permissions) return false
+  if (permissions.includes('*')) return true
+  if (permissions.includes(writePermission(key))) return true
+  return permissions.includes(key) && !permissions.includes(readPermission(key))
 }
 
 // Map a path to the permission that guards it.

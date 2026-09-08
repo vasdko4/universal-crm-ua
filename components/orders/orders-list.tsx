@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { StatusBadge, PaymentBadge } from '@/components/orders/status-badge'
-import { updateOrderStatus } from '@/app/actions/orders'
+import { bulkUpdateOrderStatus, updateOrderStatus } from '@/app/actions/orders'
 import { getOrderStatusOptions, getDeliveryMethodLabel } from '@/lib/order-status'
 import type { Order } from '@/lib/db/schema'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
@@ -53,11 +53,15 @@ export function OrdersList({
   stats,
   initialSearch,
   initialStatus,
+  initialPayment = 'all',
+  initialMissingTtn = false,
 }: {
   initialData: { items: Order[]; total: number; page: number; perPage: number }
   stats: Stats
   initialSearch: string
   initialStatus: string
+  initialPayment?: string
+  initialMissingTtn?: boolean
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -66,16 +70,25 @@ export function OrdersList({
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState(initialSearch)
   const [status, setStatus] = useState(initialStatus)
+  const [payment, setPayment] = useState(initialPayment)
+  const [missingTtn, setMissingTtn] = useState(initialMissingTtn)
+  const [selected, setSelected] = useState<number[]>([])
   const orderStatuses = getOrderStatusOptions(locale)
 
-  function applyFilters(next: { q?: string; status?: string; page?: number }) {
+  function applyFilters(next: { q?: string; status?: string; payment?: string; missingTtn?: boolean; page?: number }) {
     const params = new URLSearchParams(searchParams.toString())
     const q = next.q ?? search
     const s = next.status ?? status
+    const pay = next.payment ?? payment
+    const noTtn = next.missingTtn ?? missingTtn
     if (q) params.set('q', q)
     else params.delete('q')
     if (s && s !== 'all') params.set('status', s)
     else params.delete('status')
+    if (pay && pay !== 'all') params.set('payment', pay)
+    else params.delete('payment')
+    if (noTtn) params.set('missingTtn', '1')
+    else params.delete('missingTtn')
     params.set('page', String(next.page ?? 1))
     startTransition(() => router.push(`/admin/orders?${params.toString()}`))
   }
@@ -163,7 +176,68 @@ export function OrdersList({
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={payment}
+          onValueChange={(v) => {
+            setPayment(v)
+            applyFilters({ payment: v, page: 1 })
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder={t.paymentFilter} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t.allPayments}</SelectItem>
+            <SelectItem value="unpaid">{t.payment}</SelectItem>
+            <SelectItem value="paid">paid</SelectItem>
+            <SelectItem value="refunded">refunded</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant={missingTtn ? 'default' : 'outline'}
+          onClick={() => {
+            const next = !missingTtn
+            setMissingTtn(next)
+            applyFilters({ missingTtn: next, page: 1 })
+          }}
+        >
+          {t.missingTtn}
+        </Button>
       </div>
+
+      {selected.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
+          <span className="text-sm text-muted-foreground">
+            {t.selectedCount}: {selected.length}
+          </span>
+          <Select
+            onValueChange={(v) => {
+              startTransition(async () => {
+                const res = await bulkUpdateOrderStatus(selected, v)
+                if (res.success) {
+                  toast.success(t.toastStatusUpdated)
+                  setSelected([])
+                  router.refresh()
+                } else {
+                  toast.error(res.error ?? t.toastError)
+                }
+              })
+            }}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder={t.bulkStatus} />
+            </SelectTrigger>
+            <SelectContent>
+              {orderStatuses.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {initialData.items.length === 0 ? (
@@ -175,7 +249,15 @@ export function OrdersList({
         ) : (
           <div className="divide-y divide-border">
             {initialData.items.map((o) => (
-              <div key={o.id} className="grid grid-cols-1 gap-4 p-4 md:grid-cols-[1.5fr_1fr_1.5fr_auto] md:items-center">
+              <div key={o.id} className="grid grid-cols-1 gap-4 p-4 md:grid-cols-[auto_1.5fr_1fr_1.5fr_auto] md:items-center">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  checked={selected.includes(o.id)}
+                  onChange={() =>
+                    setSelected((prev) => (prev.includes(o.id) ? prev.filter((id) => id !== o.id) : [...prev, o.id]))
+                  }
+                />
                 <div className="min-w-0">
                   <Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">
                     №{o.orderNumber}

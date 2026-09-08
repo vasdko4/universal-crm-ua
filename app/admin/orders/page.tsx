@@ -1,12 +1,17 @@
 import { requirePermission } from '@/lib/session'
 import { listOrders, getOrderStats } from '@/app/actions/orders'
 import { OrdersList } from '@/components/orders/orders-list'
-import { parsePage } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
 export default async function OrdersPage(props: {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>
+  searchParams: Promise<{
+    q?: string
+    status?: string
+    payment?: string
+    missingTtn?: string
+    page?: string
+  }>
 }) {
   await requirePermission('orders')
   const sp = await props.searchParams
@@ -14,7 +19,9 @@ export default async function OrdersPage(props: {
     listOrders({
       search: sp.q,
       status: sp.status,
-      page: parsePage(sp.page),
+      paymentStatus: sp.payment,
+      missingTtn: sp.missingTtn === '1',
+      page: sp.page ? Number(sp.page) : 1,
     }),
     getOrderStats(),
   ])
@@ -25,6 +32,8 @@ export default async function OrdersPage(props: {
       stats={stats}
       initialSearch={sp.q ?? ''}
       initialStatus={sp.status ?? 'all'}
+      initialPayment={sp.payment ?? 'all'}
+      initialMissingTtn={sp.missingTtn === '1'}
     />
   )
 }

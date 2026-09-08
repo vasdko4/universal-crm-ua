@@ -8,12 +8,14 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { requirePermission } from '@/lib/session'
-import { getOrderStats, listOrders } from '@/app/actions/orders'
+import { getOrderStats, getOpsQueue, listOrders } from '@/app/actions/orders'
 import { getStatsSummary } from '@/app/actions/analytics'
 import { getLowStockProducts } from '@/app/actions/products'
 import { StatusBadge } from '@/components/orders/status-badge'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { pickLocalized } from '@/lib/i18n/config'
+import { getStaffTwoFactorState } from '@/app/actions/staff-2fa'
+import { StaffTwoFactorCard } from '@/components/staff-2fa-card'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,11 +26,13 @@ function money(n: number) {
 export default async function DashboardPage() {
   const user = await requirePermission('dashboard')
   const t = getAdminDictionary(user.locale).dashboard
-  const [stats, analytics, recent, lowStock] = await Promise.all([
+  const [stats, analytics, recent, lowStock, queue, twoFa] = await Promise.all([
     getOrderStats(),
     getStatsSummary(30),
     listOrders({ perPage: 5 }),
     getLowStockProducts(3, 6),
+    getOpsQueue(),
+    getStaffTwoFactorState(),
   ])
 
   const cards = [
@@ -46,6 +50,29 @@ export default async function DashboardPage() {
         </h1>
         <p className="text-sm text-muted-foreground">{t.subtitle}</p>
       </header>
+
+      <StaffTwoFactorCard enabled={twoFa.enabled} />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {[
+          { href: '/admin/orders?status=new', label: t.queueNew, value: queue.newOrders },
+          { href: '/admin/orders?payment=unpaid', label: t.queueUnpaid, value: queue.unpaid },
+          { href: '/admin/orders?missingTtn=1', label: t.queueMissingTtn, value: queue.missingTtn },
+          { href: '/admin/orders?status=shipped', label: t.queueOverdue, value: queue.overdueShipped },
+          { href: '/admin/reviews?status=pending', label: t.queueReviews, value: queue.pendingReviews },
+        ].map((q) => (
+          <Link
+            key={q.href}
+            href={q.href}
+            className="rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted/50"
+          >
+            <p className="text-sm text-muted-foreground">{q.label}</p>
+            <p className={`mt-2 text-2xl font-semibold ${q.value > 0 ? 'text-warning' : 'text-foreground'}`}>
+              {q.value}
+            </p>
+          </Link>
+        ))}
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (

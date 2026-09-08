@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { bootstrapAdmin } from '@/app/actions/users'
+import { currentUserRequiresTwoFactor, verifyStaffTwoFactorLogin } from '@/app/actions/staff-2fa'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,10 +16,12 @@ export function SignInForm({
   needsBootstrap,
   storeName,
   copy,
+  initialNeedsOtp = false,
 }: {
   needsBootstrap: boolean
   storeName: string
   copy: AdminDictionary['signIn']
+  initialNeedsOtp?: boolean
 }) {
   const router = useRouter()
   const [name, setName] = useState('')
@@ -26,6 +29,8 @@ export function SignInForm({
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [needsOtp, setNeedsOtp] = useState(initialNeedsOtp)
+  const [otp, setOtp] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,9 +56,29 @@ export function SignInForm({
     }
 
     const { error } = await authClient.signIn.email({ email, password })
-    setLoading(false)
     if (error) {
+      setLoading(false)
       setError(error.status === 429 ? copy.tooMany : copy.invalid)
+      return
+    }
+    if (await currentUserRequiresTwoFactor()) {
+      setNeedsOtp(true)
+      setLoading(false)
+      return
+    }
+    setLoading(false)
+    router.push('/admin')
+    router.refresh()
+  }
+
+  const handleOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    const res = await verifyStaffTwoFactorLogin(otp)
+    setLoading(false)
+    if (!res.ok) {
+      setError(res.error ?? copy.invalid)
       return
     }
     router.push('/admin')
@@ -75,6 +100,29 @@ export function SignInForm({
           </p>
         </div>
 
+        {needsOtp ? (
+        <form onSubmit={handleOtp} className="flex flex-col gap-4">
+          <p className="text-sm font-medium text-foreground">{copy.twoFactorTitle}</p>
+          <p className="text-xs text-muted-foreground">{copy.twoFactorHint}</p>
+          <Input
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            required
+          />
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading && <Loader2 className="size-4 animate-spin" />}
+            {copy.twoFactorSubmit}
+          </Button>
+        </form>
+        ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {needsBootstrap && (
             <div className="flex flex-col gap-2">
@@ -123,6 +171,7 @@ export function SignInForm({
             {needsBootstrap ? copy.bootstrapSubmit : copy.submit}
           </Button>
         </form>
+        )}
       </Card>
     </main>
   )

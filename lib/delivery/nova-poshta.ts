@@ -133,6 +133,26 @@ export async function trackDocuments(
   return results
 }
 
+export async function saveInternetDocument(
+  apiKey: string,
+  methodProperties: Record<string, string>,
+): Promise<{ ok: boolean; ttn?: string; ref?: string; error?: string; raw?: unknown }> {
+  const resp = await npRequest<Record<string, unknown>>(
+    apiKey,
+    'InternetDocument',
+    'save',
+    methodProperties,
+  )
+  if (!resp.success) {
+    return { ok: false, error: resp.errors.join(', ') || 'Не вдалося створити ТТН', raw: resp }
+  }
+  const row = resp.data[0] ?? {}
+  const ttn = String(row.IntDocNumber ?? row.IntDocNumberString ?? '').trim()
+  const ref = String(row.Ref ?? '').trim()
+  if (!ttn) return { ok: false, error: 'Nova Poshta не повернула номер ТТН', raw: resp.data }
+  return { ok: true, ttn, ref: ref || undefined, raw: resp.data }
+}
+
 export async function searchCities(apiKey: string, query: string): Promise<NpCity[]> {
   const q = query.trim()
   if (!apiKey) {
