@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { hasPermission, permissionForPath } from '@/lib/permissions'
+import {
+  canWrite,
+  hasPermission,
+  permissionForPath,
+  readPermission,
+  writePermission,
+} from '@/lib/permissions'
 
 describe('hasPermission', () => {
   it('grants everything with wildcard', () => {
@@ -12,10 +18,33 @@ describe('hasPermission', () => {
     expect(hasPermission(['orders'], 'settings')).toBe(false)
   })
 
+  it('treats :read and :write as enough to open the section', () => {
+    expect(hasPermission(['orders:write'], 'orders')).toBe(true)
+    expect(hasPermission(['orders:read'], 'orders')).toBe(true)
+  })
+
   it('denies for empty or missing lists', () => {
     expect(hasPermission([], 'orders')).toBe(false)
     expect(hasPermission(undefined, 'orders')).toBe(false)
     expect(hasPermission(null, 'orders')).toBe(false)
+  })
+})
+
+describe('canWrite', () => {
+  it('allows wildcard and explicit write keys', () => {
+    expect(canWrite(['*'], 'orders')).toBe(true)
+    expect(canWrite(['orders:write'], 'orders')).toBe(true)
+    expect(writePermission('orders')).toBe('orders:write')
+    expect(readPermission('orders')).toBe('orders:read')
+  })
+
+  it('keeps legacy bare keys as full access', () => {
+    expect(canWrite(['orders'], 'orders')).toBe(true)
+  })
+
+  it('treats :read as read-only', () => {
+    expect(hasPermission(['orders:read'], 'orders')).toBe(true)
+    expect(canWrite(['orders:read'], 'orders')).toBe(false)
   })
 })
 
