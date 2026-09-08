@@ -11,12 +11,12 @@ import {
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { and, asc, desc, eq, ilike, inArray, isNull, isNotNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { revalidateStorefront } from '@/lib/shop/cache'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueSlug } from '@/lib/product-slug'
-import { parsePage, sanitizeSearch } from '@/lib/api/helpers'
+import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type VariantInput = {
   options: VariantOptions
@@ -37,9 +37,7 @@ export type ProductFilters = {
 }
 
 export async function getProducts(filters: ProductFilters = {}) {
-  const { search, categoryId, status = 'all', sort = 'newest' } = filters
-  const page = parsePage(filters.page)
-  const perPage = parsePage(filters.perPage, 10)
+  const { search, categoryId, status = 'all', sort = 'newest', page = 1, perPage = 10 } = filters
 
   const conditions: SQL[] = [isNull(products.deletedAt)]
 
@@ -544,4 +542,94 @@ export async function emptyTrash() {
   const ids = trashed.map((t) => t.id)
   if (ids.length === 0) return { success: true }
   return permanentlyDeleteProducts(ids)
+}
+
+function uniqueIds(ids: number[]) {
+  return [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))].slice(0, 200)
+}
+
+export async function bulkSetProductPrice(ids: number[], price: number) {
+  const user = await assertWritePermission('products')
+  const unique = uniqueIds(ids)
+  if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
+  if (!Number.isFinite(price) || price < 0) return { success: false, error: 'Некоректна ціна' }
+  await db
+    .update(products)
+    .set({ price: price.toFixed(2), updatedAt: new Date() })
+    .where(inArray(products.id, unique))
+  void auditLog({
+    userId: user.id,
+    userName: user.name,
+    userEmail: user.email,
+    action: 'update',
+    entity: 'product',
+    details: `Масова ціна ${price.toFixed(2)} для ${unique.length} товарів`,
+  })
+  revalidatePath('/admin/products')
+  revalidateStorefront()
+  return { success: true }
+}
+
+export async function bulkAdjustProductStock(ids: number[], delta: number) {
+  const user = await assertWritePermission('products')
+  const unique = uniqueIds(ids)
+  if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
+  const d = Math.trunc(delta)
+  if (!d) return { success: false, error: 'Дельта не може бути 0' }
+  const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
+  const { pool } = await import('@/lib/db')
+  for (const id of unique) {
+    const res = await pool.query(
+      `UPDATE products SET quantity = GREATEST(0, quantity + $1), is_in_stock = GREATEST(0, quantity + $1) > 0, updated_at = NOW() WHERE id = $2 RETURNING quantity`,
+      [d, id],
+    )
+    await recordStockMovement({
+      productId: id,
+      delta: d,
+      quantityAfter: Number(res.rows[0]?.quantity),
+      reason: 'bulk',
+      actor: user.name,
+    })
+  }
+  revalidatePath('/admin/products')
+  revalidateStorefront()
+  return { success: true }
+}
+
+export async function bulkSetProductCategory(ids: number[], categoryId: number) {
+  await assertWritePermission('products')
+  const unique = uniqueIds(ids)
+  if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
+  if (!Number.isInteger(categoryId) || categoryId < 1) return { success: false, error: 'Категорія не задана' }
+  await db.delete(productCategory).where(inArray(productCategory.productId, unique))
+  await db.insert(productCategory).values(unique.map((productId) => ({ productId, categoryId })))
+  revalidatePath('/admin/products')
+  revalidateStorefront()
+  return { success: true }
+}
+
+export async function getStockMovements(productId: number, limit = 50) {
+  await assertPermission('products')
+  const { pool } = await import('@/lib/db')
+  try {
+    const res = await pool.query(
+      `SELECT id, product_id, variant_id, delta, quantity_after, reason, order_id, actor, note, created_at
+       FROM stock_movements WHERE product_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [productId, Math.min(200, Math.max(1, limit))],
+    )
+    return res.rows as {
+      id: number
+      product_id: number
+      variant_id: number | null
+      delta: number
+      quantity_after: number | null
+      reason: string
+      order_id: number | null
+      actor: string | null
+      note: string | null
+      created_at: string
+    }[]
+  } catch {
+    return []
+  }
 }

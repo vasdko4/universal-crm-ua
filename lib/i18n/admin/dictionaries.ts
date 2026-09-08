@@ -227,6 +227,16 @@ export type AdminDictionary = {
     toastGenericError: string
     toastProductShown: string
     toastProductHidden: string
+    bulkPrice: string
+    bulkStock: string
+    bulkCategory: string
+    applyPrice: string
+    applyStock: string
+    applyCategory: string
+    toastPriceSet: string
+    toastStockAdjusted: string
+    toastCategorySet: string
+    stockHistory: string
   }
   categories: {
     title: string
@@ -1864,6 +1874,16 @@ const uk: AdminDictionary = {
     toastGenericError: 'Сталася помилка',
     toastProductShown: 'Товар показано',
     toastProductHidden: 'Товар приховано',
+    bulkPrice: 'Ціна',
+    bulkStock: '± залишок',
+    bulkCategory: 'Категорія',
+    applyPrice: 'Ціна',
+    applyStock: 'Залишок',
+    applyCategory: 'Категорія',
+    toastPriceSet: 'Ціну оновлено',
+    toastStockAdjusted: 'Залишок змінено',
+    toastCategorySet: 'Категорію оновлено',
+    stockHistory: 'Рух складу',
   },
   categories: {
     title: 'Категорії',
@@ -3526,6 +3546,16 @@ const ru: AdminDictionary = {
     toastGenericError: 'Произошла ошибка',
     toastProductShown: 'Товар показан',
     toastProductHidden: 'Товар скрыт',
+    bulkPrice: 'Цена',
+    bulkStock: '± остаток',
+    bulkCategory: 'Категория',
+    applyPrice: 'Цена',
+    applyStock: 'Остаток',
+    applyCategory: 'Категория',
+    toastPriceSet: 'Цена обновлена',
+    toastStockAdjusted: 'Остаток изменён',
+    toastCategorySet: 'Категория обновлена',
+    stockHistory: 'Движение склада',
   },
   categories: {
     title: 'Категории',

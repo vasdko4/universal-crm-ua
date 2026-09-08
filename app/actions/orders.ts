@@ -325,12 +325,21 @@ export async function createOrder(input: {
       }),
     )
     // Decrement stock and bump orders count for real products.
+    const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
     for (const i of input.items) {
       if (i.productId) {
-        await pool.query(
-          `UPDATE products SET quantity = GREATEST(0, quantity - $1), orders_count = COALESCE(orders_count,0) + 1 WHERE id = $2`,
+        const res = await pool.query(
+          `UPDATE products SET quantity = GREATEST(0, quantity - $1), orders_count = COALESCE(orders_count,0) + 1 WHERE id = $2 RETURNING quantity`,
           [i.quantity, i.productId],
         )
+        await recordStockMovement({
+          productId: i.productId,
+          delta: -i.quantity,
+          quantityAfter: Number(res.rows[0]?.quantity),
+          reason: 'sale',
+          orderId: order.id,
+          actor: me.name,
+        })
       }
     }
   }
@@ -363,14 +372,23 @@ export async function createOrder(input: {
 // (a cancelled order gets reopened) — mirrors the deduction done in
 // createOrder so stock stays accurate either direction.
 async function adjustStockForOrder(orderId: number, sign: 1 | -1) {
+  const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId))
   for (const item of items) {
     if (item.productId) {
-      await pool.query(`UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int) WHERE id = $3`, [
-        sign,
-        item.quantity,
-        item.productId,
-      ])
+      const res = await pool.query(
+        `UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int) WHERE id = $3 RETURNING quantity`,
+        [sign, item.quantity, item.productId],
+      )
+      await recordStockMovement({
+        productId: item.productId,
+        variantId: item.variantId,
+        delta: sign * item.quantity,
+        quantityAfter: Number(res.rows[0]?.quantity),
+        reason: sign === 1 ? 'cancel' : 'sale',
+        orderId,
+        actor: 'Система',
+      })
     }
   }
 }
