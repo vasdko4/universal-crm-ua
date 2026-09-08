@@ -132,7 +132,10 @@ export type AdminDictionary = {
     toastRefunded: string
     createTtn: string
     printTtn: string
+    trackTtn: string
     refundViaGateway: string
+    refundPartial: string
+    refundAmountLabel: string
     allPayments: string
     paymentFilter: string
     missingTtn: string
@@ -1778,8 +1781,11 @@ const uk: AdminDictionary = {
     toastTtnCreated: 'ТТН створено',
     toastRefunded: 'Повернення виконано',
     createTtn: 'Створити ТТН',
-    printTtn: 'Трекінг НП',
+    printTtn: 'Друкувати етикетку',
+    trackTtn: 'Трекінг НП',
     refundViaGateway: 'Повернути через шлюз',
+    refundPartial: 'Часткове повернення',
+    refundAmountLabel: 'Сума повернення, ₴',
     allPayments: 'Усі оплати',
     paymentFilter: 'Оплата',
     missingTtn: 'Без ТТН',
@@ -3450,8 +3456,11 @@ const ru: AdminDictionary = {
     toastTtnCreated: 'ТТН создана',
     toastRefunded: 'Возврат выполнен',
     createTtn: 'Создать ТТН',
-    printTtn: 'Трекинг НП',
+    printTtn: 'Печать этикетки',
+    trackTtn: 'Трекинг НП',
     refundViaGateway: 'Вернуть через шлюз',
+    refundPartial: 'Частичный возврат',
+    refundAmountLabel: 'Сумма возврата, ₴',
     allPayments: 'Все оплаты',
     paymentFilter: 'Оплата',
     missingTtn: 'Без ТТН',

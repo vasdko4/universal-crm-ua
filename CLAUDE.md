@@ -98,7 +98,12 @@ uses Vercel Blob URLs (`@vercel/blob`) for product images; `next.config.mjs`
 
 ## Testing
 
-`pnpm test` runs Vitest unit tests in `tests/*.test.ts` (pure functions:
-slugs, phone formatting, templates, permissions, formatting). There's no
-end-to-end test suite; verify page-level changes by running the dev server
-against a restored DB snapshot.
+`pnpm test` runs Vitest in `tests/*.test.ts` (pure functions: slugs, phone,
+templates, permissions, TTN payload, checkout validation/stock, refund math,
+checkout→pay→stock pipeline). There is no Playwright/browser suite; verify
+page-level changes against a restored DB snapshot (`pnpm setup`).
+
+Nova Poshta: create TTN from the order card (`InternetDocument.save`). After
+a TTN exists, **Друкувати етикетку** opens `printDocument` PDF (needs the API
+key in Delivery settings). **Трекінг НП** is the public tracking page — do
+not mix the two. Parcel weight = product `weight × qty`, else the default kg.

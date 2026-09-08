@@ -13,6 +13,7 @@ export const ORDER_STATUSES = [
 export const PAYMENT_STATUSES = [
   { value: 'unpaid', label: 'Не оплачен' },
   { value: 'paid', label: 'Оплачен' },
+  { value: 'partially_refunded', label: 'Частичный возврат' },
   { value: 'refunded', label: 'Возврат' },
 ] as const
 
@@ -30,6 +31,7 @@ export const ORDER_STATUS_LABELS_UK: Record<string, string> = {
 export const PAYMENT_STATUS_LABELS_UK: Record<string, string> = {
   unpaid: 'Не оплачено',
   paid: 'Оплачено',
+  partially_refunded: 'Часткове повернення',
   refunded: 'Повернення',
 }
 

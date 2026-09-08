@@ -7,7 +7,7 @@ import { deliveryMethods, orders, orderItems, products } from '@/lib/db/schema'
 import { assertWritePermission } from '@/lib/session'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
-import { buildInternetDocumentPayload, parcelWeightKg } from '@/lib/delivery/ttn'
+import { buildInternetDocumentPayload, novaPoshtaPrintUrl, parcelWeightKg } from '@/lib/delivery/ttn'
 import { fetchSenderProfile, saveInternetDocument } from '@/lib/delivery/nova-poshta'
 import { updateOrderDelivery } from '@/app/actions/orders'
 import type { NpSenderRefs } from '@/lib/delivery/np-sender'
@@ -150,6 +150,20 @@ export async function createTtnForOrder(
   void fillAuditTemplate
   revalidatePath(`/admin/orders/${orderId}`)
   revalidatePath('/admin/orders')
-  const printUrl = `https://my.novaposhta.ua/orders/printDocument/orders[]/${encodeURIComponent(saved.ttn)}/type/pdf/apiKey/${encodeURIComponent(apiKey)}`
+  const printUrl = novaPoshtaPrintUrl(apiKey, saved.ttn)
   return { ok: true, ttn: saved.ttn, printUrl }
+}
+
+export async function printTtnForOrder(
+  orderId: number,
+): Promise<{ ok: boolean; printUrl?: string; error?: string }> {
+  await assertWritePermission('orders')
+  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1)
+  if (!order) return { ok: false, error: 'Замовлення не знайдено' }
+  const ttn = (order.trackingNumber || '').trim()
+  if (!ttn) return { ok: false, error: 'Немає ТТН для друку' }
+  const cfg = await npConfig()
+  const apiKey = (cfg.apiKey || process.env.NOVA_POSHTA_API_KEY || '').trim()
+  if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти' }
+  return { ok: true, printUrl: novaPoshtaPrintUrl(apiKey, ttn) }
 }

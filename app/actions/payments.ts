@@ -16,6 +16,7 @@ import {
   monobankRefund,
   type GatewayResult,
 } from '@/lib/payments/clients'
+import { refundPlan } from '@/lib/payments/refund'
 
 type ActionResult = { ok: boolean; message: string; paymentUrl?: string }
 
@@ -253,13 +254,14 @@ export async function refundPayment(
   if (!gateway) return { ok: false, message: 'Шлюз не найден' }
   const config = (gateway.config ?? {}) as Record<string, string>
 
-  const total = Number(payment.amount)
-  const alreadyRefunded = Number(payment.refundedAmount)
-  const refundAmount = amount && amount > 0 ? amount : total - alreadyRefunded
-  if (refundAmount <= 0) return { ok: false, message: 'Нет доступной суммы для возврата' }
-  if (alreadyRefunded + refundAmount > total + 0.001) {
-    return { ok: false, message: 'Сумма возврата превышает сумму платежа' }
+  const plan = refundPlan(Number(payment.amount), Number(payment.refundedAmount), amount)
+  if (!plan.ok) {
+    return {
+      ok: false,
+      message: plan.error === 'exceeds' ? 'Сумма возврата превышает сумму платежа' : 'Нет доступной суммы для возврата',
+    }
   }
+  const refundAmount = plan.amount
 
   let result: GatewayResult
   if (gateway.isTestMode) {
@@ -287,35 +289,33 @@ export async function refundPayment(
   await logEvent(payment.id, 'refund', result, refundAmount)
 
   if (result.ok) {
-    const newRefunded = alreadyRefunded + refundAmount
-    const fullyRefunded = newRefunded >= total - 0.001
+    const newRefunded = plan.newRefunded
+    const fullyRefunded = plan.status === 'refunded'
     await db
       .update(payments)
       .set({
         refundedAmount: newRefunded.toFixed(2),
-        status: fullyRefunded ? 'refunded' : 'partially_refunded',
+        status: plan.status,
         updatedAt: new Date(),
       })
       .where(eq(payments.id, paymentId))
     revalidatePath('/admin/payments')
-    if (fullyRefunded) {
-      const [linked] = await db
-        .select({ id: orders.id })
-        .from(orders)
-        .where(eq(orders.orderNumber, payment.orderReference))
-        .limit(1)
-      if (linked) {
-        await db
-          .update(orders)
-          .set({ paymentStatus: 'refunded', updatedAt: new Date() })
-          .where(eq(orders.id, linked.id))
-        await db.insert(orderHistory).values({
-          orderId: linked.id,
-          type: 'payment',
-          message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
-          actor: 'Платёжный шлюз',
-        })
-      }
+    const [linked] = await db
+      .select({ id: orders.id })
+      .from(orders)
+      .where(eq(orders.orderNumber, payment.orderReference))
+      .limit(1)
+    if (linked) {
+      await db
+        .update(orders)
+        .set({ paymentStatus: plan.status, updatedAt: new Date() })
+        .where(eq(orders.id, linked.id))
+      await db.insert(orderHistory).values({
+        orderId: linked.id,
+        type: 'payment',
+        message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
+        actor: 'Платёжный шлюз',
+      })
     }
     return {
       ok: true,

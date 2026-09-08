@@ -16,6 +16,7 @@ const STATUS_CLASSNAMES: Record<string, string> = {
 const PAYMENT_CLASSNAMES: Record<string, string> = {
   unpaid: 'bg-muted text-muted-foreground border-border',
   paid: 'bg-success/15 text-success border-success/30',
+  partially_refunded: 'bg-warning/15 text-warning border-warning/30',
   refunded: 'bg-destructive/15 text-destructive border-destructive/30',
 }
 

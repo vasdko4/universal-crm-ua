@@ -126,3 +126,7 @@ export function novaPoshtaPrintUrl(apiKey: string, ttn: string): string {
   const doc = encodeURIComponent(ttn)
   return `https://my.novaposhta.ua/orders/printDocument/orders[]/${doc}/type/pdf/apiKey/${key}`
 }
+
+export function novaPoshtaTrackingUrl(ttn: string): string {
+  return `https://novaposhta.ua/tracking/?cargo_number=${encodeURIComponent(ttn)}`
+}
