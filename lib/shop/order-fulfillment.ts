@@ -2,6 +2,7 @@ import { db, pool } from '@/lib/db'
 import { orders, orderItems, orderHistory, promotions } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { recordPromotionUsage } from '@/app/actions/promotions'
+import { recordStockMovement } from '@/lib/shop/stock-ledger'
 
 /**
  * Applies the real-world side effects of a placed order exactly once:
@@ -39,6 +40,16 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
       )
       if (variantRes.rowCount === 0) {
         oversold.push({ name: i.name, variantLabel: i.variantLabel, requested: i.quantity })
+      } else if (i.productId != null) {
+        await recordStockMovement({
+          productId: i.productId,
+          variantId: i.variantId,
+          delta: -i.quantity,
+          quantityAfter: Number(variantRes.rows[0]?.quantity),
+          reason: 'sale',
+          orderId,
+          actor: 'Система',
+        })
       }
       // products.quantity is the maintained aggregate of all variant
       // quantities (see aggQty in app/actions/products.ts) — the admin
@@ -58,6 +69,16 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
          WHERE id = $2 AND quantity >= $1 RETURNING quantity`,
         [i.quantity, i.productId],
       )
+      if (productRes.rowCount && i.productId != null) {
+        await recordStockMovement({
+          productId: i.productId,
+          delta: -i.quantity,
+          quantityAfter: Number(productRes.rows[0]?.quantity),
+          reason: 'sale',
+          orderId,
+          actor: 'Система',
+        })
+      }
       if (productRes.rowCount === 0) {
         // Still count the order towards orders_count even when oversold —
         // only the stock/is_in_stock columns are conditional on availability.

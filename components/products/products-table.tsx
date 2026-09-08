@@ -9,6 +9,9 @@ import {
   softDeleteProducts,
   setProductsVisibility,
   duplicateProduct,
+  bulkSetProductPrice,
+  bulkAdjustProductStock,
+  bulkSetProductCategory,
   type ProductFilters,
 } from '@/app/actions/products'
 import type { Product, Category } from '@/lib/db/schema'
@@ -95,6 +98,9 @@ export function ProductsTable({
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [searchValue, setSearchValue] = useState(filters.search ?? '')
   const [deleteTarget, setDeleteTarget] = useState<number[] | null>(null)
+  const [bulkPrice, setBulkPrice] = useState('')
+  const [bulkDelta, setBulkDelta] = useState('')
+  const [bulkCategory, setBulkCategory] = useState('')
 
   const page = filters.page ?? 1
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE))
@@ -283,6 +289,69 @@ export function ProductsTable({
             >
               <Trash2 className="size-4" />
               {t.toTrash}
+            </Button>
+            <Input
+              className="h-8 w-24"
+              placeholder={t.bulkPrice}
+              value={bulkPrice}
+              onChange={(e) => setBulkPrice(e.target.value)}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending || !bulkPrice}
+              onClick={() =>
+                runBulk(
+                  () => bulkSetProductPrice([...selected], Number(bulkPrice.replace(',', '.'))),
+                  t.toastPriceSet,
+                )
+              }
+            >
+              {t.applyPrice}
+            </Button>
+            <Input
+              className="h-8 w-20"
+              placeholder={t.bulkStock}
+              value={bulkDelta}
+              onChange={(e) => setBulkDelta(e.target.value)}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending || !bulkDelta}
+              onClick={() =>
+                runBulk(
+                  () => bulkAdjustProductStock([...selected], Number(bulkDelta)),
+                  t.toastStockAdjusted,
+                )
+              }
+            >
+              {t.applyStock}
+            </Button>
+            <Select value={bulkCategory} onValueChange={setBulkCategory}>
+              <SelectTrigger className="h-8 w-40">
+                <SelectValue placeholder={t.bulkCategory} />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>
+                    {pickLocalized(locale, c.nameUk, c.nameRu)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending || !bulkCategory}
+              onClick={() =>
+                runBulk(
+                  () => bulkSetProductCategory([...selected], Number(bulkCategory)),
+                  t.toastCategorySet,
+                )
+              }
+            >
+              {t.applyCategory}
             </Button>
           </div>
         </div>

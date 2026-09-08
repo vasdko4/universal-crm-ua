@@ -45,6 +45,7 @@ export type SanitizedCheckout = {
   deliveryCity: string | null
   deliveryCityRef: string | null
   deliveryBranch: string | null
+  deliveryWarehouseRef: string | null
   deliveryAddress: string | null
   paymentMethod: string
   note: string | null
@@ -132,6 +133,7 @@ export function validateCheckoutInput(input: CheckoutInput, locale: Locale = 'ru
       deliveryCity: cap(input.deliveryCity, L.city),
       deliveryCityRef: cap(input.deliveryCityRef, L.cityRef),
       deliveryBranch: cap(input.deliveryBranch, L.branch),
+      deliveryWarehouseRef: cap(input.deliveryWarehouseRef, L.cityRef),
       deliveryAddress: cap(input.deliveryAddress, L.address),
       paymentMethod,
       note: cap(input.note, L.note),

@@ -120,6 +120,7 @@ export type CheckoutInput = {
   deliveryCity?: string
   deliveryCityRef?: string
   deliveryBranch?: string
+  deliveryWarehouseRef?: string
   deliveryAddress?: string
   paymentMethod: string
   note?: string
@@ -354,7 +355,9 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       customerEmail: input.email?.trim() || null,
       deliveryMethod: input.deliveryMethod,
       deliveryCity: input.deliveryCity || null,
+      deliveryCityRef: input.deliveryCityRef || null,
       deliveryBranch: input.deliveryBranch || null,
+      deliveryWarehouseRef: input.deliveryWarehouseRef || null,
       deliveryAddress: input.deliveryAddress || null,
       paymentMethod: input.paymentMethod,
       paymentStatus: 'unpaid',

@@ -32,6 +32,23 @@ describe('buildInternetDocumentPayload', () => {
     expect(props.DateTime).toMatch(/^\d{2}\.\d{2}\.\d{4}$/)
   })
 
+  it('uses warehouse refs when present', () => {
+    const props = buildInternetDocumentPayload({
+      sender,
+      recipient: {
+        name: 'Іван',
+        phone: '0670000000',
+        cityName: 'Київ',
+        cityRef: 'city-kyiv',
+        warehouseRef: 'wh-ref',
+      },
+      cargo: { description: 'x', cost: 100, weightKg: 1, seats: 1 },
+    })
+    expect(props.RecipientAddress).toBe('wh-ref')
+    expect(props.CityRecipient).toBe('city-kyiv')
+    expect(props.NewAddress).toBeUndefined()
+  })
+
   it('falls back to NewAddress when there is no warehouse ref', () => {
     const props = buildInternetDocumentPayload({
       sender,

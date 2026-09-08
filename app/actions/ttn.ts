@@ -76,6 +76,8 @@ export async function createTtnForOrder(
       name: order.customerName || 'Отримувач',
       phone: order.customerPhone || '',
       cityName: order.deliveryCity || '',
+      cityRef: order.deliveryCityRef || undefined,
+      warehouseRef: order.deliveryWarehouseRef || undefined,
       warehouseName: order.deliveryBranch || undefined,
       address: order.deliveryAddress || undefined,
     },

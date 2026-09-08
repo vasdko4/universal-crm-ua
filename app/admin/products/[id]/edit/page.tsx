@@ -5,6 +5,7 @@ import { getCategories } from '@/app/actions/categories'
 import { getGroups, getSiteGroups, getMarketplaceCategories } from '@/app/actions/groups'
 import { ProductForm, type ProductFormData } from '@/components/products/product-form'
 import { ProductAnalyticsPanel } from '@/components/products/product-analytics-panel'
+import { StockHistory } from '@/components/products/stock-history'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,6 +86,7 @@ export default async function EditProductPage({
   return (
     <div className="flex flex-col gap-4">
       <ProductAnalyticsPanel productId={product.id} locale={admin.locale} />
+      <StockHistory productId={product.id} locale={admin.locale} />
       <ProductForm
         initial={initial}
         categories={categories}

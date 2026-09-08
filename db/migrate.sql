@@ -200,3 +200,22 @@ WHERE "slug" = 'keyboard-care' AND ("title_ru" IS NULL OR "title_ru" = '');
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(64);
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_enabled" boolean NOT NULL DEFAULT false;
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_pending_secret" varchar(64);
+
+-- Nova Poshta refs on orders + stock ledger.
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "delivery_city_ref" varchar(64);
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "delivery_warehouse_ref" varchar(64);
+
+CREATE TABLE IF NOT EXISTS "stock_movements" (
+  "id" serial PRIMARY KEY,
+  "product_id" integer NOT NULL,
+  "variant_id" integer,
+  "delta" integer NOT NULL,
+  "quantity_after" integer,
+  "reason" varchar(40) NOT NULL,
+  "order_id" integer,
+  "actor" varchar(255),
+  "note" text,
+  "created_at" timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON "stock_movements" ("product_id", "created_at" DESC);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_order ON "stock_movements" ("order_id");

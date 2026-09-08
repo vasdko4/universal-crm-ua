@@ -529,12 +529,15 @@ export function CheckoutFlow({
         email: email.trim() || undefined,
         deliveryMethod: delivery,
         deliveryCity: isNova ? city?.name : isUkr ? upCity.trim() : undefined,
-        deliveryCityRef: isNova ? city?.ref : undefined,
+        deliveryCityRef: isNova ? (city?.deliveryCityRef || city?.ref) : undefined,
         deliveryBranch: isNova
-          ? `${branchType === 'postomat' ? t.postomat : t.branch}: ${branchQuery.trim()}`
+          ? warehouse
+            ? warehouse.name
+            : `${branchType === 'postomat' ? t.postomat : t.branch}: ${branchQuery.trim()}`
           : isUkr
             ? `${t.indexPrefix} ${upIndex.trim()}`
             : undefined,
+        deliveryWarehouseRef: isNova ? warehouse?.ref : undefined,
         paymentMethod: payment,
         note: note.trim() || undefined,
         promoCode: applied?.code || undefined,

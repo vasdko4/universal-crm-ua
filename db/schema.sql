@@ -203,7 +203,9 @@ CREATE TABLE IF NOT EXISTS "orders" (
   "customer_email" varchar(255),
   "delivery_method" varchar(40),
   "delivery_city" varchar(255),
+  "delivery_city_ref" varchar(64),
   "delivery_branch" varchar(255),
+  "delivery_warehouse_ref" varchar(64),
   "delivery_address" text,
   "tracking_number" varchar(100),
   "delivery_status" varchar(100),
@@ -234,6 +236,22 @@ CREATE TABLE IF NOT EXISTS "orders" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS orders_order_number_key ON public.orders USING btree (order_number);
+
+CREATE TABLE IF NOT EXISTS "stock_movements" (
+  "id" serial NOT NULL,
+  "product_id" integer NOT NULL,
+  "variant_id" integer,
+  "delta" integer NOT NULL,
+  "quantity_after" integer,
+  "reason" varchar(40) NOT NULL,
+  "order_id" integer,
+  "actor" varchar(255),
+  "note" text,
+  "created_at" timestamptz DEFAULT now(),
+  PRIMARY KEY ("id")
+);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON stock_movements (product_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_order ON stock_movements (order_id);
 
 CREATE TABLE IF NOT EXISTS "pages" (
   "id" serial NOT NULL,
