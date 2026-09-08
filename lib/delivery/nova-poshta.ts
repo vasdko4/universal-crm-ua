@@ -153,6 +153,46 @@ export async function saveInternetDocument(
   return { ok: true, ttn, ref: ref || undefined, raw: resp.data }
 }
 
+export async function fetchSenderProfile(apiKey: string) {
+  const { parseSenderProfile } = await import('@/lib/delivery/np-sender')
+  const counterparties = await npRequest<Record<string, unknown>>(
+    apiKey,
+    'Counterparty',
+    'getCounterparties',
+    { CounterpartyProperty: 'Sender', Page: '1' },
+  )
+  if (!counterparties.success) {
+    return { ok: false as const, error: counterparties.errors.join(', ') || 'Не вдалося отримати відправників' }
+  }
+  const sender = counterparties.data[0]
+  const senderRef = String(sender?.Ref ?? '').trim()
+  if (!senderRef) return { ok: false as const, error: 'У кабінеті НП немає контрагента-відправника' }
+
+  const [addresses, contacts] = await Promise.all([
+    npRequest<Record<string, unknown>>(apiKey, 'Counterparty', 'getCounterpartyAddresses', {
+      Ref: senderRef,
+      CounterpartyProperty: 'Sender',
+    }),
+    npRequest<Record<string, unknown>>(apiKey, 'Counterparty', 'getCounterpartyContactPersons', {
+      Ref: senderRef,
+      Page: '1',
+    }),
+  ])
+  if (!addresses.success) {
+    return { ok: false as const, error: addresses.errors.join(', ') || 'Не вдалося отримати адреси відправника' }
+  }
+  if (!contacts.success) {
+    return { ok: false as const, error: contacts.errors.join(', ') || 'Не вдалося отримати контакти відправника' }
+  }
+  const refs = parseSenderProfile({
+    counterparties: counterparties.data,
+    addresses: addresses.data,
+    contacts: contacts.data,
+  })
+  if (!refs) return { ok: false as const, error: 'НП не повернула повний набір Ref відправника' }
+  return { ok: true as const, refs }
+}
+
 export async function searchCities(apiKey: string, query: string): Promise<NpCity[]> {
   const q = query.trim()
   if (!apiKey) {

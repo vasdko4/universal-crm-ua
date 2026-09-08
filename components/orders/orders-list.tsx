@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select'
 import { StatusBadge, PaymentBadge } from '@/components/orders/status-badge'
 import { bulkUpdateOrderStatus, updateOrderStatus } from '@/app/actions/orders'
-import { getOrderStatusOptions, getDeliveryMethodLabel } from '@/lib/order-status'
+import { getOrderStatusOptions, getPaymentStatusOptions, getDeliveryMethodLabel } from '@/lib/order-status'
 import type { Order } from '@/lib/db/schema'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 
@@ -74,6 +74,7 @@ export function OrdersList({
   const [missingTtn, setMissingTtn] = useState(initialMissingTtn)
   const [selected, setSelected] = useState<number[]>([])
   const orderStatuses = getOrderStatusOptions(locale)
+  const paymentStatuses = getPaymentStatusOptions(locale)
 
   function applyFilters(next: { q?: string; status?: string; payment?: string; missingTtn?: boolean; page?: number }) {
     const params = new URLSearchParams(searchParams.toString())
@@ -188,9 +189,11 @@ export function OrdersList({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t.allPayments}</SelectItem>
-            <SelectItem value="unpaid">{t.payment}</SelectItem>
-            <SelectItem value="paid">paid</SelectItem>
-            <SelectItem value="refunded">refunded</SelectItem>
+            {paymentStatuses.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Button
