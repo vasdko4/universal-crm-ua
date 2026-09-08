@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# Techno Store — one-command local setup.
+# Universal Magazine — one-command local setup.
 #
 #   bash scripts/setup.sh
 #
@@ -110,7 +110,7 @@ echo "  Start the app with:  pnpm dev"
 echo "  Storefront:          http://localhost:3000"
 if [ -n "$SEED_FLAG" ]; then
   echo "  Admin panel:         http://localhost:3000/admin"
-  echo "  Admin login:         admin@techno.store  /  Admin12345  (demo — change it!)"
+  echo "  Admin login:         admin@magazine.store  /  Admin12345  (demo — change it!)"
 else
   echo "  On first visit you'll see the setup wizard to create your admin account."
 fi

@@ -1,6 +1,6 @@
-# PowerFox — локальный запуск (демо-версия)
+# Universal Magazine — локальный запуск (демо-версия)
 
-Интернет-магазин электроники (витрина + админ-панель) на Next.js 16, Postgres,
+Интернет-магазин (витрина + админ-панель) на Next.js 16, Postgres,
 Drizzle ORM и Better Auth. Ниже — как поднять магазин на локальном ПК:
 чистая установка через мастер настройки или демо-наполнение фейковыми данными.
 
@@ -46,7 +46,7 @@ pnpm dev
 
   ```bash
   pnpm setup --seed
-  # демо-админ: admin@techno.store / Admin12345 — сразу смените!
+  # демо-админ: admin@magazine.store / Admin12345 — сразу смените!
   ```
 
 - **Перенос своего магазина**: создайте снимок на старом окружении
@@ -102,18 +102,18 @@ Telegram-бота и платёжных шлюзов, ключ Нова Пошт
 ## Бэкап базы данных на проде
 
 `scripts/vps-install.sh` сам настраивает ежедневный бэкап (systemd-таймер,
-03:30 UTC) — `pg_dump` в `/var/backups/techno-store`, хранение 14 дней.
+03:30 UTC) — `pg_dump` в `/var/backups/magazine`, хранение 14 дней.
 Это защищает только от порчи БД, но не от потери самого сервера/диска.
 
 Чтобы бэкапы улетали ещё и на внешнее хранилище — настройте
 [rclone](https://rclone.org) (`rclone config`, поддерживает S3, Backblaze B2,
 Google Drive и т.д.) и задайте `RCLONE_REMOTE` в `.env.production`
-(например `RCLONE_REMOTE="b2:my-bucket/techno-store-backups"`).
+(например `RCLONE_REMOTE="b2:my-bucket/magazine-backups"`).
 
 Восстановление из бэкапа:
 
 ```bash
-pg_restore --clean --if-exists -d "$DATABASE_URL" /var/backups/techno-store/techno-store_<дата>.dump
+pg_restore --clean --if-exists -d "$DATABASE_URL" /var/backups/magazine/magazine_<дата>.dump
 ```
 
 ## Заметки

@@ -22,7 +22,7 @@ const ARTICLES = [
     minutes: 6,
     featured: true,
     content: `
-<p>Технологія GaN (нітрид галію) змінила ринок зарядних пристроїв: замість громіздких «цеглинок» ми отримали компактні блоки, які заряджають ноутбук, смартфон і навушники одночасно. У каталозі <a href="/catalog?category=zariadnye-ustroistva-dlia-smartfonov-y-planshetov">зарядних пристроїв PowerFox</a> більшість моделей — саме GaN.</p>
+<p>Технологія GaN (нітрид галію) змінила ринок зарядних пристроїв: замість громіздких «цеглинок» ми отримали компактні блоки, які заряджають ноутбук, смартфон і навушники одночасно. У каталозі <a href="/catalog?category=zariadnye-ustroistva-dlia-smartfonov-y-planshetov">зарядних пристроїв Universal Magazine</a> більшість моделей — саме GaN.</p>
 <h2>Чому GaN кращий за класичний адаптер</h2>
 <ul>
 <li><strong>Компактність.</strong> GaN-транзистори працюють на вищих частотах, тому трансформатор менший — блок на 65W важить як старий на 20W.</li>
@@ -99,7 +99,7 @@ const ARTICLES = [
     minutes: 6,
     featured: false,
     content: `
-<p>Бренд Haylou (екосистема Xiaomi) закріпився в ніші доступних смарт-годинників. У <a href="/catalog?category=umnye-chasy-i-braslety">каталозі PowerFox</a> — актуальна лінійка Solar. Розбираємо, чим відрізняються моделі.</p>
+<p>Бренд Haylou (екосистема Xiaomi) закріпився в ніші доступних смарт-годинників. У <a href="/catalog?category=umnye-chasy-i-braslety">каталозі Universal Magazine</a> — актуальна лінійка Solar. Розбираємо, чим відрізняються моделі.</p>
 <h2>Haylou Solar Neo LS21 — базова модель</h2>
 <p><a href="/product/75">Solar Neo</a> у комплекті з двома ремінцями: 1.43" екран, пульсометр, SpO2, понад 100 спортивних режимів і до 12 днів автономності. Найкращий вибір для першого смарт-годинника.</p>
 <h2>Solar Lite 2 — тонший і легший</h2>
@@ -216,11 +216,11 @@ const ARTICLES = [
   {
     slug: 'novi-nadhodzhennya-powerfox-2026',
     cat: 'news',
-    title: 'Нові надходження у PowerFox: що з’явилось у каталозі цього сезону',
+    title: 'Нові надходження у Universal Magazine: що з’явилось у каталозі цього сезону',
     excerpt:
       'Поповнення асортименту: GaN-зарядки Essager і Toocki, смарт-годинники Haylou, ігрова периферія Proove та автотримачі Baseus. Огляд головних новинок.',
     cover: 'https://images.prom.ua/7537593441_w700_h500_blok-pitaniya-essager.jpg',
-    tags: ['новини', 'новинки', 'PowerFox'],
+    tags: ['новини', 'новинки', 'Universal Magazine'],
     minutes: 4,
     featured: false,
     content: `
@@ -276,7 +276,7 @@ async function main() {
         a.excerpt,
         a.content.trim(),
         a.cover,
-        'PowerFox',
+        'Universal Magazine',
         JSON.stringify(a.tags),
         a.featured,
         a.minutes,

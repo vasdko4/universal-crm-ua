@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────
-# Techno Store — управление через Docker
+# Universal Magazine — управление через Docker
 #
 # Использование:
 #   make start       — запустить магазин (первый раз + последующие)
@@ -15,7 +15,7 @@
 
 help: ## Показать справку
 	@echo ""
-	@echo "  Techno Store — доступные команды:"
+	@echo "  Universal Magazine — доступные команды:"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'

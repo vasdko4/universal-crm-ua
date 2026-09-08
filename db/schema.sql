@@ -1,4 +1,4 @@
--- Techno Store — full schema (auto-generated)
+-- Universal Magazine — full schema (auto-generated)
 -- Postgres 15+
 
 CREATE TABLE IF NOT EXISTS "account" (

@@ -8,7 +8,7 @@ import { pickLocalized, type Locale } from '@/lib/i18n/config'
 export const LEGAL_SLUGS = ['terms', 'privacy', 'returns', 'delivery'] as const
 
 /**
- * RU copy for the Techno Store demo pages that were seeded without title_ru /
+ * RU copy for the Universal Magazine demo pages that were seeded without title_ru /
  * content_ru. Only applied when the stored UK body still matches the seed, so
  * a merchant who rewrote those pages is never overwritten.
  */

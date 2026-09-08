@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# ── PowerFox / Techno Store — production Docker image ─────────────────────
+# ── Universal Magazine — production Docker image ─────────────────────
 # Multi-stage build: install deps -> build (Next.js standalone output) ->
 # minimal runtime image. Migrations/seeding are run separately (see
 # docker-compose.yml / README), this image only serves the app.

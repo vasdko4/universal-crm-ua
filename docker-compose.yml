@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: techno-store-db
+    container_name: magazine-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: techno
@@ -25,7 +25,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ghcr.io/vasdko4/universal-crm-ua:latest
-    container_name: techno-store-app
+    container_name: magazine-app
     restart: unless-stopped
     depends_on:
       db:
@@ -75,7 +75,7 @@ services:
   # sets both up automatically for new installs.
   updater:
     image: python:3.12-alpine
-    container_name: techno-store-updater
+    container_name: magazine-updater
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -98,7 +98,7 @@ services:
   # automatically and generates the credentials into .env).
   ftp:
     image: delfer/alpine-ftp-server:latest
-    container_name: techno-store-ftp
+    container_name: magazine-ftp
     restart: unless-stopped
     profiles: ["ftp"]
     ports:
@@ -107,7 +107,7 @@ services:
     environment:
       # start.sh generates FTP_USER/FTP_PASSWORD into .env; without a password
       # the service is not started (start.sh checks before enabling the profile).
-      USERS: "${FTP_USER:-techno}|${FTP_PASSWORD:-}|/ftp/uploads"
+      USERS: "${FTP_USER:-magazine}|${FTP_PASSWORD:-}|/ftp/uploads"
       ADDRESS: ${FTP_ADDRESS:-}
       MIN_PORT: "21000"
       MAX_PORT: "21010"
@@ -121,7 +121,7 @@ services:
   # A-record points to this server and ports 80/443 are free.
   caddy:
     image: caddy:2-alpine
-    container_name: techno-store-caddy
+    container_name: magazine-caddy
     restart: unless-stopped
     profiles: ["proxy"]
     ports:

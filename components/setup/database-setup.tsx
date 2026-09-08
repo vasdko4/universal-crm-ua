@@ -122,7 +122,7 @@ export function DatabaseSetup() {
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="db-name">База данных</Label>
-                    <Input id="db-name" value={database} onChange={(e) => setDatabase(e.target.value)} placeholder="techno_store" />
+                    <Input id="db-name" value={database} onChange={(e) => setDatabase(e.target.value)} placeholder="magazine" />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="flex flex-col gap-2">
@@ -151,7 +151,7 @@ export function DatabaseSetup() {
                     id="db-url"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    placeholder="postgresql://user:password@localhost:5432/techno_store"
+                    placeholder="postgresql://user:password@localhost:5432/magazine"
                     autoComplete="off"
                   />
                   <p className="text-xs text-muted-foreground">

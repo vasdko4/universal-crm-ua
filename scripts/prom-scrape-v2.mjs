@@ -1,4 +1,4 @@
-// Scrape all PowerFox products from Prom.ua (UK + RU), including
+// Scrape all demo products from Prom.ua (UK + RU), including
 // breadcrumb category paths and product attributes (characteristics).
 import fs from 'node:fs'
 import path from 'node:path'
