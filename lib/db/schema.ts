@@ -531,7 +531,9 @@ export const orders = pgTable('orders', {
   customerEmail: varchar('customer_email', { length: 255 }),
   deliveryMethod: varchar('delivery_method', { length: 40 }),
   deliveryCity: varchar('delivery_city', { length: 255 }),
+  deliveryCityRef: varchar('delivery_city_ref', { length: 64 }),
   deliveryBranch: varchar('delivery_branch', { length: 255 }),
+  deliveryWarehouseRef: varchar('delivery_warehouse_ref', { length: 64 }),
   deliveryAddress: text('delivery_address'),
   trackingNumber: varchar('tracking_number', { length: 100 }),
   deliveryStatus: varchar('delivery_status', { length: 100 }),
@@ -600,6 +602,19 @@ export const orderHistory = pgTable('order_history', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 
+export const stockMovements = pgTable('stock_movements', {
+  id: serial('id').primaryKey(),
+  productId: integer('product_id').notNull(),
+  variantId: integer('variant_id'),
+  delta: integer('delta').notNull(),
+  quantityAfter: integer('quantity_after'),
+  reason: varchar('reason', { length: 40 }).notNull(),
+  orderId: integer('order_id'),
+  actor: varchar('actor', { length: 255 }),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
 export const storeSettings = pgTable('store_settings', {
   id: integer('id').primaryKey().default(1),
   storeName: varchar('store_name', { length: 255 }).notNull().default('Мой магазин'),
@@ -647,6 +662,7 @@ export type Role = typeof roles.$inferSelect
 export type Order = typeof orders.$inferSelect
 export type OrderItem = typeof orderItems.$inferSelect
 export type OrderHistoryEntry = typeof orderHistory.$inferSelect
+export type StockMovement = typeof stockMovements.$inferSelect
 export type StoreSettingsRow = typeof storeSettings.$inferSelect
 
 export type Page = typeof pages.$inferSelect
