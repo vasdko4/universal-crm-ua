@@ -93,6 +93,25 @@ export function buildInternetDocumentPayload(input: {
   return props
 }
 
+/** Sum product weights × qty; fall back to default when none of the lines have weight. */
+export function parcelWeightKg(
+  lines: { weightKg?: number | string | null; quantity: number }[],
+  fallbackKg: number,
+): number {
+  let sum = 0
+  let any = false
+  for (const line of lines) {
+    const w = Number(line.weightKg)
+    const q = Math.max(1, Math.floor(Number(line.quantity)) || 1)
+    if (Number.isFinite(w) && w > 0) {
+      sum += w * q
+      any = true
+    }
+  }
+  const fallback = Number.isFinite(fallbackKg) && fallbackKg > 0 ? fallbackKg : 0.5
+  return Math.max(0.1, Number((any ? sum : fallback).toFixed(2)))
+}
+
 export function parseTtnFromSaveResponse(data: unknown): string | null {
   if (!data || typeof data !== 'object') return null
   const row = Array.isArray(data) ? data[0] : data

@@ -133,7 +133,7 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Ref-и можна вставити вручну або підтягнути з кабінету за API-ключем. Без них ТТН з картки замовлення не створиться.
+          «Підтягнути з кабінету» одразу зберігає Ref-и. ТТН з картки теж підтягне й збереже їх, якщо поля порожні. Вага береться з карток товарів, інакше — значення нижче.
         </p>
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={pullSender} disabled={isPending || !apiKey.trim()}>

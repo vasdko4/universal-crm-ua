@@ -1,6 +1,7 @@
 'use server'
 
 import { headers } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { deliveryMethods } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -75,7 +76,30 @@ export async function loadNovaPoshtaSender(): Promise<
   const apiKey = await getApiKey()
   if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти' }
   const { fetchSenderProfile } = await import('@/lib/delivery/nova-poshta')
-  return fetchSenderProfile(apiKey)
+  const fetched = await fetchSenderProfile(apiKey)
+  if (!fetched.ok) return fetched
+  const [row] = await db
+    .select()
+    .from(deliveryMethods)
+    .where(eq(deliveryMethods.code, 'nova_poshta'))
+    .limit(1)
+  const config = ((row?.config as Record<string, unknown>) ?? {}) as Record<string, unknown>
+  await db
+    .update(deliveryMethods)
+    .set({
+      config: {
+        ...config,
+        senderCityRef: fetched.refs.senderCityRef,
+        senderRef: fetched.refs.senderRef,
+        senderAddressRef: fetched.refs.senderAddressRef,
+        contactSenderRef: fetched.refs.contactSenderRef,
+        senderPhone: fetched.refs.senderPhone || String(config.senderPhone ?? ''),
+      },
+      updatedAt: new Date(),
+    })
+    .where(eq(deliveryMethods.code, 'nova_poshta'))
+  revalidatePath('/admin/delivery')
+  return fetched
 }
 
 export async function searchWarehouses(cityRef: string, query = ''): Promise<NpWarehouse[]> {
