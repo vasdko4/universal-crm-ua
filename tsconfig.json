@@ -39,6 +39,7 @@
     "node_modules",
     "uploads",
     "migrations",
-    "tests"
+    "tests",
+    "e2e"
   ]
 }
