@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildInternetDocumentPayload, parseTtnFromSaveResponse } from '@/lib/delivery/ttn'
+import { buildInternetDocumentPayload, parseTtnFromSaveResponse, parcelWeightKg } from '@/lib/delivery/ttn'
 
 const sender = {
   cityRef: 'city-sender',
@@ -63,6 +63,25 @@ describe('buildInternetDocumentPayload', () => {
     expect(props.NewAddress).toBe('1')
     expect(props.RecipientCityName).toBe('Львів')
     expect(props.RecipientAddressName).toContain('12')
+  })
+})
+
+describe('parcelWeightKg', () => {
+  it('sums product weights by quantity', () => {
+    expect(
+      parcelWeightKg(
+        [
+          { weightKg: 0.4, quantity: 2 },
+          { weightKg: '0.3', quantity: 1 },
+        ],
+        0.5,
+      ),
+    ).toBe(1.1)
+  })
+
+  it('uses fallback when no line has weight', () => {
+    expect(parcelWeightKg([{ weightKg: null, quantity: 3 }], 0.5)).toBe(0.5)
+    expect(parcelWeightKg([], 0.2)).toBe(0.2)
   })
 })
 

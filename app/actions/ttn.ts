@@ -1,13 +1,13 @@
 'use server'
 
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { deliveryMethods, orders, orderItems } from '@/lib/db/schema'
+import { deliveryMethods, orders, orderItems, products } from '@/lib/db/schema'
 import { assertWritePermission } from '@/lib/session'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
-import { buildInternetDocumentPayload } from '@/lib/delivery/ttn'
+import { buildInternetDocumentPayload, parcelWeightKg } from '@/lib/delivery/ttn'
 import { fetchSenderProfile, saveInternetDocument } from '@/lib/delivery/nova-poshta'
 import { updateOrderDelivery } from '@/app/actions/orders'
 import type { NpSenderRefs } from '@/lib/delivery/np-sender'
@@ -29,6 +29,23 @@ async function npConfig(): Promise<NpConfig> {
     .where(eq(deliveryMethods.code, 'nova_poshta'))
     .limit(1)
   return ((row?.config as NpConfig) ?? {}) as NpConfig
+}
+
+async function persistSenderRefs(cfg: NpConfig, sender: NpSenderRefs) {
+  await db
+    .update(deliveryMethods)
+    .set({
+      config: {
+        ...cfg,
+        senderCityRef: sender.senderCityRef,
+        senderRef: sender.senderRef,
+        senderAddressRef: sender.senderAddressRef,
+        contactSenderRef: sender.contactSenderRef,
+        senderPhone: sender.senderPhone || cfg.senderPhone || '',
+      },
+      updatedAt: new Date(),
+    })
+    .where(eq(deliveryMethods.code, 'nova_poshta'))
 }
 
 export async function createTtnForOrder(
@@ -65,6 +82,7 @@ export async function createTtnForOrder(
       }
     }
     sender = fetched.refs
+    await persistSenderRefs(cfg, sender)
   }
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId))
@@ -76,7 +94,21 @@ export async function createTtnForOrder(
       .slice(0, 3)
       .join(', ') ||
     `Замовлення ${order.orderNumber}`
-  const weight = opts.weightKg ?? Number(cfg.defaultWeight || 0.5) || 0.5
+  const productIds = [...new Set(items.map((i) => i.productId).filter((id): id is number => typeof id === 'number'))]
+  const productRows =
+    productIds.length > 0
+      ? await db.select({ id: products.id, weight: products.weight }).from(products).where(inArray(products.id, productIds))
+      : []
+  const weightByProduct = new Map(productRows.map((p) => [p.id, p.weight]))
+  const weight =
+    opts.weightKg ??
+    parcelWeightKg(
+      items.map((i) => ({
+        weightKg: i.productId != null ? weightByProduct.get(i.productId) : null,
+        quantity: i.quantity,
+      })),
+      Number(cfg.defaultWeight || 0.5) || 0.5,
+    )
   const seats = opts.seats ?? 1
 
   const props = buildInternetDocumentPayload({

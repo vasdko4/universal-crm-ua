@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { parseAllowedImageUrl } from '@/lib/api/safe-image-url'
+import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
 
 /**
  * Image proxy for transactional emails.
@@ -13,6 +14,9 @@ import { parseAllowedImageUrl } from '@/lib/api/safe-image-url'
  * and fetch does not follow redirects.
  */
 export async function GET(req: NextRequest) {
+  if (isRateLimited('email-image', clientIp(req), 60, 60_000)) {
+    return new NextResponse('Too many requests', { status: 429 })
+  }
   const src = req.nextUrl.searchParams.get('src')
   if (!src) return new NextResponse('Missing src', { status: 400 })
 
