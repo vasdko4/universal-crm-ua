@@ -31,7 +31,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { ALL_PERMISSIONS, type PermissionKey } from '@/lib/permissions'
+import { ALL_PERMISSIONS, readPermission, writePermission, type PermissionKey } from '@/lib/permissions'
 import {
   createUser,
   updateUserRole,
@@ -439,10 +439,19 @@ function RoleDialog({
 
   const allSelected = permissions.includes('*')
 
-  function toggle(key: PermissionKey) {
-    setPermissions((prev) =>
-      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key],
-    )
+  function modeFor(key: PermissionKey): 'none' | 'read' | 'write' {
+    if (permissions.includes(writePermission(key)) || permissions.includes(key)) return 'write'
+    if (permissions.includes(readPermission(key))) return 'read'
+    return 'none'
+  }
+
+  function setMode(key: PermissionKey, mode: 'none' | 'read' | 'write') {
+    setPermissions((prev) => {
+      const without = prev.filter((p) => p !== key && p !== readPermission(key) && p !== writePermission(key))
+      if (mode === 'read') return [...without, readPermission(key)]
+      if (mode === 'write') return [...without, writePermission(key)]
+      return without
+    })
   }
 
   function handleSave() {
@@ -511,18 +520,22 @@ function RoleDialog({
                   </p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {ALL_PERMISSIONS.filter((p) => p.group === group).map((perm) => (
-                      <label
+                      <div
                         key={perm.key}
-                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2.5 text-sm hover:bg-muted/50"
+                        className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5 text-sm"
                       >
-                        <input
-                          type="checkbox"
-                          checked={allSelected || permissions.includes(perm.key)}
-                          onChange={() => toggle(perm.key)}
-                          className="size-4 accent-primary"
-                        />
                         <span className="text-foreground">{perm.label}</span>
-                      </label>
+                        <select
+                          className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                          value={allSelected ? 'write' : modeFor(perm.key)}
+                          disabled={allSelected}
+                          onChange={(e) => setMode(perm.key, e.target.value as 'none' | 'read' | 'write')}
+                        >
+                          <option value="none">—</option>
+                          <option value="read">read</option>
+                          <option value="write">write</option>
+                        </select>
+                      </div>
                     ))}
                   </div>
                 </div>

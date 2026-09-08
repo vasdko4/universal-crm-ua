@@ -42,6 +42,9 @@ export type AdminDictionary = {
     bootstrapSubmit: string
     error: string
     signInError: string
+    twoFactorTitle: string
+    twoFactorHint: string
+    twoFactorSubmit: string
   }
   sidebar: {
     goToSite: string
@@ -125,6 +128,16 @@ export type AdminDictionary = {
     toastPaymentUpdated: string
     toastTrackingSaved: string
     toastNoteSaved: string
+    toastTtnCreated: string
+    toastRefunded: string
+    createTtn: string
+    printTtn: string
+    refundViaGateway: string
+    allPayments: string
+    paymentFilter: string
+    missingTtn: string
+    bulkStatus: string
+    selectedCount: string
     toastError: string
     toastSendError: string
     toastOpeningMessenger: string
@@ -1147,6 +1160,11 @@ export type AdminDictionary = {
     skuLabel: string
     outOfStock: string
     remainingPrefix: string
+    queueNew: string
+    queueUnpaid: string
+    queueMissingTtn: string
+    queueOverdue: string
+    queueReviews: string
   }
   pages: {
     title: string
@@ -1625,6 +1643,9 @@ const uk: AdminDictionary = {
     bootstrapSubmit: 'Створити і увійти',
     error: 'Помилка',
     signInError: 'Помилка входу',
+    twoFactorTitle: 'Код з додатка',
+    twoFactorHint: 'Введіть 6-значний код Google Authenticator / Authy',
+    twoFactorSubmit: 'Підтвердити',
   },
   sidebar: {
     goToSite: 'Перейти на сайт',
@@ -1744,6 +1765,16 @@ const uk: AdminDictionary = {
     toastPaymentUpdated: 'Оплату оновлено',
     toastTrackingSaved: 'Накладну збережено',
     toastNoteSaved: 'Примітку збережено',
+    toastTtnCreated: 'ТТН створено',
+    toastRefunded: 'Повернення виконано',
+    createTtn: 'Створити ТТН',
+    printTtn: 'Трекінг НП',
+    refundViaGateway: 'Повернути через шлюз',
+    allPayments: 'Усі оплати',
+    paymentFilter: 'Оплата',
+    missingTtn: 'Без ТТН',
+    bulkStatus: 'Статус для вибраних',
+    selectedCount: 'Вибрано',
     toastError: 'Помилка',
     toastSendError: 'Помилка надсилання',
     toastOpeningMessenger: 'Відкриваю месенджер',
@@ -2786,6 +2817,11 @@ const uk: AdminDictionary = {
     skuLabel: 'Артикул',
     outOfStock: 'Немає в наявності',
     remainingPrefix: 'Залишилось',
+    queueNew: 'Нові',
+    queueUnpaid: 'Не оплачені',
+    queueMissingTtn: 'Без ТТН',
+    queueOverdue: 'Давно в дорозі',
+    queueReviews: 'Відгуки',
   },
   pages: {
     title: 'Сторінки',
@@ -3269,6 +3305,9 @@ const ru: AdminDictionary = {
     bootstrapSubmit: 'Создать и войти',
     error: 'Ошибка',
     signInError: 'Ошибка входа',
+    twoFactorTitle: 'Код из приложения',
+    twoFactorHint: 'Введите 6-значный код Google Authenticator / Authy',
+    twoFactorSubmit: 'Подтвердить',
   },
   sidebar: {
     goToSite: 'Перейти на сайт',
@@ -3388,6 +3427,16 @@ const ru: AdminDictionary = {
     toastPaymentUpdated: 'Оплата обновлена',
     toastTrackingSaved: 'Накладная сохранена',
     toastNoteSaved: 'Примечание сохранено',
+    toastTtnCreated: 'ТТН создана',
+    toastRefunded: 'Возврат выполнен',
+    createTtn: 'Создать ТТН',
+    printTtn: 'Трекинг НП',
+    refundViaGateway: 'Вернуть через шлюз',
+    allPayments: 'Все оплаты',
+    paymentFilter: 'Оплата',
+    missingTtn: 'Без ТТН',
+    bulkStatus: 'Статус для выбранных',
+    selectedCount: 'Выбрано',
     toastError: 'Ошибка',
     toastSendError: 'Ошибка отправки',
     toastOpeningMessenger: 'Открываю мессенджер',
@@ -4430,6 +4479,11 @@ const ru: AdminDictionary = {
     skuLabel: 'Артикул',
     outOfStock: 'Нет в наличии',
     remainingPrefix: 'Осталось',
+    queueNew: 'Новые',
+    queueUnpaid: 'Не оплачены',
+    queueMissingTtn: 'Без ТТН',
+    queueOverdue: 'Давно в пути',
+    queueReviews: 'Отзывы',
   },
   pages: {
     title: 'Страницы',

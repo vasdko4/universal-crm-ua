@@ -33,7 +33,9 @@ import {
   updateOrderPayment,
   updateOrderDelivery,
   updateOrderNote,
+  refundOrder,
 } from '@/app/actions/orders'
+import { createTtnForOrder } from '@/app/actions/ttn'
 import {
   getOrderStatusOptions,
   getPaymentStatusOptions,
@@ -42,7 +44,6 @@ import {
 } from '@/lib/order-status'
 import type { Order, OrderItem, OrderHistoryEntry } from '@/lib/db/schema'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
-import { localizedPath } from '@/lib/i18n/config'
 import { OrderReceiptSection } from '@/components/orders/order-receipt-section'
 
 function money(v: string | number) {
@@ -98,6 +99,32 @@ export function OrderDetail({
     startTransition(async () => {
       await updateOrderPayment(order.id, status)
       toast.success(t.toastPaymentUpdated)
+      router.refresh()
+    })
+  }
+
+  function createTtn() {
+    startTransition(async () => {
+      const res = await createTtnForOrder(order.id)
+      if (!res.ok) {
+        toast.error(res.error ?? t.toastError)
+        return
+      }
+      if (res.ttn) setTracking(res.ttn)
+      toast.success(t.toastTtnCreated)
+      if (res.printUrl) window.open(res.printUrl, '_blank')
+      router.refresh()
+    })
+  }
+
+  function refundViaGateway() {
+    startTransition(async () => {
+      const res = await refundOrder(order.id)
+      if (!res.ok) {
+        toast.error(res.message ?? t.toastError)
+        return
+      }
+      toast.success(res.message ?? t.toastRefunded)
       router.refresh()
     })
   }
@@ -215,7 +242,7 @@ export function OrderDetail({
                   <div className="min-w-0 flex-1">
                     {item.productId ? (
                       <Link
-                        href={localizedPath(`/product/${productSlugs[item.productId] ?? item.productId}`, locale)}
+                        href={`/product/${productSlugs[item.productId] ?? item.productId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm font-medium text-foreground hover:text-primary hover:underline"
@@ -239,6 +266,25 @@ export function OrderDetail({
                 </div>
               ))}
             </div>
+          </section>
+
+          <section id="order-packing-print" className="rounded-xl border border-dashed border-border bg-card p-5 print:border-0">
+            <h2 className="mb-3 font-semibold text-foreground">Packing slip</h2>
+            <p className="text-sm text-muted-foreground">
+              {order.customerName} · {order.customerPhone}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {[order.deliveryCity, order.deliveryBranch, order.deliveryAddress].filter(Boolean).join(', ')}
+            </p>
+            <ul className="mt-3 list-disc pl-5 text-sm">
+              {items.map((i) => (
+                <li key={i.id}>
+                  {i.name}
+                  {i.variantLabel ? ` (${i.variantLabel})` : ''} × {i.quantity}
+                  {i.sku ? ` · ${i.sku}` : ''}
+                </li>
+              ))}
+            </ul>
           </section>
 
           {receipt && (
@@ -332,6 +378,11 @@ export function OrderDetail({
                     ))}
                   </SelectContent>
                 </Select>
+                {order.paymentStatus === 'paid' && (
+                  <Button variant="outline" size="sm" onClick={refundViaGateway} disabled={isPending}>
+                    {t.refundViaGateway}
+                  </Button>
+                )}
               </div>
             </section>
           </div>
@@ -369,6 +420,22 @@ export function OrderDetail({
                 <Button variant="outline" onClick={saveTracking} disabled={isPending}>
                   {t.saveTracking}
                 </Button>
+                {!order.trackingNumber && (order.deliveryMethod === 'nova_poshta' || !order.deliveryMethod) && (
+                  <Button onClick={createTtn} disabled={isPending}>
+                    {t.createTtn}
+                  </Button>
+                )}
+                {order.trackingNumber && (
+                  <Button asChild variant="outline">
+                    <a
+                      href={`https://novaposhta.ua/tracking/?cargo_number=${encodeURIComponent(order.trackingNumber)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {t.printTtn}
+                    </a>
+                  </Button>
+                )}
               </div>
               {order.deliveryStatus && (
                 <p className="flex items-center gap-1.5 text-warning">
