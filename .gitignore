@@ -17,6 +17,12 @@ backups/
 # Docker installs) — never committed, persisted via a Docker named volume.
 public/uploads/
 
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Build caches / generated files (should never be committed)
 *.tsbuildinfo
 next-env.d.ts

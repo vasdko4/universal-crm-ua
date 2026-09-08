@@ -100,8 +100,12 @@ uses Vercel Blob URLs (`@vercel/blob`) for product images; `next.config.mjs`
 
 `pnpm test` runs Vitest in `tests/*.test.ts` (pure functions: slugs, phone,
 templates, permissions, TTN payload, checkout validation/stock, refund math,
-checkout→pay→stock pipeline). There is no Playwright/browser suite; verify
-page-level changes against a restored DB snapshot (`pnpm setup`).
+checkout→pay→stock pipeline).
+
+`pnpm test:e2e` runs Playwright against a live Next server (home, catalog,
+empty cart/checkout, admin sign-in). Needs Postgres + schema (CI applies
+`db/schema.sql` + `db/seed.sql`). Locally: `pnpm setup` then `pnpm test:e2e`
+(reuses `pnpm dev` if already running).
 
 Nova Poshta: create TTN from the order card (`InternetDocument.save`). After
 a TTN exists, **Друкувати етикетку** opens `printDocument` PDF (needs the API
