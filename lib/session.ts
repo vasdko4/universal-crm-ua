@@ -53,20 +53,18 @@ async function getAdminUserInner(): Promise<AdminUser | null> {
   // than trusting the Better Auth session payload: it's not refreshed after
   // the language switcher updates it, so a stale session would keep showing
   // the old language until the next sign-in. Same pattern as getShopUser().
-  let locale: Locale = 'ru'
+  let locale: Locale = 'uk'
   try {
     const { rows } = await pool.query<{ locale: string | null }>(
       'SELECT locale FROM "user" WHERE id = $1',
       [u.id],
     )
     const raw = rows[0]?.locale
-    // Admin default is 'ru' (the historical, only-language behavior), unlike
-    // the storefront default 'uk' — so this deliberately doesn't reuse the
-    // shop's normalizeLocale(), which falls back to 'uk'.
+    // Admin default is 'uk', same as the storefront. Explicit 'ru' on the
+    // user row still wins (language switcher).
     if (isLocale(raw)) locale = raw
   } catch {
-    // Column may not exist yet on an un-migrated DB — fall back to 'ru'
-    // (the historical, only-language behavior).
+    // Column may not exist yet on an un-migrated DB — fall back to 'uk'.
   }
 
   return {

@@ -61,7 +61,7 @@ ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "stock_restored" boolean DEFAULT f
 
 -- ---------- Админ-центр: язык интерфейса на пользователя ----------
 -- Хранится в БД (user.locale), выбор не спрашивается повторно при входе.
-ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "locale" varchar(5) DEFAULT 'ru'::character varying NOT NULL;
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "locale" varchar(5) DEFAULT 'uk'::character varying NOT NULL;
 
 -- ---------- Заказы: атрибуция трафика (utm_*) ----------
 -- Захватывается из ?utm_* параметров при заходе на сайт (см. lib/shop/utm.ts),
@@ -219,3 +219,8 @@ CREATE TABLE IF NOT EXISTS "stock_movements" (
 );
 CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON "stock_movements" ("product_id", "created_at" DESC);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_order ON "stock_movements" ("order_id");
+
+-- Admin UI default language is Ukrainian (was Russian). Flip the column
+-- default and existing rows that still have the historical 'ru' default.
+ALTER TABLE "user" ALTER COLUMN "locale" SET DEFAULT 'uk';
+UPDATE "user" SET "locale" = 'uk' WHERE "locale" = 'ru';

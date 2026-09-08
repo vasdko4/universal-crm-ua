@@ -1,46 +1,55 @@
 import type { Locale } from '@/lib/i18n/config'
 
 export const ORDER_STATUSES = [
-  { value: 'pending_payment', label: 'Ожидает оплаты', color: 'amber' },
-  { value: 'new', label: 'Новый', color: 'blue' },
-  { value: 'accepted', label: 'Принят', color: 'violet' },
-  { value: 'processing', label: 'В обработке', color: 'amber' },
-  { value: 'shipped', label: 'Отправлен', color: 'cyan' },
-  { value: 'done', label: 'Выполнен', color: 'green' },
-  { value: 'cancelled', label: 'Отменён', color: 'red' },
+  { value: 'pending_payment', label: 'Очікує оплати', color: 'amber' },
+  { value: 'new', label: 'Новий', color: 'blue' },
+  { value: 'accepted', label: 'Прийнято', color: 'violet' },
+  { value: 'processing', label: 'В обробці', color: 'amber' },
+  { value: 'shipped', label: 'Відправлено', color: 'cyan' },
+  { value: 'done', label: 'Виконано', color: 'green' },
+  { value: 'cancelled', label: 'Скасовано', color: 'red' },
 ] as const
 
 export const PAYMENT_STATUSES = [
-  { value: 'unpaid', label: 'Не оплачен' },
-  { value: 'paid', label: 'Оплачен' },
-  { value: 'partially_refunded', label: 'Частичный возврат' },
-  { value: 'refunded', label: 'Возврат' },
+  { value: 'unpaid', label: 'Не оплачено' },
+  { value: 'paid', label: 'Оплачено' },
+  { value: 'partially_refunded', label: 'Часткове повернення' },
+  { value: 'refunded', label: 'Повернення' },
 ] as const
 
-// Ukrainian labels for the storefront (admin uses the Russian labels above).
-export const ORDER_STATUS_LABELS_UK: Record<string, string> = {
-  pending_payment: 'Очікує оплати',
-  new: 'Новий',
-  accepted: 'Прийнято',
-  processing: 'В обробці',
-  shipped: 'Відправлено',
-  done: 'Виконано',
-  cancelled: 'Скасовано',
+export const ORDER_STATUS_LABELS_RU: Record<string, string> = {
+  pending_payment: 'Ожидает оплаты',
+  new: 'Новый',
+  accepted: 'Принят',
+  processing: 'В обработке',
+  shipped: 'Отправлен',
+  done: 'Выполнен',
+  cancelled: 'Отменён',
 }
 
-export const PAYMENT_STATUS_LABELS_UK: Record<string, string> = {
-  unpaid: 'Не оплачено',
-  paid: 'Оплачено',
-  partially_refunded: 'Часткове повернення',
-  refunded: 'Повернення',
+export const PAYMENT_STATUS_LABELS_RU: Record<string, string> = {
+  unpaid: 'Не оплачен',
+  paid: 'Оплачен',
+  partially_refunded: 'Частичный возврат',
+  refunded: 'Возврат',
 }
+
+/** @deprecated Use ORDER_STATUSES[].label (uk). Kept for storefront callers that still import the name. */
+export const ORDER_STATUS_LABELS_UK: Record<string, string> = Object.fromEntries(
+  ORDER_STATUSES.map((s) => [s.value, s.label]),
+)
+
+/** @deprecated Use PAYMENT_STATUSES[].label (uk). */
+export const PAYMENT_STATUS_LABELS_UK: Record<string, string> = Object.fromEntries(
+  PAYMENT_STATUSES.map((s) => [s.value, s.label]),
+)
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number]['value']
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number]['value']
 
-/** Admin-panel order status label in the given locale (admin default is Russian). */
+/** Admin-panel order status label. Default locale is Ukrainian. */
 export function getOrderStatusLabel(status: string, locale: Locale): string {
-  if (locale === 'uk') return ORDER_STATUS_LABELS_UK[status] ?? status
+  if (locale === 'ru') return ORDER_STATUS_LABELS_RU[status] ?? status
   return ORDER_STATUSES.find((s) => s.value === status)?.label ?? status
 }
 
@@ -49,7 +58,7 @@ export function getOrderStatusOptions(locale: Locale): { value: string; label: s
 }
 
 export function getPaymentStatusLabel(status: string, locale: Locale): string {
-  if (locale === 'uk') return PAYMENT_STATUS_LABELS_UK[status] ?? status
+  if (locale === 'ru') return PAYMENT_STATUS_LABELS_RU[status] ?? status
   return PAYMENT_STATUSES.find((s) => s.value === status)?.label ?? status
 }
 
