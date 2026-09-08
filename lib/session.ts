@@ -1,10 +1,11 @@
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { getAuth } from '@/lib/auth'
 import { db, pool } from '@/lib/db'
 import { roles } from '@/lib/db/schema'
-import { hasPermission, type PermissionKey } from '@/lib/permissions'
+import { canWrite, hasPermission, type PermissionKey } from '@/lib/permissions'
+import { twoFactorCookieValid } from '@/lib/staff-2fa'
 import type { Locale } from '@/lib/i18n/config'
 import { isLocale } from '@/lib/i18n/config'
 
@@ -124,10 +125,26 @@ export async function getShopUser(): Promise<ShopUser | null> {
 // Use in every protected page/layout. Redirects unauthenticated users to login.
 // Users whose role has no admin permissions at all are not allowed into the
 // admin center — they are sent back to the storefront.
+export async function staffTwoFactorSatisfied(userId: string): Promise<boolean> {
+  try {
+    const { rows } = await pool.query<{ two_factor_enabled: boolean }>(
+      `SELECT two_factor_enabled FROM "user" WHERE id = $1`,
+      [userId],
+    )
+    if (!rows[0]?.two_factor_enabled) return true
+    const jar = await cookies()
+    const cookie = jar.get('staff_2fa')?.value
+    return twoFactorCookieValid(userId, process.env.BETTER_AUTH_SECRET || 'dev-staff-2fa', cookie)
+  } catch {
+    return true
+  }
+}
+
 export async function requireAdmin(): Promise<AdminUser> {
   const user = await getAdminUser()
   if (!user) redirect('/sign-in')
   if (user.permissions.length === 0) redirect('/')
+  if (!(await staffTwoFactorSatisfied(user.id))) redirect('/sign-in?2fa=1')
   return user
 }
 
@@ -152,5 +169,11 @@ export async function getAdminUserWithPermission(key: PermissionKey): Promise<Ad
   const user = await getAdminUser()
   if (!user) return null
   if (!hasPermission(user.permissions, key)) return null
+  return user
+}
+
+export async function assertWritePermission(key: PermissionKey): Promise<AdminUser> {
+  const user = await assertPermission(key)
+  if (!canWrite(user.permissions, key)) throw new Error('Немає прав на зміну: ' + key)
   return user
 }

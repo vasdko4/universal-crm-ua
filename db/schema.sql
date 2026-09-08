@@ -642,6 +642,9 @@ CREATE TABLE IF NOT EXISTS "user" (
   "updatedAt" timestamptz DEFAULT now() NOT NULL,
   "phone" varchar(50),
   "locale" varchar(5) DEFAULT 'ru'::character varying NOT NULL,
+  "two_factor_secret" varchar(64),
+  "two_factor_enabled" boolean DEFAULT false NOT NULL,
+  "two_factor_pending_secret" varchar(64),
   PRIMARY KEY ("id")
 );
 

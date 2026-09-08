@@ -107,6 +107,11 @@ export type OrderItemInput = {
 export type OrderListParams = {
   search?: string
   status?: string
+  paymentStatus?: string
+  deliveryMethod?: string
+  missingTtn?: boolean
+  from?: string
+  to?: string
   page?: number
   perPage?: number
 }

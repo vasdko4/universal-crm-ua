@@ -196,28 +196,7 @@ UPDATE "articles" SET
   "content_ru" = '<p>Регулярно чистите переключатели и снимайте кейкапы.</p>'
 WHERE "slug" = 'keyboard-care' AND ("title_ru" IS NULL OR "title_ru" = '');
 
--- RU copy for Universal Magazine demo CMS pages only. Match the original seed body
--- so a merchant who rewrote about/contacts/delivery-payment is never overwritten.
-UPDATE "pages" SET
-  "title_ru" = 'О компании',
-  "content_ru" = '<h2>О нашем магазине</h2><p>Мы продаём качественную электронику с 2015 года.</p>'
-WHERE "slug" = 'about'
-  AND "title" = 'О компании'
-  AND "content" LIKE '%Ми продаємо якісну електроніку з 2015 року%'
-  AND ("title_ru" IS NULL OR "title_ru" = '' OR "content_ru" IS NULL OR "content_ru" = '');
-
-UPDATE "pages" SET
-  "title_ru" = 'Доставка и оплата',
-  "content_ru" = '<h2>Условия доставки</h2><p>Доставляем Новой Почтой и Укрпочтой по всей Украине.</p>'
-WHERE "slug" = 'delivery-payment'
-  AND "title" = 'Доставка и оплата'
-  AND "content" LIKE '%Доставляємо Новою Поштою та Укрпоштою%'
-  AND ("title_ru" IS NULL OR "title_ru" = '' OR "content_ru" IS NULL OR "content_ru" = '');
-
-UPDATE "pages" SET
-  "title_ru" = 'Контакты',
-  "content_ru" = '<h2>Наши контакты</h2><p>Телефон: +380 44 123 45 67</p>'
-WHERE "slug" = 'contacts'
-  AND "title" = 'Контакты'
-  AND "content" LIKE '%Наші контакти%'
-  AND ("title_ru" IS NULL OR "title_ru" = '' OR "content_ru" IS NULL OR "content_ru" = '');
+-- Staff TOTP (admin 2FA).
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(64);
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_enabled" boolean NOT NULL DEFAULT false;
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_pending_secret" varchar(64);
