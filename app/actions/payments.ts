@@ -298,6 +298,25 @@ export async function refundPayment(
       })
       .where(eq(payments.id, paymentId))
     revalidatePath('/admin/payments')
+    if (fullyRefunded) {
+      const [linked] = await db
+        .select({ id: orders.id })
+        .from(orders)
+        .where(eq(orders.orderNumber, payment.orderReference))
+        .limit(1)
+      if (linked) {
+        await db
+          .update(orders)
+          .set({ paymentStatus: 'refunded', updatedAt: new Date() })
+          .where(eq(orders.id, linked.id))
+        await db.insert(orderHistory).values({
+          orderId: linked.id,
+          type: 'payment',
+          message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
+          actor: 'Платёжный шлюз',
+        })
+      }
+    }
     return {
       ok: true,
       message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен`,
