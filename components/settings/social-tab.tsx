@@ -58,6 +58,7 @@ import {
   type WidgetChannelKey,
 } from '@/app/actions/settings-store'
 import type { SectionProps } from './settings-types'
+import { SOCIALS } from './settings-types'
 
 export function SocialSection({ data, setData }: SectionProps) {
   return (

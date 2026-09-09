@@ -58,6 +58,7 @@ import {
   type WidgetChannelKey,
 } from '@/app/actions/settings-store'
 import type { SectionProps } from './settings-types'
+import { getWidgetChannels } from './settings-types'
 
 export function WidgetSection({ data, setData, t }: SectionProps) {
   const WIDGET_CHANNELS = getWidgetChannels(t)
@@ -120,10 +121,3 @@ export function WidgetSection({ data, setData, t }: SectionProps) {
     </div>
   )
 }
-
-const SOCIALS: { key: keyof StoreSettingsData['social']; label: string }[] = [
-  { key: 'instagram', label: 'Instagram' },
-  { key: 'telegram', label: 'Telegram' },
-  { key: 'viber', label: 'Viber' },
-  { key: 'tiktok', label: 'TikTok' },
-]
