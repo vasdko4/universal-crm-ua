@@ -154,12 +154,12 @@ export async function saveInternetDocument(
 }
 
 export async function fetchSenderProfile(apiKey: string) {
-  const { parseSenderProfile } = await import('@/lib/delivery/np-sender')
+  const { parseSenderProfile, cityNameFromAddress } = await import('@/lib/delivery/np-sender')
   const counterparties = await npRequest<Record<string, unknown>>(
     apiKey,
     'Counterparty',
     'getCounterparties',
-    { CounterpartyProperty: 'Sender', Page: '1' },
+    { CounterpartyProperty: 'Sender', Page: 1 },
   )
   if (!counterparties.success) {
     return { ok: false as const, error: counterparties.errors.join(', ') || 'Не вдалося отримати відправників' }
@@ -168,28 +168,56 @@ export async function fetchSenderProfile(apiKey: string) {
   const senderRef = String(sender?.Ref ?? '').trim()
   if (!senderRef) return { ok: false as const, error: 'У кабінеті НП немає контрагента-відправника' }
 
-  const [addresses, contacts] = await Promise.all([
+  const [addressesWithProp, contacts] = await Promise.all([
     npRequest<Record<string, unknown>>(apiKey, 'Counterparty', 'getCounterpartyAddresses', {
       Ref: senderRef,
       CounterpartyProperty: 'Sender',
     }),
     npRequest<Record<string, unknown>>(apiKey, 'Counterparty', 'getCounterpartyContactPersons', {
       Ref: senderRef,
-      Page: '1',
+      Page: 1,
     }),
   ])
+  let addresses = addressesWithProp
+  if (!addresses.success || !addresses.data?.length) {
+    addresses = await npRequest<Record<string, unknown>>(apiKey, 'Counterparty', 'getCounterpartyAddresses', {
+      Ref: senderRef,
+    })
+  }
   if (!addresses.success) {
     return { ok: false as const, error: addresses.errors.join(', ') || 'Не вдалося отримати адреси відправника' }
   }
   if (!contacts.success) {
     return { ok: false as const, error: contacts.errors.join(', ') || 'Не вдалося отримати контакти відправника' }
   }
-  const refs = parseSenderProfile({
+
+  let refs = parseSenderProfile({
     counterparties: counterparties.data,
     addresses: addresses.data,
     contacts: contacts.data,
   })
-  if (!refs) return { ok: false as const, error: 'НП не повернула повний набір Ref відправника' }
+  // getCounterpartyAddresses often omits CityRef. Resolve city by name.
+  if (!refs) {
+    const cityName = cityNameFromAddress(addresses.data) || String(sender?.CityDescription ?? sender?.City ?? '').trim()
+    if (cityName) {
+      const cities = await searchCities(apiKey, cityName)
+      const city = cities.find((c) => c.name.toLowerCase() === cityName.toLowerCase()) ?? cities[0]
+      if (city) {
+        refs = parseSenderProfile({
+          counterparties: counterparties.data.map((row) => ({ ...row, CitySender: city.ref })),
+          addresses: addresses.data.map((row) => ({ ...row, CityRef: city.ref })),
+          contacts: contacts.data,
+        })
+      }
+    }
+  }
+  if (!refs) {
+    return {
+      ok: false as const,
+      error:
+        'НП не повернула повний набір Ref відправника (потрібні контрагент, адреса з містом і контактна особа в кабінеті НП).',
+    }
+  }
   return { ok: true as const, refs }
 }
 

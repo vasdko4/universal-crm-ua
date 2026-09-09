@@ -28,4 +28,19 @@ describe('parseSenderProfile', () => {
       }),
     ).toBeNull()
   })
+
+  it('falls back to counterparty CitySender when the address has no CityRef', () => {
+    expect(
+      parseSenderProfile({
+        counterparties: [{ Ref: 'cp-1', CitySender: 'city-kyiv', Phone: '380671112233' }],
+        addresses: [{ Ref: 'wh-9', Description: 'Відділення №9' }],
+        contacts: [{ Ref: 'ct-1', FirstName: 'Іван', LastName: 'Іваненко' }],
+      }),
+    ).toMatchObject({
+      senderCityRef: 'city-kyiv',
+      senderRef: 'cp-1',
+      senderAddressRef: 'wh-9',
+      contactSenderRef: 'ct-1',
+    })
+  })
 })

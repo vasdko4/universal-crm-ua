@@ -67,14 +67,15 @@ export async function searchCities(query: string): Promise<NpCity[]> {
 
 export type NpWarehouse = { ref: string; name: string; number: string }
 
-export async function loadNovaPoshtaSender(): Promise<
+export async function loadNovaPoshtaSender(apiKeyFromForm?: string): Promise<
   | { ok: true; refs: import('@/lib/delivery/np-sender').NpSenderRefs }
   | { ok: false; error: string }
 > {
   const { assertWritePermission } = await import('@/lib/session')
   await assertWritePermission('delivery')
-  const apiKey = await getApiKey()
-  if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти' }
+  const typed = (apiKeyFromForm ?? '').trim()
+  const apiKey = typed || (await getApiKey())
+  if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти. Збережіть ключ або вставте його в поле.' }
   const { fetchSenderProfile } = await import('@/lib/delivery/nova-poshta')
   const fetched = await fetchSenderProfile(apiKey)
   if (!fetched.ok) return fetched
@@ -89,6 +90,7 @@ export async function loadNovaPoshtaSender(): Promise<
     .set({
       config: {
         ...config,
+        ...(typed ? { apiKey: typed } : {}),
         senderCityRef: fetched.refs.senderCityRef,
         senderRef: fetched.refs.senderRef,
         senderAddressRef: fetched.refs.senderAddressRef,
