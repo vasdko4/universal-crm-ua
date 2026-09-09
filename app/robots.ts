@@ -13,6 +13,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   // 'uk') storefront and its /ru counterpart — a bare "/cart" rule only
   // matches the uk URL, not "/ru/cart", so each needs its own entry.
   const privateAreas = ['/admin', '/account', '/cart', '/checkout', '/api/', '/setup', '/sign-in']
+  // /feed/ is public on purpose: Merchant Center scheduled fetch uses it.
   const disallow = privateAreas.flatMap((p) => [p, `/ru${p}`])
 
   return {

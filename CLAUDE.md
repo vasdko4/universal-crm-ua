@@ -115,3 +115,9 @@ weight = product `weight × qty`, else the default kg.
 
 A full gateway refund restores stock once (`stockRestored`), same guard as
 cancel. Partial refunds do not touch stock.
+
+Google Merchant feed (`/feed/google-merchant.xml`): GTIN from `products.barcode`,
+`g:shipping` as `80.00 UAH`, `g:shipping_weight` from product weight, one row
+per in-stock variant (`g:item_group_id`). Product page `<title>` / meta
+description prefer `meta_title_*` / `meta_description_*` when set. Do not add
+Content API.

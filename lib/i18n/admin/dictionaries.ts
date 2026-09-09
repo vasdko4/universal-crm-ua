@@ -2268,7 +2268,7 @@ const uk: AdminDictionary = {
     merchantCategoryHint:
       'Без категорії Google часто обмежує покази або відхиляє товари в Shopping. Список категорій: google.com/basepages/producttype/taxonomy-with-ids.uk-UA.txt',
     merchantShippingPriceLabel: 'Фіксована вартість доставки у фіді',
-    merchantShippingPricePlaceholder: 'Наприклад: 60 UAH',
+    merchantShippingPricePlaceholder: 'Наприклад: 80.00 UAH',
     merchantShippingCountryLabel: 'Країна доставки (ISO, напр. UA)',
     copyButton: 'Копіювати',
     toastCopied: 'Скопійовано',
@@ -3943,7 +3943,7 @@ const ru: AdminDictionary = {
     merchantCategoryHint:
       'Без категории Google часто ограничивает показы или отклоняет товары в Shopping. Список категорий: google.com/basepages/producttype/taxonomy-with-ids.ru-RU.txt',
     merchantShippingPriceLabel: 'Фиксированная стоимость доставки в фиде',
-    merchantShippingPricePlaceholder: 'Например: 60 UAH',
+    merchantShippingPricePlaceholder: 'Например: 80.00 UAH',
     merchantShippingCountryLabel: 'Страна доставки (ISO, напр. UA)',
     copyButton: 'Копировать',
     toastCopied: 'Скопировано',

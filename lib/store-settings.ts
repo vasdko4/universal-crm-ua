@@ -169,9 +169,9 @@ export type StoreSettingsData = {
      *  risks Shopping listings being limited or disapproved. Blank = omit
      *  the tag entirely (no behavior change from before this field existed). */
     googleProductCategory: string
-    /** Flat shipping price shown in the feed (g:shipping), e.g. "60 UAH".
-     *  Blank = omit the tag (Merchant Center falls back to whatever
-     *  shipping settings exist directly in the Merchant Center account). */
+    /** Flat shipping price shown in the feed (g:shipping). Number or
+     *  "80.00 UAH" — the feed always emits `80.00 UAH`. Blank = omit the tag
+     *  (Merchant Center falls back to account-level shipping). */
     shippingPrice: string
     /** ISO 3166-1 alpha-2 country the shippingPrice applies to, e.g. "UA". */
     shippingCountry: string
