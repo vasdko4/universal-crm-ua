@@ -63,7 +63,21 @@ export async function listOrders(params: OrderListParams = {}) {
 
   const [rows, countRes] = await Promise.all([
     db
-      .select()
+      .select({
+        id: orders.id,
+        orderNumber: orders.orderNumber,
+        status: orders.status,
+        paymentStatus: orders.paymentStatus,
+        customerName: orders.customerName,
+        customerPhone: orders.customerPhone,
+        customerEmail: orders.customerEmail,
+        trackingNumber: orders.trackingNumber,
+        deliveryMethod: orders.deliveryMethod,
+        itemsCount: orders.itemsCount,
+        total: orders.total,
+        createdAt: orders.createdAt,
+        updatedAt: orders.updatedAt,
+      })
       .from(orders)
       .where(where)
       .orderBy(desc(orders.createdAt))
@@ -179,7 +193,10 @@ async function addHistory(orderId: number, type: string, message: string) {
 
 export async function getOpsQueue() {
   await assertPermission('dashboard')
-  const res = await pool.query(`
+  const empty = { newOrders: 0, unpaid: 0, missingTtn: 0, overdueShipped: 0, pendingReviews: 0 }
+  let res
+  try {
+    res = await pool.query(`
     SELECT
       COUNT(*) FILTER (WHERE status = 'new')::int AS new_orders,
       COUNT(*) FILTER (WHERE payment_status = 'unpaid' AND status NOT IN ('cancelled','done'))::int AS unpaid,
@@ -192,7 +209,12 @@ export async function getOpsQueue() {
         WHERE status = 'shipped'
           AND updated_at < NOW() - interval '5 days'
       )::int AS overdue_shipped
+    FROM orders
   `)
+  } catch (e) {
+    console.error('[admin] getOpsQueue failed:', e)
+    return empty
+  }
   let pendingReviews = 0
   try {
     const r = await pool.query(`SELECT COUNT(*)::int AS c FROM product_reviews WHERE status = 'pending'`)

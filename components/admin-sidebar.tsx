@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -67,7 +66,8 @@ export function AdminSidebar({
       >
         <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sidebar-primary text-sidebar">
           {logoUrl ? (
-            <Image src={logoUrl || '/placeholder.svg'} alt={storeName} width={32} height={32} className="size-full object-cover" />
+            // eslint-disable-next-line @next/next/no-img-element -- admin logo may be off-allowlist
+            <img src={logoUrl} alt={storeName} width={32} height={32} className="size-full object-cover" />
           ) : (
             <Store className="size-5" />
           )}

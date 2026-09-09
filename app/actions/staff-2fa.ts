@@ -24,14 +24,19 @@ export async function getStaffTwoFactorState(): Promise<{
 }> {
   const me = await getAdminUser()
   if (!me) return { enabled: false, pending: false }
-  const { rows } = await pool.query<{ two_factor_enabled: boolean; two_factor_pending_secret: string | null }>(
-    `SELECT two_factor_enabled, two_factor_pending_secret FROM "user" WHERE id = $1`,
-    [me.id],
-  )
-  const row = rows[0]
-  return {
-    enabled: Boolean(row?.two_factor_enabled),
-    pending: Boolean(row?.two_factor_pending_secret),
+  try {
+    const { rows } = await pool.query<{ two_factor_enabled: boolean; two_factor_pending_secret: string | null }>(
+      `SELECT two_factor_enabled, two_factor_pending_secret FROM "user" WHERE id = $1`,
+      [me.id],
+    )
+    const row = rows[0]
+    return {
+      enabled: Boolean(row?.two_factor_enabled),
+      pending: Boolean(row?.two_factor_pending_secret),
+    }
+  } catch (e) {
+    console.error('[staff-2fa] getStaffTwoFactorState failed:', e)
+    return { enabled: false, pending: false }
   }
 }
 

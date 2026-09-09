@@ -26,13 +26,36 @@ function money(n: number) {
 export default async function DashboardPage() {
   const user = await requirePermission('dashboard')
   const t = getAdminDictionary(user.locale).dashboard
+  const emptyStats = { total: 0, new: 0, active: 0, revenue: 0 }
+  const emptyAnalytics = {
+    pageViews: 0,
+    productViews: 0,
+    addToCarts: 0,
+    orders: 0,
+    conversionRate: 0,
+  }
   const [stats, analytics, recent, lowStock, queue, twoFa] = await Promise.all([
-    getOrderStats(),
-    getStatsSummary(30),
-    listOrders({ perPage: 5 }),
-    getLowStockProducts(3, 6),
-    getOpsQueue(),
-    getStaffTwoFactorState(),
+    getOrderStats().catch((e) => {
+      console.error('[admin] getOrderStats failed:', e)
+      return emptyStats
+    }),
+    getStatsSummary(30).catch((e) => {
+      console.error('[admin] getStatsSummary failed:', e)
+      return emptyAnalytics as Awaited<ReturnType<typeof getStatsSummary>>
+    }),
+    listOrders({ perPage: 5 }).catch((e) => {
+      console.error('[admin] listOrders failed:', e)
+      return { items: [], total: 0, page: 1, perPage: 5 }
+    }),
+    getLowStockProducts(3, 6).catch((e) => {
+      console.error('[admin] getLowStockProducts failed:', e)
+      return []
+    }),
+    getOpsQueue().catch((e) => {
+      console.error('[admin] getOpsQueue failed:', e)
+      return { newOrders: 0, unpaid: 0, missingTtn: 0, overdueShipped: 0, pendingReviews: 0 }
+    }),
+    getStaffTwoFactorState().catch(() => ({ enabled: false, pending: false })),
   ])
 
   const cards = [
