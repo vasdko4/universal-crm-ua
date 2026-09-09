@@ -4,13 +4,14 @@ import { useRef, useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { Upload, X, Loader2, ImageIcon, Star, ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 
-async function uploadToBlob(file: File): Promise<string> {
+async function uploadToBlob(file: File, fallbackError: string): Promise<string> {
   const fd = new FormData()
   fd.append('file', file)
   const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
   const data = (await res.json()) as { url?: string; error?: string }
-  if (!res.ok || !data.url) throw new Error(data.error || 'Ошибка загрузки')
+  if (!res.ok || !data.url) throw new Error(data.error || fallbackError)
   return data.url
 }
 
@@ -39,6 +40,8 @@ export function ImageUploader({
   className?: string
   size?: 'sm' | 'md'
 }) {
+  const { dict } = useAdminI18n()
+  const t = dict.productForm
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,16 +53,16 @@ export function ImageUploader({
       setBusy(true)
       setError(null)
       try {
-        const url = await uploadToBlob(file)
+        const url = await uploadToBlob(file, t.toastSaveError)
         if (value) deleteFromBlob(value)
         onChange(url)
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Ошибка загрузки')
+        setError(e instanceof Error ? e.message : t.toastSaveError)
       } finally {
         setBusy(false)
       }
     },
-    [onChange, value],
+    [onChange, value, t],
   )
 
   const box = size === 'sm' ? 'size-16' : 'size-28'
@@ -75,14 +78,14 @@ export function ImageUploader({
       />
       {value ? (
         <div className={cn('group relative overflow-hidden rounded-lg border border-border bg-muted', box)}>
-          <Image src={value || '/placeholder.svg'} alt="Фото" fill sizes="112px" className="object-cover" />
+          <Image src={value || '/placeholder.svg'} alt={t.photoAlt} fill sizes="112px" className="object-cover" />
           <button
             type="button"
             onClick={() => {
               deleteFromBlob(value)
               onChange(null)
             }}
-            aria-label="Удалить фото"
+            aria-label={t.deletePhotoAria}
             className="absolute right-1 top-1 rounded-md bg-background/80 p-1 text-destructive opacity-0 shadow-sm transition-opacity hover:bg-background group-hover:opacity-100"
           >
             <X className="size-3.5" />
@@ -99,7 +102,7 @@ export function ImageUploader({
           )}
         >
           {busy ? <Loader2 className="size-5 animate-spin" /> : <ImageIcon className="size-5" />}
-          <span className="text-[10px]">{busy ? 'Загрузка' : 'Фото'}</span>
+          <span className="text-[10px]">{busy ? t.uploading : t.photo}</span>
         </button>
       )}
       <div className="flex flex-col gap-1">
@@ -111,7 +114,7 @@ export function ImageUploader({
             className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
           >
             {busy ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
-            Заменить
+            {t.replace}
           </button>
         )}
         {error && <span className="text-xs text-destructive">{error}</span>}
@@ -131,6 +134,8 @@ export function ImageGalleryUploader({
   value: string[]
   onChange: (urls: string[]) => void
 }) {
+  const { dict } = useAdminI18n()
+  const t = dict.productForm
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -144,17 +149,17 @@ export function ImageGalleryUploader({
       try {
         const uploaded: string[] = []
         for (const file of Array.from(files)) {
-          uploaded.push(await uploadToBlob(file))
+          uploaded.push(await uploadToBlob(file, t.toastSaveError))
         }
         onChange([...images, ...uploaded])
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Ошибка загрузки')
+        setError(e instanceof Error ? e.message : t.toastSaveError)
       } finally {
         setBusy(false)
         if (inputRef.current) inputRef.current.value = ''
       }
     },
-    [images, onChange],
+    [images, onChange, t],
   )
 
   function removeAt(index: number) {
@@ -187,17 +192,17 @@ export function ImageGalleryUploader({
             key={url}
             className="group relative size-24 overflow-hidden rounded-lg border border-border bg-muted"
           >
-            <Image src={url || '/placeholder.svg'} alt={`Фото ${i + 1}`} fill sizes="96px" className="object-cover" />
+            <Image src={url || '/placeholder.svg'} alt={`${t.photoAlt} ${i + 1}`} fill sizes="96px" className="object-cover" />
             {i === 0 && (
               <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
                 <Star className="size-2.5 fill-current" />
-                Главное
+                {t.mainBadge}
               </span>
             )}
             <button
               type="button"
               onClick={() => removeAt(i)}
-              aria-label="Удалить фото"
+              aria-label={t.deletePhotoAria}
               className="absolute right-1 top-1 rounded-md bg-background/80 p-1 text-destructive opacity-0 shadow-sm transition-opacity hover:bg-background group-hover:opacity-100"
             >
               <X className="size-3.5" />
@@ -207,7 +212,7 @@ export function ImageGalleryUploader({
                 type="button"
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
-                aria-label="Переместить влево"
+                aria-label={t.moveLeftAria}
                 className="p-1 text-foreground disabled:opacity-30"
               >
                 <ArrowLeft className="size-3.5" />
@@ -216,7 +221,7 @@ export function ImageGalleryUploader({
                 type="button"
                 onClick={() => move(i, 1)}
                 disabled={i === images.length - 1}
-                aria-label="Переместить вправо"
+                aria-label={t.moveRightAria}
                 className="p-1 text-foreground disabled:opacity-30"
               >
                 <ArrowRight className="size-3.5" />
@@ -231,14 +236,12 @@ export function ImageGalleryUploader({
           className="flex size-24 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
         >
           {busy ? <Loader2 className="size-5 animate-spin" /> : <Upload className="size-5" />}
-          <span className="text-[10px]">{busy ? 'Загрузка' : 'Добавить'}</span>
+          <span className="text-[10px]">{busy ? t.uploading : t.addPhoto}</span>
         </button>
       </div>
       {error && <span className="text-xs text-destructive">{error}</span>}
       {images.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Первое фото — главное в галерее. Наведите на фото, чтобы изменить порядок или удалить.
-        </p>
+        <p className="text-xs text-muted-foreground">{t.galleryOrderHint}</p>
       )}
     </div>
   )
