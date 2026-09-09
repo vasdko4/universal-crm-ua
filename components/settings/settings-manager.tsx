@@ -74,18 +74,6 @@ function getSections(t: AdminDictionary['settings']): { key: Section; label: str
   ]
 }
 
-function getWeekDays(t: AdminDictionary['settings']): { key: WeekDay; label: string }[] {
-  return [
-    { key: 'mon', label: t.weekMon },
-    { key: 'tue', label: t.weekTue },
-    { key: 'wed', label: t.weekWed },
-    { key: 'thu', label: t.weekThu },
-    { key: 'fri', label: t.weekFri },
-    { key: 'sat', label: t.weekSat },
-    { key: 'sun', label: t.weekSun },
-  ]
-}
-
 export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
   const { dict } = useAdminI18n()
   const t = dict.settings

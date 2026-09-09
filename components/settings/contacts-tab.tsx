@@ -58,6 +58,7 @@ import {
   type WidgetChannelKey,
 } from '@/app/actions/settings-store'
 import type { SectionProps } from './settings-types'
+import { getWeekDays } from './settings-types'
 
 export function ContactsSection({ data, setData, t }: SectionProps) {
   const c = data.contact
@@ -179,14 +180,4 @@ export function ContactsSection({ data, setData, t }: SectionProps) {
       </div>
     </div>
   )
-}
-
-function getWidgetChannels(t: AdminDictionary['settings']): { key: WidgetChannelKey; label: string; placeholder: string; hint: string }[] {
-  return [
-    { key: 'phone', label: t.channelPhoneLabel, placeholder: '+380 00 000 00 00', hint: t.channelPhoneHint },
-    { key: 'whatsapp', label: t.channelWhatsappLabel, placeholder: '+380 00 000 00 00', hint: t.channelWhatsappHint },
-    { key: 'telegram', label: t.channelTelegramLabel, placeholder: t.channelTelegramPlaceholder, hint: t.channelTelegramHint },
-    { key: 'viber', label: t.channelViberLabel, placeholder: '+380 00 000 00 00', hint: t.channelViberHint },
-    { key: 'email', label: t.channelEmailLabel, placeholder: 'shop@example.com', hint: t.channelEmailHint },
-  ]
 }
