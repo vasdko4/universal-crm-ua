@@ -124,6 +124,9 @@ export type Dictionary = {
     noReviews: string
     addToFavorites: string
     removeFromFavorites: string
+    noPhoto: string
+    chooseSize: string
+    popularBadge: string
     quantity: string
     decrease: string
     increase: string
@@ -670,6 +673,9 @@ const uk: Dictionary = {
     noReviews: 'Відгуків ще немає',
     addToFavorites: 'Додати в обране',
     removeFromFavorites: 'Прибрати з обраного',
+    noPhoto: 'Немає фото',
+    chooseSize: 'Обрати розмір',
+    popularBadge: 'Хіт',
     quantity: 'Кількість:',
     decrease: 'Менше',
     increase: 'Більше',
@@ -1212,6 +1218,9 @@ const ru: Dictionary = {
     noReviews: 'Отзывов пока нет',
     addToFavorites: 'Добавить в избранное',
     removeFromFavorites: 'Убрать из избранного',
+    noPhoto: 'Нет фото',
+    chooseSize: 'Выбрать размер',
+    popularBadge: 'Хит',
     quantity: 'Количество:',
     decrease: 'Меньше',
     increase: 'Больше',
