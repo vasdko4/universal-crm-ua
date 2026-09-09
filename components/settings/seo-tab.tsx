@@ -58,6 +58,7 @@ import {
   type WidgetChannelKey,
 } from '@/app/actions/settings-store'
 import type { SectionProps } from './settings-types'
+import { ImageField } from './image-field'
 
 export function SeoSection({ data, setData, t }: SectionProps) {
   const seo = data.seo
