@@ -72,10 +72,11 @@ import { pickLocalized } from '@/lib/i18n/config'
 
 const PER_PAGE = 10
 
-function formatPrice(value: string | null, currency = 'UAH') {
+function formatPrice(value: string | null, currency = 'UAH', locale: string = 'uk') {
   if (value == null) return '—'
   const symbol = currency === 'UAH' ? '₴' : currency
-  return `${Number(value).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ${symbol}`
+  const numberLocale = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return `${Number(value).toLocaleString(numberLocale, { minimumFractionDigits: 2 })} ${symbol}`
 }
 
 export function ProductsTable({
@@ -455,11 +456,11 @@ export function ProductsTable({
                     </TableCell>
                     <TableCell className="text-right">
                       <span className="font-medium tabular-nums">
-                        {formatPrice(product.price, product.currency ?? 'UAH')}
+                        {formatPrice(product.price, product.currency ?? 'UAH', locale)}
                       </span>
                       {product.oldPrice && (
                         <span className="ml-1.5 text-xs text-muted-foreground line-through tabular-nums">
-                          {formatPrice(product.oldPrice, product.currency ?? 'UAH')}
+                          {formatPrice(product.oldPrice, product.currency ?? 'UAH', locale)}
                         </span>
                       )}
                     </TableCell>

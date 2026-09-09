@@ -62,10 +62,10 @@ function entityLabels(t: AdminDictionary): Record<string, string> {
   }
 }
 
-function formatDate(value: string | Date | null): string {
+function formatDate(value: string | Date | null, locale: string): string {
   if (!value) return '—'
   const d = new Date(value)
-  return d.toLocaleString('ru-RU', {
+  return d.toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA', {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
@@ -76,7 +76,7 @@ function formatDate(value: string | Date | null): string {
 }
 
 export function LogsViewer({ initial }: { initial: LogsResult }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, locale } = useAdminI18n()
   const ACTION_LABELS = actionLabels(t)
   const ENTITY_LABELS = entityLabels(t)
   const [data, setData] = useState<LogsResult>(initial)
@@ -219,7 +219,7 @@ export function LogsViewer({ initial }: { initial: LogsResult }) {
                 return (
                   <tr key={log.id} className="border-b border-border last:border-0">
                     <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                      {formatDate(log.createdAt as unknown as string)}
+                      {formatDate(log.createdAt as unknown as string, locale)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground">{log.userName ?? '—'}</div>
