@@ -79,8 +79,8 @@ export function ProductCard({ product }: { product: ShopProduct }) {
   const canBuy = product.inStock
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border/70 bg-card transition-shadow hover:shadow-md">
-      <div className="relative">
+    <article className="group relative flex h-full flex-col overflow-visible rounded-lg border border-border/70 bg-card transition-shadow hover:shadow-md">
+      <div className="relative overflow-hidden rounded-t-lg">
         <Link href={href} className="relative block aspect-square overflow-hidden bg-muted/60">
           {primary ? (
             <>
@@ -143,7 +143,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
 
         <FavoriteButton
           productId={product.id}
-          className="absolute right-1.5 top-1.5 z-10 size-7 border-0 bg-background/80 opacity-90 shadow-none backdrop-blur-sm sm:size-8 sm:opacity-0 sm:group-hover:opacity-100"
+          className="absolute right-2 top-2 z-10 size-8 border-0 bg-white text-neutral-500 shadow-md hover:bg-white hover:text-destructive"
         />
       </div>
 
@@ -183,15 +183,15 @@ export function ProductCard({ product }: { product: ShopProduct }) {
         ) : null}
 
         <div className="mt-auto flex flex-col gap-1.5 pt-1">
-          <div className="min-w-0">
+          <div className="flex min-h-[1.35rem] min-w-0 items-baseline gap-1.5 overflow-hidden">
+            <span className="shrink-0 text-[15px] font-bold leading-none tracking-tight text-foreground sm:text-base">
+              {formatPrice(product.price, product.currency)}
+            </span>
             {product.oldPrice && product.oldPrice > product.price ? (
-              <span className="block text-[10px] text-muted-foreground line-through sm:text-[11px]">
+              <span className="truncate text-[11px] leading-none text-muted-foreground line-through sm:text-xs">
                 {formatPrice(product.oldPrice, product.currency)}
               </span>
             ) : null}
-            <span className="block truncate text-sm font-bold leading-tight text-foreground sm:text-[15px]">
-              {formatPrice(product.price, product.currency)}
-            </span>
           </div>
           <Button
             size="sm"
