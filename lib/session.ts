@@ -123,8 +123,29 @@ export async function getShopUser(): Promise<ShopUser | null> {
 // Use in every protected page/layout. Redirects unauthenticated users to login.
 // Users whose role has no admin permissions at all are not allowed into the
 // admin center — they are sent back to the storefront.
+let twoFaColumnsReady: Promise<void> | null = null
+
+/** Production DBs that never ran migrate.sql are missing these columns. */
+export async function ensureStaffTwoFactorColumns(): Promise<void> {
+  if (!twoFaColumnsReady) {
+    twoFaColumnsReady = pool
+      .query(`
+        ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(64);
+        ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_enabled" boolean NOT NULL DEFAULT false;
+        ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_pending_secret" varchar(64);
+      `)
+      .then(() => undefined)
+      .catch((e) => {
+        console.error('[staff-2fa] ensure columns failed:', (e as Error).message)
+        twoFaColumnsReady = null
+      })
+  }
+  await twoFaColumnsReady
+}
+
 export async function staffTwoFactorSatisfied(userId: string): Promise<boolean> {
   try {
+    await ensureStaffTwoFactorColumns()
     const { rows } = await pool.query<{ two_factor_enabled: boolean }>(
       `SELECT two_factor_enabled FROM "user" WHERE id = $1`,
       [userId],
