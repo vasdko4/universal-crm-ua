@@ -944,6 +944,8 @@ export type AdminDictionary = {
     seriesVisitors: string
     topPagesTitle: string
     trafficSourcesTitle: string
+    directTraffic: string
+    methodUnspecified: string
   }
   import: {
     pageTitle: string
@@ -2613,6 +2615,8 @@ const uk: AdminDictionary = {
     seriesVisitors: 'Відвідувачі',
     topPagesTitle: 'Популярні сторінки',
     trafficSourcesTitle: 'Джерела трафіку',
+    directTraffic: 'Прямі заходи',
+    methodUnspecified: 'Не вказано',
   },
   import: {
     pageTitle: 'Імпорт товарів',
@@ -4288,6 +4292,8 @@ const ru: AdminDictionary = {
     seriesVisitors: 'Посетители',
     topPagesTitle: 'Популярные страницы',
     trafficSourcesTitle: 'Источники трафика',
+    directTraffic: 'Прямые заходы',
+    methodUnspecified: 'Не указано',
   },
   import: {
     pageTitle: 'Импорт товаров',

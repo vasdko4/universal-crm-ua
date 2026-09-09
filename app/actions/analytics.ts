@@ -4,6 +4,24 @@ import { pool } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, getAdminUser } from '@/lib/session'
 import { hasPermission } from '@/lib/permissions'
+import type { Locale } from '@/lib/i18n/config'
+
+async function adminLocale(): Promise<Locale> {
+  const user = await getAdminUser()
+  return user?.locale === 'ru' ? 'ru' : 'uk'
+}
+
+function productNameExpr(locale: Locale): string {
+  return locale === 'ru'
+    ? "COALESCE(NULLIF(p.name_ru, ''), p.name_uk, oi.name)"
+    : "COALESCE(NULLIF(p.name_uk, ''), p.name_ru, oi.name)"
+}
+
+function categoryNameExpr(locale: Locale): string {
+  return locale === 'ru'
+    ? "COALESCE(NULLIF(c.name_ru, ''), c.name_uk)"
+    : "COALESCE(NULLIF(c.name_uk, ''), c.name_ru)"
+}
 
 // getStatsSummary() backs both /admin (dashboard) and /admin/statistics, which
 // are gated by different permissions — a 'manager' role has 'dashboard' but
@@ -33,10 +51,11 @@ export type BestsellerRow = {
 // product record so we can show image, price and the "top sale" flag.
 export async function getBestsellers(limit = 20): Promise<BestsellerRow[]> {
   await assertPermission('bestsellers')
+  const locale = await adminLocale()
   const res = await pool.query(
     `SELECT
        oi.product_id AS product_id,
-       COALESCE(p.name_ru, p.name_uk, oi.name) AS name,
+       ${productNameExpr(locale)} AS name,
        COALESCE(p.image, oi.image) AS image,
        COALESCE(p.price, oi.price)::float AS price,
        SUM(oi.quantity)::int AS units_sold,
@@ -201,7 +220,7 @@ export async function getTopReferrers(days = 30, limit = 8): Promise<ReferrerRow
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT
-       COALESCE(NULLIF(regexp_replace(referrer, '^https?://(www\\.)?([^/]+).*$', '\\2'), ''), 'Прямые заходы') AS source,
+       COALESCE(NULLIF(regexp_replace(referrer, '^https?://(www\\.)?([^/]+).*$', '\\2'), ''), 'direct') AS source,
        COUNT(*)::int AS visits
      FROM analytics_events
      WHERE type = 'pageview'
@@ -374,7 +393,7 @@ export type MethodBreakdownRow = { method: string; count: number; total: number 
 export async function getDeliveryBreakdown(days = 30): Promise<MethodBreakdownRow[]> {
   await assertPermission('statistics')
   const res = await pool.query(
-    `SELECT COALESCE(NULLIF(delivery_method, ''), 'не указано') AS method,
+    `SELECT COALESCE(NULLIF(delivery_method, ''), 'unspecified') AS method,
             COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
      FROM orders
      WHERE created_at >= NOW() - ($1 || ' days')::interval
@@ -388,7 +407,7 @@ export async function getDeliveryBreakdown(days = 30): Promise<MethodBreakdownRo
 export async function getPaymentBreakdown(days = 30): Promise<MethodBreakdownRow[]> {
   await assertPermission('statistics')
   const res = await pool.query(
-    `SELECT COALESCE(NULLIF(payment_method, ''), 'не указано') AS method,
+    `SELECT COALESCE(NULLIF(payment_method, ''), 'unspecified') AS method,
             COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
      FROM orders
      WHERE created_at >= NOW() - ($1 || ' days')::interval
@@ -411,10 +430,11 @@ export type TopProductRow = {
 // Top products by revenue for the selected period.
 export async function getTopProductsPeriod(days = 30, limit = 10): Promise<TopProductRow[]> {
   await assertPermission('statistics')
+  const locale = await adminLocale()
   const res = await pool.query(
     `SELECT
        oi.product_id,
-       COALESCE(p.name_ru, p.name_uk, oi.name) AS name,
+       ${productNameExpr(locale)} AS name,
        COALESCE(p.image, oi.image) AS image,
        SUM(oi.quantity)::int AS units_sold,
        SUM(oi.total)::float AS revenue,
@@ -445,9 +465,10 @@ export type CategorySalesRow = { name: string; unitsSold: number; revenue: numbe
 // we attribute the sale to each linked category once).
 export async function getCategorySales(days = 30, limit = 8): Promise<CategorySalesRow[]> {
   await assertPermission('statistics')
+  const locale = await adminLocale()
   const res = await pool.query(
     `SELECT
-       COALESCE(c.name_ru, c.name_uk) AS name,
+       ${categoryNameExpr(locale)} AS name,
        SUM(oi.quantity)::int AS units_sold,
        SUM(oi.total)::float AS revenue
      FROM order_items oi
