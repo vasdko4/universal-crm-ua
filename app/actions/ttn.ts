@@ -7,7 +7,7 @@ import { deliveryMethods, orders, orderItems, products } from '@/lib/db/schema'
 import { assertWritePermission } from '@/lib/session'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
-import { buildInternetDocumentPayload, novaPoshtaPrintUrl, parcelWeightKg } from '@/lib/delivery/ttn'
+import { buildInternetDocumentPayload, parcelWeightKg } from '@/lib/delivery/ttn'
 import { fetchSenderProfile, saveInternetDocument } from '@/lib/delivery/nova-poshta'
 import { updateOrderDelivery } from '@/app/actions/orders'
 import type { NpSenderRefs } from '@/lib/delivery/np-sender'
@@ -150,8 +150,7 @@ export async function createTtnForOrder(
   void fillAuditTemplate
   revalidatePath(`/admin/orders/${orderId}`)
   revalidatePath('/admin/orders')
-  const printUrl = novaPoshtaPrintUrl(apiKey, saved.ttn)
-  return { ok: true, ttn: saved.ttn, printUrl }
+  return { ok: true, ttn: saved.ttn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
 }
 
 export async function printTtnForOrder(
@@ -165,5 +164,5 @@ export async function printTtnForOrder(
   const cfg = await npConfig()
   const apiKey = (cfg.apiKey || process.env.NOVA_POSHTA_API_KEY || '').trim()
   if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти' }
-  return { ok: true, printUrl: novaPoshtaPrintUrl(apiKey, ttn) }
+  return { ok: true, printUrl: `/api/admin/np-label?orderId=${orderId}` }
 }

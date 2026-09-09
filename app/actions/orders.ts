@@ -18,6 +18,7 @@ import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { getProductSlugMap } from '@/lib/shop/queries'
+import { adjustStockForOrder } from '@/lib/shop/order-fulfillment'
 
 export async function listOrders(params: OrderListParams = {}) {
   await assertPermission('orders')
@@ -365,32 +366,6 @@ export async function createOrder(input: {
 
   revalidatePath('/admin/orders')
   return { success: true, id: order.id, orderNumber }
-}
-
-// Adjust product stock for every real (productId-backed) line item of an
-// order. `sign: 1` restores stock (order cancelled), `sign: -1` re-deducts it
-// (a cancelled order gets reopened) — mirrors the deduction done in
-// createOrder so stock stays accurate either direction.
-async function adjustStockForOrder(orderId: number, sign: 1 | -1) {
-  const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId))
-  for (const item of items) {
-    if (item.productId) {
-      const res = await pool.query(
-        `UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int) WHERE id = $3 RETURNING quantity`,
-        [sign, item.quantity, item.productId],
-      )
-      await recordStockMovement({
-        productId: item.productId,
-        variantId: item.variantId,
-        delta: sign * item.quantity,
-        quantityAfter: Number(res.rows[0]?.quantity),
-        reason: sign === 1 ? 'cancel' : 'sale',
-        orderId,
-        actor: 'Система',
-      })
-    }
-  }
 }
 
 export async function updateOrderStatus(id: number, status: string) {

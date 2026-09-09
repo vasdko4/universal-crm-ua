@@ -221,6 +221,5 @@ CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON "stock_movements" ("pr
 CREATE INDEX IF NOT EXISTS idx_stock_movements_order ON "stock_movements" ("order_id");
 
 -- Admin UI default language is Ukrainian (was Russian). Flip the column
--- default and existing rows that still have the historical 'ru' default.
+-- default only — do not overwrite staff who already picked Russian.
 ALTER TABLE "user" ALTER COLUMN "locale" SET DEFAULT 'uk';
-UPDATE "user" SET "locale" = 'uk' WHERE "locale" = 'ru';

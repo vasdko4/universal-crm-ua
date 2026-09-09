@@ -108,6 +108,10 @@ empty cart/checkout, admin sign-in). Needs Postgres + schema (CI applies
 (reuses `pnpm dev` if already running).
 
 Nova Poshta: create TTN from the order card (`InternetDocument.save`). After
-a TTN exists, **Друкувати етикетку** opens `printDocument` PDF (needs the API
-key in Delivery settings). **Трекінг НП** is the public tracking page — do
-not mix the two. Parcel weight = product `weight × qty`, else the default kg.
+a TTN exists, **Друкувати етикетку** hits `/api/admin/np-label` (server
+proxies `printDocument` so the API key never appears in the browser URL).
+**Трекінг НП** is the public tracking page — do not mix the two. Parcel
+weight = product `weight × qty`, else the default kg.
+
+A full gateway refund restores stock once (`stockRestored`), same guard as
+cancel. Partial refunds do not touch stock.

@@ -58,12 +58,6 @@ services:
     # against an already-migrated schema.
     command: >
       sh -c "node scripts/db-setup.mjs && node server.js"
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 10s
-      timeout: 5s
-      retries: 18
-      start_period: 40s
 
   # Sidecar that lets the admin panel update the app to the latest release
   # with one click (Настройки → Обновления). It's the only container that
@@ -107,7 +101,7 @@ services:
     environment:
       # start.sh generates FTP_USER/FTP_PASSWORD into .env; without a password
       # the service is not started (start.sh checks before enabling the profile).
-      USERS: "${FTP_USER:-magazine}|${FTP_PASSWORD:-}|/ftp/uploads"
+      USERS: "${FTP_USER:-techno}|${FTP_PASSWORD:-}|/ftp/uploads"
       ADDRESS: ${FTP_ADDRESS:-}
       MIN_PORT: "21000"
       MAX_PORT: "21010"
