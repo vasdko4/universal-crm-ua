@@ -25,6 +25,7 @@ import {
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { getCanonicalSiteUrl, toAbsolute, extractBrand, merchantReturnPolicy, shippingDetails } from '@/lib/seo'
+import { formatShippingPrice, normalizeGtin } from '@/lib/shop/google-merchant-feed'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 
 export const dynamic = 'force-dynamic'
@@ -56,13 +57,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!data) notFound()
   const { product } = data
   const description =
+    product.metaDescription?.trim() ||
     plainText(product.description) ||
     `${product.name} — купить с доставкой по Украине. ${formatPrice(product.price, product.currency)}.`
   const path = `/product/${product.slug}`
   const canonical = localizedPath(path, locale)
   const image = product.image || '/hero-electronics.png'
   return {
-    title: product.name,
+    title: product.metaTitle?.trim() || product.name,
     description,
     alternates: {
       canonical,
@@ -70,12 +72,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     },
     openGraph: {
       type: 'website',
-      title: product.name,
+      title: product.metaTitle?.trim() || product.name,
       description,
       url: canonical,
       images: [{ url: image, alt: product.name }],
     },
-    twitter: { card: 'summary_large_image', title: product.name, description, images: [image] },
+    twitter: { card: 'summary_large_image', title: product.metaTitle?.trim() || product.name, description, images: [image] },
   }
 }
 
@@ -129,6 +131,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     abs(src),
   )
 
+  const gtin = normalizeGtin(product.barcode)
+  const shippingPrice = formatShippingPrice(settings?.merchantFeed?.shippingPrice ?? '', product.currency)
+  const shippingLd = shippingDetails(product.currency)
+  if (shippingPrice) {
+    const amount = Number(shippingPrice.split(' ')[0])
+    shippingLd.shippingRate = { '@type': 'MonetaryAmount', value: amount, currency: product.currency }
+  }
+
   const productLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -136,6 +146,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     image: images,
     description: plainText(product.description, 500) || product.name,
     ...(product.sku ? { sku: product.sku, mpn: product.sku } : {}),
+    ...(gtin ? { gtin } : {}),
     ...(brand ? { brand: { '@type': 'Brand', name: brand } } : {}),
     offers: {
       '@type': 'Offer',
@@ -143,10 +154,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       price: product.price,
       priceValidUntil,
       itemCondition: 'https://schema.org/NewCondition',
-      availability: product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      availability: product.isPreorder
+        ? 'https://schema.org/PreOrder'
+        : product.inStock
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
       url: abs(lp(`/product/${product.slug}`)),
       hasMerchantReturnPolicy: merchantReturnPolicy(),
-      shippingDetails: shippingDetails(product.currency),
+      shippingDetails: shippingLd,
     },
     ...(summary.count > 0
       ? {

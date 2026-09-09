@@ -74,6 +74,11 @@ export type ShopProduct = {
   variantsEnabled: boolean
   isPopular: boolean
   sku: string | null
+  barcode: string | null
+  /** Parcel weight in kg (products.weight). */
+  weight: number | null
+  metaTitle: string | null
+  metaDescription: string | null
   /** Displayed purchase count: real orders + admin-set boost. */
   purchasedCount: number
   /** Admin-set marketing status while quantity is 0 — see schema.ts for details. */
@@ -168,6 +173,10 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     variantsEnabled,
     isPopular: Boolean(r.is_popular),
     sku: (r.sku as string) ?? null,
+    barcode: (r.barcode as string) ?? null,
+    weight: r.weight != null && r.weight !== '' ? Number(r.weight) : null,
+    metaTitle: (r.meta_title as string) || null,
+    metaDescription: (r.meta_description as string) || null,
     purchasedCount: Number(r.orders_count ?? 0) + Number(r.purchases_boost ?? 0),
     availabilityMode,
     isComingSoon,
@@ -184,6 +193,14 @@ function buildProductSelect(locale: Locale = 'uk') {
     locale === 'ru'
       ? sql<string>`COALESCE(NULLIF(${products.descriptionRu}, ''), ${products.descriptionUk})`
       : sql<string>`COALESCE(NULLIF(${products.descriptionUk}, ''), ${products.descriptionRu})`
+  const metaTitle =
+    locale === 'ru'
+      ? sql<string>`COALESCE(NULLIF(${products.metaTitleRu}, ''), ${products.metaTitleUk})`
+      : sql<string>`COALESCE(NULLIF(${products.metaTitleUk}, ''), ${products.metaTitleRu})`
+  const metaDescription =
+    locale === 'ru'
+      ? sql<string>`COALESCE(NULLIF(${products.metaDescriptionRu}, ''), ${products.metaDescriptionUk})`
+      : sql<string>`COALESCE(NULLIF(${products.metaDescriptionUk}, ''), ${products.metaDescriptionRu})`
   return {
     id: products.id,
     slug: products.slug,
@@ -202,6 +219,10 @@ function buildProductSelect(locale: Locale = 'uk') {
     options: products.options,
     is_popular: products.isPopular,
     sku: products.sku,
+    barcode: products.barcode,
+    weight: products.weight,
+    meta_title: metaTitle,
+    meta_description: metaDescription,
     orders_count: products.ordersCount,
     purchases_boost: products.purchasesBoost,
     variants_enabled: products.variantsEnabled,
@@ -425,11 +446,25 @@ export async function getProductsByIds(ids: number[], locale: Locale = 'uk') {
 
 export type FeedProduct = ShopProduct & { brand: string | null }
 
+function mapVariantRow(v: typeof productVariants.$inferSelect): ProductVariant {
+  const vq = Number(v.quantity ?? 0)
+  const vp = Number(v.price ?? 0)
+  const vop = v.oldPrice != null ? Number(v.oldPrice) : null
+  return {
+    id: v.id,
+    options: (v.options ?? {}) as VariantOptions,
+    sku: v.sku ?? null,
+    price: vp,
+    oldPrice: vop && vop > vp ? vop : null,
+    quantity: vq,
+    inStock: Boolean(v.isInStock) && vq > 0,
+    image: v.image ?? null,
+  }
+}
+
 // Bulk data for the Google Merchant Center feed (app/feed/google-merchant.xml).
-// Two queries total regardless of catalog size — products, then every
-// characteristic row for those ids in one shot — instead of one extra
-// characteristics query per product (extractBrand() re-used from lib/seo.ts,
-// same brand-detection logic as the product page's structured data).
+// Products + characteristics + variants — three queries total, not one per
+// product. extractBrand() matches the product page's JSON-LD.
 export async function getFeedProducts(locale: Locale = 'uk', limit = 5000): Promise<FeedProduct[]> {
   const { extractBrand } = await import('@/lib/seo')
   const productSelect = buildProductSelect(locale)
@@ -448,14 +483,21 @@ export async function getFeedProducts(locale: Locale = 'uk', limit = 5000): Prom
   if (mapped.length === 0) return []
 
   const ids = mapped.map((p) => p.id)
-  const charRows = await db
-    .select({
-      productId: productCharacteristics.productId,
-      name: productCharacteristics.name,
-      value: productCharacteristics.value,
-    })
-    .from(productCharacteristics)
-    .where(inArray(productCharacteristics.productId, ids))
+  const variantIds = mapped.filter((p) => p.variantsEnabled).map((p) => p.id)
+
+  const [charRows, variantRows] = await Promise.all([
+    db
+      .select({
+        productId: productCharacteristics.productId,
+        name: productCharacteristics.name,
+        value: productCharacteristics.value,
+      })
+      .from(productCharacteristics)
+      .where(inArray(productCharacteristics.productId, ids)),
+    variantIds.length > 0
+      ? db.select().from(productVariants).where(inArray(productVariants.productId, variantIds))
+      : Promise.resolve([] as (typeof productVariants.$inferSelect)[]),
+  ])
 
   const charsByProduct = new Map<number, { name: string; value: string }[]>()
   for (const c of charRows) {
@@ -464,7 +506,18 @@ export async function getFeedProducts(locale: Locale = 'uk', limit = 5000): Prom
     charsByProduct.set(c.productId, arr)
   }
 
-  return mapped.map((p) => ({ ...p, brand: extractBrand(charsByProduct.get(p.id) ?? []) }))
+  const variantsByProduct = new Map<number, ProductVariant[]>()
+  for (const v of variantRows) {
+    const arr = variantsByProduct.get(v.productId) ?? []
+    arr.push(mapVariantRow(v))
+    variantsByProduct.set(v.productId, arr)
+  }
+
+  return mapped.map((p) => ({
+    ...p,
+    brand: extractBrand(charsByProduct.get(p.id) ?? []),
+    variants: p.variantsEnabled ? (variantsByProduct.get(p.id) ?? []) : [],
+  }))
 }
 
 export function getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
@@ -558,23 +611,7 @@ async function _getProductByWhere(whereClause: SQL | undefined, locale: Locale =
       .orderBy(asc(productVariants.sortOrder), asc(productVariants.id)),
   ])
   const product = toShopProduct(row as Record<string, unknown>)
-  product.variants = product.variantsEnabled
-    ? variantRows.map((v) => {
-        const vq = Number(v.quantity ?? 0)
-        const vp = Number(v.price ?? 0)
-        const vop = v.oldPrice != null ? Number(v.oldPrice) : null
-        return {
-          id: v.id,
-          options: (v.options ?? {}) as VariantOptions,
-          sku: v.sku ?? null,
-          price: vp,
-          oldPrice: vop && vop > vp ? vop : null,
-          quantity: vq,
-          inStock: Boolean(v.isInStock) && vq > 0,
-          image: v.image ?? null,
-        }
-      })
-    : []
+  product.variants = product.variantsEnabled ? variantRows.map(mapVariantRow) : []
   return {
     product,
     characteristics: chars,
