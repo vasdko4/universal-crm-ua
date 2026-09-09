@@ -25,7 +25,7 @@ export function InfiniteProducts({
   // Query params WITHOUT `page` — the component manages paging internally.
   params: CatalogParams
 }) {
-  const perPage = params.perPage ?? 12
+  const perPage = params.perPage ?? 24
   const [items, setItems] = useState<ShopProduct[]>(initialItems)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -55,7 +55,7 @@ export function InfiniteProducts({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+      <div className="product-grid">
         {items.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

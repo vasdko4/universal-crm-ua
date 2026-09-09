@@ -78,7 +78,7 @@ export default async function CategoryPage({
     minPrice: toPrice(get('minPrice')),
     maxPrice: toPrice(get('maxPrice')),
     page: 1,
-    perPage: 12,
+    perPage: 24,
     locale,
   }
   const [{ items, total, page, perPage }, priceBounds] = await Promise.all([

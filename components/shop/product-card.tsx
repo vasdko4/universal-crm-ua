@@ -15,10 +15,12 @@ import { pluralize } from '@/lib/i18n/plural'
 import { FavoriteButton } from '@/components/shop/favorite-button'
 import { cn } from '@/lib/utils'
 
+const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw'
+
 export function ProductCard({ product }: { product: ShopProduct }) {
   const { add } = useCart()
   const router = useRouter()
-  const { dict, locale } = useI18n()
+  const { dict } = useI18n()
   const href = localizedPath(`/product/${product.slug}`, locale)
   const [added, setAdded] = useState(false)
   const needsSize = (product.sizes?.length ?? 0) > 0
@@ -29,10 +31,6 @@ export function ProductCard({ product }: { product: ShopProduct }) {
     return extras[0] ?? null
   }, [product.images, primary])
 
-  // The name is clamped to 2 lines with an ellipsis on every screen size so
-  // cards keep a consistent height in the grid; from `sm:` up (where hover
-  // is available) a flyout reveals the full name on hover when it was cut
-  // off. On touch devices the shopper can just open the product page.
   const nameRef = useRef<HTMLAnchorElement>(null)
   const [truncated, setTruncated] = useState(false)
   useEffect(() => {
@@ -52,7 +50,6 @@ export function ProductCard({ product }: { product: ShopProduct }) {
 
   function handleAdd() {
     if (!product.inStock) return
-    // Size-based products must be configured on the detail page first.
     if (needsSize) {
       router.push(href)
       return
@@ -76,22 +73,19 @@ export function ProductCard({ product }: { product: ShopProduct }) {
   const canBuy = product.inStock
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 hover:border-border hover:shadow-[0_18px_40px_-24px_rgba(15,23,42,0.35)]">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-border/70 bg-card transition-shadow hover:shadow-md">
       <div className="relative">
-        <Link
-          href={href}
-          className="relative block aspect-square overflow-hidden bg-muted/70"
-        >
+        <Link href={href} className="relative block aspect-square overflow-hidden bg-muted/60">
           {primary ? (
             <>
               <Image
                 src={primary || '/placeholder.svg'}
                 alt={product.name}
                 fill
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                quality={90}
+                sizes={IMAGE_SIZES}
+                quality={85}
                 className={cn(
-                  'object-cover transition-all duration-500 ease-out group-hover:scale-[1.04]',
+                  'object-cover transition-opacity duration-300',
                   hoverImage && 'group-hover:opacity-0',
                 )}
               />
@@ -100,42 +94,41 @@ export function ProductCard({ product }: { product: ShopProduct }) {
                   src={hoverImage}
                   alt=""
                   fill
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  quality={80}
-                  className="object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  sizes={IMAGE_SIZES}
+                  quality={75}
+                  className="object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                 />
               )}
             </>
           ) : (
-            <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
+            <div className="flex h-full items-center justify-center px-2 text-center text-[11px] text-muted-foreground">
               {dict.product.noPhoto}
             </div>
           )}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background/25 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </Link>
 
-        <div className="absolute left-2.5 top-2.5 z-10 flex max-w-[70%] flex-col items-start gap-1.5">
+        <div className="absolute left-1.5 top-1.5 z-10 flex max-w-[72%] flex-col items-start gap-1">
           {discount > 0 && (
-            <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-semibold leading-5 text-destructive-foreground shadow-sm">
+            <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-destructive-foreground">
               −{discount}%
             </span>
           )}
           {product.isPopular && product.inStock && !product.isPreorder && !product.isComingSoon && (
-            <span className="rounded-full bg-foreground/90 px-2 py-0.5 text-[11px] font-medium leading-5 text-background shadow-sm">
+            <span className="rounded bg-foreground/90 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-background">
               {dict.product.popularBadge}
             </span>
           )}
           {product.isPreorder ? (
-            <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium leading-5 text-primary-foreground shadow-sm">
+            <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium leading-4 text-primary-foreground">
               {dict.product.preorder}
             </span>
           ) : product.isComingSoon ? (
-            <span className="rounded-full bg-warning px-2 py-0.5 text-[11px] font-medium leading-5 text-background shadow-sm">
+            <span className="rounded bg-warning px-1.5 py-0.5 text-[10px] font-medium leading-4 text-background">
               {dict.product.comingSoon}
             </span>
           ) : (
             !product.inStock && (
-              <span className="rounded-full bg-secondary/95 px-2 py-0.5 text-[11px] font-medium leading-5 text-secondary-foreground shadow-sm">
+              <span className="rounded bg-secondary/95 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-secondary-foreground">
                 {dict.product.outOfStock}
               </span>
             )
@@ -144,16 +137,16 @@ export function ProductCard({ product }: { product: ShopProduct }) {
 
         <FavoriteButton
           productId={product.id}
-          className="absolute right-2.5 top-2.5 z-10 size-8 opacity-90 shadow-sm backdrop-blur-md transition-opacity group-hover:opacity-100 sm:size-9"
+          className="absolute right-1.5 top-1.5 z-10 size-7 border-0 bg-background/80 opacity-90 shadow-none backdrop-blur-sm sm:size-8 sm:opacity-0 sm:group-hover:opacity-100"
         />
       </div>
 
-      <div className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4">
-        <div className="relative min-h-[2.5rem]">
+      <div className="flex flex-1 flex-col gap-1 p-2 sm:p-2.5">
+        <div className="relative min-h-[2.25rem]">
           <Link
             ref={nameRef}
             href={href}
-            className="peer line-clamp-2 text-[13px] font-medium leading-snug tracking-tight text-foreground transition-colors hover:text-primary sm:text-sm"
+            className="peer line-clamp-2 text-[12px] font-normal leading-snug text-foreground hover:text-primary sm:text-[13px]"
           >
             {product.name}
           </Link>
@@ -162,7 +155,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
               href={href}
               tabIndex={-1}
               aria-hidden="true"
-              className="pointer-events-none invisible absolute -inset-x-2 bottom-[-0.25rem] z-20 rounded-lg border border-border bg-card p-2 text-sm font-medium leading-snug text-foreground opacity-0 shadow-lg transition-opacity duration-150 hover:pointer-events-auto hover:visible hover:opacity-100 hover:text-primary peer-hover:pointer-events-auto peer-hover:visible peer-hover:opacity-100"
+              className="pointer-events-none invisible absolute -inset-x-1 bottom-[-0.2rem] z-20 rounded-md border border-border bg-card p-1.5 text-[12px] font-normal leading-snug text-foreground opacity-0 shadow-md transition-opacity duration-150 hover:pointer-events-auto hover:visible hover:opacity-100 hover:text-primary peer-hover:pointer-events-auto peer-hover:visible peer-hover:opacity-100"
             >
               {product.name}
             </Link>
@@ -170,7 +163,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
         </div>
 
         {product.purchasedCount > 0 ? (
-          <span className="text-[11px] text-muted-foreground sm:text-xs">
+          <span className="text-[10px] text-muted-foreground sm:text-[11px]">
             {fillTemplate(
               pluralize(
                 product.purchasedCount,
@@ -181,20 +174,16 @@ export function ProductCard({ product }: { product: ShopProduct }) {
               { count: product.purchasedCount },
             )}
           </span>
-        ) : (
-          <span className="h-[1.125rem]" aria-hidden />
-        )}
+        ) : null}
 
-        <div className="mt-auto flex items-end justify-between gap-2 pt-1">
+        <div className="mt-auto flex items-end justify-between gap-1.5 pt-1">
           <div className="min-w-0">
             {product.oldPrice && product.oldPrice > product.price ? (
-              <span className="block text-[11px] text-muted-foreground line-through sm:text-xs">
+              <span className="block text-[10px] text-muted-foreground line-through sm:text-[11px]">
                 {formatPrice(product.oldPrice, product.currency)}
               </span>
-            ) : (
-              <span className="block h-[1.125rem]" aria-hidden />
-            )}
-            <span className="block truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
+            ) : null}
+            <span className="block truncate text-sm font-bold leading-tight text-foreground sm:text-[15px]">
               {formatPrice(product.price, product.currency)}
             </span>
           </div>
@@ -204,17 +193,16 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             disabled={!canBuy}
             aria-label={addLabel}
             className={cn(
-              'size-9 shrink-0 rounded-full shadow-sm transition-transform sm:size-10',
-              canBuy && 'hover:scale-105',
+              'size-8 shrink-0 rounded-md sm:size-8',
               added && 'bg-success text-primary-foreground hover:bg-success',
             )}
           >
             {added ? (
-              <Check className="size-4 sm:size-5" />
+              <Check className="size-4" />
             ) : needsSize ? (
-              <Ruler className="size-4 sm:size-5" />
+              <Ruler className="size-4" />
             ) : (
-              <ShoppingCart className="size-4 sm:size-5" />
+              <ShoppingCart className="size-4" />
             )}
           </Button>
         </div>
