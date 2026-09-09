@@ -88,6 +88,7 @@ function methodLabels(t: AdminDictionary): Record<string, string> {
     cash: t.statistics.methodCash,
     bank_transfer: t.statistics.methodBankTransfer,
     requisites: t.statistics.methodRequisites,
+    unspecified: t.statistics.methodUnspecified,
   }
 }
 
@@ -103,13 +104,25 @@ function weekdayLabels(t: AdminDictionary): string[] {
   ]
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Kyiv' })
+function numberLocale(locale: string) {
+  return locale === 'ru' ? 'ru-RU' : 'uk-UA'
 }
 
-function money(n: number) {
-  return `${Math.round(n).toLocaleString('ru-RU')} ₴`
+function formatDate(iso: string, locale: string) {
+  const d = new Date(iso)
+  return d.toLocaleDateString(numberLocale(locale), {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'Europe/Kyiv',
+  })
+}
+
+function money(n: number, locale: string) {
+  return `${Math.round(n).toLocaleString(numberLocale(locale))} ₴`
+}
+
+function formatCount(n: number, locale: string) {
+  return n.toLocaleString(numberLocale(locale))
 }
 
 function TrendBadge({ value }: { value: number | null }) {
@@ -165,7 +178,7 @@ export function StatsDashboard({
   abandoned: AbandonedCartStats
   days: number
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, locale } = useAdminI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
   const STATUS_LABELS = statusLabels(t)
@@ -176,6 +189,10 @@ export function StatsDashboard({
     return METHOD_LABELS[m] ?? m
   }
 
+  function sourceLabel(source: string) {
+    return source === 'direct' ? t.statistics.directTraffic : source
+  }
+
   function setDays(value: number) {
     const params = new URLSearchParams(searchParams.toString())
     params.set('days', String(value))
@@ -183,11 +200,11 @@ export function StatsDashboard({
   }
 
   const cards = [
-    { label: t.statistics.cardVisitors, value: summary.visitors.toLocaleString('ru-RU'), icon: Users, tone: 'text-primary', trend: summary.trends.visitors },
-    { label: t.statistics.cardPageViews, value: summary.pageViews.toLocaleString('ru-RU'), icon: Eye, tone: 'text-info', trend: summary.trends.pageViews },
-    { label: t.statistics.cardProductViews, value: summary.productViews.toLocaleString('ru-RU'), icon: Package, tone: 'text-primary', trend: null },
-    { label: t.statistics.cardAddToCart, value: summary.addToCarts.toLocaleString('ru-RU'), icon: ShoppingCart, tone: 'text-warning', trend: null },
-    { label: t.statistics.cardOrders, value: summary.orders.toLocaleString('ru-RU'), icon: TrendingUp, tone: 'text-success', trend: summary.trends.orders },
+    { label: t.statistics.cardVisitors, value: formatCount(summary.visitors, locale), icon: Users, tone: 'text-primary', trend: summary.trends.visitors },
+    { label: t.statistics.cardPageViews, value: formatCount(summary.pageViews, locale), icon: Eye, tone: 'text-info', trend: summary.trends.pageViews },
+    { label: t.statistics.cardProductViews, value: formatCount(summary.productViews, locale), icon: Package, tone: 'text-primary', trend: null },
+    { label: t.statistics.cardAddToCart, value: formatCount(summary.addToCarts, locale), icon: ShoppingCart, tone: 'text-warning', trend: null },
+    { label: t.statistics.cardOrders, value: formatCount(summary.orders, locale), icon: TrendingUp, tone: 'text-success', trend: summary.trends.orders },
   ]
 
   const maxViews = Math.max(...topPaths.map((p) => p.views), 1)
@@ -257,13 +274,13 @@ export function StatsDashboard({
           <div className="rounded-xl border border-border bg-card p-5">
             <p className="text-sm text-muted-foreground">{t.statistics.cardRevenuePeriod}</p>
             <div className="mt-2 flex items-center gap-2">
-              <p className="text-2xl font-semibold text-foreground">{money(summary.revenue)}</p>
+              <p className="text-2xl font-semibold text-foreground">{money(summary.revenue, locale)}</p>
               <TrendBadge value={summary.trends.revenue} />
             </div>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <p className="text-sm text-muted-foreground">{t.statistics.cardCost}</p>
-            <p className="mt-2 text-2xl font-semibold text-foreground">{money(summary.costTotal)}</p>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{money(summary.costTotal, locale)}</p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
@@ -271,7 +288,7 @@ export function StatsDashboard({
               <Wallet className="size-5 text-success" />
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <p className="text-2xl font-semibold text-success">{money(summary.profit)}</p>
+              <p className="text-2xl font-semibold text-success">{money(summary.profit, locale)}</p>
               <TrendBadge value={summary.trends.profit} />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -284,7 +301,7 @@ export function StatsDashboard({
               <Receipt className="size-5 text-primary" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">
-              {money(customers.avgOrderValue)}
+              {money(customers.avgOrderValue, locale)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {t.statistics.avgItemsPerOrderPrefix} {customers.avgItemsPerOrder.toFixed(1)} {t.statistics.avgItemsPerOrderSuffix}
@@ -296,10 +313,10 @@ export function StatsDashboard({
               <ShoppingBag className="size-5 text-warning" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">
-              {abandoned.count.toLocaleString('ru-RU')}
+              {formatCount(abandoned.count, locale)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {t.statistics.potentialPrefix} {money(abandoned.total)}
+              {t.statistics.potentialPrefix} {money(abandoned.total, locale)}
             </p>
           </div>
         </div>
@@ -321,13 +338,13 @@ export function StatsDashboard({
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="date" tickFormatter={formatDate} stroke="var(--color-muted-foreground)" fontSize={12} />
+                <XAxis dataKey="date" tickFormatter={(d) => formatDate(String(d), locale)} stroke="var(--color-muted-foreground)" fontSize={12} />
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  labelFormatter={(l) => formatDate(String(l))}
+                  labelFormatter={(l) => formatDate(String(l), locale)}
                   formatter={(value, name) =>
-                    name === t.statistics.seriesOrders ? [Number(value ?? 0), name] : [money(Number(value ?? 0)), name]
+                    name === t.statistics.seriesOrders ? [Number(value ?? 0), name] : [money(Number(value ?? 0), locale), name]
                   }
                 />
                 <Area type="monotone" dataKey="revenue" name={t.statistics.seriesRevenue} stroke="var(--color-primary)" fill="url(#rev)" strokeWidth={2} />
@@ -355,7 +372,7 @@ export function StatsDashboard({
                       </span>
                       <span className="flex items-center gap-2">
                         <span className="font-semibold text-foreground">
-                          {step.value.toLocaleString('ru-RU')}
+                          {formatCount(step.value, locale)}
                         </span>
                         {convFromPrev !== null && (
                           <span className="text-xs text-muted-foreground">
@@ -428,7 +445,7 @@ export function StatsDashboard({
                       {STATUS_LABELS[s.status] ?? s.status}
                     </span>
                     <span className="text-muted-foreground">
-                      {s.count} · {money(s.total)}
+                      {s.count} · {money(s.total, locale)}
                     </span>
                   </div>
                 ))}
@@ -467,9 +484,9 @@ export function StatsDashboard({
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-foreground">{money(p.revenue)}</p>
+                    <p className="text-sm font-semibold text-foreground">{money(p.revenue, locale)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {p.unitsSold} {t.statistics.unitsSoldSuffix} {money(p.profit)}
+                      {p.unitsSold} {t.statistics.unitsSoldSuffix} {money(p.profit, locale)}
                     </p>
                   </div>
                 </div>
@@ -493,7 +510,7 @@ export function StatsDashboard({
                     />
                   </div>
                   <span className="w-28 shrink-0 text-right text-sm text-muted-foreground">
-                    {money(c.revenue)}
+                    {money(c.revenue, locale)}
                   </span>
                 </div>
               ))}
@@ -512,7 +529,7 @@ export function StatsDashboard({
                   <Tooltip
                     contentStyle={tooltipStyle}
                     formatter={(value, name) =>
-                      name === t.statistics.seriesRevenue ? [money(Number(value ?? 0)), name] : [Number(value ?? 0), name]
+                      name === t.statistics.seriesRevenue ? [money(Number(value ?? 0), locale), name] : [Number(value ?? 0), name]
                     }
                   />
                   <Bar dataKey="orders" name={t.statistics.seriesOrders} fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
@@ -533,7 +550,7 @@ export function StatsDashboard({
                   <span className="text-xs">{t.statistics.uniqueLabel}</span>
                 </div>
                 <p className="mt-1 text-xl font-semibold text-foreground">
-                  {customers.uniqueCustomers.toLocaleString('ru-RU')}
+                  {formatCount(customers.uniqueCustomers, locale)}
                 </p>
               </div>
               <div className="rounded-lg border border-border p-3">
@@ -542,7 +559,7 @@ export function StatsDashboard({
                   <span className="text-xs">{t.statistics.newLabel}</span>
                 </div>
                 <p className="mt-1 text-xl font-semibold text-success">
-                  {customers.newCustomers.toLocaleString('ru-RU')}
+                  {formatCount(customers.newCustomers, locale)}
                 </p>
               </div>
               <div className="col-span-2 rounded-lg border border-border p-3">
@@ -551,7 +568,7 @@ export function StatsDashboard({
                   <span className="text-xs">{t.statistics.returningLabel}</span>
                 </div>
                 <p className="mt-1 text-xl font-semibold text-primary">
-                  {customers.returningCustomers.toLocaleString('ru-RU')}
+                  {formatCount(customers.returningCustomers, locale)}
                 </p>
               </div>
             </div>
@@ -562,7 +579,7 @@ export function StatsDashboard({
                 <div key={`${c.phone}-${i}`} className="flex items-center justify-between gap-2 text-sm">
                   <span className="min-w-0 truncate text-foreground">{c.name}</span>
                   <span className="shrink-0 text-muted-foreground">
-                    {c.orders} {t.statistics.ordersShortSuffix} · {money(c.total)}
+                    {c.orders} {t.statistics.ordersShortSuffix} · {money(c.total, locale)}
                   </span>
                 </div>
               ))}
@@ -585,7 +602,7 @@ export function StatsDashboard({
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-foreground">{methodLabel(d.method)}</span>
                       <span className="text-muted-foreground">
-                        {d.count} · {money(d.total)}
+                        {d.count} · {money(d.total, locale)}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -616,7 +633,7 @@ export function StatsDashboard({
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-foreground">{methodLabel(p.method)}</span>
                       <span className="text-muted-foreground">
-                        {p.count} · {money(p.total)}
+                        {p.count} · {money(p.total, locale)}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -654,12 +671,12 @@ export function StatsDashboard({
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={formatDate}
+                  tickFormatter={(d) => formatDate(String(d), locale)}
                   stroke="var(--color-muted-foreground)"
                   fontSize={12}
                 />
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => formatDate(String(l))} />
+                <Tooltip contentStyle={tooltipStyle} labelFormatter={(l) => formatDate(String(l), locale)} />
                 <Area
                   type="monotone"
                   dataKey="pageViews"
@@ -705,7 +722,7 @@ export function StatsDashboard({
                     />
                   </div>
                   <span className="w-16 shrink-0 text-right text-sm text-muted-foreground">
-                    {p.views.toLocaleString('ru-RU')}
+                    {formatCount(p.views, locale)}
                   </span>
                 </div>
               ))}
@@ -723,7 +740,7 @@ export function StatsDashboard({
             <div className="flex flex-col gap-3">
               {referrers.map((r) => (
                 <div key={r.source} className="flex items-center gap-3">
-                  <span className="w-40 shrink-0 truncate text-sm text-foreground">{r.source}</span>
+                  <span className="w-40 shrink-0 truncate text-sm text-foreground">{sourceLabel(r.source)}</span>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-info"
@@ -731,7 +748,7 @@ export function StatsDashboard({
                     />
                   </div>
                   <span className="w-16 shrink-0 text-right text-sm text-muted-foreground">
-                    {r.visits.toLocaleString('ru-RU')}
+                    {formatCount(r.visits, locale)}
                   </span>
                 </div>
               ))}

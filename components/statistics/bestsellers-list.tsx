@@ -9,8 +9,9 @@ import { toggleProductPopular, type BestsellerRow } from '@/app/actions/analytic
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
-  const { dict } = useAdminI18n()
+  const { dict, locale } = useAdminI18n()
   const t = dict.bestsellers
+  const numberLocale = locale === 'ru' ? 'ru-RU' : 'uk-UA'
   const [items, setItems] = useState(rows)
   const [isPending, startTransition] = useTransition()
 
@@ -55,7 +56,7 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
               <Package className="size-5 text-primary" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">
-              {totalUnits.toLocaleString('ru-RU')}
+              {totalUnits.toLocaleString(numberLocale)}
             </p>
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
@@ -64,7 +65,7 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
               <Star className="size-5 text-success" />
             </div>
             <p className="mt-2 text-2xl font-semibold text-foreground">
-              {totalRevenue.toLocaleString('ru-RU')} ₴
+              {totalRevenue.toLocaleString(numberLocale)} ₴
             </p>
           </div>
         </div>
@@ -107,7 +108,7 @@ export function BestsellersList({ rows }: { rows: BestsellerRow[] }) {
                   <td className="px-4 py-3 text-right font-medium text-foreground">{r.unitsSold}</td>
                   <td className="px-4 py-3 text-right text-muted-foreground">{r.ordersCount}</td>
                   <td className="px-4 py-3 text-right font-medium text-foreground">
-                    {r.revenue.toLocaleString('ru-RU')} ₴
+                    {r.revenue.toLocaleString(numberLocale)} ₴
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-center">
