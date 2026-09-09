@@ -24,6 +24,7 @@ import {
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { upgradePromImageUrl, upgradePromImageList } from '@/lib/shop/prom-image'
+import { decodeHtmlEntities } from '@/lib/html-entities'
 
 export type { ProductOption, VariantOptions } from '@/lib/db/schema'
 
@@ -153,7 +154,7 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
   const isPreorder = genuinelyOutOfStock && availabilityMode === 'preorder'
   return {
     id: Number(r.id),
-    name: (r.name as string) ?? 'Товар',
+    name: decodeHtmlEntities((r.name as string) ?? 'Товар'),
     // Falls back to the numeric id only for rows created before the slug
     // column existed and not yet backfilled — see db/migrate.sql.
     slug: (r.slug as string) || `${r.id}`,
@@ -176,8 +177,8 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     sku: (r.sku as string) ?? null,
     barcode: (r.barcode as string) ?? null,
     weight: r.weight != null && r.weight !== '' ? Number(r.weight) : null,
-    metaTitle: (r.meta_title as string) || null,
-    metaDescription: (r.meta_description as string) || null,
+    metaTitle: decodeHtmlEntities((r.meta_title as string) || '') || null,
+    metaDescription: decodeHtmlEntities((r.meta_description as string) || '') || null,
     purchasedCount: Number(r.orders_count ?? 0) + Number(r.purchases_boost ?? 0),
     availabilityMode,
     isComingSoon,
