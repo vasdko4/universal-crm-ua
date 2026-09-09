@@ -699,8 +699,19 @@ const myOrderColumns = {
   id: orders.id,
   orderNumber: orders.orderNumber,
   status: orders.status,
+  paymentStatus: orders.paymentStatus,
   createdAt: orders.createdAt,
   total: orders.total,
+  discountTotal: orders.discountTotal,
+  promoCode: orders.promoCode,
+  trackingNumber: orders.trackingNumber,
+  customerName: orders.customerName,
+  customerPhone: orders.customerPhone,
+  customerEmail: orders.customerEmail,
+  deliveryMethod: orders.deliveryMethod,
+  deliveryCity: orders.deliveryCity,
+  deliveryBranch: orders.deliveryBranch,
+  deliveryAddress: orders.deliveryAddress,
   userId: orders.userId,
 }
 
@@ -776,24 +787,22 @@ export async function getMyOrderDetail(orderId: number) {
   const user = await getShopUser()
   if (!user) return null
   try {
-  // Same ownership rule as getMyOrders: by account or by the account's phone.
-  const ownership = orderOwnership(user.id, user.phone)
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(and(eq(orders.id, orderId), ownership))
-    .limit(1)
-  if (!order) return null
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id))
-  const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
-  const { buildOrderReceipt } = await import('@/lib/receipts/build-receipt')
-  const receiptData = await buildOrderReceipt(order, items)
-  const receipt = {
-    storeName: receiptData.storeName,
-    qrDataUrl: receiptData.qrDataUrl,
-    isFiscal: receiptData.isFiscal,
-  }
-  return { order, items, productSlugs, receipt }
+    // Same ownership rule as getMyOrders: by account or by the account's phone.
+    const ownership = orderOwnership(user.id, user.phone)
+    // Explicit columns — `select()` 500s (then this catch turned it into 404)
+    // if production is missing a later orders.* column.
+    const [order] = await db
+      .select(myOrderColumns)
+      .from(orders)
+      .where(and(eq(orders.id, orderId), ownership, ne(orders.status, 'pending_payment')))
+      .limit(1)
+    if (!order) return null
+    const items = await db
+      .select(myOrderItemColumns)
+      .from(orderItems)
+      .where(eq(orderItems.orderId, order.id))
+    const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
+    return { order, items, productSlugs }
   } catch (e) {
     console.error('[account/orders] getMyOrderDetail failed:', e)
     return null
