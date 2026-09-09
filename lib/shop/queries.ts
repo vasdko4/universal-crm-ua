@@ -23,6 +23,7 @@ import {
   orderItems,
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
+import { upgradePromImageUrl, upgradePromImageList } from '@/lib/shop/prom-image'
 
 export type { ProductOption, VariantOptions } from '@/lib/db/schema'
 
@@ -165,8 +166,8 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     // soon" and plain out-of-stock never are.
     inStock: !genuinelyOutOfStock || isPreorder,
     stockStatus: (r.stock_status as string) ?? null,
-    image: (r.image as string) ?? null,
-    images: gallery,
+    image: upgradePromImageUrl((r.image as string) ?? null),
+    images: upgradePromImageList(gallery),
     sizes: toStringArray(r.sizes),
     options: variantsEnabled ? toOptions(r.options) : [],
     variants: [],
@@ -458,7 +459,7 @@ function mapVariantRow(v: typeof productVariants.$inferSelect): ProductVariant {
     oldPrice: vop && vop > vp ? vop : null,
     quantity: vq,
     inStock: Boolean(v.isInStock) && vq > 0,
-    image: v.image ?? null,
+    image: upgradePromImageUrl(v.image ?? null),
   }
 }
 

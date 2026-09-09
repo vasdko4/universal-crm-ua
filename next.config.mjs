@@ -11,6 +11,9 @@ const nextConfig = {
   // Serve modern formats and let Next resize/compress images for faster LCP.
   images: {
     formats: ['image/avif', 'image/webp'],
+    // Default Next quality is 75 — too soft on Prom photos already downscaled
+    // to 700×500. 90 keeps detail after WebP/AVIF.
+    qualities: [75, 90],
     remotePatterns: [
       { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
       { protocol: 'https', hostname: '*.blob.vercel-storage.com' },
@@ -21,6 +24,10 @@ const nextConfig = {
   // Smaller client bundles: only pull the icons/components actually used.
   experimental: {
     optimizePackageImports: ['lucide-react'],
+  },
+  async rewrites() {
+    // Browsers still request /favicon.ico; App Router only ships app/icon.png.
+    return [{ source: '/favicon.ico', destination: '/icon.png' }]
   },
 
   // Next's file tracing copies sharp's JS into the standalone output but

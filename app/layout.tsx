@@ -2,23 +2,11 @@ import type { Metadata, Viewport } from 'next'
 import type React from 'react'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
-import { headers } from 'next/headers'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getCanonicalSiteUrl } from '@/lib/seo'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
-import { getAdminUser } from '@/lib/session'
-import type { Locale } from '@/lib/i18n/config'
 import './globals.css'
-
-async function resolveHtmlLocale(): Promise<Locale> {
-  const pathname = (await headers()).get('x-pathname') ?? ''
-  if (pathname.startsWith('/admin') || pathname === '/sign-in' || pathname.startsWith('/sign-in/')) {
-    const user = await getAdminUser()
-    if (user?.locale) return user.locale
-  }
-  return getLocale()
-}
 
 const OG_LOCALE: Record<'uk' | 'ru', string> = { uk: 'uk_UA', ru: 'ru_RU' }
 
@@ -34,7 +22,7 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const s = await getStoreSettingsInternal().catch(() => null)
   const siteUrl = await getCanonicalSiteUrl()
-  const locale = await resolveHtmlLocale()
+  const locale = await getLocale()
   const sd = getDictionary(locale).seoDefaults
   const name = s?.storeName || sd.defaultStoreName
   const seo = s?.seo
@@ -64,7 +52,11 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: locale === 'ru' ? '/ru' : '/',
       languages: { uk: '/', ru: '/ru', 'x-default': '/' },
     },
-    icons: s?.faviconUrl ? { icon: s.faviconUrl } : undefined,
+    icons: {
+      icon: s?.faviconUrl?.trim() || '/icon.png',
+      shortcut: s?.faviconUrl?.trim() || '/icon.png',
+      apple: s?.faviconUrl?.trim() || '/icon.png',
+    },
     verification: seo?.googleVerification?.trim()
       ? { google: seo.googleVerification.trim() }
       : undefined,
@@ -96,7 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // store's default locale) — this was hardcoded to "ru" regardless of the
   // selected/default locale, which misleads screen readers and can cause
   // search engines to classify Ukrainian-language pages as Russian.
-  const locale = await resolveHtmlLocale()
+  const locale = await getLocale()
   return (
     <html lang={locale} className="bg-background">
       <body className="font-sans antialiased">
