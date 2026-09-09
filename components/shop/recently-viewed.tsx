@@ -38,7 +38,7 @@ export function RecentlyViewed({ productId }: { productId: number }) {
   return (
     <section className="mt-14">
       <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">{dict.product.recentlyViewed}</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+      <div className="product-grid">
         {products.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

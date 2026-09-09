@@ -57,7 +57,7 @@ function parseParams(sp: Record<string, string | string[] | undefined>): Catalog
     minPrice: toPrice(get('minPrice')),
     maxPrice: toPrice(get('maxPrice')),
     page: Number(get('page') ?? 1),
-    perPage: 12,
+    perPage: 24,
   }
 }
 

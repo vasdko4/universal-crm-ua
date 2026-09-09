@@ -67,10 +67,10 @@ export default async function HomePage() {
   const c = HOME_CONTENT[locale]
   // Plain out-of-stock products never show up on the homepage — only in
   // the catalog/search page, where they're sorted to the bottom instead.
-  const allProductsParams = { sort: 'popular' as const, page: 1, perPage: 12, locale, hideOutOfStock: true as const }
+  const allProductsParams = { sort: 'popular' as const, page: 1, perPage: 24, locale, hideOutOfStock: true as const }
   const [popular, discounted, categories, settings, allProducts] = await Promise.all([
-    getPopularProducts(8, locale),
-    getDiscountedProducts(4, locale),
+    getPopularProducts(12, locale),
+    getDiscountedProducts(12, locale),
     getShopCategories(locale),
     getStoreSettingsInternal().catch(() => null),
     getCatalogProducts(allProductsParams),
@@ -173,7 +173,7 @@ export default async function HomePage() {
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          <div className="product-grid">
             {popular.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -190,7 +190,7 @@ export default async function HomePage() {
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          <div className="product-grid">
             {discounted.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

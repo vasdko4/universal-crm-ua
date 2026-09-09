@@ -298,7 +298,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">
             {dict.product.frequentlyBoughtTogether}
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          <div className="product-grid">
             {boughtTogether.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -310,7 +310,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       {related.length > 0 && (
         <section className="mt-14">
           <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">{dict.product.relatedProducts}</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          <div className="product-grid">
             {related.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
