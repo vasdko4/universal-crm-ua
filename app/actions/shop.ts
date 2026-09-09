@@ -695,59 +695,89 @@ export async function checkOrderPaymentStatus(
   return { ok: true, status }
 }
 
+const myOrderColumns = {
+  id: orders.id,
+  orderNumber: orders.orderNumber,
+  status: orders.status,
+  createdAt: orders.createdAt,
+  total: orders.total,
+  userId: orders.userId,
+}
+
+const myOrderItemColumns = {
+  id: orderItems.id,
+  orderId: orderItems.orderId,
+  productId: orderItems.productId,
+  name: orderItems.name,
+  image: orderItems.image,
+  quantity: orderItems.quantity,
+  price: orderItems.price,
+  total: orderItems.total,
+  variantLabel: orderItems.variantLabel,
+}
+
+function orderOwnership(userId: string, phone: string | null) {
+  const phoneDigits = (phone ?? '').replace(/\D/g, '')
+  if (!phoneDigits) return eq(orders.userId, userId)
+  return or(
+    eq(orders.userId, userId),
+    sql`right(regexp_replace(coalesce(${orders.customerPhone}, ''), '[^0-9]', '', 'g'), 9) = right(${phoneDigits}, 9)`,
+  )
+}
+
 export async function getMyOrders() {
   const user = await getShopUser()
   if (!user) return []
-  // Order history is keyed by the account AND by the phone number (the stable
-  // customer identifier): guest orders placed with the same phone show up too.
-  // Comparison uses the last 9 digits so it is format-independent.
-  const phoneDigits = (user.phone ?? '').replace(/\D/g, '')
-  const ownership = phoneDigits
-    ? or(
-        eq(orders.userId, user.id),
-        sql`right(regexp_replace(${orders.customerPhone}, '[^0-9]', '', 'g'), 9) = right(${phoneDigits}, 9)`,
+  try {
+    // Order history is keyed by the account AND by the phone number (the stable
+    // customer identifier): guest orders placed with the same phone show up too.
+    // Comparison uses the last 9 digits so it is format-independent.
+    const ownership = orderOwnership(user.id, user.phone)
+    // Hide orders still awaiting online payment: they only become real orders
+    // once the gateway confirms payment (status flips to 'new').
+    // Explicit columns — `select()` would 500 if production is missing a later
+    // orders.* column (utm_*, auto_discount_*, stock_restored).
+    const rows = await db
+      .select(myOrderColumns)
+      .from(orders)
+      .where(and(ownership, ne(orders.status, 'pending_payment')))
+      .orderBy(desc(orders.createdAt))
+    if (rows.length === 0) return []
+    const allItems = await db
+      .select(myOrderItemColumns)
+      .from(orderItems)
+      .where(
+        inArray(
+          orderItems.orderId,
+          rows.map((r) => r.id),
+        ),
       )
-    : eq(orders.userId, user.id)
-  // Hide orders still awaiting online payment: they only become real orders
-  // once the gateway confirms payment (status flips to 'new').
-  const rows = await db
-    .select()
-    .from(orders)
-    .where(and(ownership, ne(orders.status, 'pending_payment')))
-    .orderBy(desc(orders.createdAt))
-  if (rows.length === 0) return []
-  const allItems = await db
-    .select()
-    .from(orderItems)
-    .where(
-      inArray(
-        orderItems.orderId,
-        rows.map((r) => r.id),
-      ),
-    )
-  const productSlugs = await getProductSlugMap(allItems.map((i) => i.productId))
-  return rows.map((order) => {
-    const items = allItems.filter((i) => i.orderId === order.id)
-    return {
-      ...order,
-      items,
-      productSlugs,
-      itemsCount: items.reduce((n, i) => n + i.quantity, 0),
-    }
-  })
+    const productSlugs = await getProductSlugMap(allItems.map((i) => i.productId))
+    return rows.map((order) => {
+      const items = allItems.filter((i) => i.orderId === order.id)
+      return {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        createdAt: order.createdAt,
+        total: order.total,
+        items,
+        productSlugs,
+        itemsCount: items.reduce((n, i) => n + i.quantity, 0),
+      }
+    })
+  } catch (e) {
+    console.error('[account/orders] getMyOrders failed:', e)
+    return []
+  }
 }
 
 export async function getMyOrderDetail(orderId: number) {
   const user = await getShopUser()
   if (!user) return null
+  try {
   // Same ownership rule as getMyOrders: by account or by the account's phone.
-  const phoneDigits = (user.phone ?? '').replace(/\D/g, '')
-  const ownership = phoneDigits
-    ? or(
-        eq(orders.userId, user.id),
-        sql`right(regexp_replace(${orders.customerPhone}, '[^0-9]', '', 'g'), 9) = right(${phoneDigits}, 9)`,
-      )
-    : eq(orders.userId, user.id)
+  const ownership = orderOwnership(user.id, user.phone)
   const [order] = await db
     .select()
     .from(orders)
@@ -764,6 +794,10 @@ export async function getMyOrderDetail(orderId: number) {
     isFiscal: receiptData.isFiscal,
   }
   return { order, items, productSlugs, receipt }
+  } catch (e) {
+    console.error('[account/orders] getMyOrderDetail failed:', e)
+    return null
+  }
 }
 
 export async function submitReview(input: {
