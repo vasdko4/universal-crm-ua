@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { pool } from '@/lib/db'
-import { getAdminUser } from '@/lib/session'
+import { getAdminUser, ensureStaffTwoFactorColumns } from '@/lib/session'
 import {
   generateTotpSecret,
   otpauthUrl,
@@ -25,6 +25,7 @@ export async function getStaffTwoFactorState(): Promise<{
   const me = await getAdminUser()
   if (!me) return { enabled: false, pending: false }
   try {
+    await ensureStaffTwoFactorColumns()
     const { rows } = await pool.query<{ two_factor_enabled: boolean; two_factor_pending_secret: string | null }>(
       `SELECT two_factor_enabled, two_factor_pending_secret FROM "user" WHERE id = $1`,
       [me.id],
@@ -34,8 +35,7 @@ export async function getStaffTwoFactorState(): Promise<{
       enabled: Boolean(row?.two_factor_enabled),
       pending: Boolean(row?.two_factor_pending_secret),
     }
-  } catch (e) {
-    console.error('[staff-2fa] getStaffTwoFactorState failed:', e)
+  } catch {
     return { enabled: false, pending: false }
   }
 }
