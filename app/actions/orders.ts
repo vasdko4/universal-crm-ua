@@ -73,6 +73,7 @@ export async function listOrders(params: OrderListParams = {}) {
         customerEmail: orders.customerEmail,
         trackingNumber: orders.trackingNumber,
         deliveryMethod: orders.deliveryMethod,
+        deliveryCity: orders.deliveryCity,
         itemsCount: orders.itemsCount,
         total: orders.total,
         createdAt: orders.createdAt,
@@ -88,6 +89,8 @@ export async function listOrders(params: OrderListParams = {}) {
 
   return { items: rows, total: countRes[0]?.c ?? 0, page, perPage }
 }
+
+export type OrderListRow = Awaited<ReturnType<typeof listOrders>>['items'][number]
 
 export async function getOrderStats() {
   await assertPermission('orders')

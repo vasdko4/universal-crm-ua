@@ -24,9 +24,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { StatusBadge, PaymentBadge } from '@/components/orders/status-badge'
-import { bulkUpdateOrderStatus, updateOrderStatus } from '@/app/actions/orders'
+import { bulkUpdateOrderStatus, updateOrderStatus, type OrderListRow } from '@/app/actions/orders'
 import { getOrderStatusOptions, getPaymentStatusOptions, getDeliveryMethodLabel } from '@/lib/order-status'
-import type { Order } from '@/lib/db/schema'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type Stats = { total: number; new: number; active: number; revenue: number }
@@ -56,7 +55,7 @@ export function OrdersList({
   initialPayment = 'all',
   initialMissingTtn = false,
 }: {
-  initialData: { items: Order[]; total: number; page: number; perPage: number }
+  initialData: { items: OrderListRow[]; total: number; page: number; perPage: number }
   stats: Stats
   initialSearch: string
   initialStatus: string
