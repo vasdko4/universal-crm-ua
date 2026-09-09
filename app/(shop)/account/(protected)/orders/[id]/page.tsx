@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, User, Phone, Mail, Truck, MapPin, Package } from 'lucide-react'
 import { getMyOrderDetail } from '@/app/actions/shop'
@@ -151,14 +150,13 @@ export default async function MyOrderDetailPage({
           {items.map((it) => {
             const body = (
               <>
-                <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
-                  <Image
-                    src={it.image || '/placeholder.svg'}
-                    alt={it.name}
-                    fill
-                    sizes="56px"
-                    className="object-contain"
-                  />
+                <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                  {it.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- order snapshots may be off-allowlist hosts
+                    <img src={it.image} alt={it.name} className="size-full object-contain" />
+                  ) : (
+                    <Package className="size-6 text-muted-foreground" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-card-foreground group-hover:text-primary">
