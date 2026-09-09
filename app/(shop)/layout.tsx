@@ -65,7 +65,10 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
   return (
     <LocaleProvider locale={locale}>
-      <CartProvider gaId={settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined}>
+      <CartProvider
+        gaId={settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined}
+        openCartAfterAdd={settings?.openCartAfterAdd ?? true}
+      >
         <FavoritesProvider>
           <AuthDialogProvider googleEnabled={googleAuthEnabled}>
           <div data-template={template} className="flex min-h-screen flex-col bg-background text-foreground">
