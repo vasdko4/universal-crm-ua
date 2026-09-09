@@ -128,17 +128,21 @@ let twoFaColumnsReady: Promise<void> | null = null
 /** Production DBs that never ran migrate.sql are missing these columns. */
 export async function ensureStaffTwoFactorColumns(): Promise<void> {
   if (!twoFaColumnsReady) {
-    twoFaColumnsReady = pool
-      .query(`
-        ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(64);
-        ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_enabled" boolean NOT NULL DEFAULT false;
-        ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_pending_secret" varchar(64);
-      `)
-      .then(() => undefined)
-      .catch((e) => {
+    // node-pg uses the extended protocol — one statement per query.
+    twoFaColumnsReady = (async () => {
+      try {
+        await pool.query(`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(64)`)
+        await pool.query(
+          `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_enabled" boolean NOT NULL DEFAULT false`,
+        )
+        await pool.query(
+          `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_pending_secret" varchar(64)`,
+        )
+      } catch (e) {
         console.error('[staff-2fa] ensure columns failed:', (e as Error).message)
         twoFaColumnsReady = null
-      })
+      }
+    })()
   }
   await twoFaColumnsReady
 }

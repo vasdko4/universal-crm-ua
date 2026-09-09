@@ -45,44 +45,57 @@ export async function beginStaffTwoFactor(): Promise<
 > {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
-  const secret = generateTotpSecret()
-  await pool.query(`UPDATE "user" SET two_factor_pending_secret = $1, "updatedAt" = NOW() WHERE id = $2`, [
-    secret,
-    me.id,
-  ])
-  const settings = await getStoreSettingsInternal().catch(() => null)
-  const issuer = settings?.storeName || 'Universal Magazine'
-  return { ok: true, secret, otpauth: otpauthUrl({ secret, account: me.email, issuer }) }
+  try {
+    await ensureStaffTwoFactorColumns()
+    const secret = generateTotpSecret()
+    await pool.query(`UPDATE "user" SET two_factor_pending_secret = $1, "updatedAt" = NOW() WHERE id = $2`, [
+      secret,
+      me.id,
+    ])
+    const settings = await getStoreSettingsInternal().catch(() => null)
+    const issuer = settings?.storeName || 'Universal Magazine'
+    return { ok: true, secret, otpauth: otpauthUrl({ secret, account: me.email, issuer }) }
+  } catch (e) {
+    console.error('[staff-2fa] beginStaffTwoFactor failed:', e)
+    return { ok: false, error: 'Не вдалося увімкнути 2FA. Оновіть сторінку і спробуйте ще раз.' }
+  }
 }
 
 export async function confirmStaffTwoFactor(code: string): Promise<{ ok: boolean; error?: string }> {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
-  const { rows } = await pool.query<{ two_factor_pending_secret: string | null }>(
-    `SELECT two_factor_pending_secret FROM "user" WHERE id = $1`,
-    [me.id],
-  )
-  const secret = rows[0]?.two_factor_pending_secret
-  if (!secret) return { ok: false, error: 'Спочатку згенеруйте секрет' }
-  if (!verifyTotp(secret, code)) return { ok: false, error: 'Невірний код' }
-  await pool.query(
-    `UPDATE "user" SET two_factor_secret = $1, two_factor_enabled = true, two_factor_pending_secret = NULL, "updatedAt" = NOW() WHERE id = $2`,
-    [secret, me.id],
-  )
-  const jar = await cookies()
-  jar.set(COOKIE, twoFactorCookieValue(me.id, cookieSecret()), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: MAX_AGE,
-  })
-  return { ok: true }
+  try {
+    await ensureStaffTwoFactorColumns()
+    const { rows } = await pool.query<{ two_factor_pending_secret: string | null }>(
+      `SELECT two_factor_pending_secret FROM "user" WHERE id = $1`,
+      [me.id],
+    )
+    const secret = rows[0]?.two_factor_pending_secret
+    if (!secret) return { ok: false, error: 'Спочатку згенеруйте секрет' }
+    if (!verifyTotp(secret, code)) return { ok: false, error: 'Невірний код' }
+    await pool.query(
+      `UPDATE "user" SET two_factor_secret = $1, two_factor_enabled = true, two_factor_pending_secret = NULL, "updatedAt" = NOW() WHERE id = $2`,
+      [secret, me.id],
+    )
+    const jar = await cookies()
+    jar.set(COOKIE, twoFactorCookieValue(me.id, cookieSecret()), {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: MAX_AGE,
+    })
+    return { ok: true }
+  } catch (e) {
+    console.error('[staff-2fa] confirmStaffTwoFactor failed:', e)
+    return { ok: false, error: 'Не вдалося підтвердити 2FA.' }
+  }
 }
 
 export async function disableStaffTwoFactor(code: string): Promise<{ ok: boolean; error?: string }> {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
+  await ensureStaffTwoFactorColumns()
   const { rows } = await pool.query<{ two_factor_secret: string | null }>(
     `SELECT two_factor_secret FROM "user" WHERE id = $1`,
     [me.id],
@@ -101,6 +114,7 @@ export async function disableStaffTwoFactor(code: string): Promise<{ ok: boolean
 export async function verifyStaffTwoFactorLogin(code: string): Promise<{ ok: boolean; error?: string }> {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
+  await ensureStaffTwoFactorColumns()
   const { rows } = await pool.query<{ two_factor_secret: string | null; two_factor_enabled: boolean }>(
     `SELECT two_factor_secret, two_factor_enabled FROM "user" WHERE id = $1`,
     [me.id],
