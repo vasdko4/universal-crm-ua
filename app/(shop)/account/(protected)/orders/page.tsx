@@ -8,9 +8,15 @@ import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 
 export default async function MyOrdersPage() {
-  const [orders, locale] = await Promise.all([getMyOrders(), getLocale()])
+  const locale = await getLocale()
   const dict = getDictionary(locale)
   const t = dict.account
+  let orders: Awaited<ReturnType<typeof getMyOrders>> = []
+  try {
+    orders = await getMyOrders()
+  } catch (e) {
+    console.error('[account/orders] page failed:', e)
+  }
 
   if (orders.length === 0) {
     return (
