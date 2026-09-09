@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { Package } from 'lucide-react'
 import { getMyOrders } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
@@ -59,14 +58,13 @@ export default async function MyOrdersPage() {
               {o.items.map((item) => {
                 const content = (
                   <>
-                    <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
-                      <Image
-                        src={item.image || '/placeholder.svg'}
-                        alt={item.name}
-                        fill
-                        sizes="56px"
-                        className="object-contain"
-                      />
+                    <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                      {item.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- order snapshots may be off-allowlist hosts
+                        <img src={item.image} alt={item.name} className="size-full object-contain" />
+                      ) : (
+                        <Package className="size-6 text-muted-foreground" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-card-foreground group-hover:text-primary">

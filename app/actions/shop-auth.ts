@@ -15,7 +15,7 @@ async function phoneTakenByOther(normPhone: string, exceptUserId?: string) {
   const { rows } = await pool.query(
     `SELECT 1 FROM "user"
      WHERE phone IS NOT NULL AND phone <> ''
-       AND right(regexp_replace(phone, '\\D', '', 'g'), 9) = right($1, 9)
+       AND right(regexp_replace(phone, '[^0-9]', '', 'g'), 9) = right($1, 9)
        AND ($2::text IS NULL OR id <> $2)
      LIMIT 1`,
     [digits, exceptUserId ?? null],
@@ -32,7 +32,7 @@ async function claimOrdersByPhone(userId: string, normPhone: string) {
       `UPDATE orders SET user_id = $1
        WHERE user_id IS NULL
          AND customer_phone IS NOT NULL
-         AND right(regexp_replace(customer_phone, '\\D', '', 'g'), 9) = right($2, 9)`,
+         AND right(regexp_replace(customer_phone, '[^0-9]', '', 'g'), 9) = right($2, 9)`,
       [userId, digits],
     )
     .catch(() => {})

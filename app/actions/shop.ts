@@ -705,7 +705,7 @@ export async function getMyOrders() {
   const ownership = phoneDigits
     ? or(
         eq(orders.userId, user.id),
-        sql`right(regexp_replace(${orders.customerPhone}, '\\D', '', 'g'), 9) = right(${phoneDigits}, 9)`,
+        sql`right(regexp_replace(${orders.customerPhone}, '[^0-9]', '', 'g'), 9) = right(${phoneDigits}, 9)`,
       )
     : eq(orders.userId, user.id)
   // Hide orders still awaiting online payment: they only become real orders
@@ -745,7 +745,7 @@ export async function getMyOrderDetail(orderId: number) {
   const ownership = phoneDigits
     ? or(
         eq(orders.userId, user.id),
-        sql`right(regexp_replace(${orders.customerPhone}, '\\D', '', 'g'), 9) = right(${phoneDigits}, 9)`,
+        sql`right(regexp_replace(${orders.customerPhone}, '[^0-9]', '', 'g'), 9) = right(${phoneDigits}, 9)`,
       )
     : eq(orders.userId, user.id)
   const [order] = await db
