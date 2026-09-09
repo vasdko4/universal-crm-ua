@@ -118,7 +118,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
                   : 'border-border hover:border-primary/60',
               )}
             >
-              <Image src={src || '/placeholder.svg'} alt={alt} fill sizes="62px" className="object-contain p-1" />
+              <Image src={src || '/placeholder.svg'} alt={alt} fill sizes="62px" quality={90} className="object-contain p-1" />
             </button>
           ))}
         </div>
@@ -147,6 +147,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               alt={alt}
               fill
               priority
+              quality={90}
               sizes="(max-width: 640px) 100vw, 620px"
               className="object-contain p-4"
             />
@@ -368,6 +369,7 @@ function Lightbox({
             src={gallery[index] || '/placeholder.svg'}
             alt={alt}
             fill
+            quality={90}
             sizes="100vw"
             className={cn(
               'select-none object-contain transition-transform duration-200',

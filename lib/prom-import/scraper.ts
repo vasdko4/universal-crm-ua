@@ -180,7 +180,9 @@ function getVariationItems(state: Record<string, unknown>): PromVariationItem[] 
 
 function parseProductCard(p: any) {
   if (!p) return null
-  const images: string[] = (p.images || []).filter((im: unknown) => typeof im === 'string' && im)
+  const images: string[] = (p.images || [])
+    .filter((im: unknown): im is string => typeof im === 'string' && im.length > 0)
+    .map((im) => im.replace(/_w\d+_h\d+_/, '_w2000_h2000_'))
   const breadcrumbs = (p.breadCrumbs?.items || [])
     .filter((b: any) => b.type === 'categoryListing')
     .map((b: any) => ({ alias: b.params?.alias || '', caption: b.caption || '' }))

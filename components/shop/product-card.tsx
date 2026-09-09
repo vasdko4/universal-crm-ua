@@ -76,6 +76,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             alt={product.name}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
+            quality={90}
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
