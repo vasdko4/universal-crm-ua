@@ -31,7 +31,7 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
 
   function pullSender() {
     startTransition(async () => {
-      const result = await loadNovaPoshtaSender()
+      const result = await loadNovaPoshtaSender(apiKey)
       if (!result.ok) {
         toast.error(result.error)
         return
