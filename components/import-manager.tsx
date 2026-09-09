@@ -286,7 +286,7 @@ export function ImportManager({
   tasks: ImportTask[]
   resumablePromTasks?: { id: number; fileName: string; totalItems: number | null; processedItems: number | null }[]
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, locale } = useAdminI18n()
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<{ fileName: string; type: "csv" | "xml"; rows: ImportRow[] } | null>(null)
@@ -462,7 +462,7 @@ export function ImportManager({
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {tk.createdAt ? new Date(tk.createdAt).toLocaleString("ru-RU", { timeZone: "Europe/Kyiv" }) : "—"}
+                        {tk.createdAt ? new Date(tk.createdAt).toLocaleString(locale === "ru" ? "ru-RU" : "uk-UA", { timeZone: "Europe/Kyiv" }) : "—"}
                       </TableCell>
                     </TableRow>
                   )

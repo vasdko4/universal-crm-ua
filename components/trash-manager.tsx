@@ -198,11 +198,11 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
                     {p.sku ? <Badge variant="outline">{p.sku}</Badge> : <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {Number(p.price).toLocaleString("ru-RU")} грн
+                    {Number(p.price).toLocaleString(locale === "ru" ? "ru-RU" : "uk-UA")} грн
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{p.quantity}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {p.deletedAt ? new Date(p.deletedAt).toLocaleDateString("ru-RU", { timeZone: "Europe/Kyiv" }) : "—"}
+                    {p.deletedAt ? new Date(p.deletedAt).toLocaleDateString(locale === "ru" ? "ru-RU" : "uk-UA", { timeZone: "Europe/Kyiv" }) : "—"}
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
