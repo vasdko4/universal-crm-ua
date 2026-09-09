@@ -35,7 +35,7 @@ type CartContextValue = {
   remove: (key: string) => void
   setQuantity: (key: string, quantity: number) => void
   clear: () => void
-  // Slide-over cart drawer visibility. `add` auto-opens it.
+  // Slide-over cart drawer visibility. `add` opens it when openCartAfterAdd is on.
   drawerOpen: boolean
   setDrawerOpen: (open: boolean) => void
   // Express "Купить сейчас" purchase — kept completely separate from the cart.
@@ -55,7 +55,16 @@ function clampQty(quantity: number, max: number): number {
   return Math.max(1, Math.min(safeMax, Math.floor(quantity)))
 }
 
-export function CartProvider({ children, gaId }: { children: ReactNode; gaId?: string }) {
+export function CartProvider({
+  children,
+  gaId,
+  openCartAfterAdd = true,
+}: {
+  children: ReactNode
+  gaId?: string
+  /** When false, adding an item does not auto-open the slide-over cart. */
+  openCartAfterAdd?: boolean
+}) {
   const [items, setItems] = useState<CartItem[]>([])
   const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(null)
   const [isReady, setIsReady] = useState(false)
@@ -125,8 +134,7 @@ export function CartProvider({ children, gaId }: { children: ReactNode; gaId?: s
           }
           return [...prev, { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }]
         })
-        // Reveal the slide-over cart so the shopper sees what was added.
-        setDrawerOpen(true)
+        if (openCartAfterAdd) setDrawerOpen(true)
         sendAnalyticsEvent({ type: 'add_to_cart', productId: item.id })
         trackAddToCart(gaId, { id: item.id, name: item.name, price: item.price, quantity })
       },
@@ -147,7 +155,7 @@ export function CartProvider({ children, gaId }: { children: ReactNode; gaId?: s
         setBuyNowItem((prev) => (prev ? { ...prev, quantity: clampQty(quantity, prev.maxQuantity) } : prev)),
       clearBuyNow: () => setBuyNowItem(null),
     }
-  }, [items, buyNowItem, isReady, drawerOpen, gaId])
+  }, [items, buyNowItem, isReady, drawerOpen, gaId, openCartAfterAdd])
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
