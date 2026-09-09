@@ -76,7 +76,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/statistics', label: 'Статистика', icon: BarChart3, permission: 'statistics' },
       {
         href: '/admin/guides',
-        label: 'Инструкции',
+        label: 'Інструкції',
         icon: BookOpen,
         permission: 'dashboard',
         labelKey: 'guides',
@@ -86,51 +86,51 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Продажи',
     items: [
-      { href: '/admin/orders', label: 'Заказы', icon: ShoppingCart, permission: 'orders' },
-      { href: '/admin/abandoned-carts', label: 'Брошенные корзины', icon: ShoppingBasket, permission: 'abandoned_carts' },
-      { href: '/admin/customers', label: 'Клиенты', icon: Users, permission: 'customers' },
+      { href: '/admin/orders', label: 'Замовлення', icon: ShoppingCart, permission: 'orders' },
+      { href: '/admin/abandoned-carts', label: 'Покинуті кошики', icon: ShoppingBasket, permission: 'abandoned_carts' },
+      { href: '/admin/customers', label: 'Клієнти', icon: Users, permission: 'customers' },
     ],
   },
   {
     label: 'Каталог',
     items: [
-      { href: '/admin/products', label: 'Товары', icon: Package, permission: 'products' },
-      { href: '/admin/categories', label: 'Категории', icon: FolderTree, permission: 'categories' },
-      { href: '/admin/groups', label: 'Группы товаров', icon: Layers, permission: 'groups' },
-      { href: '/admin/import', label: 'Импорт', icon: FileUp, permission: 'import' },
+      { href: '/admin/products', label: 'Товари', icon: Package, permission: 'products' },
+      { href: '/admin/categories', label: 'Категорії', icon: FolderTree, permission: 'categories' },
+      { href: '/admin/groups', label: 'Групи товарів', icon: Layers, permission: 'groups' },
+      { href: '/admin/import', label: 'Імпорт', icon: FileUp, permission: 'import' },
     ],
   },
   {
     label: 'Маркетинг',
     items: [
-      { href: '/admin/promotions', label: 'Акции', icon: Percent, permission: 'promotions' },
-      { href: '/admin/modal-ads', label: 'Модальная реклама', icon: Megaphone, permission: 'modal_ads' },
-      { href: '/admin/bestsellers', label: 'Топ продаж', icon: TrendingUp, permission: 'bestsellers' },
+      { href: '/admin/promotions', label: 'Акції', icon: Percent, permission: 'promotions' },
+      { href: '/admin/modal-ads', label: 'Модальна реклама', icon: Megaphone, permission: 'modal_ads' },
+      { href: '/admin/bestsellers', label: 'Топ продажів', icon: TrendingUp, permission: 'bestsellers' },
     ],
   },
   {
     label: 'Контент',
     items: [
-      { href: '/admin/pages', label: 'Страницы', icon: FileText, permission: 'pages' },
-      { href: '/admin/articles', label: 'Статьи', icon: Newspaper, permission: 'articles' },
-      { href: '/admin/reviews', label: 'Отзывы и вопросы', icon: MessageSquare, permission: 'reviews' },
+      { href: '/admin/pages', label: 'Сторінки', icon: FileText, permission: 'pages' },
+      { href: '/admin/articles', label: 'Статті', icon: Newspaper, permission: 'articles' },
+      { href: '/admin/reviews', label: 'Відгуки та питання', icon: MessageSquare, permission: 'reviews' },
     ],
   },
   {
     label: 'Логистика',
     items: [
       { href: '/admin/delivery', label: 'Доставка', icon: Truck, permission: 'delivery' },
-      { href: '/admin/payments', label: 'Платежи', icon: CreditCard, permission: 'payments' },
+      { href: '/admin/payments', label: 'Платежі', icon: CreditCard, permission: 'payments' },
     ],
   },
   {
     label: 'Система',
     items: [
-      { href: '/admin/users', label: 'Пользователи', icon: Shield, permission: 'users' },
+      { href: '/admin/users', label: 'Користувачі', icon: Shield, permission: 'users' },
       { href: '/admin/logs', label: 'Логи', icon: ScrollText, permission: 'logs' },
-      { href: '/admin/settings', label: 'Настройки', icon: Settings, permission: 'settings' },
-      { href: '/admin/updates', label: 'Обновления', icon: RefreshCw, permission: 'system_updates' },
-      { href: '/admin/trash', label: 'Корзина', icon: Trash2, permission: 'trash' },
+      { href: '/admin/settings', label: 'Налаштування', icon: Settings, permission: 'settings' },
+      { href: '/admin/updates', label: 'Оновлення', icon: RefreshCw, permission: 'system_updates' },
+      { href: '/admin/trash', label: 'Кошик', icon: Trash2, permission: 'trash' },
     ],
   },
 ]

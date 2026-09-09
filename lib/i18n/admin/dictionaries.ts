@@ -271,6 +271,11 @@ export type AdminDictionary = {
     nameUk: string
     descriptionRu: string
     parentCategory: string
+    cascaderHint: string
+    rootPlaceholder: string
+    childPlaceholder: string
+    productCategoryLabel: string
+    clearCategoryAria: string
     noneRoot: string
     sortOrder: string
     showOnSite: string
@@ -1518,6 +1523,16 @@ export type AdminDictionary = {
     mainPhotoHint: string
     galleryLabel: string
     galleryHint: string
+    photoAlt: string
+    deletePhotoAria: string
+    uploading: string
+    photo: string
+    replace: string
+    mainBadge: string
+    moveLeftAria: string
+    moveRightAria: string
+    addPhoto: string
+    galleryOrderHint: string
     nameSectionTitle: string
     nameRuLabel: string
     nameRuPlaceholder: string
@@ -1923,6 +1938,11 @@ const uk: AdminDictionary = {
     nameUk: 'Назва (UK) *',
     descriptionRu: 'Опис (RU)',
     parentCategory: 'Батьківська категорія',
+    cascaderHint: 'Оберіть головну категорію, потім дочірню — до самої кінцевої.',
+    rootPlaceholder: 'Головна категорія',
+    childPlaceholder: 'Підкатегорія',
+    productCategoryLabel: 'Категорія товару:',
+    clearCategoryAria: 'Прибрати категорію',
     noneRoot: 'Немає (коренева)',
     sortOrder: 'Порядок сортування',
     showOnSite: 'Показувати на сайті',
@@ -3191,6 +3211,16 @@ const uk: AdminDictionary = {
     mainPhotoHint: 'Відображається в каталозі і картці товару.',
     galleryLabel: 'Галерея товару',
     galleryHint: 'Додаткові фото товару. Можна завантажити декілька одразу.',
+    photoAlt: 'Фото',
+    deletePhotoAria: 'Видалити фото',
+    uploading: 'Завантаження',
+    photo: 'Фото',
+    replace: 'Замінити',
+    mainBadge: 'Головне',
+    moveLeftAria: 'Перемістити ліворуч',
+    moveRightAria: 'Перемістити праворуч',
+    addPhoto: 'Додати',
+    galleryOrderHint: 'Перше фото — головне в галереї. Наведіть на фото, щоб змінити порядок або видалити.',
     nameSectionTitle: 'Назва і опис',
     nameRuLabel: 'Назва (RU)',
     nameRuPlaceholder: 'Бездротові навушники…',
@@ -3600,6 +3630,11 @@ const ru: AdminDictionary = {
     nameUk: 'Название (UK) *',
     descriptionRu: 'Описание (RU)',
     parentCategory: 'Родительская категория',
+    cascaderHint: 'Выберите главную категорию, затем дочернюю — до самой конечной.',
+    rootPlaceholder: 'Главная категория',
+    childPlaceholder: 'Подкатегория',
+    productCategoryLabel: 'Категория товара:',
+    clearCategoryAria: 'Убрать категорию',
     noneRoot: 'Нет (корневая)',
     sortOrder: 'Порядок сортировки',
     showOnSite: 'Показывать на сайте',
@@ -4868,6 +4903,16 @@ const ru: AdminDictionary = {
     mainPhotoHint: 'Отображается в каталоге и карточке товара.',
     galleryLabel: 'Галерея товара',
     galleryHint: 'Дополнительные фото товара. Можно загрузить несколько сразу.',
+    photoAlt: 'Фото',
+    deletePhotoAria: 'Удалить фото',
+    uploading: 'Загрузка',
+    photo: 'Фото',
+    replace: 'Заменить',
+    mainBadge: 'Главное',
+    moveLeftAria: 'Переместить влево',
+    moveRightAria: 'Переместить вправо',
+    addPhoto: 'Добавить',
+    galleryOrderHint: 'Первое фото — главное в галерее. Наведите на фото, чтобы изменить порядок или удалить.',
     nameSectionTitle: 'Название и описание',
     nameRuLabel: 'Название (RU)',
     nameRuPlaceholder: 'Беспроводные наушники…',

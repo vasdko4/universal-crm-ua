@@ -31,7 +31,8 @@ export function CategoryCascader({
   value: number[]
   onChange: (ids: number[]) => void
 }) {
-  const { locale } = useAdminI18n()
+  const { locale, dict } = useAdminI18n()
+  const t = dict.categories
   const catName = (c: Category) => pickLocalized(locale, c.nameUk, c.nameRu)
 
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
@@ -119,9 +120,7 @@ export function CategoryCascader({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-muted-foreground">
-        Выберите главную категорию, затем дочернюю — до самой конечной.
-      </p>
+      <p className="text-xs text-muted-foreground">{t.cascaderHint}</p>
       <div className="flex flex-wrap items-center gap-2">
         {levels.map((level, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -131,7 +130,7 @@ export function CategoryCascader({
               onValueChange={(v) => handlePick(i, v)}
             >
               <SelectTrigger className="w-full min-w-44 sm:w-auto">
-                <SelectValue placeholder={i === 0 ? 'Главная категория' : 'Подкатегория'} />
+                <SelectValue placeholder={i === 0 ? t.rootPlaceholder : t.childPlaceholder} />
               </SelectTrigger>
               <SelectContent>
                 {level.options.map((c) => (
@@ -146,13 +145,13 @@ export function CategoryCascader({
       </div>
       {path.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <Label className="text-muted-foreground">Категория товара:</Label>
+          <Label className="text-muted-foreground">{t.productCategoryLabel}</Label>
           <span className="flex items-center gap-1.5 rounded-full border bg-muted/50 py-1 pl-3 pr-1 text-sm">
             {pathLabel}
             <button
               type="button"
               onClick={clearAll}
-              aria-label="Убрать категорию"
+              aria-label={t.clearCategoryAria}
               className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <X className="size-3.5" />
