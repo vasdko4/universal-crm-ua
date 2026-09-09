@@ -14,6 +14,8 @@
 //    description, image gallery, breadcrumb category path and attributes
 //    (characteristics) — the listing summary doesn't include these.
 
+import { decodeHtmlEntities } from '@/lib/html-entities'
+
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
 
@@ -195,7 +197,7 @@ function parseProductCard(p: any) {
   const oldPrice = p.hasDiscount && p.priceOriginal && p.priceOriginal !== price ? p.priceOriginal : null
   return {
     promId: p.id as number,
-    name: (p.name || '') as string,
+    name: decodeHtmlEntities((p.name || '') as string),
     description: (p.descriptionFull || p.descriptionPlain || '') as string,
     price: price != null ? Number(price) : null,
     oldPrice: oldPrice != null ? Number(oldPrice) : null,
@@ -205,19 +207,6 @@ function parseProductCard(p: any) {
     breadcrumbs,
     attributes,
   }
-}
-
-// Decodes the small set of HTML entities Prom.ua's SSR'd <title>/<meta>
-// tags actually use (product names/prices), without pulling in a full HTML
-// entity-decoding library for this one narrow use.
-function decodeHtmlEntities(s: string): string {
-  return s
-    .replace(/&quot;/g, '"')
-    .replace(/&#0*39;|&apos;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
 }
 
 /** Pulls the rendered `<title>` and `<meta name="description">` out of a fetched product page. */
