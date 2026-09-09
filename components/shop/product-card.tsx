@@ -20,7 +20,7 @@ const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-widt
 export function ProductCard({ product }: { product: ShopProduct }) {
   const { add } = useCart()
   const router = useRouter()
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
   const href = localizedPath(`/product/${product.slug}`, locale)
   const [added, setAdded] = useState(false)
   const needsSize = (product.sizes?.length ?? 0) > 0
