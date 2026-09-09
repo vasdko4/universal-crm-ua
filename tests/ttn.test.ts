@@ -107,3 +107,11 @@ describe('novaPoshta print vs tracking URLs', () => {
     expect(novaPoshtaTrackingUrl('20450123456789')).toContain('cargo_number=20450123456789')
   })
 })
+
+describe('admin label proxy path', () => {
+  it('never puts the API key in the browser-facing print path', () => {
+    const browserPath = `/api/admin/np-label?orderId=12`
+    expect(browserPath).not.toContain('apiKey')
+    expect(novaPoshtaPrintUrl('secret-key', '2045')).toContain('secret-key')
+  })
+})

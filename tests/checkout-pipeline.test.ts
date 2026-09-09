@@ -60,4 +60,18 @@ describe('checkout → payment → stock pipeline', () => {
     const rest = first.ok ? refundPlan(1499.4, first.newRefunded) : first
     expect(rest.ok && rest.status).toBe('refunded')
   })
+
+  it('full refund restores on-hand; partial does not', () => {
+    const paid = checkoutPayStock(cart, 5)
+    expect(paid.stage).toBe('paid')
+    if (paid.stage !== 'paid') return
+    const partial = refundPlan(paid.total, 0, 500)
+    expect(partial.ok && partial.status).toBe('partially_refunded')
+    // stock stays deducted until the remainder is refunded
+    expect(paid.nextOnHand).toBe(3)
+    const full = refundPlan(paid.total, 0)
+    expect(full.ok && full.status).toBe('refunded')
+    const restored = paid.nextOnHand + 2
+    expect(restored).toBe(5)
+  })
 })

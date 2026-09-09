@@ -30,6 +30,16 @@ test('empty checkout sends shopper back to catalog', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'До каталогу' })).toBeVisible()
 })
 
+test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
+  await page.goto('/catalog')
+  const add = page.getByRole('button', { name: 'До кошика' }).first()
+  await expect(add).toBeVisible()
+  await add.click()
+  await page.goto('/cart')
+  await expect(page.getByText('Ваш кошик порожній')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /оформити замовлення/i })).toBeVisible()
+})
+
 test('admin sign-in form is reachable', async ({ page }) => {
   const res = await page.goto('/sign-in')
   expect(res?.ok()).toBeTruthy()

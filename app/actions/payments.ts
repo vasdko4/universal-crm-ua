@@ -17,6 +17,7 @@ import {
   type GatewayResult,
 } from '@/lib/payments/clients'
 import { refundPlan } from '@/lib/payments/refund'
+import { adjustStockForOrder } from '@/lib/shop/order-fulfillment'
 
 type ActionResult = { ok: boolean; message: string; paymentUrl?: string }
 
@@ -306,6 +307,7 @@ export async function refundPayment(
       .where(eq(orders.orderNumber, payment.orderReference))
       .limit(1)
     if (linked) {
+      const [current] = await db.select().from(orders).where(eq(orders.id, linked.id)).limit(1)
       await db
         .update(orders)
         .set({ paymentStatus: plan.status, updatedAt: new Date() })
@@ -316,6 +318,11 @@ export async function refundPayment(
         message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
         actor: 'Платёжный шлюз',
       })
+      // Full refund puts the goods back on the shelf once (same guard as cancel).
+      if (fullyRefunded && current && !current.stockRestored && current.status !== 'cancelled') {
+        await adjustStockForOrder(linked.id, 1)
+        await db.update(orders).set({ stockRestored: true, updatedAt: new Date() }).where(eq(orders.id, linked.id))
+      }
     }
     return {
       ok: true,

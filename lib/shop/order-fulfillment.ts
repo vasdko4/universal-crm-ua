@@ -5,6 +5,31 @@ import { recordPromotionUsage } from '@/app/actions/promotions'
 import { recordStockMovement } from '@/lib/shop/stock-ledger'
 
 /**
+ * `sign: 1` restores stock (cancel / full refund), `sign: -1` re-deducts it.
+ * Used by status flips and by gateway refunds so both paths share one ledger.
+ */
+export async function adjustStockForOrder(orderId: number, sign: 1 | -1) {
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId))
+  for (const item of items) {
+    if (item.productId) {
+      const res = await pool.query(
+        `UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int) WHERE id = $3 RETURNING quantity`,
+        [sign, item.quantity, item.productId],
+      )
+      await recordStockMovement({
+        productId: item.productId,
+        variantId: item.variantId,
+        delta: sign * item.quantity,
+        quantityAfter: Number(res.rows[0]?.quantity),
+        reason: sign === 1 ? 'cancel' : 'sale',
+        orderId,
+        actor: 'Система',
+      })
+    }
+  }
+}
+
+/**
  * Applies the real-world side effects of a placed order exactly once:
  * decrements inventory, updates customer stats, records promo usage, and logs
  * the sale as an analytics event.
