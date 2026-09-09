@@ -128,7 +128,7 @@ async function main() {
         `INSERT INTO articles (title, slug, category_id, excerpt, content, cover_image, author, tags, status, is_featured, views_count, reading_minutes, meta_title, meta_description, published_at, created_at, updated_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'published',$9,$10,$11,$1,$4,$12,$12,NOW())
          ON CONFLICT (slug) DO UPDATE SET cover_image=EXCLUDED.cover_image, content=EXCLUDED.content, excerpt=EXCLUDED.excerpt`,
-        [a.title, a.slug, catBySlug[a.cat] ?? null, a.excerpt, a.content, a.cover, 'Команда Universal Magazine', '{}', a.featured, rint(150, 2400), a.minutes, daysAgo(3 + i * 5)],
+        [a.title, a.slug, catBySlug[a.cat] ?? null, a.excerpt, a.content, a.cover, 'Команда Techno Store', '{}', a.featured, rint(150, 2400), a.minutes, daysAgo(3 + i * 5)],
       )
     }
     console.log('articles upserted:', ARTICLES.length)
@@ -190,6 +190,7 @@ async function main() {
     console.log('customers added:', newCustomers.length)
 
     // ---------- Orders ----------
+    await client.query(`DELETE FROM stock_movements WHERE note = 'demo-seed' OR order_id IN (SELECT id FROM orders WHERE note = 'demo-seed')`)
     await client.query(`DELETE FROM order_history WHERE order_id IN (SELECT id FROM orders WHERE note = 'demo-seed')`)
     await client.query(`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE note = 'demo-seed')`)
     await client.query(`DELETE FROM orders WHERE note = 'demo-seed'`)
@@ -228,6 +229,18 @@ async function main() {
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
           [orderId, it.p.id, it.p.name_uk, it.p.sku, it.p.image, it.price.toFixed(2), it.qty, (it.price * it.qty).toFixed(2), created],
         )
+        await client.query(
+          `INSERT INTO stock_movements (product_id, delta, quantity_after, reason, order_id, actor, note, created_at)
+           VALUES ($1,$2,$3,'sale',$4,'system','demo-seed',$5)`,
+          [it.p.id, -it.qty, Math.max(0, rint(2, 18)), orderId, created],
+        )
+        if (status === 'cancelled') {
+          await client.query(
+            `INSERT INTO stock_movements (product_id, delta, quantity_after, reason, order_id, actor, note, created_at)
+             VALUES ($1,$2,$3,'cancel',$4,'admin','demo-seed',$5)`,
+            [it.p.id, it.qty, rint(4, 24), orderId, new Date(created.getTime() + 3600e3 * rint(2, 12))],
+          )
+        }
       }
       await client.query(
         `INSERT INTO order_history (order_id, type, message, actor, created_at) VALUES ($1,'status','Замовлення створено','system',$2)`,
@@ -242,6 +255,73 @@ async function main() {
       orders++
     }
     console.log('orders inserted:', orders)
+
+    // ---------- Inbound stock (warehouse additions) ----------
+    let inbound = 0
+    for (const p of prods) {
+      const qty = rint(10, 40)
+      await client.query(
+        `INSERT INTO stock_movements (product_id, delta, quantity_after, reason, actor, note, created_at)
+         VALUES ($1,$2,$3,'import','admin','demo-seed',$4)`,
+        [p.id, qty, qty, daysAgo(rint(30, 90))],
+      )
+      inbound++
+      if (rnd() < 0.4) {
+        const extra = rint(3, 15)
+        await client.query(
+          `INSERT INTO stock_movements (product_id, delta, quantity_after, reason, actor, note, created_at)
+           VALUES ($1,$2,$3,'adjust','admin','demo-seed',$4)`,
+          [p.id, extra, qty + extra, daysAgo(rint(3, 28))],
+        )
+        inbound++
+      }
+    }
+    await client.query(`
+      UPDATE products p SET
+        quantity = GREATEST(p.quantity, 8),
+        is_in_stock = true,
+        purchases_boost = GREATEST(COALESCE(p.purchases_boost, 0), (random() * 18)::int)
+      WHERE p.deleted_at IS NULL`)
+    console.log('stock movements (inbound):', inbound)
+
+    // ---------- Abandoned carts ----------
+    await client.query(`DELETE FROM abandoned_carts WHERE token LIKE 'demo-%'`)
+    let carts = 0
+    for (let i = 0; i < 8; i++) {
+      const p = pick(inStock.length ? inStock : prods)
+      const qty = rint(1, 2)
+      const price = Number(p.price)
+      const fn = pick(FIRST)
+      const ln = pick(LAST)
+      const status = pick(['open', 'open', 'reminded', 'dismissed'])
+      await client.query(
+        `INSERT INTO abandoned_carts (token, customer_name, customer_phone, customer_email, items, items_total, items_count, status, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$9)`,
+        [
+          `demo-${i}-${rint(1000, 9999)}`,
+          `${fn} ${ln}`,
+          `+38067${rint(1000000, 9999999)}`,
+          `${fn.toLowerCase()}.${ln.toLowerCase()}@demo.local`,
+          JSON.stringify([{ productId: p.id, name: p.name_uk, price, quantity: qty, image: p.image }]),
+          (price * qty).toFixed(2),
+          qty,
+          status,
+          daysAgo(rint(0, 10)),
+        ],
+      )
+      carts++
+    }
+    console.log('abandoned carts:', carts)
+
+    // ---------- Promo ----------
+    await client.query(`DELETE FROM promotions WHERE promo_code IN ('WELCOME10', 'TECHNO15')`)
+    await client.query(
+      `INSERT INTO promotions (type, name, discount_type, discount_value, promo_code, target_type, usage_limit, min_order_amount, is_active, starts_at, ends_at)
+       VALUES
+         ('promocode','Welcome 10%','percentage',10,'WELCOME10','all',200,500,true,NOW() - INTERVAL '14 days', NOW() + INTERVAL '90 days'),
+         ('promocode','Techno 15%','percentage',15,'TECHNO15','all',80,1500,true,NOW() - INTERVAL '7 days', NOW() + INTERVAL '45 days')`,
+    )
+    console.log('promos inserted: WELCOME10, TECHNO15')
 
     // Refresh customer aggregates
     await client.query(`
