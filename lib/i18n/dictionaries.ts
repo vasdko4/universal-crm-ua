@@ -105,6 +105,7 @@ export type Dictionary = {
   }
   product: {
     addToCart: string
+    buy: string
     buyNow: string
     inStock: string
     outOfStock: string
@@ -654,6 +655,7 @@ const uk: Dictionary = {
   },
   product: {
     addToCart: 'До кошика',
+    buy: 'Купити',
     buyNow: 'Купити зараз',
     inStock: 'В наявності',
     outOfStock: 'Немає в наявності',
@@ -1199,6 +1201,7 @@ const ru: Dictionary = {
   },
   product: {
     addToCart: 'В корзину',
+    buy: 'Купить',
     buyNow: 'Купить сейчас',
     inStock: 'В наличии',
     outOfStock: 'Нет в наличии',

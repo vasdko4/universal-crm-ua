@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ShoppingCart, Check, Ruler } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import type { ShopProduct } from '@/lib/shop/queries'
@@ -65,11 +66,16 @@ export function ProductCard({ product }: { product: ShopProduct }) {
       },
       1,
     )
+    toast.success(dict.product.addedToCart, { description: product.name })
     setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
+    setTimeout(() => setAdded(false), 2000)
   }
 
-  const addLabel = needsSize ? dict.product.chooseSize : dict.product.addToCart
+  const addLabel = needsSize
+    ? dict.product.chooseSize
+    : added
+      ? dict.product.addedToCartVariant
+      : dict.product.buy
   const canBuy = product.inStock
 
   return (
@@ -176,7 +182,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
           </span>
         ) : null}
 
-        <div className="mt-auto flex items-end justify-between gap-1.5 pt-1">
+        <div className="mt-auto flex flex-col gap-1.5 pt-1">
           <div className="min-w-0">
             {product.oldPrice && product.oldPrice > product.price ? (
               <span className="block text-[10px] text-muted-foreground line-through sm:text-[11px]">
@@ -188,21 +194,22 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             </span>
           </div>
           <Button
-            size="icon"
+            size="sm"
             onClick={handleAdd}
             disabled={!canBuy}
             aria-label={addLabel}
             className={cn(
-              'size-8 shrink-0 rounded-md sm:size-8',
+              'h-8 w-full rounded-md px-2 text-[12px] font-semibold sm:h-8 sm:text-[13px]',
               added && 'bg-success text-primary-foreground hover:bg-success',
             )}
           >
-            {added ? (
-              <Check className="size-4" />
-            ) : needsSize ? (
-              <Ruler className="size-4" />
+            {added && !needsSize ? (
+              <>
+                <Check className="size-3.5" />
+                {addLabel}
+              </>
             ) : (
-              <ShoppingCart className="size-4" />
+              addLabel
             )}
           </Button>
         </div>
