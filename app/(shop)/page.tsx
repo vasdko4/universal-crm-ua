@@ -173,7 +173,7 @@ export default async function HomePage() {
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {popular.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -190,7 +190,7 @@ export default async function HomePage() {
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {discounted.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
