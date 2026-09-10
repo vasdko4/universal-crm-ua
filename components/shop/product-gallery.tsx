@@ -11,7 +11,6 @@ type Props = {
   alt: string
   discount?: number
   noPhotoLabel: string
-  // When provided (e.g. after picking a color), jump the gallery to this image.
   selectedImage?: string | null
 }
 
@@ -20,13 +19,12 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   const gallery = images.filter(Boolean)
   const [active, setActive] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [hoverZoom, setHoverZoom] = useState(false)
+  const [zoomOrigin, setZoomOrigin] = useState('50% 50%')
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([])
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
 
-  // Sync the active image when a variant (color) selection drives it
-  // externally. Adjusted during render (comparing against the previous
-  // `selectedImage`) instead of in an effect.
   const [prevSelectedImage, setPrevSelectedImage] = useState(selectedImage)
   if (selectedImage !== prevSelectedImage) {
     setPrevSelectedImage(selectedImage)
@@ -38,7 +36,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
 
   const hasImages = gallery.length > 0
   const count = gallery.length
-  const safeActive = Math.min(active, count - 1)
+  const safeActive = Math.min(active, Math.max(count - 1, 0))
   const current = hasImages ? gallery[safeActive] : null
   const hasThumbs = count > 1
 
@@ -52,7 +50,6 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
     goTo(safeActive + 1)
   }
 
-  // Keep the active thumbnail visible inside the scrollable rail/strip.
   useEffect(() => {
     thumbRefs.current[safeActive]?.scrollIntoView({
       behavior: 'smooth',
@@ -61,7 +58,6 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
     })
   }, [safeActive])
 
-  // Swipe on the main image (mobile) to change photos.
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
@@ -72,13 +68,11 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
     const dy = e.changedTouches[0].clientY - touchStartY.current
     touchStartX.current = null
     touchStartY.current = null
-    // Ignore mostly-vertical gestures (page scroll).
     if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
     if (dx > 0) prev()
     else next()
   }
 
-  // Keyboard navigation when the gallery has focus.
   function onKeyDown(e: React.KeyboardEvent) {
     if (count < 2) return
     if (e.key === 'ArrowLeft') {
@@ -90,16 +84,18 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
     }
   }
 
+  function onMainMove(e: React.MouseEvent<HTMLButtonElement>) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+    const x = ((e.clientX - rect.left) / rect.width) * 100
+    const y = ((e.clientY - rect.top) / rect.height) * 100
+    setZoomOrigin(`${Math.min(100, Math.max(0, x))}% ${Math.min(100, Math.max(0, y))}%`)
+  }
+
   return (
-    // Desktop: vertical thumbnail rail on the left + large main image.
-    // Mobile: large main image with a horizontal thumbnail strip beneath it.
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+    <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-3">
       {hasThumbs && (
-        <div
-          className={cn(
-            'order-2 flex gap-2 overflow-x-auto pb-1 lg:order-1 lg:max-h-[620px] lg:w-[70px] lg:flex-col lg:justify-start lg:overflow-y-auto lg:pb-0',
-          )}
-        >
+        <div className="order-2 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin] lg:order-1 lg:w-[84px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden">
           {gallery.map((src, i) => (
             <button
               key={src + i}
@@ -112,26 +108,32 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               aria-label={`${alt} — ${i + 1}`}
               aria-current={i === safeActive}
               className={cn(
-                'relative size-14 shrink-0 overflow-hidden rounded-lg border bg-card transition lg:size-[62px]',
+                'relative size-16 shrink-0 overflow-hidden rounded-xl border bg-muted/40 transition lg:size-[76px]',
                 i === safeActive
-                  ? 'border-primary ring-2 ring-primary/40'
-                  : 'border-border hover:border-primary/60',
+                  ? 'border-primary ring-2 ring-primary/30'
+                  : 'border-transparent hover:border-border',
               )}
             >
-              <Image src={src || '/placeholder.svg'} alt={alt} fill sizes="62px" quality={90} className="object-contain p-1" />
+              <Image
+                src={src || '/placeholder.svg'}
+                alt=""
+                fill
+                sizes="76px"
+                quality={80}
+                className="object-cover"
+              />
             </button>
           ))}
         </div>
       )}
 
-      {/* Main image — capped at 440x440 on mobile and 620x620 on desktop */}
       <div
         role="region"
         aria-label={alt}
         aria-roledescription="carousel"
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="group relative order-1 mx-auto aspect-square w-full overflow-hidden rounded-2xl border border-border bg-card outline-none focus-visible:ring-2 focus-visible:ring-primary/50 sm:max-w-[440px] lg:order-2 lg:max-w-[620px]"
+        className="group relative order-1 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-muted/30 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:order-2 lg:min-h-[520px]"
       >
         {current ? (
           <button
@@ -139,34 +141,44 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
             onClick={() => setLightboxOpen(true)}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
+            onMouseEnter={() => setHoverZoom(true)}
+            onMouseLeave={() => setHoverZoom(false)}
+            onMouseMove={onMainMove}
             className="relative block h-full w-full cursor-zoom-in touch-pan-y"
             aria-label={`${alt} — ${dict.product.enlargePhoto}`}
           >
-            <Image
-              src={current || '/placeholder.svg'}
-              alt={alt}
-              fill
-              priority
-              quality={90}
-              sizes="(max-width: 640px) 100vw, 620px"
-              className="object-contain p-4"
-            />
-            <span className="absolute bottom-3 right-3 hidden rounded-full bg-background/80 p-2 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 lg:block">
-              <ZoomIn className="size-4" />
+            {gallery.map((src, i) => (
+              <Image
+                key={src + i}
+                src={src || '/placeholder.svg'}
+                alt={i === safeActive ? alt : ''}
+                fill
+                priority={i === 0}
+                quality={92}
+                sizes="(max-width: 1024px) 100vw, 55vw"
+                className={cn(
+                  'object-contain transition-[opacity,transform] duration-200 ease-out',
+                  i === safeActive ? 'opacity-100' : 'opacity-0',
+                  i === safeActive && hoverZoom ? 'scale-[1.85]' : 'scale-100',
+                )}
+                style={i === safeActive ? { transformOrigin: zoomOrigin } : undefined}
+              />
+            ))}
+            <span className="pointer-events-none absolute bottom-3 right-3 hidden items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm opacity-0 transition-opacity group-hover:opacity-100 lg:inline-flex">
+              <ZoomIn className="size-3.5" />
             </span>
           </button>
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">{noPhotoLabel}</div>
         )}
 
-        {/* Prev / next arrows on the main image (visible on hover on desktop, always on mobile) */}
         {count > 1 && current && (
           <>
             <button
               type="button"
               onClick={prev}
               aria-label={dict.common.previousPhoto}
-              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/90 p-2 text-foreground shadow-sm transition hover:bg-background lg:opacity-0 lg:group-hover:opacity-100"
+              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 text-foreground shadow-sm transition hover:bg-background lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronLeft className="size-5" />
             </button>
@@ -174,38 +186,22 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               type="button"
               onClick={next}
               aria-label={dict.common.nextPhoto}
-              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/90 p-2 text-foreground shadow-sm transition hover:bg-background lg:opacity-0 lg:group-hover:opacity-100"
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 text-foreground shadow-sm transition hover:bg-background lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronRight className="size-5" />
             </button>
           </>
         )}
 
-        {/* Photo counter (mobile, like professional marketplaces) */}
         {count > 1 && current && (
-          <span className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-background/80 px-2.5 py-1 text-xs font-medium tabular-nums text-muted-foreground shadow-sm lg:hidden">
+          <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium tabular-nums text-foreground shadow-sm lg:hidden">
             {safeActive + 1} / {count}
           </span>
         )}
 
-        {/* Dot indicators (mobile only) */}
-        {count > 1 && count <= 8 && current && (
-          <div className="pointer-events-none absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5 lg:hidden">
-            {gallery.map((_, i) => (
-              <span
-                key={i}
-                className={cn(
-                  'size-1.5 rounded-full transition-colors',
-                  i === safeActive ? 'bg-primary' : 'bg-foreground/20',
-                )}
-              />
-            ))}
-          </div>
-        )}
-
         {discount > 0 && (
           <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-destructive-foreground">
-            -{discount}%
+            −{discount}%
           </span>
         )}
       </div>
@@ -227,10 +223,6 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
     </div>
   )
 }
-
-/* ------------------------------- Lightbox -------------------------------- */
-// Fullscreen viewer like prom.ua: dark backdrop, arrows, thumbnail strip and
-// click-to-zoom (zooms into the clicked point, click again to zoom out).
 
 function Lightbox({
   gallery,
@@ -262,7 +254,6 @@ function Lightbox({
     onIndexChange((index + 1) % count)
   }, [index, count, onIndexChange])
 
-  // Keyboard: Escape closes, arrows navigate.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -273,7 +264,6 @@ function Lightbox({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, prev, next, count])
 
-  // Lock page scroll while open.
   useEffect(() => {
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -282,7 +272,6 @@ function Lightbox({
     }
   }, [])
 
-  // Zoom into the clicked point; second click zooms back out.
   function toggleZoom(e: React.MouseEvent<HTMLDivElement>) {
     const rect = frameRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -296,7 +285,6 @@ function Lightbox({
     }
   }
 
-  // When zoomed, pan the image by moving the mouse (like prom.ua).
   function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     if (!zoomed) return
     const rect = frameRef.current?.getBoundingClientRect()
@@ -306,7 +294,6 @@ function Lightbox({
     setOrigin(`${x}% ${y}%`)
   }
 
-  // Basic swipe navigation on touch devices (only when not zoomed).
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
   }
@@ -323,10 +310,9 @@ function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={alt}
-      className="fixed inset-0 z-[100] flex flex-col bg-black/90"
+      className="fixed inset-0 z-[100] flex flex-col bg-black/92"
       onClick={onClose}
     >
-      {/* Top bar */}
       <div className="flex items-center justify-between p-3 text-white" onClick={(e) => e.stopPropagation()}>
         <span className="rounded-full bg-white/10 px-3 py-1 text-sm tabular-nums">
           {index + 1} / {count}
@@ -341,8 +327,7 @@ function Lightbox({
         </button>
       </div>
 
-      {/* Stage */}
-      <div className="relative flex min-h-0 flex-1 items-center justify-center px-2" onClick={(e) => e.stopPropagation()}>
+      <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 sm:px-12" onClick={(e) => e.stopPropagation()}>
         {count > 1 && (
           <button
             type="button"
@@ -361,7 +346,7 @@ function Lightbox({
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
           className={cn(
-            'relative h-full max-h-[70vh] w-full max-w-4xl overflow-hidden',
+            'relative h-full w-full max-w-6xl overflow-hidden',
             zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in',
           )}
         >
@@ -369,11 +354,11 @@ function Lightbox({
             src={gallery[index] || '/placeholder.svg'}
             alt={alt}
             fill
-            quality={90}
+            quality={95}
             sizes="100vw"
             className={cn(
               'select-none object-contain transition-transform duration-200',
-              zoomed ? 'scale-[2.5]' : 'scale-100',
+              zoomed ? 'scale-[2.4]' : 'scale-100',
             )}
             style={{ transformOrigin: origin }}
             draggable={false}
@@ -392,12 +377,8 @@ function Lightbox({
         )}
       </div>
 
-      {/* Thumbnail strip */}
       {count > 1 && (
-        <div
-          className="flex justify-center gap-2 overflow-x-auto p-3"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="flex justify-center gap-2 overflow-x-auto p-3" onClick={(e) => e.stopPropagation()}>
           {gallery.map((src, i) => (
             <button
               key={src + i}
@@ -409,11 +390,11 @@ function Lightbox({
               aria-label={`${alt} — ${i + 1}`}
               aria-current={i === index}
               className={cn(
-                'relative size-14 shrink-0 overflow-hidden rounded-lg border-2 bg-white transition',
-                i === index ? 'border-primary' : 'border-transparent opacity-60 hover:opacity-100',
+                'relative size-16 shrink-0 overflow-hidden rounded-lg border-2 bg-white transition',
+                i === index ? 'border-primary' : 'border-transparent opacity-55 hover:opacity-100',
               )}
             >
-              <Image src={src || '/placeholder.svg'} alt={alt} fill sizes="56px" className="object-contain p-1" />
+              <Image src={src || '/placeholder.svg'} alt="" fill sizes="64px" className="object-cover" />
             </button>
           ))}
         </div>
