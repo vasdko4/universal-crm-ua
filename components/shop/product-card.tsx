@@ -143,7 +143,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
 
         <FavoriteButton
           productId={product.id}
-          className="absolute right-2 top-2 z-10 size-8 border-0 bg-white text-neutral-500 shadow-md hover:bg-white hover:text-destructive"
+          className="absolute right-1.5 top-1.5 z-10 size-7 border-0 bg-white text-neutral-500 shadow-md hover:bg-white hover:text-destructive sm:right-2 sm:top-2 sm:size-8"
         />
       </div>
 
@@ -184,7 +184,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
 
         <div className="mt-auto flex flex-col gap-1.5 pt-1">
           <div className="flex min-h-[1.35rem] min-w-0 items-baseline gap-1.5 overflow-hidden">
-            <span className="shrink-0 text-[15px] font-bold leading-none tracking-tight text-foreground sm:text-base">
+            <span className="shrink-0 text-sm font-bold leading-none tracking-tight text-foreground sm:text-[15px]">
               {formatPrice(product.price, product.currency)}
             </span>
             {product.oldPrice && product.oldPrice > product.price ? (
@@ -199,7 +199,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             disabled={!canBuy}
             aria-label={addLabel}
             className={cn(
-              'h-8 w-full rounded-md px-2 text-[12px] font-semibold sm:h-8 sm:text-[13px]',
+              'h-7 w-full rounded-md px-2 text-[11px] font-semibold sm:h-8 sm:text-[13px]',
               added && 'bg-success text-primary-foreground hover:bg-success',
             )}
           >

@@ -85,7 +85,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   return (
     <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-start lg:gap-3">
       {hasThumbs && (
-        <div className="order-2 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin] lg:order-1 lg:max-h-[min(100%,560px)] lg:w-[72px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden">
+        <div className="order-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:thin] lg:order-1 lg:max-h-[min(100%,560px)] lg:w-[72px] lg:flex-col lg:gap-2 lg:overflow-y-auto lg:overflow-x-hidden">
           {gallery.map((src, i) => (
             <button
               key={src + i}
@@ -97,7 +97,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               aria-label={`${alt} — ${i + 1}`}
               aria-current={i === safeActive}
               className={cn(
-                'relative size-16 shrink-0 overflow-hidden rounded-lg border bg-muted/40 transition lg:size-[68px]',
+                'relative size-12 shrink-0 overflow-hidden rounded-lg border bg-muted/40 transition sm:size-14 lg:size-[68px]',
                 i === safeActive
                   ? 'border-primary ring-2 ring-primary/25'
                   : 'border-transparent hover:border-border',
@@ -156,7 +156,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               type="button"
               onClick={prev}
               aria-label={dict.common.previousPhoto}
-              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 text-foreground shadow-sm transition hover:bg-background lg:opacity-0 lg:group-hover:opacity-100"
+              className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 text-foreground shadow-sm transition hover:bg-background lg:flex lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronLeft className="size-5" />
             </button>
@@ -164,7 +164,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               type="button"
               onClick={next}
               aria-label={dict.common.nextPhoto}
-              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 text-foreground shadow-sm transition hover:bg-background lg:opacity-0 lg:group-hover:opacity-100"
+              className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 text-foreground shadow-sm transition hover:bg-background lg:flex lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronRight className="size-5" />
             </button>
@@ -356,7 +356,7 @@ function Lightbox({
       </div>
 
       {count > 1 && (
-        <div className="flex justify-center gap-2 overflow-x-auto p-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-center gap-2 overflow-x-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
           {gallery.map((src, i) => (
             <button
               key={src + i}

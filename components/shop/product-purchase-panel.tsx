@@ -147,7 +147,7 @@ export function ProductPurchasePanel({
       />
 
       <div className="space-y-4 lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:p-5">
-        <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground lg:text-[22px]">
+        <h1 className="text-lg font-semibold leading-snug tracking-tight text-foreground lg:text-[22px]">
           {product.name}
         </h1>
 
@@ -212,7 +212,7 @@ export function ProductPurchasePanel({
                 {formatPrice(displayOldPrice, product.currency)}
               </span>
             )}
-            <span className="text-3xl font-bold leading-none text-foreground">
+            <span className="text-[28px] font-bold leading-none text-foreground lg:text-3xl">
               {!selectedVariant && product.variants.length > 1 ? `${tp.priceFrom} ` : ''}
               {formatPrice(displayPrice, product.currency)}
             </span>
@@ -267,12 +267,12 @@ export function ProductPurchasePanel({
 
             <div className="flex flex-col gap-3">
               <div className="flex items-stretch gap-3">
-                <Button size="lg" className="min-w-0 flex-1 rounded-full" onClick={addToCart}>
+                <Button size="lg" className="h-10 min-w-0 flex-1 rounded-full lg:h-11" onClick={addToCart}>
                   <ShoppingCart className="mr-1 size-5" /> {product.isPreorder ? tp.preorderCta : tp.addToCart}
                 </Button>
-                <FavoriteButton productId={product.id} size="lg" className="h-11 shrink-0" />
+                <FavoriteButton productId={product.id} size="lg" className="h-10 shrink-0 lg:h-11" />
               </div>
-              <Button size="lg" variant="secondary" className="w-full rounded-full" onClick={buyNow}>
+              <Button size="lg" variant="secondary" className="h-10 w-full rounded-full lg:h-11" onClick={buyNow}>
                 <Zap className="mr-1 size-5" /> {tp.buyNow}
               </Button>
             </div>

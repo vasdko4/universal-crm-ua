@@ -207,7 +207,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-4 lg:px-8 lg:py-8">
       <JsonLd data={[
         productLd,
         breadcrumbLd,

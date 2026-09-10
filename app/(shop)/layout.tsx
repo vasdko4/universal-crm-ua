@@ -86,7 +86,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
               categories={categories}
               googleAuthEnabled={googleAuthEnabled}
             />
-            <main className="flex-1 pb-20 lg:pb-0">{children}</main>
+            <main className="flex-1">{children}</main>
             <SiteFooter
               storeName={storeName}
               phones={settings?.contact.phones ?? []}

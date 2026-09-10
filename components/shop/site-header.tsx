@@ -70,9 +70,7 @@ export function SiteHeader({
 
         {/* Actions */}
         <div className="ml-auto flex items-center gap-1">
-          <div className="hidden lg:block">
-            <LocaleSwitcher />
-          </div>
+          <LocaleSwitcher />
           <Button variant="ghost" size="icon" className="relative hidden lg:inline-flex" asChild aria-label={dict.favorites.title}>
             <Link href={lp('/favorites')}>
               <Heart className="size-5" />
