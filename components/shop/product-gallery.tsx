@@ -19,8 +19,6 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   const gallery = images.filter(Boolean)
   const [active, setActive] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const [hoverZoom, setHoverZoom] = useState(false)
-  const [zoomOrigin, setZoomOrigin] = useState('50% 50%')
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([])
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
@@ -84,18 +82,10 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
     }
   }
 
-  function onMainMove(e: React.MouseEvent<HTMLButtonElement>) {
-    const rect = e.currentTarget.getBoundingClientRect()
-    if (!rect.width || !rect.height) return
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    setZoomOrigin(`${Math.min(100, Math.max(0, x))}% ${Math.min(100, Math.max(0, y))}%`)
-  }
-
   return (
-    <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-3">
+    <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-start lg:gap-3">
       {hasThumbs && (
-        <div className="order-2 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin] lg:order-1 lg:w-[84px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden">
+        <div className="order-2 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin] lg:order-1 lg:max-h-[min(100%,560px)] lg:w-[72px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden">
           {gallery.map((src, i) => (
             <button
               key={src + i}
@@ -104,13 +94,12 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               }}
               type="button"
               onClick={() => setActive(i)}
-              onMouseEnter={() => setActive(i)}
               aria-label={`${alt} — ${i + 1}`}
               aria-current={i === safeActive}
               className={cn(
-                'relative size-16 shrink-0 overflow-hidden rounded-xl border bg-muted/40 transition lg:size-[76px]',
+                'relative size-16 shrink-0 overflow-hidden rounded-lg border bg-muted/40 transition lg:size-[68px]',
                 i === safeActive
-                  ? 'border-primary ring-2 ring-primary/30'
+                  ? 'border-primary ring-2 ring-primary/25'
                   : 'border-transparent hover:border-border',
               )}
             >
@@ -118,8 +107,8 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
                 src={src || '/placeholder.svg'}
                 alt=""
                 fill
-                sizes="76px"
-                quality={80}
+                sizes="68px"
+                quality={75}
                 className="object-cover"
               />
             </button>
@@ -133,7 +122,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         aria-roledescription="carousel"
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="group relative order-1 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-muted/30 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:order-2 lg:min-h-[520px]"
+        className="group relative order-1 aspect-square w-full max-w-[560px] overflow-hidden rounded-2xl border border-border bg-muted/40 outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:order-2 lg:max-w-none"
       >
         {current ? (
           <button
@@ -141,31 +130,20 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
             onClick={() => setLightboxOpen(true)}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
-            onMouseEnter={() => setHoverZoom(true)}
-            onMouseLeave={() => setHoverZoom(false)}
-            onMouseMove={onMainMove}
             className="relative block h-full w-full cursor-zoom-in touch-pan-y"
             aria-label={`${alt} — ${dict.product.enlargePhoto}`}
           >
-            {gallery.map((src, i) => (
-              <Image
-                key={src + i}
-                src={src || '/placeholder.svg'}
-                alt={i === safeActive ? alt : ''}
-                fill
-                priority={i === 0}
-                quality={92}
-                sizes="(max-width: 1024px) 100vw, 55vw"
-                className={cn(
-                  'object-contain transition-[opacity,transform] duration-200 ease-out',
-                  i === safeActive ? 'opacity-100' : 'opacity-0',
-                  i === safeActive && hoverZoom ? 'scale-[1.85]' : 'scale-100',
-                )}
-                style={i === safeActive ? { transformOrigin: zoomOrigin } : undefined}
-              />
-            ))}
-            <span className="pointer-events-none absolute bottom-3 right-3 hidden items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm opacity-0 transition-opacity group-hover:opacity-100 lg:inline-flex">
-              <ZoomIn className="size-3.5" />
+            <Image
+              src={current || '/placeholder.svg'}
+              alt={alt}
+              fill
+              priority
+              quality={90}
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-contain"
+            />
+            <span className="pointer-events-none absolute bottom-3 right-3 hidden rounded-full bg-background/90 p-2 text-muted-foreground shadow-sm opacity-0 transition-opacity group-hover:opacity-100 lg:inline-flex">
+              <ZoomIn className="size-4" />
             </span>
           </button>
         ) : (
@@ -346,7 +324,7 @@ function Lightbox({
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
           className={cn(
-            'relative h-full w-full max-w-6xl overflow-hidden',
+            'relative h-full w-full max-w-5xl overflow-hidden',
             zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in',
           )}
         >
@@ -358,7 +336,7 @@ function Lightbox({
             sizes="100vw"
             className={cn(
               'select-none object-contain transition-transform duration-200',
-              zoomed ? 'scale-[2.4]' : 'scale-100',
+              zoomed ? 'scale-[2.2]' : 'scale-100',
             )}
             style={{ transformOrigin: origin }}
             draggable={false}
