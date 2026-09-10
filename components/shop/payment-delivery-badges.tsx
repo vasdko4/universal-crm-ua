@@ -17,9 +17,9 @@ const PAYMENT_ICONS: Record<string, typeof Wallet> = {
 
 function Badge({ Icon, label }: { Icon: typeof Truck; label: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Icon className="size-5 shrink-0 text-primary" />
-      <span>{label}</span>
+    <div className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm text-foreground">
+      <Icon className="size-4 shrink-0 text-primary" />
+      <span className="whitespace-nowrap">{label}</span>
     </div>
   )
 }
@@ -46,7 +46,7 @@ export function PaymentDeliveryBadges({
 
   if (delivery.length === 0 && payment.length === 0) return null
   return (
-    <div className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2">
+    <div className="flex flex-wrap gap-2">
       {delivery.map((d) => (
         <Badge key={`d-${d.code}`} Icon={DELIVERY_ICONS[d.code] ?? Package} label={label(d.code, d.name)} />
       ))}
