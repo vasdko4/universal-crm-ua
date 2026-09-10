@@ -17,6 +17,7 @@ import { generateUniqueSlug } from '@/lib/product-slug'
 import {
   fetchListingPage,
   fetchProduct,
+  isAllowedPromUrl,
   slugify,
   withPage,
   type PromListItem,
@@ -76,20 +77,11 @@ async function ensurePromImportColumns() {
   columnsReady = true
 }
 
-function isPromUrl(value: string): boolean {
-  try {
-    const u = new URL(value)
-    return /(^|\.)prom\.ua$/.test(u.hostname)
-  } catch {
-    return false
-  }
-}
-
 /** Starts a new Prom.ua shop import: discovers every product link, then returns a task id to poll. */
 export async function startPromImport(shopUrl: string) {
   await assertPermission('import')
   const trimmed = shopUrl.trim()
-  if (!isPromUrl(trimmed)) {
+  if (!isAllowedPromUrl(trimmed)) {
     return { success: false as const, error: 'Ссылка должна вести на prom.ua (страницу магазина)' }
   }
   await ensurePromImportColumns()
