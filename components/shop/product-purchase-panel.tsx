@@ -137,7 +137,7 @@ export function ProductPurchasePanel({
   }
 
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:gap-8">
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,560px)_minmax(320px,400px)] lg:gap-8">
       <ProductGallery
         images={galleryImages}
         alt={product.name}
