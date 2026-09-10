@@ -137,7 +137,7 @@ export function ProductPurchasePanel({
   }
 
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,560px)_minmax(320px,400px)] lg:gap-8">
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,1fr)] lg:gap-10">
       <ProductGallery
         images={galleryImages}
         alt={product.name}
@@ -146,8 +146,8 @@ export function ProductPurchasePanel({
         selectedImage={selectedVariant?.image ?? null}
       />
 
-      <div className="space-y-5 lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:p-6">
-        <h1 className="text-balance text-2xl font-bold tracking-tight text-foreground lg:text-3xl">
+      <div className="space-y-4 lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:p-5">
+        <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground lg:text-[22px]">
           {product.name}
         </h1>
 
@@ -208,11 +208,11 @@ export function ProductPurchasePanel({
         <div className="flex flex-col gap-1">
           <div className="flex items-end gap-3">
             {displayOldPrice && (
-              <span className="text-xl text-muted-foreground line-through">
+              <span className="text-base text-muted-foreground line-through">
                 {formatPrice(displayOldPrice, product.currency)}
               </span>
             )}
-            <span className="text-4xl font-bold text-foreground">
+            <span className="text-3xl font-bold leading-none text-foreground">
               {!selectedVariant && product.variants.length > 1 ? `${tp.priceFrom} ` : ''}
               {formatPrice(displayPrice, product.currency)}
             </span>
@@ -237,7 +237,7 @@ export function ProductPurchasePanel({
 
         {available ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <span className="text-sm font-medium text-foreground">{tp.quantity}</span>
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="icon" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label={tp.decrease}>
@@ -256,7 +256,7 @@ export function ProductPurchasePanel({
               </div>
               {(!hasVariants || selectedVariant) && maxQty > 0 && (
                 <span
-                  className={cn('text-sm', maxQty <= LOW_STOCK_THRESHOLD ? 'font-semibold text-destructive' : 'text-muted-foreground')}
+                  className={cn('whitespace-nowrap text-sm', maxQty <= LOW_STOCK_THRESHOLD ? 'font-semibold text-destructive' : 'text-muted-foreground')}
                 >
                   {maxQty <= LOW_STOCK_THRESHOLD
                     ? fillTemplate(tp.lowStockLeft, { count: maxQty })

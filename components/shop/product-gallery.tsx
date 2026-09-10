@@ -122,7 +122,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         aria-roledescription="carousel"
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="group relative order-1 aspect-square w-full max-w-[560px] overflow-hidden rounded-2xl border border-border bg-muted outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:order-2 lg:max-w-none"
+        className="group relative order-1 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-muted outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:order-2"
       >
         {current ? (
           <button
