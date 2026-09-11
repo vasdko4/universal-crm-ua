@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ShoppingCart, User, Heart, LayoutGrid } from 'lucide-react'
+import { ShoppingCart, User, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CartDrawer } from '@/components/shop/cart-drawer'
 import { SearchBox } from '@/components/shop/search-box'
@@ -49,7 +49,7 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-card/95 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
-      <div className="flex items-center gap-3 py-2 lg:gap-4 lg:py-3">
+      <div className="hidden items-center gap-3 py-2 lg:flex lg:gap-4 lg:py-3">
         {/* Logo */}
         <Link href={lp('/')} className="flex min-w-0 shrink-0 items-center gap-2">
           {logoUrl ? (
@@ -107,19 +107,8 @@ export function SiteHeader({
         </div>
       </div>
 
-      {/* Prom / Rozetka mobile: full-width search under the logo, catalog
-          shortcut on the left of the field. */}
-      <div className="flex items-center gap-2 pb-2.5 lg:hidden">
-        <Link
-          href={lp('/catalog')}
-          className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"
-          aria-label={dict.nav.catalog}
-        >
-          <LayoutGrid className="size-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <SearchBox />
-        </div>
+      <div className="py-2 lg:hidden">
+        <SearchBox />
       </div>
       </div>
 
