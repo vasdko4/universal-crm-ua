@@ -42,6 +42,7 @@ import { localizedPath } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils'
 import { trackBeginCheckout } from '@/components/shop/google-ads'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
+import { CopyRequisites } from '@/components/shop/copy-requisites'
 
 // No `config` here on purpose — that column holds admin secrets (Nova Poshta
 // apiKey, bank IBAN/EDRPOU). See app/(shop)/checkout/page.tsx for why it must
@@ -1360,12 +1361,7 @@ function OrderSuccess({
         )}
 
         {result.paymentMethod === 'requisites' && result.requisites && (
-          <div className="mt-6 w-full rounded-xl bg-muted/50 p-4 text-left">
-            <p className="mb-2 text-sm font-semibold text-foreground">{t.requisitesTitle}</p>
-            <pre className="whitespace-pre-wrap font-sans text-sm text-muted-foreground">
-              {result.requisites}
-            </pre>
-          </div>
+          <CopyRequisites className="mt-6 w-full text-left" text={result.requisites} />
         )}
 
         {result.paymentMethod === 'online' && result.paymentUrl && (

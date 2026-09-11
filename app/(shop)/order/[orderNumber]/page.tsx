@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CheckCircle2, Package, Truck, CreditCard, Copy } from 'lucide-react'
+import { CheckCircle2, Package, Truck, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getOrderByNumber } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
@@ -142,12 +142,7 @@ export default async function OrderConfirmationPage({
       ) : null}
 
       {order.note && order.note.startsWith('Реквизиты') ? (
-        <div className="mt-4 rounded-xl border border-border bg-card p-5">
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Copy className="size-4" /> {t.requisites}
-          </div>
-          <CopyRequisites text={order.note.replace(/^Реквизиты для оплаты:\n/, '')} />
-        </div>
+        <CopyRequisites className="mt-4" text={order.note.replace(/^Реквизиты для оплаты:\n/, '')} />
       ) : null}
 
       <div className="mt-4 rounded-xl border border-border bg-card">

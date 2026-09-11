@@ -205,7 +205,14 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
     }
 
     // 1) Customer confirmation email.
-    if (n.customerEmailEnabled && o.customerEmail) {
+    // Bank-requisite orders always try to mail the payment details when SMTP
+    // is on and we have an address (typed at checkout or from the account),
+    // even if generic customer emails are disabled in notifications.
+    const smtpReady = Boolean(settings.emailSettings?.enabled && settings.emailSettings?.smtpHost && settings.emailSettings?.smtpUser)
+    const isRequisites = o.paymentMethod === 'requisites' || Boolean(o.note?.startsWith('Реквизиты для оплаты:'))
+    const shouldEmailCustomer =
+      Boolean(o.customerEmail) && (n.customerEmailEnabled || (isRequisites && smtpReady))
+    if (shouldEmailCustomer && o.customerEmail) {
       const msg = buildOrderMessage('confirmation', o, items, storeCtx, productSlugs)
       jobs.push(
         sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html }).catch(

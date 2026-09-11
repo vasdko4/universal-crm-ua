@@ -263,6 +263,9 @@ export type Dictionary = {
     successContact: string
     orderComposition: string
     requisitesTitle: string
+    copyRequisites: string
+    requisitesCopied: string
+    requisitesHint: string
     goToPayment: string
     myOrders: string
     continueShopping: string
@@ -813,6 +816,9 @@ const uk: Dictionary = {
     successContact: "Ми зв'яжемося з вами для підтвердження. Сума до сплати:",
     orderComposition: 'Склад замовлення',
     requisitesTitle: 'Реквізити для оплати',
+    copyRequisites: 'Копіювати всі реквізити',
+    requisitesCopied: 'Скопійовано',
+    requisitesHint: 'Перекажіть суму за цими даними. Якщо вказали пошту — надішлемо їх листом.',
     goToPayment: 'Перейти до оплати',
     myOrders: 'Мої замовлення',
     continueShopping: 'Продовжити покупки',
@@ -1359,6 +1365,9 @@ const ru: Dictionary = {
     successContact: 'Мы свяжемся с вами для подтверждения. Сумма к оплате:',
     orderComposition: 'Состав заказа',
     requisitesTitle: 'Реквизиты для оплаты',
+    copyRequisites: 'Скопировать все реквизиты',
+    requisitesCopied: 'Скопировано',
+    requisitesHint: 'Переведите сумму по этим данным. Если указали почту — отправим их письмом.',
     goToPayment: 'Перейти к оплате',
     myOrders: 'Мои заказы',
     continueShopping: 'Продолжить покупки',

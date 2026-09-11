@@ -165,9 +165,10 @@ ${siteUrl ? `Отследить заказ и историю покупок: ${s
     : ''
 
   const requisitesHtml = requisitesText
-    ? `<div style="margin-top:16px;padding:14px 16px;background:#fdf8ee;border:1px solid #ecdcbc;border-radius:10px">
-        <div style="font-size:13px;color:#8a6d2f;font-weight:600;margin-bottom:6px">Оплата по реквизитам</div>
-        <div style="font-size:14px;color:#1a1a1a;white-space:pre-line;line-height:1.6">${esc(requisitesText.replace('Реквизиты для оплаты:\n', ''))}</div>
+    ? `<div style="margin-top:16px;padding:18px 20px;background:#ecf8f5;border:2px solid #2f7a6d;border-radius:12px">
+        <div style="font-size:12px;color:#1f5e54;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Реквизиты для оплаты</div>
+        <div style="font-size:16px;color:#10231f;white-space:pre-line;line-height:1.7;font-family:'Courier New',monospace;font-weight:700">${esc(requisitesText.replace('Реквизиты для оплаты:\n', ''))}</div>
+        <div style="margin-top:10px;font-size:13px;color:#1f5e54">Переведите точную сумму. В назначении платежа укажите номер заказа.</div>
       </div>`
     : ''
 

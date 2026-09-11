@@ -314,6 +314,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   const orderNumber = await generateUniqueOrderNumber()
   const shopUser = await getShopUser()
   const customerName = `${input.firstName.trim()} ${input.lastName?.trim() ?? ''}`.trim()
+  const customerEmail = input.email?.trim() || shopUser?.email?.trim() || null
 
   // Upsert a customer record by phone.
   let customerId: number | undefined
@@ -331,7 +332,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         firstName: input.firstName.trim(),
         lastName: input.lastName?.trim() || null,
         phone: input.phone.trim(),
-        email: input.email?.trim() || null,
+        email: customerEmail,
       })
       .returning()
     customerId = c.id
@@ -352,7 +353,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       customerId,
       customerName,
       customerPhone: input.phone.trim(),
-      customerEmail: input.email?.trim() || null,
+      customerEmail,
       deliveryMethod: input.deliveryMethod,
       deliveryCity: input.deliveryCity || null,
       deliveryCityRef: input.deliveryCityRef || null,
