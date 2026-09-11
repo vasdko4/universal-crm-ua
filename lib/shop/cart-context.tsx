@@ -55,6 +55,14 @@ function clampQty(quantity: number, max: number): number {
   return Math.max(1, Math.min(safeMax, Math.floor(quantity)))
 }
 
+function persistCart(items: CartItem[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+  } catch {
+    // ignore quota / private-mode failures
+  }
+}
+
 export function CartProvider({
   children,
   gaId,
@@ -128,22 +136,36 @@ export function CartProvider({
         setItems((prev) => {
           const key = cartKey(item.id, item.variantId)
           const existing = prev.find((i) => i.key === key)
-          if (existing) {
-            const next = clampQty(existing.quantity + quantity, existing.maxQuantity)
-            return prev.map((i) => (i.key === key ? { ...i, quantity: next } : i))
-          }
-          return [...prev, { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }]
+          const next = existing
+            ? prev.map((i) =>
+                i.key === key
+                  ? { ...i, quantity: clampQty(existing.quantity + quantity, existing.maxQuantity) }
+                  : i,
+              )
+            : [...prev, { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }]
+          persistCart(next)
+          return next
         })
         if (openCartAfterAdd) setDrawerOpen(true)
         sendAnalyticsEvent({ type: 'add_to_cart', productId: item.id })
         trackAddToCart(gaId, { id: item.id, name: item.name, price: item.price, quantity })
       },
-      remove: (key) => setItems((prev) => prev.filter((i) => i.key !== key)),
+      remove: (key) =>
+        setItems((prev) => {
+          const next = prev.filter((i) => i.key !== key)
+          persistCart(next)
+          return next
+        }),
       setQuantity: (key, quantity) =>
-        setItems((prev) =>
-          prev.map((i) => (i.key === key ? { ...i, quantity: clampQty(quantity, i.maxQuantity) } : i)),
-        ),
-      clear: () => setItems([]),
+        setItems((prev) => {
+          const next = prev.map((i) => (i.key === key ? { ...i, quantity: clampQty(quantity, i.maxQuantity) } : i))
+          persistCart(next)
+          return next
+        }),
+      clear: () => {
+        persistCart([])
+        setItems([])
+      },
       drawerOpen,
       setDrawerOpen,
       buyNowItem,

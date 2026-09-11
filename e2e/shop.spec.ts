@@ -36,6 +36,7 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   const add = page.getByRole('button', { name: 'Купити', exact: true }).first()
   await expect(add).toBeVisible()
   await add.click()
+  await expect(page.getByText('Товар додано в кошик')).toBeVisible()
   await page.goto('/cart')
   await expect(page.getByText('Ваш кошик порожній')).toHaveCount(0)
   await expect(page.getByRole('link', { name: /оформити замовлення/i })).toBeVisible()
