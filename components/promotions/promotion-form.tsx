@@ -3,7 +3,13 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createPromotion, generatePromoCode, type PromotionInput } from '@/app/actions/promotions'
+import {
+  createPromotion,
+  updatePromotion,
+  generatePromoCode,
+  type PromotionInput,
+} from '@/app/actions/promotions'
+import type { Promotion } from '@/lib/db/schema'
 import {
   ArrowLeft,
   Ticket,
@@ -32,26 +38,61 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
-export function PromotionForm({ groups, products }: { groups: Option[]; products: Option[] }) {
+function toDateInput(value: Date | string | null | undefined): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
+}
+
+function asIdList(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
+}
+
+export function PromotionForm({
+  groups,
+  products,
+  promotion,
+}: {
+  groups: Option[]
+  products: Option[]
+  promotion?: Promotion
+}) {
   const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const isEdit = promotion != null
 
-  const [type, setType] = useState<'promocode' | 'discount'>('promocode')
-  const [name, setName] = useState('')
-  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage')
-  const [discountValue, setDiscountValue] = useState('')
-  const [promoCode, setPromoCode] = useState('')
+  const [type, setType] = useState<'promocode' | 'discount'>(
+    promotion?.type === 'discount' ? 'discount' : 'promocode',
+  )
+  const [name, setName] = useState(promotion?.name ?? '')
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(
+    promotion?.discountType === 'fixed' ? 'fixed' : 'percentage',
+  )
+  const [discountValue, setDiscountValue] = useState(
+    promotion?.discountValue != null ? String(Number(promotion.discountValue)) : '',
+  )
+  const [promoCode, setPromoCode] = useState(promotion?.promoCode ?? '')
 
-  const [targetType, setTargetType] = useState<'all' | 'groups' | 'products'>('all')
-  const [groupIds, setGroupIds] = useState<number[]>([])
-  const [productIds, setProductIds] = useState<number[]>([])
+  const [targetType, setTargetType] = useState<'all' | 'groups' | 'products'>(
+    promotion?.targetType === 'groups' || promotion?.targetType === 'products'
+      ? promotion.targetType
+      : 'all',
+  )
+  const [groupIds, setGroupIds] = useState<number[]>(asIdList(promotion?.targetGroupIds))
+  const [productIds, setProductIds] = useState<number[]>(asIdList(promotion?.targetProductIds))
 
-  const [limitUsage, setLimitUsage] = useState(false)
-  const [usageLimit, setUsageLimit] = useState('')
-  const [limitMinOrder, setLimitMinOrder] = useState(false)
-  const [minOrderAmount, setMinOrderAmount] = useState('')
-  const [noStacking, setNoStacking] = useState(false)
+  const [limitUsage, setLimitUsage] = useState(promotion?.usageLimit != null)
+  const [usageLimit, setUsageLimit] = useState(
+    promotion?.usageLimit != null ? String(promotion.usageLimit) : '',
+  )
+  const [limitMinOrder, setLimitMinOrder] = useState(promotion?.minOrderAmount != null)
+  const [minOrderAmount, setMinOrderAmount] = useState(
+    promotion?.minOrderAmount != null ? String(Number(promotion.minOrderAmount)) : '',
+  )
+  const [noStacking, setNoStacking] = useState(promotion?.noStacking ?? false)
   // "Не применять к оптовым ценам" was removed from this form: the project
   // has no wholesale-pricing concept anywhere (no wholesale price field on
   // products/customers), so the checkbox had literally nothing to exclude
@@ -61,9 +102,10 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
   // behavior that doesn't exist.
   const excludeWholesale = false
 
-  const [startsAt, setStartsAt] = useState(todayStr())
-  const [hasEnd, setHasEnd] = useState(false)
-  const [endsAt, setEndsAt] = useState('')
+  const [startsAt, setStartsAt] = useState(toDateInput(promotion?.startsAt) || todayStr())
+  const [hasEnd, setHasEnd] = useState(Boolean(promotion?.endsAt))
+  const [endsAt, setEndsAt] = useState(toDateInput(promotion?.endsAt))
+  const [isActive, setIsActive] = useState(promotion?.isActive ?? true)
 
   function toggleId(list: number[], id: number, setter: (v: number[]) => void) {
     setter(list.includes(id) ? list.filter((x) => x !== id) : [...list, id])
@@ -145,16 +187,18 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
       excludeWholesale,
       startsAt,
       endsAt: hasEnd && endsAt ? endsAt : null,
-      isActive: true,
+      isActive,
     }
     startTransition(async () => {
-      const res = await createPromotion(payload)
+      const res = isEdit
+        ? await updatePromotion(promotion.id, payload)
+        : await createPromotion(payload)
       if (res.success) {
-        toast.success(t.promotions.toastCreated)
+        toast.success(isEdit ? t.promotions.toastUpdated : t.promotions.toastCreated)
         router.push('/admin/promotions')
         router.refresh()
       } else {
-        toast.error(res.error ?? t.promotions.toastCreateError)
+        toast.error(res.error ?? (isEdit ? t.promotions.toastUpdateError : t.promotions.toastCreateError))
       }
     })
   }
@@ -170,7 +214,9 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-lg font-semibold text-slate-900">{t.promotions.formTitleNew}</h1>
+          <h1 className="text-lg font-semibold text-slate-900">
+            {isEdit ? t.promotions.formTitleEdit : t.promotions.formTitleNew}
+          </h1>
           <p className="text-sm text-slate-500">{t.promotions.formSubtitle}</p>
         </div>
         <button
@@ -466,9 +512,18 @@ export function PromotionForm({ groups, products }: { groups: Option[]; products
               {t.promotions.sectionUsageStats}
             </h2>
             <div className="grid grid-cols-1 gap-3">
-              <StatBox label={t.promotions.statAppliedCount} value="0" />
-              <StatBox label={t.promotions.statOrdersTotal} value="0 ₴" />
-              <StatBox label={t.promotions.statDiscountTotal} value="0 ₴" />
+              <StatBox
+                label={t.promotions.statAppliedCount}
+                value={String(promotion?.usedCount ?? 0)}
+              />
+              <StatBox
+                label={t.promotions.statOrdersTotal}
+                value={`${Number(promotion?.totalOrdersAmount ?? 0).toLocaleString('uk-UA')} ₴`}
+              />
+              <StatBox
+                label={t.promotions.statDiscountTotal}
+                value={`${Number(promotion?.totalDiscountAmount ?? 0).toLocaleString('uk-UA')} ₴`}
+              />
             </div>
             <p className="mt-3 text-xs text-slate-400">{t.promotions.statsHint}</p>
           </section>

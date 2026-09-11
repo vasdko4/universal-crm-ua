@@ -812,6 +812,7 @@ export type AdminDictionary = {
     formSubtitle: string
     backAria: string
     formTitleNew: string
+    formTitleEdit: string
     saveButtonSaving: string
     saveButtonDefault: string
     sectionMainInfo: string
@@ -872,6 +873,8 @@ export type AdminDictionary = {
     statsHint: string
     toastCreated: string
     toastCreateError: string
+    toastUpdated: string
+    toastUpdateError: string
   }
   statistics: {
     days7: string
@@ -2498,6 +2501,7 @@ const uk: AdminDictionary = {
     formSubtitle: 'Налаштуйте знижку, таргетинг та обмеження',
     backAria: 'Назад',
     formTitleNew: 'Нова акція',
+    formTitleEdit: 'Редагувати акцію',
     saveButtonSaving: 'Збереження…',
     saveButtonDefault: 'Зберегти акцію',
     sectionMainInfo: 'Основна інформація',
@@ -2558,6 +2562,8 @@ const uk: AdminDictionary = {
     statsHint: 'Статистика почне заповнюватися після першого застосування акції.',
     toastCreated: 'Акцію створено',
     toastCreateError: 'Не вдалося зберегти акцію',
+    toastUpdated: 'Акцію оновлено',
+    toastUpdateError: 'Не вдалося оновити акцію',
   },
   statistics: {
     days7: '7 днів',
@@ -4190,6 +4196,7 @@ const ru: AdminDictionary = {
     formSubtitle: 'Настройте скидку, таргетинг и ограничения',
     backAria: 'Назад',
     formTitleNew: 'Новая акция',
+    formTitleEdit: 'Редактировать акцию',
     saveButtonSaving: 'Сохранение…',
     saveButtonDefault: 'Сохранить акцию',
     sectionMainInfo: 'Основная информация',
@@ -4250,6 +4257,8 @@ const ru: AdminDictionary = {
     statsHint: 'Статистика начнёт заполняться после первого применения акции.',
     toastCreated: 'Акция создана',
     toastCreateError: 'Не удалось сохранить акцию',
+    toastUpdated: 'Акция обновлена',
+    toastUpdateError: 'Не удалось обновить акцию',
   },
   statistics: {
     days7: '7 дней',

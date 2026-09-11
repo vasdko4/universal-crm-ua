@@ -20,6 +20,7 @@ import {
   Copy,
   Calendar,
   TrendingUp,
+  Pencil,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -296,7 +297,12 @@ function PromotionCard({
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="truncate font-semibold text-slate-900">{p.name}</h3>
+          <Link
+            href={`/admin/promotions/${p.id}/edit`}
+            className="truncate font-semibold text-slate-900 hover:text-violet-700"
+          >
+            {p.name}
+          </Link>
           <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
             <Percent className="size-3" />
             {discount}
@@ -349,6 +355,12 @@ function PromotionCard({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/admin/promotions/${p.id}/edit`}>
+              <Pencil className="size-4" />
+              {t.common.edit}
+            </Link>
+          </DropdownMenuItem>
           {p.promoCode && (
             <DropdownMenuItem
               onClick={() => {

@@ -169,6 +169,7 @@ export async function updatePromotion(id: number, input: PromotionInput) {
     })
     .where(eq(promotions.id, id))
   revalidatePath('/admin/promotions')
+  revalidatePath(`/admin/promotions/${id}/edit`)
   return { success: true }
 }
 
