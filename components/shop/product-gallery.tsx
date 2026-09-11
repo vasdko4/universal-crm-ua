@@ -122,7 +122,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         aria-roledescription="carousel"
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="group relative order-1 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-muted outline-none focus-visible:ring-2 focus-visible:ring-primary/50 lg:order-2"
+        className="group relative order-1 aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border bg-white outline-none focus-visible:ring-2 focus-visible:ring-primary/50 dark:bg-card lg:order-2"
       >
         {current ? (
           <button
@@ -140,7 +140,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               priority
               quality={90}
               sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
+              className="object-contain"
             />
             <span className="pointer-events-none absolute bottom-3 right-3 hidden rounded-full bg-background/90 p-2 text-muted-foreground shadow-sm opacity-0 transition-opacity group-hover:opacity-100 lg:inline-flex">
               <ZoomIn className="size-4" />

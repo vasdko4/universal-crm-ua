@@ -182,16 +182,16 @@ export function ProductCard({ product }: { product: ShopProduct }) {
           </span>
         ) : null}
 
-        <div className="mt-auto flex flex-col gap-1.5 pt-1">
-          <div className="flex min-h-[1.35rem] min-w-0 items-baseline gap-1.5 overflow-hidden">
-            <span className="shrink-0 text-sm font-bold leading-none tracking-tight text-foreground sm:text-[15px]">
-              {formatPrice(product.price, product.currency)}
-            </span>
+        <div className="mt-auto flex items-end justify-between gap-1.5 pt-1">
+          <div className="min-w-0">
             {product.oldPrice && product.oldPrice > product.price ? (
-              <span className="truncate text-[11px] leading-none text-muted-foreground line-through sm:text-xs">
+              <span className="block truncate text-[10px] leading-none text-muted-foreground line-through sm:text-[11px]">
                 {formatPrice(product.oldPrice, product.currency)}
               </span>
             ) : null}
+            <span className="block truncate text-sm font-bold leading-tight tracking-tight text-foreground sm:text-[15px]">
+              {formatPrice(product.price, product.currency)}
+            </span>
           </div>
           <Button
             size="sm"
@@ -199,7 +199,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             disabled={!canBuy}
             aria-label={addLabel}
             className={cn(
-              'h-7 w-full rounded-md px-2 text-[11px] font-semibold sm:h-8 sm:text-[13px]',
+              'h-7 shrink-0 rounded-md px-2.5 text-[11px] font-semibold sm:h-8 sm:px-3 sm:text-[12px]',
               added && 'bg-success text-primary-foreground hover:bg-success',
             )}
           >
