@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, LayoutGrid, ShoppingCart, Heart, User } from 'lucide-react'
+import { Home, LayoutGrid, ShoppingCart, User, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath, stripLocalePrefix } from '@/lib/i18n/config'
 import { useCart } from '@/lib/shop/cart-context'
-import { useFavorites } from '@/lib/shop/favorites-context'
 import { AuthDialog } from '@/components/shop/auth/auth-dialog'
 import { useSession } from '@/lib/auth-client'
 import {
@@ -19,6 +18,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { CatalogCategoriesMobile } from '@/components/shop/catalog-categories-mobile'
+import { SearchBox } from '@/components/shop/search-box'
 import type { HeaderCategory } from '@/components/shop/site-header'
 import { useIsClient } from '@/lib/hooks/use-client-only'
 
@@ -42,9 +42,9 @@ export function MobileBottomNav({
   const { dict, locale } = useI18n()
   const lp = (p: string) => localizedPath(p, locale)
   const { count: cartCount, setDrawerOpen } = useCart()
-  const { count: favCount } = useFavorites()
   const pathname = usePathname()
   const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // Close the categories sheet whenever navigation happens (link tapped).
   // Adjusted during render (comparing against the previous pathname) instead
@@ -53,6 +53,7 @@ export function MobileBottomNav({
   if (pathname !== prevPathname) {
     setPrevPathname(pathname)
     setCategoriesOpen(false)
+    setSearchOpen(false)
   }
   const { data: session, isPending } = useSession()
   const isLoggedIn = Boolean(session?.user)
@@ -83,20 +84,20 @@ export function MobileBottomNav({
   return (
     <>
       {/* Spacer so page content is never hidden behind the fixed bar */}
-      <div className="h-16 lg:hidden" aria-hidden="true" />
+      <div className="h-[4.25rem] lg:hidden" aria-hidden="true" />
 
       {/* Dim layer for the categories panel: ends above the bottom nav so
           the nav buttons stay visible and tappable (Prom-style). Tapping it
           counts as an outside interaction and closes the panel. */}
-      {categoriesOpen ? (
+      {categoriesOpen || searchOpen ? (
         <div
-          className="fixed inset-x-0 top-0 bottom-16 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-x-0 top-0 bottom-[4.25rem] z-40 bg-black/45 lg:hidden"
           aria-hidden="true"
         />
       ) : null}
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-border/80 bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl lg:hidden"
         aria-label={dict.nav.menu}
       >
         <Link href={lp('/')} className={itemClass(isActive('/'))}>
@@ -109,7 +110,14 @@ export function MobileBottomNav({
             the nav buttons. Falls back to the catalog page link when no
             categories were passed. */}
         {categories.length > 0 ? (
-          <Sheet open={categoriesOpen} onOpenChange={setCategoriesOpen} modal={false}>
+          <Sheet
+            open={categoriesOpen}
+            onOpenChange={(open) => {
+              setCategoriesOpen(open)
+              if (open) setSearchOpen(false)
+            }}
+            modal={false}
+          >
             <SheetTrigger asChild>
               <button
                 type="button"
@@ -146,6 +154,34 @@ export function MobileBottomNav({
           </Link>
         )}
 
+        <Sheet
+          open={searchOpen}
+          onOpenChange={(open) => {
+            setSearchOpen(open)
+            if (open) setCategoriesOpen(false)
+          }}
+          modal={false}
+        >
+          <SheetTrigger asChild>
+            <button type="button" className={itemClass(searchOpen)} aria-label={dict.common.search}>
+              <Search className="size-5" />
+              <span>{dict.common.search}</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent
+            side="bottom"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            className="bottom-[4.25rem] top-auto flex max-h-[min(28rem,70dvh)] flex-col rounded-t-2xl border-t p-0"
+          >
+            <SheetHeader className="border-b border-border px-4 py-3">
+              <SheetTitle className="text-base">{dict.common.search}</SheetTitle>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+              <SearchBox onNavigate={() => setSearchOpen(false)} autoFocus />
+            </div>
+          </SheetContent>
+        </Sheet>
+
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -158,14 +194,6 @@ export function MobileBottomNav({
           </span>
           <span>{dict.common.cart}</span>
         </button>
-
-        <Link href={lp('/favorites')} className={itemClass(isActive('/favorites'))}>
-          <span className="relative">
-            <Heart className="size-5" />
-            {badge(favCount)}
-          </span>
-          <span>{dict.favorites.title}</span>
-        </Link>
 
         {!mounted || isLoggedIn || isPending ? (
           <Link href={lp('/account')} className={itemClass(isActive('/account'))}>

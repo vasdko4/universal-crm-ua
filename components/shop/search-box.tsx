@@ -26,7 +26,7 @@ type SearchResponse = { items: SearchItem[]; total: number }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json() as Promise<SearchResponse>)
 
-export function SearchBox({ onNavigate }: { onNavigate?: () => void }) {
+export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () => void; autoFocus?: boolean }) {
   const router = useRouter()
   const { dict, locale } = useI18n()
   const lp = (p: string) => localizedPath(p, locale)
@@ -95,15 +95,16 @@ export function SearchBox({ onNavigate }: { onNavigate?: () => void }) {
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder={dict.nav.searchPlaceholder}
-          className="pl-9"
+          className="h-11 rounded-full border-border/80 bg-muted/40 pl-9 pr-4 shadow-none"
           aria-label={dict.common.search}
           aria-expanded={showDropdown}
           autoComplete="off"
+          autoFocus={autoFocus}
         />
       </form>
 
       {showDropdown && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-popover shadow-lg max-md:fixed max-md:inset-x-2 max-md:top-14 max-md:mt-0">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
           {isLoading && items.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">{dict.common.loading}</p>
           ) : items.length === 0 ? (

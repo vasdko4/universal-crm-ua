@@ -47,14 +47,14 @@ export function SiteHeader({
   const mounted = useIsClient()
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 lg:px-8">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-card/90 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 lg:gap-4 lg:px-8 lg:py-3">
         {/* Logo */}
         <Link href={lp('/')} className="flex shrink-0 items-center gap-2">
           {logoUrl ? (
             <Image src={logoUrl || "/placeholder.svg"} alt={storeName} width={140} height={36} className="h-9 w-auto object-contain" />
           ) : (
-            <span className="text-xl font-bold tracking-tight text-foreground">{storeName}</span>
+            <span className="text-lg font-semibold tracking-[-0.03em] text-foreground lg:text-xl">{storeName}</span>
           )}
         </Link>
 
@@ -63,8 +63,9 @@ export function SiteHeader({
           <CategoryMegaMenu categories={categories} />
         </div>
 
-        {/* Search */}
-        <div className="flex-1">
+        {/* Search stays in the header on desktop; on phones it lives in the
+            bottom nav so the logo isn't squeezed next to a tiny field. */}
+        <div className="hidden flex-1 lg:block">
           <SearchBox />
         </div>
 

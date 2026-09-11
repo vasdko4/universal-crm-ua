@@ -143,7 +143,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-10 lg:px-8">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {benefits.map((b) => (
-            <div key={b.title} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
+            <div key={b.title} className="flex items-start gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]">
               <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
                 {b.iconUrl ? (
                   <Image src={b.iconUrl} alt={b.title} width={40} height={40} className="size-full object-cover" />

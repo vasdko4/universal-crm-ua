@@ -79,8 +79,8 @@ export function ProductCard({ product }: { product: ShopProduct }) {
   const canBuy = product.inStock
 
   return (
-    <article className="group relative flex h-full flex-col overflow-visible rounded-lg border border-border/70 bg-card transition-shadow hover:shadow-md">
-      <div className="relative overflow-hidden rounded-t-lg">
+    <article className="group relative flex h-full flex-col overflow-visible rounded-2xl border border-border/60 bg-card shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.28)]">
+      <div className="relative overflow-hidden rounded-t-2xl">
         <Link href={href} className="relative block aspect-square overflow-hidden bg-muted/60">
           {primary ? (
             <>
@@ -91,7 +91,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
                 sizes={IMAGE_SIZES}
                 quality={85}
                 className={cn(
-                  'object-cover transition-opacity duration-300',
+                  'object-cover transition duration-500 group-hover:scale-[1.03]',
                   hoverImage && 'group-hover:opacity-0',
                 )}
               />
