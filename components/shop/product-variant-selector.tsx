@@ -60,6 +60,7 @@ export function ProductVariantSelector({ options, variants, selected, onSelect }
                       key={val}
                       type="button"
                       onClick={() => onSelect(opt.name, val)}
+                      data-testid="product-option"
                       aria-pressed={active}
                       aria-label={val}
                       title={available ? val : `${val} — нет в наличии`}
@@ -86,6 +87,7 @@ export function ProductVariantSelector({ options, variants, selected, onSelect }
                     key={val}
                     type="button"
                     onClick={() => onSelect(opt.name, val)}
+                    data-testid="product-option"
                     aria-pressed={active}
                     className={cn(
                       'flex h-10 min-w-11 items-center justify-center rounded-lg border px-3 text-sm font-medium transition-colors',

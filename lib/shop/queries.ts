@@ -100,6 +100,14 @@ export type ShopProduct = {
  */
 const plainOutOfStockSql = sql`(${products.isInStock} IS NOT TRUE OR ${products.quantity} <= 0) AND ${products.availabilityMode} = 'default'`
 
+const SIZE_AXIS = /розмір|размер|size/i
+const JUNK_SIZE = /маломір/i
+
+function sizesFromOptions(options: ProductOption[]): string[] {
+  const sizeOption = options.find((o) => SIZE_AXIS.test(o.name))
+  return (sizeOption?.values ?? []).filter((v) => v.trim() && !JUNK_SIZE.test(v))
+}
+
 function toStringArray(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string' && x.length > 0)
   if (typeof v === 'string' && v.trim().startsWith('[')) {
@@ -169,7 +177,11 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     stockStatus: (r.stock_status as string) ?? null,
     image: upgradePromImageUrl((r.image as string) ?? null),
     images: upgradePromImageList(gallery),
-    sizes: toStringArray(r.sizes),
+    sizes: (() => {
+      const stored = toStringArray(r.sizes)
+      if (stored.length > 0) return stored
+      return sizesFromOptions(toOptions(r.options))
+    })(),
     options: variantsEnabled ? toOptions(r.options) : [],
     variants: [],
     variantsEnabled,

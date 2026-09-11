@@ -5,7 +5,7 @@ test.beforeEach(async ({ context, baseURL }) => {
 })
 
 async function dismissLocaleModal(page: import('@playwright/test').Page) {
-  const lang = page.getByRole('button', { name: 'Українська' })
+  const lang = page.getByRole('dialog').getByRole('button', { name: 'Українська' })
   if (await lang.isVisible().catch(() => false)) await lang.click()
 }
 
@@ -50,9 +50,12 @@ test('empty checkout sends shopper back to catalog', async ({ page }) => {
 test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   await page.goto('/catalog')
   await dismissLocaleModal(page)
+  // Client cart writes only after hydration. Clicking the SSR button before
+  // that is a no-op and leaves localStorage empty.
+  await expect(page.getByTestId('cart-ready')).toHaveAttribute('data-ready', '1')
   await expect(page.locator('article a[href*="/product/"]').first()).toBeVisible()
 
-  const listingAdd = page.getByTestId('add-to-cart').first()
+  const listingAdd = page.locator('[data-testid="add-to-cart"]:not([disabled])').first()
   if (await listingAdd.count()) {
     await listingAdd.click()
   } else {
@@ -63,10 +66,11 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
       await page.locator('article a[href*="/product/"]').first().click()
     }
     await page.waitForURL(/\/product\//)
-    const variantButtons = page.locator('[aria-pressed="false"]')
-    const n = await variantButtons.count()
+    await expect(page.getByTestId('cart-ready')).toHaveAttribute('data-ready', '1')
+    const optionButtons = page.getByTestId('product-option')
+    const n = await optionButtons.count()
     for (let i = 0; i < n; i++) {
-      const btn = variantButtons.nth(i)
+      const btn = optionButtons.nth(i)
       if (await btn.isVisible().catch(() => false)) await btn.click()
     }
     await page.getByTestId('add-to-cart').click()

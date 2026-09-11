@@ -21,12 +21,14 @@ import { isSetupNeeded } from '@/app/actions/setup'
 import { getShopCategories } from '@/lib/shop/queries'
 import { getPublishedLegalPages } from '@/lib/shop/pages'
 import { getLocale, hasLocaleCookie, getDictionary } from '@/lib/i18n/server'
+import { ensureProductSizesBackfill } from '@/lib/shop/backfill-product-sizes'
 
 export const dynamic = 'force-dynamic'
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
   // Fresh install (no users yet): guide the visitor through the setup wizard.
   if (await isSetupNeeded()) redirect('/setup')
+  await ensureProductSizesBackfill()
 
   const [settings, locale, chosenLocale, googleAuthEnabled] = await Promise.all([
     getStoreSettingsInternal().catch(() => null),
