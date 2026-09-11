@@ -34,12 +34,25 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   await page.goto('/catalog')
   const lang = page.getByRole('button', { name: 'Українська' })
   if (await lang.isVisible().catch(() => false)) await lang.click()
-  const productLink = page.locator('a[href*="/product/"]').first()
-  await expect(productLink).toBeVisible()
-  await productLink.click()
-  const add = page.getByRole('button', { name: /до кошика|замовити заздалегідь/i }).first()
-  await expect(add).toBeVisible()
-  await add.click()
+  const card = page.locator('article').filter({ has: page.getByRole('button', { name: 'Купити', exact: true }) }).first()
+  await expect(card).toBeVisible()
+  await card.getByRole('button', { name: 'Купити', exact: true }).click()
+  if (page.url().includes('/product/')) {
+    await page.getByRole('button', { name: /до кошика|замовити заздалегідь/i }).first().click()
+  }
+  await expect
+    .poll(async () => {
+      return page.evaluate(() => {
+        try {
+          const raw = localStorage.getItem('techno-cart-v1')
+          const items = raw ? JSON.parse(raw) : []
+          return Array.isArray(items) ? items.length : 0
+        } catch {
+          return 0
+        }
+      })
+    })
+    .toBeGreaterThan(0)
   await page.goto('/cart')
   await expect(page.getByText('Ваш кошик порожній')).toHaveCount(0)
   await expect(page.getByRole('link', { name: /оформити замовлення/i })).toBeVisible()

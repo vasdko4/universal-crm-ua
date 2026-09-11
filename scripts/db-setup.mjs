@@ -82,6 +82,9 @@ async function main() {
     await run('applying migrate.sql', readFileSync(join(root, 'db/migrate.sql'), 'utf8'))
     if (withSeed) {
       await run('applying seed.sql', readFileSync(join(root, 'db/seed.sql'), 'utf8'))
+      // seed.sql predates columns like products.slug; migrate.sql's
+      // `UPDATE ... WHERE slug IS NULL` only ran on the empty table above.
+      await run('re-applying migrate.sql after seed', readFileSync(join(root, 'db/migrate.sql'), 'utf8'))
     }
     console.log('\n✓ Database ready.')
     if (withSeed) {
