@@ -115,7 +115,6 @@ export function CartProvider({
       // ignore
     }
     setIsReady(true)
-    document.documentElement.dataset.cartReady = 'true'
   }, [])
 
   useEffect(() => {
@@ -174,7 +173,12 @@ export function CartProvider({
     }
   }, [items, buyNowItem, isReady, drawerOpen, gaId, openCartAfterAdd])
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>
+  return (
+    <CartContext.Provider value={value}>
+      {isReady ? <span data-testid="cart-ready" hidden /> : null}
+      {children}
+    </CartContext.Provider>
+  )
 }
 
 export function useCart() {

@@ -232,3 +232,12 @@ ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "status" varchar(20) DEFAULT 'new'
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "payment_status" varchar(20) DEFAULT 'unpaid'::character varying NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders (payment_status);
+
+-- Prom.ua imports wrote product_variants but left variants_enabled=false,
+-- so the storefront hid size/color selectors on every imported product.
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variants_enabled" boolean DEFAULT false NOT NULL;
+UPDATE products
+SET variants_enabled = true
+WHERE COALESCE(variants_enabled, false) = false
+  AND deleted_at IS NULL
+  AND id IN (SELECT DISTINCT product_id FROM product_variants);

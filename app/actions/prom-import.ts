@@ -73,6 +73,41 @@ async function ensurePromImportColumns() {
   // it's already bigint).
   await pool.query(`ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "prom_id" bigint`)
   await pool.query(`ALTER TABLE "products" ALTER COLUMN "prom_id" TYPE bigint`)
+  // Older Prom imports wrote product_variants / options but left
+  // variants_enabled at its default false, so the storefront hid every
+  // size/color selector. Flip the flag for rows that already have variants.
+  await pool.query(`ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variants_enabled" boolean DEFAULT false NOT NULL`)
+  await pool.query(`
+    UPDATE products
+    SET variants_enabled = true
+    WHERE COALESCE(variants_enabled, false) = false
+      AND deleted_at IS NULL
+      AND id IN (SELECT DISTINCT product_id FROM product_variants)
+  `)
+  // Listing cards read `sizes`, not `options`. Fill it from the size axis
+  // already stored on imported products so «Обрати розмір» shows without
+  // a full re-import.
+  await pool.query(`
+    UPDATE products p
+    SET sizes = sub.sizes
+    FROM (
+      SELECT
+        id,
+        COALESCE((
+          SELECT jsonb_agg(val)
+          FROM jsonb_array_elements(COALESCE(options, '[]'::jsonb)) AS opt,
+               jsonb_array_elements_text(COALESCE(opt->'values', '[]'::jsonb)) AS val
+          WHERE lower(opt->>'name') ~ 'розмір|размер|size'
+            AND val <> ''
+            AND val !~* 'маломір'
+        ), '[]'::jsonb) AS sizes
+      FROM products
+      WHERE deleted_at IS NULL
+    ) sub
+    WHERE p.id = sub.id
+      AND jsonb_array_length(sub.sizes) > 0
+      AND (p.sizes IS NULL OR p.sizes = '[]'::jsonb)
+  `)
   columnsReady = true
 }
 
@@ -224,6 +259,41 @@ function guessColorHex(value: string): string | undefined {
 
 type BuiltVariant = { options: VariantOptions; isInStock: boolean; sortOrder: number }
 
+const SIZE_AXIS_NAMES = ['розмір', 'размер', 'size']
+
+function isJunkChoice(value: string): boolean {
+  return !value.trim() || /маломір/i.test(value)
+}
+
+function splitAttrValues(value: string): string[] {
+  return value
+    .split(/[,;/|]+/)
+    .map((v) => v.trim())
+    .filter((v) => !isJunkChoice(v))
+}
+
+/** Size values for listing cards (`product.sizes` → «Обрати розмір»). */
+function sizesFromOptions(options: ProductOption[]): string[] {
+  const sizeOption = options.find((o) => SIZE_AXIS_NAMES.some((n) => o.name.toLowerCase().includes(n)))
+  return (sizeOption?.values ?? []).filter((v) => !isJunkChoice(v))
+}
+
+function variantsFromSizeAttribute(
+  fetchedInStock: boolean,
+  fetchedAttributesUk: { group: string; name: string; value: string }[],
+): { options: ProductOption[]; variants: BuiltVariant[]; anyInStock: boolean } | null {
+  const sizeAttr = fetchedAttributesUk.find((a) => SIZE_AXIS_NAMES.some((n) => a.name.toLowerCase().includes(n)))
+  const values = sizeAttr ? splitAttrValues(sizeAttr.value) : []
+  if (!sizeAttr || values.length <= 1) return null
+  const options: ProductOption[] = [{ name: sizeAttr.name, type: 'text', values }]
+  const variants: BuiltVariant[] = values.map((value, i) => ({
+    options: { [sizeAttr.name]: value },
+    isInStock: fetchedInStock,
+    sortOrder: i,
+  }))
+  return { options, variants, anyInStock: fetchedInStock }
+}
+
 /**
  * Turns a product's size/color siblings (from ProductVariationQuery, each a
  * separate Prom.ua product id with its own stock) into this store's
@@ -237,7 +307,15 @@ function buildVariants(
   fetchedAttributesUk: { group: string; name: string; value: string }[],
   siblings: PromVariationItem[],
 ): { options: ProductOption[]; variants: BuiltVariant[]; anyInStock: boolean } {
-  if (siblings.length === 0) return { options: [], variants: [], anyInStock: fetchedInStock }
+  if (siblings.length === 0) {
+    return (
+      variantsFromSizeAttribute(fetchedInStock, fetchedAttributesUk) ?? {
+        options: [],
+        variants: [],
+        anyInStock: fetchedInStock,
+      }
+    )
+  }
 
   // Siblings only carry the choice axis (e.g. size) that actually varies
   // between them (color etc. stays out since it's identical across sizes).
@@ -249,15 +327,27 @@ function buildVariants(
   // list instead (e.g. "Міжнародний розмір: XL" alongside "Колір: Зелений").
   const selfAttributes = axisNames
     .map((name) => {
-      const found = fetchedAttributesUk.find((a) => a.name === name)
-      return found ? { name, value: found.value } : null
+      const found = fetchedAttributesUk.find(
+        (a) => a.name === name || a.name.toLowerCase() === name.toLowerCase(),
+      )
+      const value = found ? splitAttrValues(found.value)[0] : undefined
+      return found && value ? { name, value } : null
     })
     .filter((a): a is { name: string; value: string } => a !== null)
-  const all = [{ promId: fetchedPromId, inStock: fetchedInStock, attributes: selfAttributes }, ...siblings]
+  const all = [
+    { promId: fetchedPromId, inStock: fetchedInStock, attributes: selfAttributes },
+    ...siblings.map((v) => ({
+      ...v,
+      attributes: v.attributes
+        .map((a) => ({ ...a, value: splitAttrValues(a.value)[0] ?? a.value }))
+        .filter((a) => !isJunkChoice(a.value)),
+    })),
+  ]
 
   const valuesByAxis = new Map<string, string[]>()
   for (const v of all) {
     for (const a of v.attributes) {
+      if (isJunkChoice(a.value)) continue
       const list = valuesByAxis.get(a.name) ?? []
       if (!list.includes(a.value)) list.push(a.value)
       valuesByAxis.set(a.name, list)
@@ -414,6 +504,8 @@ export async function continuePromImport(taskId: number) {
         image: p.images[0] || null,
         images: p.images,
         options,
+        sizes: sizesFromOptions(options),
+        variantsEnabled: variants.length > 0,
       }
 
       let productId: number

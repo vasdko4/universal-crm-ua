@@ -24,7 +24,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
   const { dict, locale } = useI18n()
   const href = localizedPath(`/product/${product.slug}`, locale)
   const [added, setAdded] = useState(false)
-  const needsSize = (product.sizes?.length ?? 0) > 0
+  const needsSize = (product.sizes?.length ?? 0) > 0 || product.variantsEnabled
 
   const primary = product.image
   const hoverImage = useMemo(() => {
