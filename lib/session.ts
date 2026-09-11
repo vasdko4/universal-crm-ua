@@ -147,20 +147,36 @@ export async function ensureStaffTwoFactorColumns(): Promise<void> {
   await twoFaColumnsReady
 }
 
+export async function getStaffSessionId(): Promise<string | null> {
+  try {
+    const auth = await getAuth()
+    const session = await auth.api.getSession({ headers: await headers() })
+    const s = session?.session as { id?: string; token?: string } | undefined
+    return s?.id || s?.token || null
+  } catch {
+    return null
+  }
+}
+
 export async function staffTwoFactorSatisfied(userId: string): Promise<boolean> {
+  let enabled = false
   try {
     await ensureStaffTwoFactorColumns()
     const { rows } = await pool.query<{ two_factor_enabled: boolean }>(
       `SELECT two_factor_enabled FROM "user" WHERE id = $1`,
       [userId],
     )
-    if (!rows[0]?.two_factor_enabled) return true
-    const jar = await cookies()
-    const cookie = jar.get('staff_2fa')?.value
-    return twoFactorCookieValid(userId, process.env.BETTER_AUTH_SECRET || 'dev-staff-2fa', cookie)
+    enabled = Boolean(rows[0]?.two_factor_enabled)
   } catch {
+    // Can't read the flag (un-migrated DB) — don't lock staff out of admin.
     return true
   }
+  if (!enabled) return true
+  const sessionId = await getStaffSessionId()
+  if (!sessionId) return false
+  const jar = await cookies()
+  const cookie = jar.get('staff_2fa')?.value
+  return twoFactorCookieValid(userId, process.env.BETTER_AUTH_SECRET || 'dev-staff-2fa', cookie, sessionId)
 }
 
 export async function requireAdmin(): Promise<AdminUser> {
@@ -183,6 +199,7 @@ export async function requirePermission(key: PermissionKey): Promise<AdminUser> 
 export async function assertPermission(key: PermissionKey): Promise<AdminUser> {
   const user = await getAdminUser()
   if (!user) throw new Error('Не авторизовано')
+  if (!(await staffTwoFactorSatisfied(user.id))) throw new Error('Потрібен код 2FA')
   if (!hasPermission(user.permissions, key)) throw new Error('Нет прав доступа: ' + key)
   return user
 }
@@ -191,6 +208,7 @@ export async function assertPermission(key: PermissionKey): Promise<AdminUser> {
 export async function getAdminUserWithPermission(key: PermissionKey): Promise<AdminUser | null> {
   const user = await getAdminUser()
   if (!user) return null
+  if (!(await staffTwoFactorSatisfied(user.id))) return null
   if (!hasPermission(user.permissions, key)) return null
   return user
 }

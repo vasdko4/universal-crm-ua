@@ -79,13 +79,18 @@ export function otpauthUrl(params: { secret: string; account: string; issuer: st
   return `otpauth://totp/${issuer}:${account}?secret=${params.secret}&issuer=${issuer}&algorithm=SHA1&digits=6&period=30`
 }
 
-export function twoFactorCookieValue(userId: string, secret: string): string {
-  return createHmac('sha256', secret).update(`staff-2fa:${userId}`).digest('hex')
+export function twoFactorCookieValue(userId: string, secret: string, sessionId = ''): string {
+  return createHmac('sha256', secret).update(`staff-2fa:${userId}:${sessionId}`).digest('hex')
 }
 
-export function twoFactorCookieValid(userId: string, secret: string, cookie: string | undefined | null): boolean {
-  if (!cookie) return false
-  const expected = twoFactorCookieValue(userId, secret)
+export function twoFactorCookieValid(
+  userId: string,
+  secret: string,
+  cookie: string | undefined | null,
+  sessionId = '',
+): boolean {
+  if (!cookie || !sessionId) return false
+  const expected = twoFactorCookieValue(userId, secret, sessionId)
   const a = Buffer.from(cookie)
   const b = Buffer.from(expected)
   return a.length === b.length && timingSafeEqual(a, b)

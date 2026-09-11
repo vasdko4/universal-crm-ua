@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { writeFile, unlink, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { getAdminUser } from '@/lib/session'
+import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { hasPermission } from '@/lib/permissions'
 import { readJson } from '@/lib/api/helpers'
 
@@ -56,7 +56,11 @@ async function storeLocally(body: Buffer, contentType: string, originalName: str
 // so allow either permission rather than hard-coding one.
 export async function POST(request: NextRequest) {
   const admin = await getAdminUser()
-  if (!admin || !(hasPermission(admin.permissions, 'products') || hasPermission(admin.permissions, 'settings'))) {
+  if (
+    !admin ||
+    !(await staffTwoFactorSatisfied(admin.id)) ||
+    !(hasPermission(admin.permissions, 'products') || hasPermission(admin.permissions, 'settings'))
+  ) {
     return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
   }
 
@@ -140,7 +144,11 @@ export async function POST(request: NextRequest) {
 // Remove an image from storage (admin only).
 export async function DELETE(request: NextRequest) {
   const admin = await getAdminUser()
-  if (!admin || !(hasPermission(admin.permissions, 'products') || hasPermission(admin.permissions, 'settings'))) {
+  if (
+    !admin ||
+    !(await staffTwoFactorSatisfied(admin.id)) ||
+    !(hasPermission(admin.permissions, 'products') || hasPermission(admin.permissions, 'settings'))
+  ) {
     return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
   }
 

@@ -1,8 +1,9 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import QRCode from 'qrcode'
 import { pool } from '@/lib/db'
-import { getAdminUser, ensureStaffTwoFactorColumns } from '@/lib/session'
+import { getAdminUser, ensureStaffTwoFactorColumns, getStaffSessionId, staffTwoFactorSatisfied } from '@/lib/session'
 import {
   generateTotpSecret,
   otpauthUrl,
@@ -40,13 +41,33 @@ export async function getStaffTwoFactorState(): Promise<{
   }
 }
 
+async function setTwoFactorCookie(userId: string) {
+  const sessionId = await getStaffSessionId()
+  if (!sessionId) throw new Error('no session')
+  const jar = await cookies()
+  jar.set(COOKIE, twoFactorCookieValue(userId, cookieSecret(), sessionId), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: MAX_AGE,
+  })
+}
+
 export async function beginStaffTwoFactor(): Promise<
-  { ok: true; secret: string; otpauth: string } | { ok: false; error: string }
+  { ok: true; secret: string; otpauth: string; qrDataUrl: string } | { ok: false; error: string }
 > {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
   try {
     await ensureStaffTwoFactorColumns()
+    const { rows } = await pool.query<{ two_factor_enabled: boolean }>(
+      `SELECT two_factor_enabled FROM "user" WHERE id = $1`,
+      [me.id],
+    )
+    if (rows[0]?.two_factor_enabled && !(await staffTwoFactorSatisfied(me.id))) {
+      return { ok: false, error: 'Спочатку підтвердіть поточний код 2FA' }
+    }
     const secret = generateTotpSecret()
     await pool.query(`UPDATE "user" SET two_factor_pending_secret = $1, "updatedAt" = NOW() WHERE id = $2`, [
       secret,
@@ -54,7 +75,9 @@ export async function beginStaffTwoFactor(): Promise<
     ])
     const settings = await getStoreSettingsInternal().catch(() => null)
     const issuer = settings?.storeName || 'Universal Magazine'
-    return { ok: true, secret, otpauth: otpauthUrl({ secret, account: me.email, issuer }) }
+    const otpauth = otpauthUrl({ secret, account: me.email, issuer })
+    const qrDataUrl = await QRCode.toDataURL(otpauth, { width: 220, margin: 1 })
+    return { ok: true, secret, otpauth, qrDataUrl }
   } catch (e) {
     console.error('[staff-2fa] beginStaffTwoFactor failed:', e)
     return { ok: false, error: 'Не вдалося увімкнути 2FA. Оновіть сторінку і спробуйте ще раз.' }
@@ -77,14 +100,7 @@ export async function confirmStaffTwoFactor(code: string): Promise<{ ok: boolean
       `UPDATE "user" SET two_factor_secret = $1, two_factor_enabled = true, two_factor_pending_secret = NULL, "updatedAt" = NOW() WHERE id = $2`,
       [secret, me.id],
     )
-    const jar = await cookies()
-    jar.set(COOKIE, twoFactorCookieValue(me.id, cookieSecret()), {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: MAX_AGE,
-    })
+    await setTwoFactorCookie(me.id)
     return { ok: true }
   } catch (e) {
     console.error('[staff-2fa] confirmStaffTwoFactor failed:', e)
@@ -122,23 +138,29 @@ export async function verifyStaffTwoFactorLogin(code: string): Promise<{ ok: boo
   const row = rows[0]
   if (!row?.two_factor_enabled || !row.two_factor_secret) return { ok: false, error: '2FA не увімкнено' }
   if (!verifyTotp(row.two_factor_secret, code)) return { ok: false, error: 'Невірний код' }
-  const jar = await cookies()
-  jar.set(COOKIE, twoFactorCookieValue(me.id, cookieSecret()), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: MAX_AGE,
-  })
+  try {
+    await setTwoFactorCookie(me.id)
+  } catch {
+    return { ok: false, error: 'Сесія застаріла. Увійдіть ще раз.' }
+  }
   return { ok: true }
+}
+
+export async function clearStaffTwoFactorCookie(): Promise<void> {
+  const jar = await cookies()
+  jar.delete(COOKIE)
 }
 
 export async function currentUserRequiresTwoFactor(): Promise<boolean> {
   const me = await getAdminUser()
   if (!me) return false
-  const { rows } = await pool.query<{ two_factor_enabled: boolean }>(
-    `SELECT two_factor_enabled FROM "user" WHERE id = $1`,
-    [me.id],
-  )
-  return Boolean(rows[0]?.two_factor_enabled)
+  try {
+    const { rows } = await pool.query<{ two_factor_enabled: boolean }>(
+      `SELECT two_factor_enabled FROM "user" WHERE id = $1`,
+      [me.id],
+    )
+    return Boolean(rows[0]?.two_factor_enabled)
+  } catch {
+    return false
+  }
 }

@@ -46,6 +46,21 @@ export type AdminDictionary = {
     twoFactorHint: string
     twoFactorSubmit: string
   }
+  twoFactor: {
+    pageTitle: string
+    pageSubtitle: string
+    title: string
+    enabledHint: string
+    disabledHint: string
+    scanHint: string
+    openInApp: string
+    enable: string
+    confirm: string
+    disable: string
+    enabledToast: string
+    disabledToast: string
+    menuItem: string
+  }
   sidebar: {
     goToSite: string
     adminCenter: string
@@ -1679,6 +1694,21 @@ const uk: AdminDictionary = {
     twoFactorTitle: 'Код з додатка',
     twoFactorHint: 'Введіть 6-значний код Google Authenticator / Authy',
     twoFactorSubmit: 'Підтвердити',
+  },
+  twoFactor: {
+    pageTitle: 'Безпека входу',
+    pageSubtitle: 'Додатковий код з Authenticator при вході в адмінку',
+    title: '2FA (Authenticator)',
+    enabledHint: 'Увімкнено для цього акаунта. Після пароля потрібен 6-значний код.',
+    disabledHint: 'Додатковий код з Authenticator при вході в адмінку.',
+    scanHint: 'Відскануйте QR у Google Authenticator / Authy або введіть ключ вручну.',
+    openInApp: 'Відкрити в додатку',
+    enable: 'Увімкнути',
+    confirm: 'Підтвердити',
+    disable: 'Вимкнути',
+    enabledToast: '2FA увімкнено',
+    disabledToast: '2FA вимкнено',
+    menuItem: 'Безпека (2FA)',
   },
   sidebar: {
     goToSite: 'Перейти на сайт',
@@ -3374,6 +3404,21 @@ const ru: AdminDictionary = {
     twoFactorTitle: 'Код из приложения',
     twoFactorHint: 'Введите 6-значный код Google Authenticator / Authy',
     twoFactorSubmit: 'Подтвердить',
+  },
+  twoFactor: {
+    pageTitle: 'Безопасность входа',
+    pageSubtitle: 'Дополнительный код из Authenticator при входе в админку',
+    title: '2FA (Authenticator)',
+    enabledHint: 'Включено для этого аккаунта. После пароля нужен 6-значный код.',
+    disabledHint: 'Дополнительный код из Authenticator при входе в админку.',
+    scanHint: 'Отсканируйте QR в Google Authenticator / Authy или введите ключ вручную.',
+    openInApp: 'Открыть в приложении',
+    enable: 'Включить',
+    confirm: 'Подтвердить',
+    disable: 'Выключить',
+    enabledToast: '2FA включено',
+    disabledToast: '2FA выключено',
+    menuItem: 'Безопасность (2FA)',
   },
   sidebar: {
     goToSite: 'Перейти на сайт',

@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { listOrders, createOrder } from '@/app/actions/orders'
 import { ok, fail, parsePositiveInt, sanitizeSearch, readJson } from '@/lib/api/helpers'
-import { getAdminUser } from '@/lib/session'
+import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { ORDER_STATUSES } from '@/lib/order-status'
 
 const ALLOWED_STATUSES = new Set<string>(['all', ...ORDER_STATUSES.map((s) => s.value)])
@@ -10,7 +10,7 @@ const DEFAULT_PER_PAGE = 20
 
 export async function GET(req: NextRequest) {
   const me = await getAdminUser()
-  if (!me) return fail('Не авторизован', 401)
+  if (!me || !(await staffTwoFactorSatisfied(me.id))) return fail('Не авторизован', 401)
 
   const sp = req.nextUrl.searchParams
 
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const me = await getAdminUser()
-  if (!me) return fail('Не авторизован', 401)
+  if (!me || !(await staffTwoFactorSatisfied(me.id))) return fail('Не авторизован', 401)
   const body = await readJson<{ items?: unknown[] }>(req)
   if (!body) return fail('Некорректный JSON', 400)
   if (!Array.isArray(body.items) || body.items.length === 0) {

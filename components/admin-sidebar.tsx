@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Store, LogOut, ChevronDown } from 'lucide-react'
+import { Store, LogOut, ChevronDown, ShieldCheck } from 'lucide-react'
+import { clearStaffTwoFactorCookie } from '@/app/actions/staff-2fa'
 import { NAV_SECTIONS, hasPermission } from '@/lib/permissions'
 import { authClient } from '@/lib/auth-client'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
@@ -46,6 +47,7 @@ export function AdminSidebar({
   const handleSignOut = async () => {
     setSigningOut(true)
     await authClient.signOut()
+    await clearStaffTwoFactorCookie()
     router.push('/sign-in')
     router.refresh()
   }
@@ -131,6 +133,12 @@ export function AdminSidebar({
               <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/admin/security">
+                <ShieldCheck className="size-4" />
+                {dict.twoFactor.menuItem}
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleSignOut} disabled={signingOut}>
               <LogOut className="size-4" />
               {signingOut ? dict.sidebar.signingOut : dict.sidebar.signOut}

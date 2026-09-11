@@ -32,10 +32,12 @@ describe('staff TOTP', () => {
     expect(url).toContain('secret=MFRGGZDFMZTWQ2LK')
   })
 
-  it('HMACs the 2FA cookie', () => {
-    const v = twoFactorCookieValue('user-1', 's3cret')
-    expect(twoFactorCookieValid('user-1', 's3cret', v)).toBe(true)
-    expect(twoFactorCookieValid('user-1', 's3cret', 'nope')).toBe(false)
-    expect(twoFactorCookieValid('other', 's3cret', v)).toBe(false)
+  it('HMACs the 2FA cookie to the current session', () => {
+    const v = twoFactorCookieValue('user-1', 's3cret', 'sess-1')
+    expect(twoFactorCookieValid('user-1', 's3cret', v, 'sess-1')).toBe(true)
+    expect(twoFactorCookieValid('user-1', 's3cret', v, 'sess-2')).toBe(false)
+    expect(twoFactorCookieValid('user-1', 's3cret', v)).toBe(false)
+    expect(twoFactorCookieValid('user-1', 's3cret', 'nope', 'sess-1')).toBe(false)
+    expect(twoFactorCookieValid('other', 's3cret', v, 'sess-1')).toBe(false)
   })
 })

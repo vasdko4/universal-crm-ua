@@ -106,7 +106,7 @@ export function SignInForm({
           <p className="text-xs text-muted-foreground">{copy.twoFactorHint}</p>
           <Input
             value={otp}
-            onChange={(e) => setOtp(e.target.value)}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
