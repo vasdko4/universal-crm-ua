@@ -21,12 +21,12 @@ export const dynamic = 'force-dynamic'
 
 const HOME_CONTENT = {
   uk: {
-    badge: 'Преміум електроніка',
-    heroTitle: 'Техніка, яка працює на вас',
+    badge: 'Каталог',
+    heroTitle: 'Усе для дому, саду та щодня',
     heroText:
-      'Смартфони, навушники, аудіо та аксесуари від перевірених брендів. Доставка по всій Україні та гарантія на кожен товар.',
-    toCatalog: 'Перейти до каталогу',
-    heroAlt: 'Електроніка',
+      'Одяг, сад, авто, електрообладнання та аксесуари. Обирайте розділ — доставка Новою Поштою по Україні.',
+    toCatalog: 'Усі категорії',
+    heroAlt: 'Каталог товарів',
     categories: 'Категорії',
     popular: 'Популярні товари',
     discounts: 'Знижки',
@@ -41,12 +41,12 @@ const HOME_CONTENT = {
     ],
   },
   ru: {
-    badge: 'Премиум электроника',
-    heroTitle: 'Техника, которая работает на вас',
+    badge: 'Каталог',
+    heroTitle: 'Всё для дома, сада и на каждый день',
     heroText:
-      'Смартфоны, наушники, аудио и аксессуары от проверенных брендов. Доставка по всей Украине и гарантия на каждый товар.',
-    toCatalog: 'Перейти в каталог',
-    heroAlt: 'Электроника',
+      'Одежда, сад, авто, электрооборудование и аксессуары. Выберите раздел — доставка Новой Почтой по Украине.',
+    toCatalog: 'Все категории',
+    heroAlt: 'Каталог товаров',
     categories: 'Категории',
     popular: 'Популярные товары',
     discounts: 'Скидки',
@@ -75,20 +75,37 @@ export default async function HomePage() {
     getStoreSettingsInternal().catch(() => null),
     getCatalogProducts(allProductsParams),
   ])
-  const topCategories = categories.filter((cat) => !cat.parentId).slice(0, 8)
+  const topCategories = categories.filter((cat) => !cat.parentId).slice(0, 12)
   const template = getTemplate(settings?.activeTemplate ?? 'classic')
 
   // Admin-configured hero content (Настройки → Главная страница) overrides
   // the built-in defaults per field; empty values fall back to HOME_CONTENT.
   const heroOverride = settings?.homeHero?.[locale]
+  const cannedHero = new Set([
+    'Преміум електроніка',
+    'Премиум электроника',
+    'Техніка, яка працює на вас',
+    'Техника, которая работает на вас',
+    'Перейти до каталогу',
+    'Перейти в каталог',
+  ])
+  const pickHero = (value: string | undefined, fallback: string) => {
+    const v = value?.trim()
+    if (!v || cannedHero.has(v) || /смартфон|наушник|навушник|преміум електрон|премиум электрон/i.test(v)) {
+      return fallback
+    }
+    return v
+  }
   const hero = {
-    badge: heroOverride?.badge?.trim() || c.badge,
-    heroTitle: heroOverride?.title?.trim() || c.heroTitle,
-    heroText: heroOverride?.text?.trim() || c.heroText,
-    toCatalog: heroOverride?.buttonText?.trim() || c.toCatalog,
+    badge: pickHero(heroOverride?.badge, c.badge),
+    heroTitle: pickHero(heroOverride?.title, c.heroTitle),
+    heroText: pickHero(heroOverride?.text, c.heroText),
+    toCatalog: pickHero(heroOverride?.buttonText, c.toCatalog),
     heroAlt: c.heroAlt,
   }
-  const heroImageUrl = settings?.homeHero?.imageUrl?.trim() || undefined
+  const rawHeroImage = settings?.homeHero?.imageUrl?.trim() || ''
+  const heroImageUrl =
+    rawHeroImage && !/hero-electronics/i.test(rawHeroImage) ? rawHeroImage : undefined
 
   // Admin-configured benefit cards (Настройки → Главная страница) override
   // the built-in defaults per field; empty title/text fall back to
@@ -103,7 +120,7 @@ export default async function HomePage() {
     iconUrl: benefitOverrides?.[i]?.iconUrl?.trim() || '',
   }))
 
-  const storeName = settings?.storeName || 'Интернет-магазин электроники'
+  const storeName = settings?.storeName || 'Інтернет-магазин'
   const lp = (path: string) => localizedPath(path, locale)
   const siteUrl = await getCanonicalSiteUrl()
   const structuredData = [
@@ -135,7 +152,12 @@ export default async function HomePage() {
         layout={template.layout}
         content={hero}
         imageUrl={heroImageUrl}
-        categories={topCategories.map((cat) => ({ id: cat.id, name: cat.name, image: cat.image }))}
+        categories={topCategories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          slug: cat.slug,
+          image: cat.image,
+        }))}
         locale={locale}
       />
 

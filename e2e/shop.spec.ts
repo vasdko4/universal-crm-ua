@@ -25,7 +25,7 @@ test('home page renders storefront chrome', async ({ page }) => {
   const res = await page.goto('/')
   expect(res?.ok()).toBeTruthy()
   await expect(page.locator('header').first()).toBeVisible()
-  await expect(page.getByRole('link', { name: /каталог/i }).first()).toBeVisible()
+  await expect(page.getByRole('search').first()).toBeVisible()
 })
 
 test('catalog page has a heading', async ({ page }) => {

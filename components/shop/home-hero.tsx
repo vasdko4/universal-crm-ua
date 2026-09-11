@@ -16,6 +16,7 @@ export type HeroContent = {
 export type HeroCategory = {
   id: number
   name: string
+  slug?: string | null
   image: string | null
 }
 
@@ -39,45 +40,91 @@ export function HomeHero({
   /** Admin-configured hero image (Настройки → Главная); empty = default. */
   imageUrl?: string
 }) {
-  const image = imageUrl || DEFAULT_HERO_IMAGE
+  const customImage = imageUrl?.trim() || ''
+  const image = customImage || DEFAULT_HERO_IMAGE
   if (layout === 'marketplace')
     return <MarketplaceHero content={content} categories={categories} locale={locale} image={image} />
   if (layout === 'boutique') return <BoutiqueHero content={content} locale={locale} image={image} />
   if (layout === 'minimal') return <MinimalHero content={content} locale={locale} />
-  return <StandardHero content={content} locale={locale} image={image} />
+  return (
+    <StandardHero
+      content={content}
+      locale={locale}
+      image={customImage}
+      categories={categories}
+    />
+  )
 }
 
-/* Classic side-by-side hero with photo. */
-function StandardHero({ content: c, locale, image }: { content: HeroContent; locale: Locale; image: string }) {
+function categoryHref(cat: HeroCategory, locale: Locale) {
+  return localizedPath(`/category/${cat.id}`, locale)
+}
+
+function CategoryTile({ cat, locale }: { cat: HeroCategory; locale: Locale }) {
   return (
-    <section className="border-b border-border bg-secondary">
-      <div className="mx-auto flex max-w-7xl flex-col items-center gap-8 px-4 py-12 lg:flex-row lg:px-8 lg:py-20">
-        <div className="flex-1 space-y-6 text-center lg:text-left">
-          <span className="inline-block rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
-            {c.badge}
-          </span>
-          <h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-            {c.heroTitle}
-          </h1>
-          <p className="mx-auto max-w-lg text-pretty text-lg text-muted-foreground lg:mx-0">{c.heroText}</p>
-          <div className="flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-            <Button asChild size="lg" className="rounded-full">
-              <Link href={localizedPath('/catalog', locale)}>
-                {c.toCatalog} <ArrowRight className="ml-1 size-5" />
-              </Link>
-            </Button>
+    <Link
+      href={categoryHref(cat, locale)}
+      className="group flex flex-col items-center gap-2 rounded-2xl border border-border/70 bg-card p-3 text-center shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-colors hover:border-primary hover:shadow-md"
+    >
+      <div className="relative size-14 overflow-hidden rounded-2xl bg-muted sm:size-16">
+        {cat.image ? (
+          <Image src={cat.image} alt="" fill sizes="64px" className="object-cover transition duration-300 group-hover:scale-105" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-lg font-semibold text-muted-foreground">
+            {cat.name.charAt(0)}
           </div>
+        )}
+      </div>
+      <span className="line-clamp-2 text-xs font-medium leading-snug text-foreground group-hover:text-primary sm:text-sm">
+        {cat.name}
+      </span>
+    </Link>
+  )
+}
+
+/* Category-first home (Prom / Rozetka): shoppers land on departments, not a stock gadget photo. */
+function StandardHero({
+  content: c,
+  locale,
+  image,
+  categories,
+}: {
+  content: HeroContent
+  locale: Locale
+  image: string
+  categories: HeroCategory[]
+}) {
+  const tiles = categories.slice(0, 12)
+  return (
+    <section className="border-b border-border bg-background">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <h1 className="text-balance text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+              {c.heroTitle}
+            </h1>
+            <p className="mt-2 max-w-xl text-pretty text-sm text-muted-foreground sm:text-base">{c.heroText}</p>
+          </div>
+          <Button asChild className="shrink-0 rounded-full">
+            <Link href={localizedPath('/catalog', locale)}>
+              {c.toCatalog} <ArrowRight className="ml-1 size-4" />
+            </Link>
+          </Button>
         </div>
-        <div className="relative aspect-[4/3] w-full max-w-lg flex-1 overflow-hidden rounded-2xl">
-          <Image
-            src={image}
-            alt={c.heroAlt}
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 512px"
-            className="object-cover"
-          />
-        </div>
+
+        {image ? (
+          <div className="relative mt-5 aspect-[21/9] max-h-48 overflow-hidden rounded-2xl sm:max-h-56">
+            <Image src={image} alt={c.heroAlt} fill priority sizes="(max-width: 1280px) 100vw, 1280px" className="object-cover" />
+          </div>
+        ) : null}
+
+        {tiles.length > 0 ? (
+          <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            {tiles.map((cat) => (
+              <CategoryTile key={cat.id} cat={cat} locale={locale} />
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   )
@@ -156,7 +203,7 @@ function MarketplaceHero({
             {tiles.map((cat) => (
               <Link
                 key={cat.id}
-                href={localizedPath(`/category/${cat.id}`, locale)}
+                href={categoryHref(cat, locale)}
                 className="group flex flex-col items-center gap-2 rounded-[var(--radius)] border border-border bg-card p-3 text-center transition-colors hover:border-primary"
               >
                 <div className="relative size-12 overflow-hidden rounded-full bg-muted">
