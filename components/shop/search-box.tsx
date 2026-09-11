@@ -85,7 +85,7 @@ export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () =
   return (
     <div ref={rootRef} className="relative w-full">
       <form onSubmit={onSubmit} role="search">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute right-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground lg:left-3 lg:right-auto lg:size-4" />
         <Input
           value={query}
           onChange={(e) => {
@@ -95,11 +95,12 @@ export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () =
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder={dict.nav.searchPlaceholder}
-          className="h-11 rounded-full border-border/80 bg-muted/40 pl-9 pr-4 shadow-none"
+          className="h-11 rounded-xl border-border bg-background pl-3.5 pr-11 shadow-none lg:rounded-full lg:bg-muted/40 lg:pl-9 lg:pr-4"
           aria-label={dict.common.search}
           aria-expanded={showDropdown}
           autoComplete="off"
           autoFocus={autoFocus}
+          enterKeyHint="search"
         />
       </form>
 

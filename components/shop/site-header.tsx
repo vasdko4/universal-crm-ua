@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ShoppingCart, User, Heart } from 'lucide-react'
+import { ShoppingCart, User, Heart, LayoutGrid } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CartDrawer } from '@/components/shop/cart-drawer'
 import { SearchBox } from '@/components/shop/search-box'
@@ -47,14 +47,15 @@ export function SiteHeader({
   const mounted = useIsClient()
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-card/90 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 lg:gap-4 lg:px-8 lg:py-3">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-card/95 backdrop-blur-xl">
+      <div className="mx-auto max-w-7xl px-4 lg:px-8">
+      <div className="flex items-center gap-3 py-2 lg:gap-4 lg:py-3">
         {/* Logo */}
-        <Link href={lp('/')} className="flex shrink-0 items-center gap-2">
+        <Link href={lp('/')} className="flex min-w-0 shrink-0 items-center gap-2">
           {logoUrl ? (
-            <Image src={logoUrl || "/placeholder.svg"} alt={storeName} width={140} height={36} className="h-9 w-auto object-contain" />
+            <Image src={logoUrl || "/placeholder.svg"} alt={storeName} width={140} height={36} className="h-8 w-auto object-contain lg:h-9" />
           ) : (
-            <span className="text-lg font-semibold tracking-[-0.03em] text-foreground lg:text-xl">{storeName}</span>
+            <span className="truncate text-base font-semibold tracking-[-0.03em] text-foreground lg:text-xl">{storeName}</span>
           )}
         </Link>
 
@@ -63,14 +64,12 @@ export function SiteHeader({
           <CategoryMegaMenu categories={categories} />
         </div>
 
-        {/* Search stays in the header on desktop; on phones it lives in the
-            bottom nav so the logo isn't squeezed next to a tiny field. */}
-        <div className="hidden flex-1 lg:block">
+        <div className="hidden min-w-0 flex-1 lg:block">
           <SearchBox />
         </div>
 
         {/* Actions */}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 lg:gap-1">
           <LocaleSwitcher />
           <Button variant="ghost" size="icon" className="relative hidden lg:inline-flex" asChild aria-label={dict.favorites.title}>
             <Link href={lp('/favorites')}>
@@ -106,6 +105,22 @@ export function SiteHeader({
             </Button>
           </CartDrawer>
         </div>
+      </div>
+
+      {/* Prom / Rozetka mobile: full-width search under the logo, catalog
+          shortcut on the left of the field. */}
+      <div className="flex items-center gap-2 pb-2.5 lg:hidden">
+        <Link
+          href={lp('/catalog')}
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+          aria-label={dict.nav.catalog}
+        >
+          <LayoutGrid className="size-5" />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <SearchBox />
+        </div>
+      </div>
       </div>
 
       {/* Desktop primary nav */}
