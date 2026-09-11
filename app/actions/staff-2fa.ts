@@ -1,7 +1,6 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import QRCode from 'qrcode'
 import { pool } from '@/lib/db'
 import { getAdminUser, ensureStaffTwoFactorColumns, getStaffSessionId, staffTwoFactorSatisfied } from '@/lib/session'
 import {
@@ -55,7 +54,7 @@ async function setTwoFactorCookie(userId: string) {
 }
 
 export async function beginStaffTwoFactor(): Promise<
-  { ok: true; secret: string; otpauth: string; qrDataUrl: string } | { ok: false; error: string }
+  { ok: true; secret: string; otpauth: string } | { ok: false; error: string }
 > {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
@@ -76,8 +75,7 @@ export async function beginStaffTwoFactor(): Promise<
     const settings = await getStoreSettingsInternal().catch(() => null)
     const issuer = settings?.storeName || 'Universal Magazine'
     const otpauth = otpauthUrl({ secret, account: me.email, issuer })
-    const qrDataUrl = await QRCode.toDataURL(otpauth, { width: 220, margin: 1 })
-    return { ok: true, secret, otpauth, qrDataUrl }
+    return { ok: true, secret, otpauth }
   } catch (e) {
     console.error('[staff-2fa] beginStaffTwoFactor failed:', e)
     return { ok: false, error: 'Не вдалося увімкнути 2FA. Оновіть сторінку і спробуйте ще раз.' }

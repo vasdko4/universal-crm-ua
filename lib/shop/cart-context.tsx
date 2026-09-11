@@ -175,7 +175,7 @@ export function CartProvider({
 
   return (
     <CartContext.Provider value={value}>
-      {isReady ? <span data-testid="cart-ready" hidden /> : null}
+      <span data-testid="cart-ready" data-ready={isReady ? '1' : '0'} hidden />
       {children}
     </CartContext.Provider>
   )
