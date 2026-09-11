@@ -83,9 +83,9 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   }
 
   return (
-    <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-start lg:gap-3">
+    <div className="flex w-full flex-row items-start gap-2 sm:gap-3">
       {hasThumbs && (
-        <div className="order-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:thin] lg:order-1 lg:max-h-[min(100%,560px)] lg:w-[72px] lg:flex-col lg:gap-2 lg:overflow-y-auto lg:overflow-x-hidden">
+        <div className="flex max-h-[min(100%,280px)] w-12 shrink-0 flex-col gap-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] sm:max-h-[min(100%,360px)] sm:w-14 lg:max-h-[min(100%,560px)] lg:w-[72px] lg:gap-2">
           {gallery.map((src, i) => (
             <button
               key={src + i}
@@ -122,7 +122,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         aria-roledescription="carousel"
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className="group relative order-1 aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border bg-white outline-none focus-visible:ring-2 focus-visible:ring-primary/50 dark:bg-card lg:order-2"
+        className="group relative min-w-0 flex-1 aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-white outline-none focus-visible:ring-2 focus-visible:ring-primary/50 dark:bg-card"
       >
         {current ? (
           <button
