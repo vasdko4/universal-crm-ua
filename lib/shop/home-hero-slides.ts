@@ -13,13 +13,10 @@ export type HeroSlide = {
 export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide[] {
   const catalog = localizedPath('/catalog', locale)
   const images = {
-    delivery:
-      'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=1600&q=80',
-    pay: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80',
-    warranty:
-      'https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1600&q=80',
-    catalog:
-      'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=80',
+    delivery: '/images/hero-delivery.jpg',
+    pay: '/images/hero-payment.jpg',
+    warranty: '/images/hero-warranty.jpg',
+    catalog: '/images/hero-sales.jpg',
   }
   if (locale === 'ru') {
     return [
