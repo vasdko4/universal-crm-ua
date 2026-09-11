@@ -223,3 +223,12 @@ CREATE INDEX IF NOT EXISTS idx_stock_movements_order ON "stock_movements" ("orde
 -- Admin UI default language is Ukrainian (was Russian). Flip the column
 -- default only — do not overwrite staff who already picked Russian.
 ALTER TABLE "user" ALTER COLUMN "locale" SET DEFAULT 'uk';
+
+-- Older installs created `orders` without fulfillment `status` /
+-- `payment_status`. CREATE TABLE IF NOT EXISTS never adds columns to an
+-- existing table, so admin order lists crash with:
+--   error: column "status" does not exist
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "status" varchar(20) DEFAULT 'new'::character varying NOT NULL;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "payment_status" varchar(20) DEFAULT 'unpaid'::character varying NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders (payment_status);
