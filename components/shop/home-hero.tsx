@@ -4,7 +4,8 @@ import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { TemplateLayout } from '@/lib/shop/templates'
 import { localizedPath, type Locale } from '@/lib/i18n/config'
-import { defaultHeroSlides, HomeHeroCarousel } from '@/components/shop/home-hero-carousel'
+import { HomeHeroCarousel } from '@/components/shop/home-hero-carousel'
+import { defaultHeroSlides } from '@/lib/shop/home-hero-slides'
 
 export type HeroContent = {
   badge: string
