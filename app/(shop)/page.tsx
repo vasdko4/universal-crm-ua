@@ -162,7 +162,7 @@ export default async function HomePage() {
       />
 
       {/* Benefits */}
-      <section className="mx-auto max-w-7xl px-4 py-10 lg:px-8">
+      <section className="mx-auto hidden max-w-7xl px-4 py-10 lg:block lg:px-8">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {benefits.map((b) => (
             <div key={b.title} className="flex items-start gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]">
@@ -184,9 +184,9 @@ export default async function HomePage() {
 
       {/* Popular */}
       {popular.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+        <section className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">
+          <div className="mb-4 flex items-center justify-between lg:mb-5">
+            <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">
               <Link href={lp('/catalog?popular=1')} className="hover:text-primary">
                 {c.popular}
               </Link>
@@ -205,9 +205,9 @@ export default async function HomePage() {
 
       {/* Discounts */}
       {discounted.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">{c.discounts}</h2>
+        <section className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">
+          <div className="mb-4 flex items-center justify-between lg:mb-5">
+            <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">{c.discounts}</h2>
             <Link href={lp('/catalog')} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
@@ -222,8 +222,8 @@ export default async function HomePage() {
 
       {/* All products — infinite scroll */}
       {allProducts.items.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-          <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">{c.allProducts}</h2>
+        <section className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">
+          <h2 className="mb-4 text-lg font-bold tracking-tight text-foreground lg:mb-5 lg:text-2xl">{c.allProducts}</h2>
           <InfiniteProducts
             initialItems={allProducts.items}
             total={allProducts.total}

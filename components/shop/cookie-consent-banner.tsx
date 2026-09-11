@@ -37,7 +37,7 @@ export function CookieConsentBanner() {
   if (!visible) return null
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/98 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/90">
+    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-border bg-card/98 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/90 lg:bottom-0 lg:z-50 lg:p-4">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
         <p className="text-center text-sm text-muted-foreground sm:text-left">{t.message}</p>
         <div className="flex shrink-0 gap-2">

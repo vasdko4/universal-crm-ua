@@ -111,8 +111,8 @@ export function SiteFooter({
   ].filter((s) => s.url)
 
   return (
-    <footer className="mt-16 border-t border-border bg-card">
-      <div className="mx-auto max-w-7xl px-4 py-10 lg:grid lg:grid-cols-4 lg:gap-8 lg:py-12 lg:px-8">
+    <footer className="mt-8 border-t border-border bg-card lg:mt-16">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:grid lg:grid-cols-4 lg:gap-8 lg:px-8 lg:py-12">
         {/* Brand — always visible */}
         <div className="space-y-3 pb-2 lg:pb-0">
           <h3 className="text-lg font-bold text-foreground">{storeName}</h3>

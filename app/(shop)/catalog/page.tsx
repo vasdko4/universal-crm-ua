@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CatalogToolbar } from '@/components/shop/catalog-toolbar'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
-import { CatalogCategoriesMobile } from '@/components/shop/catalog-categories-mobile'
 import { JsonLd } from '@/components/shop/json-ld'
 import { getCatalogProducts, getPriceBounds, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
@@ -74,15 +73,7 @@ export default async function CatalogPage({
     getShopCategories(locale),
     getPriceBounds({ search: params.search }),
   ])
-  // On mobile the catalog acts as a category directory; the product grid is
-  // shown on mobile only when the user is searching or filtering.
-  const showCategoriesOnMobile =
-    !params.search &&
-    !params.inStockOnly &&
-    !params.discountOnly &&
-    !params.popularOnly &&
-    params.minPrice == null &&
-    params.maxPrice == null
+  const topCategories = categories.filter((c) => !c.parentId)
 
   // Admin SEO settings (if configured) take priority over env vars, matching
   // the domain used by sitemap.xml / robots.txt / metadataBase.
@@ -110,14 +101,14 @@ export default async function CatalogPage({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">
       <JsonLd data={[breadcrumbLd, itemListLd]} />
-      <nav className="mb-4 text-sm text-muted-foreground">
+      <nav className="mb-3 hidden text-sm text-muted-foreground lg:block">
         <Link href={lp('/')} className="hover:text-primary">{dict.common.home}</Link>
         <span className="mx-2">/</span>
         <span className="text-foreground">{dict.common.catalog}</span>
       </nav>
-      <h1 className="mb-6 text-3xl font-bold tracking-tight text-foreground">
+      <h1 className="mb-4 text-xl font-bold tracking-tight text-foreground lg:mb-6 lg:text-3xl">
         {params.search
           ? `${dict.catalog.resultsFor}: «${params.search}»`
           : params.popularOnly
@@ -125,15 +116,21 @@ export default async function CatalogPage({
             : dict.catalog.title}
       </h1>
 
-      {showCategoriesOnMobile && (
-        <CatalogCategoriesMobile
-          categories={categories}
-          locale={locale}
-          className="flex flex-col gap-3 lg:hidden"
-        />
+      {topCategories.length > 0 && (
+        <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
+          {topCategories.map((cat) => (
+            <Link
+              key={cat.id}
+              href={lp(`/category/${cat.id}`)}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
+            >
+              {cat.name}
+            </Link>
+          ))}
+        </div>
       )}
 
-      <div className={showCategoriesOnMobile ? 'hidden space-y-6 lg:block' : 'space-y-6'}>
+      <div className="space-y-6">
         <CatalogToolbar total={total} priceBounds={priceBounds} />
 
         {items.length === 0 ? (

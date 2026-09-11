@@ -105,7 +105,7 @@ export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () =
       </form>
 
       {showDropdown && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(24rem,calc(100dvh-11rem))] overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
           {isLoading && items.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">{dict.common.loading}</p>
           ) : items.length === 0 ? (

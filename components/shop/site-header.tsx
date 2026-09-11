@@ -107,7 +107,7 @@ export function SiteHeader({
         </div>
       </div>
 
-      <div className="py-2 lg:hidden">
+      <div className="py-1.5 lg:hidden">
         <SearchBox />
       </div>
       </div>

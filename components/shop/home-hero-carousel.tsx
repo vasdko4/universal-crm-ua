@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -12,6 +12,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const n = slides.length
+  const startX = useRef<number | null>(null)
 
   useEffect(() => {
     if (n < 2 || paused) return
@@ -25,15 +26,34 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
     setIndex((i) => (i + delta + n) % n)
   }
 
+  function onPointerDown(e: React.PointerEvent) {
+    startX.current = e.clientX
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    if (startX.current == null) return
+    const dx = e.clientX - startX.current
+    startX.current = null
+    if (Math.abs(dx) < 40) return
+    go(dx < 0 ? 1 : -1)
+  }
+
   return (
     <section
       className="border-b border-border bg-background"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="mx-auto max-w-7xl px-4 py-4 lg:px-8 lg:py-6">
-        <div className="relative overflow-hidden rounded-3xl bg-neutral-900 text-white">
-          <div className="relative min-h-[22rem] sm:min-h-[26rem] lg:min-h-[28rem]">
+      <div className="mx-auto max-w-7xl px-3 py-3 lg:px-8 lg:py-6">
+        <div
+          className="relative overflow-hidden rounded-2xl bg-neutral-900 text-white lg:rounded-3xl"
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => {
+            startX.current = null
+          }}
+        >
+          <div className="relative min-h-[16.5rem] sm:min-h-[22rem] lg:min-h-[28rem]">
             {slides.map((slide, i) => (
               <div
                 key={slide.title}
@@ -50,16 +70,21 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   priority={i === 0}
                   sizes="(max-width: 1280px) 100vw, 1280px"
                   className="object-cover"
+                  draggable={false}
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/20" />
-                <div className="relative z-10 flex h-full min-h-[22rem] flex-col justify-end p-6 sm:min-h-[26rem] sm:p-10 lg:min-h-[28rem] lg:p-12">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/75">{slide.badge}</p>
-                  <h1 className="mt-3 max-w-2xl text-balance text-2xl font-bold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/15 lg:bg-gradient-to-r lg:from-black/80 lg:via-black/55 lg:to-black/20" />
+                <div className="relative z-10 flex h-full min-h-[16.5rem] flex-col justify-end p-4 sm:min-h-[22rem] sm:p-10 lg:min-h-[28rem] lg:p-12">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75 sm:text-xs">
+                    {slide.badge}
+                  </p>
+                  <h1 className="mt-2 max-w-2xl text-balance text-xl font-bold tracking-tight sm:mt-3 sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
                     {slide.title}
                   </h1>
-                  <p className="mt-3 max-w-xl text-pretty text-sm text-white/90 sm:text-base">{slide.text}</p>
+                  <p className="mt-2 max-w-xl text-pretty text-xs text-white/90 sm:mt-3 sm:text-base">
+                    {slide.text}
+                  </p>
                   {i === index ? (
-                    <Button asChild size="lg" variant="secondary" className="mt-6 w-fit rounded-full">
+                    <Button asChild size="lg" variant="secondary" className="mt-4 h-10 w-fit rounded-full sm:mt-6">
                       <Link href={slide.href}>
                         {slide.cta} <ArrowRight className="ml-1 size-4" />
                       </Link>
@@ -88,7 +113,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
               >
                 <ChevronRight className="size-5" />
               </button>
-              <div className="absolute bottom-5 left-6 z-20 flex gap-2 sm:left-10 lg:left-12">
+              <div className="absolute bottom-3 left-4 z-20 flex gap-2 sm:bottom-5 sm:left-10 lg:left-12">
                 {slides.map((s, i) => (
                   <button
                     key={s.title}
