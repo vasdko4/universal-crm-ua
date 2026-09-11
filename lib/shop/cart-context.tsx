@@ -115,6 +115,7 @@ export function CartProvider({
       // ignore
     }
     setIsReady(true)
+    document.documentElement.dataset.cartReady = 'true'
   }, [])
 
   useEffect(() => {

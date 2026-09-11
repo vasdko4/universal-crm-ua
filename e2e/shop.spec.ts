@@ -34,6 +34,7 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   await page.goto('/catalog')
   const lang = page.getByRole('button', { name: 'Українська' })
   if (await lang.isVisible().catch(() => false)) await lang.click()
+  await expect(page.locator('html[data-cart-ready]')).toBeAttached()
 
   const listingAdd = page.getByTestId('add-to-cart').first()
   if (await listingAdd.count()) {
@@ -41,6 +42,7 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   } else {
     await page.locator('article a[href*="/product/"]').first().click()
     await page.waitForURL(/\/product\//)
+    await expect(page.locator('html[data-cart-ready]')).toBeAttached()
     await page.getByTestId('add-to-cart').click()
   }
 
