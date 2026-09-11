@@ -7,78 +7,96 @@ export type HeroSlide = {
   href: string
   cta: string
   tone: 'delivery' | 'pay' | 'warranty' | 'catalog'
+  image: string
 }
 
 export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide[] {
   const catalog = localizedPath('/catalog', locale)
+  const images = {
+    delivery:
+      'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=1600&q=80',
+    pay: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80',
+    warranty:
+      'https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1600&q=80',
+    catalog:
+      'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1600&q=80',
+  }
   if (locale === 'ru') {
     return [
       {
         badge: 'Доставка',
-        title: 'Новая Почта по всей Украине',
-        text: 'Отправляем в отделение или на адрес. ТТН приходит в кабинет сразу после сборки заказа.',
+        title: 'Новая Почта и Укрпочта по всей Украине',
+        text: 'Отделение, почтомат или адрес. Выбираете перевозчика на оформлении — ТТН приходит в кабинет после сборки.',
         href: catalog,
         cta: catalogCta,
         tone: 'delivery',
+        image: images.delivery,
       },
       {
         badge: 'Оплата',
         title: 'Картой онлайн или при получении',
-        text: 'Оплачивайте как удобно: наложенный платёж или безопасная оплата картой на сайте.',
+        text: 'Наложенный платёж или безопасная оплата картой на сайте — как удобнее.',
         href: catalog,
         cta: catalogCta,
         tone: 'pay',
+        image: images.pay,
       },
       {
         badge: 'Гарантия',
         title: 'Обмен и поддержка по каждому заказу',
-        text: 'Пишите в кабинет или на горячую линию — поможем с размером, возвратом и статусом посылки.',
+        text: 'Поможем с размером, возвратом и статусом посылки — в кабинете или на линии.',
         href: catalog,
         cta: catalogCta,
         tone: 'warranty',
+        image: images.warranty,
       },
       {
         badge: 'Акции',
         title: 'Скидки на хиты этой недели',
-        text: 'Новые поступления и уценённые позиции обновляются каждый день. Смотрите актуальные цены в каталоге.',
+        text: 'Новые поступления и уценка обновляются каждый день. Актуальные цены — в каталоге.',
         href: localizedPath('/catalog?discount=1', locale),
         cta: 'Смотреть акции',
         tone: 'catalog',
+        image: images.catalog,
       },
     ]
   }
   return [
     {
       badge: 'Доставка',
-      title: 'Нова Пошта по всій Україні',
-      text: 'Відправляємо у відділення або на адресу. ТТН з’являється в кабінеті одразу після збірки замовлення.',
+      title: 'Нова Пошта та Укрпошта по всій Україні',
+      text: 'Відділення, поштомат або адреса. Перевізника обираєте на оформленні — ТТН з’являється в кабінеті після збірки.',
       href: catalog,
       cta: catalogCta,
       tone: 'delivery',
+      image: images.delivery,
     },
     {
       badge: 'Оплата',
       title: 'Карткою онлайн або при отриманні',
-      text: 'Платіть як зручно: наложений платіж або безпечна оплата карткою на сайті.',
+      text: 'Наложений платіж або безпечна оплата карткою на сайті — як зручніше.',
       href: catalog,
       cta: catalogCta,
       tone: 'pay',
+      image: images.pay,
     },
     {
       badge: 'Гарантія',
       title: 'Обмін і підтримка по кожному замовленню',
-      text: 'Пишіть у кабінет або на гарячу лінію — допоможемо з розміром, поверненням і статусом посилки.',
+      text: 'Допоможемо з розміром, поверненням і статусом посилки — у кабінеті або на лінії.',
       href: catalog,
       cta: catalogCta,
       tone: 'warranty',
+      image: images.warranty,
     },
     {
       badge: 'Акції',
       title: 'Знижки на хіти цього тижня',
-      text: 'Нові надходження та уцінені позиції оновлюються щодня. Актуальні ціни — у каталозі.',
+      text: 'Нові надходження та уцінка оновлюються щодня. Актуальні ціни — у каталозі.',
       href: localizedPath('/catalog?discount=1', locale),
       cta: 'Дивитись акції',
       tone: 'catalog',
+      image: images.catalog,
     },
   ]
 }

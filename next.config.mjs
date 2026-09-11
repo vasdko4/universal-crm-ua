@@ -19,6 +19,7 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.blob.vercel-storage.com' },
       { protocol: 'https', hostname: 'images.prom.ua' },
       { protocol: 'https', hostname: '*.prom.st' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
   // Smaller client bundles: only pull the icons/components actually used.
