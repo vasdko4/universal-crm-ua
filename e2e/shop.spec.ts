@@ -34,12 +34,16 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   await page.goto('/catalog')
   const lang = page.getByRole('button', { name: 'Українська' })
   if (await lang.isVisible().catch(() => false)) await lang.click()
-  const card = page.locator('article').filter({ has: page.getByRole('button', { name: 'Купити', exact: true }) }).first()
-  await expect(card).toBeVisible()
-  await card.getByRole('button', { name: 'Купити', exact: true }).click()
-  if (page.url().includes('/product/')) {
-    await page.getByRole('button', { name: /до кошика|замовити заздалегідь/i }).first().click()
+
+  const listingAdd = page.getByTestId('add-to-cart').first()
+  if (await listingAdd.count()) {
+    await listingAdd.click()
+  } else {
+    await page.locator('article a[href*="/product/"]').first().click()
+    await page.waitForURL(/\/product\//)
+    await page.getByTestId('add-to-cart').click()
   }
+
   await expect
     .poll(async () => {
       return page.evaluate(() => {

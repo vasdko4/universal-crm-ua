@@ -198,6 +198,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             onClick={handleAdd}
             disabled={!canBuy}
             aria-label={addLabel}
+            data-testid={needsSize ? 'choose-size' : 'add-to-cart'}
             className={cn(
               'h-7 shrink-0 rounded-md px-2.5 text-[11px] font-semibold sm:h-8 sm:px-3 sm:text-[12px]',
               added && 'bg-success text-primary-foreground hover:bg-success',

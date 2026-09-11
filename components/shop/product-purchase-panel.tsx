@@ -267,7 +267,7 @@ export function ProductPurchasePanel({
 
             <div className="flex flex-col gap-2">
               <div className="flex items-stretch gap-2 sm:gap-3">
-                <Button size="lg" className="h-10 min-w-0 flex-1 rounded-full lg:h-11" onClick={addToCart}>
+                <Button size="lg" className="h-10 min-w-0 flex-1 rounded-full lg:h-11" data-testid="add-to-cart" onClick={addToCart}>
                   <ShoppingCart className="mr-1 size-5" /> {product.isPreorder ? tp.preorderCta : tp.addToCart}
                 </Button>
                 <FavoriteButton productId={product.id} size="lg" className="h-10 shrink-0 lg:h-11" />
