@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sendAnalyticsEvent } from '@/lib/shop/track'
 import { trackAddToCart } from '@/components/shop/google-ads'
 
@@ -63,6 +63,18 @@ function persistCart(items: CartItem[]) {
   }
 }
 
+function readCart(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as CartItem[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((i) => (i.key ? i : { ...i, key: cartKey(i.id, i.variantId) }))
+  } catch {
+    return []
+  }
+}
+
 export function CartProvider({
   children,
   gaId,
@@ -77,26 +89,26 @@ export function CartProvider({
   const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const itemsRef = useRef<CartItem[]>([])
+  // If the shopper adds an item before the mount effect reads localStorage,
+  // skip hydrating an empty snapshot that would wipe the just-added line.
+  const mutatedRef = useRef(false)
+
+  function commit(next: CartItem[]) {
+    mutatedRef.current = true
+    itemsRef.current = next
+    persistCart(next)
+    setItems(next)
+  }
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw) as CartItem[]
-        // Backfill keys for carts saved before variant-aware line keys existed.
-        // Genuinely must run post-mount: localStorage doesn't exist during
-        // SSR, and eagerly reading it in a lazy useState initializer would
-        // make the client's first render diverge from the server-rendered
-        // HTML (a hydration mismatch) instead of deferring to this effect.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setItems(parsed.map((i) => (i.key ? i : { ...i, key: cartKey(i.id, i.variantId) })))
-      }
-    } catch {
-      // ignore
+    if (!mutatedRef.current) {
+      const stored = readCart()
+      itemsRef.current = stored
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setItems(stored)
     }
     try {
-      // Buy-now lives in sessionStorage so it survives a refresh of /checkout
-      // but never lingers across browser sessions like the cart does.
       const rawBuy = sessionStorage.getItem(BUYNOW_KEY)
       if (rawBuy) setBuyNowItem(JSON.parse(rawBuy) as CartItem)
     } catch {
@@ -107,11 +119,7 @@ export function CartProvider({
 
   useEffect(() => {
     if (!isReady) return
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-    } catch {
-      // ignore
-    }
+    persistCart(items)
   }, [items, isReady])
 
   useEffect(() => {
@@ -133,39 +141,25 @@ export function CartProvider({
       total,
       isReady,
       add: (item, quantity = 1) => {
-        setItems((prev) => {
-          const key = cartKey(item.id, item.variantId)
-          const existing = prev.find((i) => i.key === key)
-          const next = existing
-            ? prev.map((i) =>
-                i.key === key
-                  ? { ...i, quantity: clampQty(existing.quantity + quantity, existing.maxQuantity) }
-                  : i,
-              )
-            : [...prev, { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }]
-          persistCart(next)
-          return next
-        })
+        const prev = itemsRef.current
+        const key = cartKey(item.id, item.variantId)
+        const existing = prev.find((i) => i.key === key)
+        const next = existing
+          ? prev.map((i) =>
+              i.key === key
+                ? { ...i, quantity: clampQty(existing.quantity + quantity, existing.maxQuantity) }
+                : i,
+            )
+          : [...prev, { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }]
+        commit(next)
         if (openCartAfterAdd) setDrawerOpen(true)
         sendAnalyticsEvent({ type: 'add_to_cart', productId: item.id })
         trackAddToCart(gaId, { id: item.id, name: item.name, price: item.price, quantity })
       },
-      remove: (key) =>
-        setItems((prev) => {
-          const next = prev.filter((i) => i.key !== key)
-          persistCart(next)
-          return next
-        }),
+      remove: (key) => commit(itemsRef.current.filter((i) => i.key !== key)),
       setQuantity: (key, quantity) =>
-        setItems((prev) => {
-          const next = prev.map((i) => (i.key === key ? { ...i, quantity: clampQty(quantity, i.maxQuantity) } : i))
-          persistCart(next)
-          return next
-        }),
-      clear: () => {
-        persistCart([])
-        setItems([])
-      },
+        commit(itemsRef.current.map((i) => (i.key === key ? { ...i, quantity: clampQty(quantity, i.maxQuantity) } : i))),
+      clear: () => commit([]),
       drawerOpen,
       setDrawerOpen,
       buyNowItem,
