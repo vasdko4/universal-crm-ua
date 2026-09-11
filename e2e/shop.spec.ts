@@ -32,11 +32,25 @@ test('empty checkout sends shopper back to catalog', async ({ page }) => {
 
 test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   await page.goto('/catalog')
-  // Listing cards use Купити (product pages still say До кошика).
-  const add = page.getByRole('button', { name: 'Купити', exact: true }).first()
-  await expect(add).toBeVisible()
-  await add.click()
-  await expect(page.getByText('Товар додано в кошик')).toBeVisible()
+  const lang = page.getByRole('button', { name: 'Українська' })
+  if (await lang.isVisible().catch(() => false)) await lang.click()
+  // Listing cards use Купити; skip disabled / out-of-stock buttons.
+  const add = page.getByRole('button', { name: 'Купити', exact: true }).and(page.locator(':enabled'))
+  await expect(add.first()).toBeVisible()
+  await add.first().click()
+  await expect
+    .poll(async () => {
+      return page.evaluate(() => {
+        try {
+          const raw = localStorage.getItem('techno-cart-v1')
+          const items = raw ? JSON.parse(raw) : []
+          return Array.isArray(items) ? items.length : 0
+        } catch {
+          return 0
+        }
+      })
+    })
+    .toBeGreaterThan(0)
   await page.goto('/cart')
   await expect(page.getByText('Ваш кошик порожній')).toHaveCount(0)
   await expect(page.getByRole('link', { name: /оформити замовлення/i })).toBeVisible()
