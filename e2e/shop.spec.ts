@@ -32,7 +32,8 @@ test('empty checkout sends shopper back to catalog', async ({ page }) => {
 
 test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   await page.goto('/catalog')
-  const add = page.getByRole('button', { name: 'До кошика' }).first()
+  // Listing cards use Купити (product pages still say До кошика).
+  const add = page.getByRole('button', { name: 'Купити', exact: true }).first()
   await expect(add).toBeVisible()
   await add.click()
   await page.goto('/cart')
