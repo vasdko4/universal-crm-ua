@@ -48,11 +48,11 @@ test('empty checkout sends shopper back to catalog', async ({ page }) => {
 })
 
 test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
-  await page.goto('/catalog')
+  await page.goto('/catalog', { waitUntil: 'domcontentloaded' })
   await dismissLocaleModal(page)
   // Client cart writes only after hydration. Clicking the SSR button before
   // that is a no-op and leaves localStorage empty.
-  await expect(page.getByTestId('cart-ready')).toHaveAttribute('data-ready', '1')
+  await expect(page.getByTestId('cart-ready')).toHaveAttribute('data-ready', '1', { timeout: 30_000 })
   await expect(page.locator('article a[href*="/product/"]').first()).toBeVisible()
 
   const listingAdd = page.locator('[data-testid="add-to-cart"]:not([disabled])').first()

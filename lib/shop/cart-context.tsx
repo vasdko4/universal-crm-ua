@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sendAnalyticsEvent } from '@/lib/shop/track'
 import { trackAddToCart } from '@/components/shop/google-ads'
+import { useIsClient } from '@/lib/hooks/use-client-only'
 
 export type CartItem = {
   // Unique line key: distinguishes the same product bought in different variants.
@@ -87,12 +88,15 @@ export function CartProvider({
 }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(null)
-  const [isReady, setIsReady] = useState(false)
+  // Same primitive as useIsClient — a mount effect that only setState(true)
+  // is stripped by the React Compiler, which left data-ready="0" in Playwright.
+  const isReady = useIsClient()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const itemsRef = useRef<CartItem[]>([])
-  // If the shopper adds an item before the mount effect reads localStorage,
-  // skip hydrating an empty snapshot that would wipe the just-added line.
+  // If the shopper adds an item before we read localStorage, skip hydrating
+  // an empty snapshot that would wipe the just-added line.
   const mutatedRef = useRef(false)
+  const hydratedRef = useRef(false)
 
   function commit(next: CartItem[]) {
     mutatedRef.current = true
@@ -101,11 +105,11 @@ export function CartProvider({
     setItems(next)
   }
 
-  useEffect(() => {
+  if (isReady && !hydratedRef.current) {
+    hydratedRef.current = true
     if (!mutatedRef.current) {
       const stored = readCart()
       itemsRef.current = stored
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setItems(stored)
     }
     try {
@@ -114,8 +118,7 @@ export function CartProvider({
     } catch {
       // ignore
     }
-    setIsReady(true)
-  }, [])
+  }
 
   useEffect(() => {
     if (!isReady) return

@@ -23,7 +23,9 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: 'pnpm dev',
+        // Dev compiles /catalog on first hit and can leave client JS unhydrated
+        // for the 15s expect timeout. CI builds once, then serves production.
+        command: process.env.CI ? 'pnpm build && pnpm start' : 'pnpm dev',
         url: `${baseURL}/api/health`,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
