@@ -1,4 +1,5 @@
 import { localizedPath, type Locale } from '@/lib/i18n/config'
+import { decodeHtmlEntities } from '@/lib/html-entities'
 
 function toAbsolute(base: string, path = '/'): string {
   if (!path) return base
@@ -52,17 +53,19 @@ export function escapeXml(input: string): string {
     .replace(/'/g, '&apos;')
 }
 
-/** Feed descriptions must be plain text — admin copy is rich HTML. */
+/**
+ * Feed descriptions must be plain text — admin copy is rich HTML.
+ *
+ * Decode entities first so encoded tags (`<script>`) become real tags
+ * we can strip. After stripping, drop leftover `<`/`>` instead of unescaping
+ * them again — that was the CodeQL "double unescape" hit: tag-strip then
+ * `<` → `<` resurrected markup.
+ */
 export function htmlToPlainText(html: string): string {
-  return html
+  return decodeHtmlEntities(html)
     .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
+    .replace(/[<>]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 5000)

@@ -7,6 +7,7 @@ import {
   expandFeedOffers,
   buildItemXml,
   variantColorSize,
+  htmlToPlainText,
   type FeedProduct,
   type MerchantFeedSettings,
 } from '@/lib/shop/google-merchant-feed'
@@ -142,5 +143,15 @@ describe('item XML', () => {
     expect(xml).toContain('<g:identifier_exists>no</g:identifier_exists>')
     expect(xml).not.toContain('<g:gtin>')
     expect(xml).not.toContain('<g:shipping>')
+  })
+})
+
+describe('htmlToPlainText', () => {
+  it('strips tags and does not resurrect encoded markup', () => {
+    expect(htmlToPlainText('<p>Флагман</p>')).toBe('Флагман')
+    expect(htmlToPlainText('Hi <script>alert(1)</script> there')).toBe('Hi there')
+    expect(htmlToPlainText('<p>A & B</p>')).toBe('A & B')
+    expect(htmlToPlainText('<img src=x onerror=alert(1)>')).not.toContain('<')
+    expect(htmlToPlainText('<p>ok</p>')).not.toContain('<')
   })
 })
