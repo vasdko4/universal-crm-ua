@@ -25,7 +25,7 @@ export default defineConfig({
     : {
         // Dev compiles /catalog on first hit and can leave client JS unhydrated
         // for the 15s expect timeout. CI builds once, then serves production.
-        command: process.env.CI ? 'pnpm build && pnpm start' : 'pnpm dev',
+        command: process.env.CI ? 'pnpm exec next build --webpack && pnpm start' : 'pnpm dev',
         url: `${baseURL}/api/health`,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
