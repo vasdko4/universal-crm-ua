@@ -18,6 +18,23 @@ import { decodeHtmlEntities } from '@/lib/html-entities'
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+const MAX_REDIRECTS = 5
+
+/** Only public HTTPS pages on Prom.ua may be fetched by the importer. */
+export function isAllowedPromUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return (
+      url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      (!url.port || url.port === '443') &&
+      /(^|\.)prom\.ua$/i.test(url.hostname)
+    )
+  } catch {
+    return false
+  }
+}
 
 export type PromListItem = { id: number; urlText: string }
 
@@ -58,7 +75,7 @@ export type PromProduct = {
   metaDescriptionRu: string
 }
 
-/** Fetch a URL as a signed-out browser would, following redirects, with retries. */
+/** Fetch a Prom.ua URL as a signed-out browser, validating every redirect. */
 async function fetchHtml(url: string, lang = 'uk,ru;q=0.9'): Promise<{ html: string; finalUrl: string } | null> {
   // 5 attempts (was 3) with longer backoff — a small share of product pages
   // (~1-3%) were coming back as transient network/5xx failures against
@@ -67,12 +84,28 @@ async function fetchHtml(url: string, lang = 'uk,ru;q=0.9'): Promise<{ html: str
   // safe to retry here since nothing has been written to the DB yet.
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
-      const res = await fetch(url, {
-        headers: { 'user-agent': USER_AGENT, 'accept-language': lang },
-        redirect: 'follow',
-      })
-      if (res.ok) return { html: await res.text(), finalUrl: res.url }
-      if (res.status === 404) return null
+      let currentUrl = url
+      for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
+        // Keep this check next to the network sink so static analysis can see
+        // that user-controlled and redirect-controlled URLs are constrained.
+        if (!isAllowedPromUrl(currentUrl)) return null
+
+        const res = await fetch(currentUrl, {
+          headers: { 'user-agent': USER_AGENT, 'accept-language': lang },
+          redirect: 'manual',
+        })
+
+        if (res.status >= 300 && res.status < 400) {
+          const location = res.headers.get('location')
+          if (!location || redirects === MAX_REDIRECTS) return null
+          currentUrl = new URL(location, currentUrl).toString()
+          continue
+        }
+
+        if (res.ok) return { html: await res.text(), finalUrl: currentUrl }
+        if (res.status === 404) return null
+        break
+      }
     } catch {
       // fall through to retry
     }
