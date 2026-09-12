@@ -94,17 +94,23 @@ FROM (
 WHERE p.id = sub.product_id
   AND jsonb_array_length(sub.sizes) > 0
   AND (p.sizes IS NULL OR p.sizes = '[]'::jsonb);
+
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variants_enabled" boolean DEFAULT false NOT NULL;
+UPDATE products
+SET variants_enabled = true
+WHERE COALESCE(variants_enabled, false) = false
+  AND deleted_at IS NULL
+  AND id IN (SELECT DISTINCT product_id FROM product_variants);
 `
 
 let pending: Promise<void> | null = null
 
 async function run(): Promise<void> {
   try {
-    const result = await pool.query(BACKFILL_SQL)
-    const updated = Array.isArray(result)
-      ? result.reduce((n, r) => n + (r.rowCount ?? 0), 0)
-      : (result.rowCount ?? 0)
-    if (updated > 0) revalidateStorefront()
+    await pool.query(BACKFILL_SQL)
+    // Catalog listings are cached; bust them after the one-shot backfill even
+    // when rowCount is 0 (column already filled on a previous instance).
+    revalidateStorefront()
   } catch (err) {
     console.error('[backfill-product-sizes]', err instanceof Error ? err.message : err)
   }

@@ -108,6 +108,89 @@ function sizesFromOptions(options: ProductOption[]): string[] {
   return (sizeOption?.values ?? []).filter((v) => v.trim() && !JUNK_SIZE.test(v))
 }
 
+function sizesFromCharacteristics(chars: { name: string; value: string }[]): string[] {
+  const out: string[] = []
+  for (const c of chars) {
+    if (!SIZE_AXIS.test(c.name)) continue
+    for (const part of c.value.split(/[,;/|]+/)) {
+      const v = part.trim()
+      if (v && !JUNK_SIZE.test(v)) out.push(v)
+    }
+  }
+  return out
+}
+
+function sizesFromVariantRows(variants: ProductVariant[]): string[] {
+  const out: string[] = []
+  for (const v of variants) {
+    for (const [key, val] of Object.entries(v.options ?? {})) {
+      if (!val?.trim() || JUNK_SIZE.test(val)) continue
+      if (SIZE_AXIS.test(key) || SIZE_AXIS.test(val)) out.push(val.trim())
+    }
+  }
+  return out
+}
+
+function uniqueSizes(...groups: string[][]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const group of groups) {
+    for (const v of group) {
+      const key = v.toLocaleLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(v)
+    }
+  }
+  return out
+}
+
+/** Listing cards only look at `sizes` / `variantsEnabled`. Older Prom rows
+ *  stored the axis on characteristics or variant keys instead. */
+function applySizeFallbacks(
+  product: ShopProduct,
+  chars: { name: string; value: string }[] = [],
+  variants: ProductVariant[] = [],
+): ShopProduct {
+  const sizes = uniqueSizes(product.sizes, sizesFromCharacteristics(chars), sizesFromVariantRows(variants))
+  const hasVariantRows = variants.length > 0
+  return {
+    ...product,
+    sizes,
+    variants: product.variantsEnabled || hasVariantRows ? (product.variants.length > 0 ? product.variants : variants) : [],
+    variantsEnabled: product.variantsEnabled || hasVariantRows,
+  }
+}
+
+async function withListingSizes(products: ShopProduct[]): Promise<ShopProduct[]> {
+  if (products.length === 0) return products
+  const ids = products.map((p) => p.id)
+  const [charRows, variantRows] = await Promise.all([
+    db
+      .select({
+        productId: productCharacteristics.productId,
+        name: productCharacteristics.name,
+        value: productCharacteristics.value,
+      })
+      .from(productCharacteristics)
+      .where(inArray(productCharacteristics.productId, ids)),
+    db.select().from(productVariants).where(inArray(productVariants.productId, ids)),
+  ])
+  const charsByProduct = new Map<number, { name: string; value: string }[]>()
+  for (const c of charRows) {
+    const arr = charsByProduct.get(c.productId) ?? []
+    arr.push({ name: c.name, value: c.value })
+    charsByProduct.set(c.productId, arr)
+  }
+  const variantsByProduct = new Map<number, ProductVariant[]>()
+  for (const v of variantRows) {
+    const arr = variantsByProduct.get(v.productId) ?? []
+    arr.push(mapVariantRow(v))
+    variantsByProduct.set(v.productId, arr)
+  }
+  return products.map((p) => applySizeFallbacks(p, charsByProduct.get(p.id) ?? [], variantsByProduct.get(p.id) ?? []))
+}
+
 function toStringArray(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string' && x.length > 0)
   if (typeof v === 'string' && v.trim().startsWith('[')) {
@@ -369,7 +452,7 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   ])
 
   return {
-    items: rows.map((r) => toShopProduct(r as Record<string, unknown>)),
+    items: await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>))),
     total: countRes[0]?.c ?? 0,
     page,
     perPage,
@@ -432,7 +515,7 @@ async function _getPopularProducts(limit = 8, locale: Locale = 'uk') {
     .where(and(homeWhere, eq(products.isPopular, true)))
     .orderBy(desc(sql`${products.ordersCount} + ${products.purchasesBoost}`))
     .limit(limit)
-  if (rows.length > 0) return rows.map((r) => toShopProduct(r as Record<string, unknown>))
+  if (rows.length > 0) return withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
   // Fallback: newest products if nothing marked popular.
   const fallback = await db
     .select(productSelect)
@@ -440,7 +523,7 @@ async function _getPopularProducts(limit = 8, locale: Locale = 'uk') {
     .where(homeWhere)
     .orderBy(desc(products.createdAt))
     .limit(limit)
-  return fallback.map((r) => toShopProduct(r as Record<string, unknown>))
+  return withListingSizes(fallback.map((r) => toShopProduct(r as Record<string, unknown>)))
 }
 
 // Fetch a set of visible products by id, preserving the given id order
@@ -453,7 +536,7 @@ export async function getProductsByIds(ids: number[], locale: Locale = 'uk') {
     .select(productSelect)
     .from(products)
     .where(and(baseWhere, inArray(products.id, clean)))
-  const mapped = rows.map((r) => toShopProduct(r as Record<string, unknown>))
+  const mapped = await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
   const order = new Map(clean.map((id, i) => [id, i]))
   return mapped.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
 }
@@ -549,7 +632,7 @@ async function _getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
     .where(and(homeWhere, sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`))
     .orderBy(desc(products.updatedAt))
     .limit(limit)
-  return rows.map((r) => toShopProduct(r as Record<string, unknown>))
+  return withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
 }
 
 export function getProductById(id: number, locale: Locale = 'uk') {
@@ -624,8 +707,9 @@ async function _getProductByWhere(whereClause: SQL | undefined, locale: Locale =
       .where(eq(productVariants.productId, id))
       .orderBy(asc(productVariants.sortOrder), asc(productVariants.id)),
   ])
-  const product = toShopProduct(row as Record<string, unknown>)
-  product.variants = product.variantsEnabled ? variantRows.map(mapVariantRow) : []
+  const mappedVariants = variantRows.map(mapVariantRow)
+  const product = applySizeFallbacks(toShopProduct(row as Record<string, unknown>), chars, mappedVariants)
+  product.variants = product.variantsEnabled ? mappedVariants : []
   return {
     product,
     characteristics: chars,
@@ -699,7 +783,7 @@ async function _getRelatedProducts(id: number, categoryIds: number[], limit = 4,
       .where(and(baseWhere, ne(products.id, id)))
       .orderBy(desc(products.isPopular))
       .limit(limit)
-    return rows.map((r) => toShopProduct(r as Record<string, unknown>))
+    return withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
   }
   const related = await db
     .selectDistinct({ pid: productCategory.productId })
@@ -713,7 +797,7 @@ async function _getRelatedProducts(id: number, categoryIds: number[], limit = 4,
     .from(products)
     .where(and(baseWhere, inArray(products.id, ids)))
     .limit(limit)
-  return rows.map((r) => toShopProduct(r as Record<string, unknown>))
+  return withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
 }
 
 export function getApprovedReviews(productId: number) {
