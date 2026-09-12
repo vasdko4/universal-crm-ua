@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sendAnalyticsEvent } from '@/lib/shop/track'
 import { trackAddToCart } from '@/components/shop/google-ads'
 import { useIsClient } from '@/lib/hooks/use-client-only'
@@ -120,21 +120,6 @@ export function CartProvider({
     }
   }
 
-  useEffect(() => {
-    if (!isReady) return
-    persistCart(items)
-  }, [items, isReady])
-
-  useEffect(() => {
-    if (!isReady) return
-    try {
-      if (buyNowItem) sessionStorage.setItem(BUYNOW_KEY, JSON.stringify(buyNowItem))
-      else sessionStorage.removeItem(BUYNOW_KEY)
-    } catch {
-      // ignore
-    }
-  }, [buyNowItem, isReady])
-
   const value = useMemo<CartContextValue>(() => {
     const count = items.reduce((s, i) => s + i.quantity, 0)
     const total = items.reduce((s, i) => s + i.price * i.quantity, 0)
@@ -168,11 +153,33 @@ export function CartProvider({
       buyNowItem,
       startBuyNow: (item, quantity = 1) => {
         const key = cartKey(item.id, item.variantId)
-        setBuyNowItem({ ...item, key, quantity: clampQty(quantity, item.maxQuantity) })
+        const next = { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }
+        setBuyNowItem(next)
+        try {
+          sessionStorage.setItem(BUYNOW_KEY, JSON.stringify(next))
+        } catch {
+          // ignore
+        }
       },
       setBuyNowQuantity: (quantity) =>
-        setBuyNowItem((prev) => (prev ? { ...prev, quantity: clampQty(quantity, prev.maxQuantity) } : prev)),
-      clearBuyNow: () => setBuyNowItem(null),
+        setBuyNowItem((prev) => {
+          if (!prev) return prev
+          const next = { ...prev, quantity: clampQty(quantity, prev.maxQuantity) }
+          try {
+            sessionStorage.setItem(BUYNOW_KEY, JSON.stringify(next))
+          } catch {
+            // ignore
+          }
+          return next
+        }),
+      clearBuyNow: () => {
+        setBuyNowItem(null)
+        try {
+          sessionStorage.removeItem(BUYNOW_KEY)
+        } catch {
+          // ignore
+        }
+      },
     }
   }, [items, buyNowItem, isReady, drawerOpen, gaId, openCartAfterAdd])
 

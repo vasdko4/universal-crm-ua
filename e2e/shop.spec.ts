@@ -79,7 +79,8 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   await expect.poll(() => cartItemCount(page)).toBeGreaterThan(0)
   await page.goto('/cart')
   await dismissLocaleModal(page)
-  await expect(page.getByText('Ваш кошик порожній')).toHaveCount(0)
+  await expect(page.getByTestId('cart-ready')).toHaveAttribute('data-ready', '1', { timeout: 30_000 })
+  await expect(page.getByRole('heading', { name: 'Ваш кошик порожній' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: /оформити замовлення/i })).toBeVisible()
 })
 
