@@ -6,8 +6,10 @@ const nextConfig = {
   // into .next/standalone, so the Docker image doesn't need the full
   // pnpm/workspace tree at runtime — keeps the runtime image small.
   // Vercel has its own packager; `output: 'standalone'` there can produce
-  // "invalid deployment package" / patch_build_4xx failures.
-  ...(process.env.VERCEL ? {} : { output: 'standalone' }),
+  // "invalid deployment package" / patch_build_4xx failures. GitHub Actions
+  // e2e also skips it — Turbopack standalone trips over the sharp native
+  // binary under pnpm.
+  ...(process.env.VERCEL || process.env.CI ? {} : { output: 'standalone' }),
   // Serve modern formats and let Next resize/compress images for faster LCP.
   images: {
     formats: ['image/avif', 'image/webp'],
