@@ -112,6 +112,7 @@ async function ensurePromImportColumns() {
   columnsReady = true
 }
 
+
 /** Starts a new Prom.ua shop import: discovers every product link, then returns a task id to poll. */
 export async function startPromImport(shopUrl: string) {
   await assertPermission('import')

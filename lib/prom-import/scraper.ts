@@ -20,20 +20,28 @@ const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
 const MAX_REDIRECTS = 5
 
-/** Only public HTTPS pages on Prom.ua may be fetched by the importer. */
-export function isAllowedPromUrl(value: string): boolean {
+/**
+ * Rebuild a Prom.ua URL from allowlisted pieces. Returning a freshly
+ * concatenated `https://` + host + path (never the raw user/redirect string)
+ * is what lets CodeQL see the fetch sink is constrained.
+ */
+export function sanitizePromUrl(value: string): string | null {
   try {
     const url = new URL(value)
-    return (
-      url.protocol === 'https:' &&
-      !url.username &&
-      !url.password &&
-      (!url.port || url.port === '443') &&
-      /(^|\.)prom\.ua$/i.test(url.hostname)
-    )
+    if (url.protocol !== 'https:') return null
+    if (url.username || url.password) return null
+    if (url.port && url.port !== '443') return null
+    const host = url.hostname.toLowerCase()
+    if (host !== 'prom.ua' && !host.endsWith('.prom.ua')) return null
+    const path = url.pathname.startsWith('/') ? url.pathname : `/${url.pathname}`
+    return `https://${host}${path}${url.search}`
   } catch {
-    return false
+    return null
   }
+}
+
+export function isAllowedPromUrl(value: string): boolean {
+  return sanitizePromUrl(value) != null
 }
 
 export type PromListItem = { id: number; urlText: string }
@@ -86,11 +94,10 @@ async function fetchHtml(url: string, lang = 'uk,ru;q=0.9'): Promise<{ html: str
     try {
       let currentUrl = url
       for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
-        // Keep this check next to the network sink so static analysis can see
-        // that user-controlled and redirect-controlled URLs are constrained.
-        if (!isAllowedPromUrl(currentUrl)) return null
+        const safeUrl = sanitizePromUrl(currentUrl)
+        if (!safeUrl) return null
 
-        const res = await fetch(currentUrl, {
+        const res = await fetch(safeUrl, {
           headers: { 'user-agent': USER_AGENT, 'accept-language': lang },
           redirect: 'manual',
         })
@@ -98,11 +105,11 @@ async function fetchHtml(url: string, lang = 'uk,ru;q=0.9'): Promise<{ html: str
         if (res.status >= 300 && res.status < 400) {
           const location = res.headers.get('location')
           if (!location || redirects === MAX_REDIRECTS) return null
-          currentUrl = new URL(location, currentUrl).toString()
+          currentUrl = new URL(location, safeUrl).toString()
           continue
         }
 
-        if (res.ok) return { html: await res.text(), finalUrl: currentUrl }
+        if (res.ok) return { html: await res.text(), finalUrl: safeUrl }
         if (res.status === 404) return null
         break
       }
