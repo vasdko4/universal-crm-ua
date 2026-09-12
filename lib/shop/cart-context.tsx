@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { sendAnalyticsEvent } from '@/lib/shop/track'
 import { trackAddToCart } from '@/components/shop/google-ads'
 import { useIsClient } from '@/lib/hooks/use-client-only'
@@ -56,23 +56,72 @@ function clampQty(quantity: number, max: number): number {
   return Math.max(1, Math.min(safeMax, Math.floor(quantity)))
 }
 
-function persistCart(items: CartItem[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  } catch {
-    // ignore quota / private-mode failures
+const listeners = new Set<() => void>()
+
+function emitCart() {
+  for (const listener of listeners) listener()
+}
+
+function subscribeCart(listener: () => void) {
+  listeners.add(listener)
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY || event.key === null) listener()
+  }
+  window.addEventListener('storage', onStorage)
+  return () => {
+    listeners.delete(listener)
+    window.removeEventListener('storage', onStorage)
   }
 }
 
-function readCart(): CartItem[] {
+function parseCart(raw: string | null): CartItem[] {
+  if (!raw) return []
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
     const parsed = JSON.parse(raw) as CartItem[]
     if (!Array.isArray(parsed)) return []
     return parsed.map((i) => (i.key ? i : { ...i, key: cartKey(i.id, i.variantId) }))
   } catch {
     return []
+  }
+}
+
+let cachedRaw: string | null = null
+let cachedItems: CartItem[] = []
+
+function getCartSnapshot(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw === cachedRaw) return cachedItems
+    cachedRaw = raw
+    cachedItems = parseCart(raw)
+    return cachedItems
+  } catch {
+    return cachedItems
+  }
+}
+
+function getServerCartSnapshot(): CartItem[] {
+  return []
+}
+
+function persistCart(items: CartItem[]) {
+  const raw = JSON.stringify(items)
+  try {
+    localStorage.setItem(STORAGE_KEY, raw)
+  } catch {
+    // ignore quota / private-mode failures
+  }
+  cachedRaw = raw
+  cachedItems = items
+  emitCart()
+}
+
+function readBuyNow(): CartItem | null {
+  try {
+    const raw = sessionStorage.getItem(BUYNOW_KEY)
+    return raw ? (JSON.parse(raw) as CartItem) : null
+  } catch {
+    return null
   }
 }
 
@@ -86,38 +135,16 @@ export function CartProvider({
   /** When false, adding an item does not auto-open the slide-over cart. */
   openCartAfterAdd?: boolean
 }) {
-  const [items, setItems] = useState<CartItem[]>([])
-  const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(null)
-  // Same primitive as useIsClient — a mount effect that only setState(true)
-  // is stripped by the React Compiler, which left data-ready="0" in Playwright.
+  const items = useSyncExternalStore(subscribeCart, getCartSnapshot, getServerCartSnapshot)
   const isReady = useIsClient()
+  const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const itemsRef = useRef<CartItem[]>([])
-  // If the shopper adds an item before we read localStorage, skip hydrating
-  // an empty snapshot that would wipe the just-added line.
-  const mutatedRef = useRef(false)
-  const hydratedRef = useRef(false)
+  const [buyNowHydrated, setBuyNowHydrated] = useState(false)
 
-  function commit(next: CartItem[]) {
-    mutatedRef.current = true
-    itemsRef.current = next
-    persistCart(next)
-    setItems(next)
-  }
-
-  if (isReady && !hydratedRef.current) {
-    hydratedRef.current = true
-    if (!mutatedRef.current) {
-      const stored = readCart()
-      itemsRef.current = stored
-      setItems(stored)
-    }
-    try {
-      const rawBuy = sessionStorage.getItem(BUYNOW_KEY)
-      if (rawBuy) setBuyNowItem(JSON.parse(rawBuy) as CartItem)
-    } catch {
-      // ignore
-    }
+  if (isReady && !buyNowHydrated) {
+    setBuyNowHydrated(true)
+    const stored = readBuyNow()
+    if (stored) setBuyNowItem(stored)
   }
 
   const value = useMemo<CartContextValue>(() => {
@@ -129,25 +156,24 @@ export function CartProvider({
       total,
       isReady,
       add: (item, quantity = 1) => {
-        const prev = itemsRef.current
         const key = cartKey(item.id, item.variantId)
-        const existing = prev.find((i) => i.key === key)
+        const existing = items.find((i) => i.key === key)
         const next = existing
-          ? prev.map((i) =>
+          ? items.map((i) =>
               i.key === key
                 ? { ...i, quantity: clampQty(existing.quantity + quantity, existing.maxQuantity) }
                 : i,
             )
-          : [...prev, { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }]
-        commit(next)
+          : [...items, { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }]
+        persistCart(next)
         if (openCartAfterAdd) setDrawerOpen(true)
         sendAnalyticsEvent({ type: 'add_to_cart', productId: item.id })
         trackAddToCart(gaId, { id: item.id, name: item.name, price: item.price, quantity })
       },
-      remove: (key) => commit(itemsRef.current.filter((i) => i.key !== key)),
+      remove: (key) => persistCart(items.filter((i) => i.key !== key)),
       setQuantity: (key, quantity) =>
-        commit(itemsRef.current.map((i) => (i.key === key ? { ...i, quantity: clampQty(quantity, i.maxQuantity) } : i))),
-      clear: () => commit([]),
+        persistCart(items.map((i) => (i.key === key ? { ...i, quantity: clampQty(quantity, i.maxQuantity) } : i))),
+      clear: () => persistCart([]),
       drawerOpen,
       setDrawerOpen,
       buyNowItem,
