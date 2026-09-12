@@ -2,24 +2,27 @@ import { describe, expect, it } from 'vitest'
 import { isAllowedPromUrl, sanitizePromUrl } from '@/lib/prom-import/scraper'
 
 describe('sanitizePromUrl', () => {
-  it('rebuilds HTTPS Prom.ua storefront URLs without credentials or custom ports', () => {
+  it('rebuilds HTTPS Prom.ua storefront URLs from host literals', () => {
     expect(sanitizePromUrl('https://prom.ua/c123-shop.html')).toBe('https://prom.ua/c123-shop.html')
     expect(sanitizePromUrl('https://seller.prom.ua/ua/products')).toBe('https://seller.prom.ua/ua/products')
     expect(sanitizePromUrl('https://PROM.UA:443/catalog?page=2')).toBe('https://prom.ua/catalog?page=2')
+    expect(sanitizePromUrl('https://www.prom.ua/ua/p1-item.html')).toBe('https://www.prom.ua/ua/p1-item.html')
   })
 
   it('rejects non-Prom hosts and deceptive suffixes', () => {
     expect(sanitizePromUrl('https://example.com')).toBeNull()
     expect(sanitizePromUrl('https://prom.ua.evil.example/catalog')).toBeNull()
     expect(sanitizePromUrl('https://evilprom.ua/catalog')).toBeNull()
+    expect(sanitizePromUrl('https://notprom.ua/catalog')).toBeNull()
     expect(sanitizePromUrl('https://169.254.169.254/latest/meta-data')).toBeNull()
   })
 
-  it('rejects unsafe protocols, credentials, and ports', () => {
+  it('rejects unsafe protocols, credentials, ports, and path characters', () => {
     expect(sanitizePromUrl('http://prom.ua/catalog')).toBeNull()
     expect(sanitizePromUrl('file:///etc/passwd')).toBeNull()
     expect(sanitizePromUrl('https://user:pass@prom.ua/catalog')).toBeNull()
     expect(sanitizePromUrl('https://prom.ua:8080/catalog')).toBeNull()
+    expect(sanitizePromUrl('https://prom.ua/foo@evil')).toBeNull()
     expect(sanitizePromUrl('not-a-url')).toBeNull()
   })
 })

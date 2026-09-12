@@ -19,24 +19,39 @@ import { decodeHtmlEntities } from '@/lib/html-entities'
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
 const MAX_REDIRECTS = 5
+const SAFE_PATH = /^\/[A-Za-z0-9/._\-]*$/
+const SAFE_SEARCH = /^\?[A-Za-z0-9=&._\-]*$/
 
 /**
- * Rebuild a Prom.ua URL from allowlisted pieces. Returning a freshly
- * concatenated `https://` + host + path (never the raw user/redirect string)
- * is what lets CodeQL see the fetch sink is constrained.
+ * Rebuild a Prom.ua URL from host *literals* (never interpolate the parsed
+ * hostname). CodeQL treats `https://${userHost}` as SSRF even after an
+ * allowlist check; returning only `'https://prom.ua' + path` severs the taint.
  */
 export function sanitizePromUrl(value: string): string | null {
+  let parsed: URL
   try {
-    const url = new URL(value)
-    if (url.protocol !== 'https:') return null
-    if (url.username || url.password) return null
-    if (url.port && url.port !== '443') return null
-    const host = url.hostname.toLowerCase()
-    if (host !== 'prom.ua' && !host.endsWith('.prom.ua')) return null
-    const path = url.pathname.startsWith('/') ? url.pathname : `/${url.pathname}`
-    return `https://${host}${path}${url.search}`
+    parsed = new URL(value)
   } catch {
     return null
+  }
+  if (parsed.protocol !== 'https:') return null
+  if (parsed.username || parsed.password) return null
+  if (parsed.port && parsed.port !== '443') return null
+  const path = parsed.pathname.startsWith('/') ? parsed.pathname : `/${parsed.pathname}`
+  if (!SAFE_PATH.test(path)) return null
+  const search = parsed.search
+  if (search && !SAFE_SEARCH.test(search)) return null
+  switch (parsed.hostname.toLowerCase()) {
+    case 'prom.ua':
+      return `https://prom.ua${path}${search}`
+    case 'www.prom.ua':
+      return `https://www.prom.ua${path}${search}`
+    case 'my.prom.ua':
+      return `https://my.prom.ua${path}${search}`
+    case 'seller.prom.ua':
+      return `https://seller.prom.ua${path}${search}`
+    default:
+      return null
   }
 }
 
