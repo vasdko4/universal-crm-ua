@@ -552,6 +552,12 @@ export type Dictionary = {
     tabLogin: string
     tabRegister: string
     emailDomainError: string
+    verifyEmailTitle: string
+    verifyEmailDescription: string
+    verifyEmailButton: string
+    verifyEmailBanner: string
+    verifyEmailOpen: string
+    emailVerified: string
   }
   errorPage: {
     label: string
@@ -1110,6 +1116,13 @@ const uk: Dictionary = {
     tabRegister: 'Реєстрація',
     emailDomainError:
       'Вкажіть справжню електронну пошту. Одноразові скриньки не приймаються.',
+    verifyEmailTitle: 'Підтвердіть пошту',
+    verifyEmailDescription:
+      'Ми надіслали 6-значний код на вашу пошту. Введіть його, щоб підтвердити акаунт. Перевірте також теку «Спам».',
+    verifyEmailButton: 'Підтвердити',
+    verifyEmailBanner: 'Підтвердіть електронну пошту — код уже в листі.',
+    verifyEmailOpen: 'Ввести код',
+    emailVerified: 'Пошту підтверджено',
   },
   errorPage: {
     label: 'Помилка',
@@ -1669,6 +1682,13 @@ const ru: Dictionary = {
     tabRegister: 'Регистрация',
     emailDomainError:
       'Укажите настоящую электронную почту. Одноразовые ящики не принимаются.',
+    verifyEmailTitle: 'Подтвердите почту',
+    verifyEmailDescription:
+      'Мы отправили 6-значный код на вашу почту. Введите его, чтобы подтвердить аккаунт. Проверьте также папку «Спам».',
+    verifyEmailButton: 'Подтвердить',
+    verifyEmailBanner: 'Подтвердите электронную почту — код уже в письме.',
+    verifyEmailOpen: 'Ввести код',
+    emailVerified: 'Почта подтверждена',
   },
   errorPage: {
     label: 'Ошибка',

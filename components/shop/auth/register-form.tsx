@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
-import { finalizeCustomerRole, checkPhoneAvailable } from '@/app/actions/shop-auth'
+import { finalizeCustomerRole, checkPhoneAvailable, sendEmailVerification } from '@/app/actions/shop-auth'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { isAllowedEmailDomain } from '@/lib/shop/email-domains'
 import { useI18n } from '@/lib/i18n/client'
@@ -57,8 +57,9 @@ export function RegisterForm() {
 
     // Mark as storefront customer and persist phone server-side.
     await finalizeCustomerRole(normPhone)
+    await sendEmailVerification()
     // Hard navigation guarantees the fresh session cookie is picked up.
-    window.location.assign(localizedPath('/account', locale))
+    window.location.assign(localizedPath('/account/verify-email', locale))
   }
 
   return (

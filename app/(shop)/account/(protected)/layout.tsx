@@ -1,6 +1,7 @@
 import { getShopUser, getAdminUser } from '@/lib/session'
 import { AccountNav } from '@/components/shop/account-nav'
 import { SessionExpiredRedirect } from '@/components/shop/session-expired-redirect'
+import { EmailVerifyBanner } from '@/components/shop/auth/email-verify-banner'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 
@@ -27,7 +28,10 @@ export default async function AccountLayout({ children }: { children: React.Reac
       <p className="mt-1 text-muted-foreground">{user.email}</p>
       <div className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr]">
         <AccountNav isAdmin={isAdmin} />
-        <div className="min-w-0">{children}</div>
+        <div className="min-w-0">
+          <EmailVerifyBanner />
+          {children}
+        </div>
       </div>
     </div>
   )

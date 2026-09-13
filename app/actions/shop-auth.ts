@@ -8,6 +8,11 @@ import { normalizeUaPhone } from '@/lib/shop/phone'
 import { isRateLimited } from '@/lib/api/rate-limit'
 import { hashPassword } from 'better-auth/crypto'
 import { getLocale } from '@/lib/i18n/server'
+import {
+  EMAIL_VERIFY_TTL_MINUTES,
+  emailVerificationMail,
+  isSixDigitCode,
+} from '@/lib/shop/email-verification'
 
 // The phone number is the stable customer identifier: it must be unique
 // across accounts. Comparison uses the last 9 digits (operator + subscriber),
@@ -38,6 +43,14 @@ async function claimOrdersByPhone(userId: string, normPhone: string) {
       [userId, digits],
     )
     .catch(() => {})
+}
+
+async function isGoogleLinked(userId: string): Promise<boolean> {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM account WHERE "userId"=$1 AND "providerId"='google' LIMIT 1`,
+    [userId],
+  )
+  return rows.length > 0
 }
 
 // Pre-registration check used by the sign-up form BEFORE creating the account,
@@ -72,6 +85,83 @@ export async function finalizeCustomerRole(phone: string) {
   await pool.query(`UPDATE "user" SET phone=$1, "updatedAt"=NOW() WHERE id=$2`, [norm, user.id])
   await claimOrdersByPhone(user.id, norm)
   return { success: true }
+}
+
+export async function sendEmailVerification() {
+  const user = await getShopUser()
+  if (!user) return { success: false as const, error: 'Не авторизован' }
+
+  if (await isGoogleLinked(user.id)) {
+    await pool.query(`UPDATE "user" SET "emailVerified"=true, "updatedAt"=NOW() WHERE id=$1 AND "emailVerified"=false`, [
+      user.id,
+    ])
+    return { success: true as const, alreadyVerified: true as const }
+  }
+
+  const { rows } = await pool.query<{ emailVerified: boolean }>(
+    `SELECT "emailVerified" FROM "user" WHERE id=$1 LIMIT 1`,
+    [user.id],
+  )
+  if (rows[0]?.emailVerified) return { success: true as const, alreadyVerified: true as const }
+
+  if (isRateLimited('email-verify-req', user.id, 3, 900_000)) {
+    return { success: false as const, error: 'Забагато запитів. Спробуйте через 15 хвилин.' }
+  }
+
+  const email = user.email?.trim().toLowerCase()
+  if (!email) return { success: false as const, error: 'Немає email для надсилання коду' }
+
+  const code = String(randomInt(100000, 1000000))
+  const identifier = `email-verify:${user.id}`
+  await pool.query(`DELETE FROM verification WHERE identifier=$1`, [identifier])
+  await pool.query(
+    `INSERT INTO verification (id, identifier, value, "expiresAt", "createdAt", "updatedAt")
+     VALUES (gen_random_uuid()::text, $1, $2, NOW() + ($3 || ' minutes')::interval, NOW(), NOW())`,
+    [identifier, JSON.stringify({ code }), EMAIL_VERIFY_TTL_MINUTES],
+  )
+
+  const locale = await getLocale().catch(() => 'uk' as const)
+  const mail = emailVerificationMail(locale === 'ru' ? 'ru' : 'uk', code)
+  await sendMail({ to: email, subject: mail.subject, text: mail.text })
+  return { success: true as const, alreadyVerified: false as const }
+}
+
+export async function confirmEmailVerification(codeRaw: string) {
+  const user = await getShopUser()
+  if (!user) return { success: false as const, error: 'Не авторизован' }
+
+  if (isRateLimited('email-verify-confirm', user.id, 10, 900_000)) {
+    return { success: false as const, error: 'Забагато спроб. Запросіть новий код.' }
+  }
+
+  const { rows: verified } = await pool.query<{ emailVerified: boolean }>(
+    `SELECT "emailVerified" FROM "user" WHERE id=$1 LIMIT 1`,
+    [user.id],
+  )
+  if (verified[0]?.emailVerified) return { success: true as const }
+
+  const code = codeRaw.trim()
+  if (!isSixDigitCode(code)) return { success: false as const, error: 'Код має складатися з 6 цифр' }
+
+  const identifier = `email-verify:${user.id}`
+  const res = await pool.query(
+    `SELECT value FROM verification WHERE identifier=$1 AND "expiresAt" > NOW() LIMIT 1`,
+    [identifier],
+  )
+  if (res.rows.length === 0) {
+    return { success: false as const, error: 'Код сплив або не запитувався. Запросіть новий.' }
+  }
+  let payload: { code?: string } = {}
+  try {
+    payload = JSON.parse(res.rows[0].value)
+  } catch {
+    return { success: false as const, error: 'Помилка даних. Запросіть новий код.' }
+  }
+  if (payload.code !== code) return { success: false as const, error: 'Невірний код' }
+
+  await pool.query(`UPDATE "user" SET "emailVerified"=true, "updatedAt"=NOW() WHERE id=$1`, [user.id])
+  await pool.query(`DELETE FROM verification WHERE identifier=$1`, [identifier])
+  return { success: true as const }
 }
 
 // After a Google sign-up the account has no phone yet. This sets it exactly
@@ -110,13 +200,7 @@ export async function updateCustomerProfile(input: { name: string }) {
 // Google-authenticated accounts must keep the email that Google verified:
 // it is the link between our user row and the Google identity. Changing it
 // would break OAuth sign-in matching and allow identity spoofing.
-async function isGoogleLinked(userId: string): Promise<boolean> {
-  const { rows } = await pool.query(
-    `SELECT 1 FROM account WHERE "userId"=$1 AND "providerId"='google' LIMIT 1`,
-    [userId],
-  )
-  return rows.length > 0
-}
+
 
 // Exposed for the profile page to decide whether to render the change-email UI.
 export async function getEmailChangeAvailability() {

@@ -85,6 +85,13 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   await expect(page.getByRole('link', { name: /оформити замовлення/i })).toBeVisible()
 })
 
+test('register page is reachable', async ({ page }) => {
+  const res = await page.goto('/account/register')
+  expect(res?.ok()).toBeTruthy()
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(page.locator('#email')).toBeVisible()
+})
+
 test('admin sign-in form is reachable', async ({ page }) => {
   const res = await page.goto('/sign-in')
   expect(res?.ok()).toBeTruthy()
