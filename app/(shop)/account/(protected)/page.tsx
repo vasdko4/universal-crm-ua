@@ -14,10 +14,14 @@ export default async function AccountProfilePage() {
   // Google-authenticated users cannot change their email: it is the identity
   // link to their Google account (enforced server-side in shop-auth actions).
   const { rows } = await pool.query(
-    `SELECT 1 FROM account WHERE "userId"=$1 AND "providerId"='google' LIMIT 1`,
+    `SELECT "providerId", password FROM account WHERE "userId"=$1`,
     [user.id],
   )
-  const isGoogleAccount = rows.length > 0
+  const isGoogleAccount = rows.some((r: { providerId: string }) => r.providerId === 'google')
+  const hasPassword = rows.some(
+    (r: { providerId: string; password: string | null }) =>
+      r.providerId === 'credential' && Boolean(r.password),
+  )
 
   return (
     <div className="space-y-6">
@@ -30,6 +34,7 @@ export default async function AccountProfilePage() {
             initialPhone={user.phone ?? ''}
             email={user.email}
             emailLocked={isGoogleAccount}
+            passwordLocked={isGoogleAccount || !hasPassword}
           />
         </div>
       </div>

@@ -49,6 +49,15 @@ function buildAuth(google: GoogleCreds) {
         allowedAttempts: 5,
         async sendVerificationOTP({ email, otp, type }) {
           if (type !== 'forget-password') return
+          // Google-only accounts have no local password; do not mail a reset code.
+          const linked = await pool.query(
+            `SELECT a."providerId" FROM account a
+             INNER JOIN "user" u ON u.id = a."userId"
+             WHERE lower(u.email) = lower($1)`,
+            [email],
+          )
+          const providers = linked.rows.map((r: { providerId: string }) => r.providerId)
+          if (providers.includes('google') && !providers.includes('credential')) return
           const subject = 'Код восстановления пароля'
           const text = `Ваш код для восстановления пароля: ${otp}\n\nКод действует 15 минут. Если вы не запрашивали восстановление — просто проигнорируйте это письмо.`
           const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">

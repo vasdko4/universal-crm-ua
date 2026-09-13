@@ -438,6 +438,15 @@ export type Dictionary = {
     confirmButton: string
     invalidCode: string
     emailChanged: string
+    passwordSectionTitle: string
+    passwordSectionHint: string
+    googlePasswordLockedMessage: string
+    sendPasswordCodeButton: string
+    passwordCodeSentTo: string
+    newPasswordLabel: string
+    passwordTooShort: string
+    confirmPasswordButton: string
+    passwordChanged: string
   }
   cookieConsent: {
     message: string
@@ -979,7 +988,7 @@ const uk: Dictionary = {
     savedLabel: 'Збережено',
     emailLabel: 'Електронна пошта',
     googleLockedMessage:
-      'Ви увійшли через Google — пошта прив’язана до вашого Google-акаунту, змінити її не можна.',
+      'Ви увійшли через Google — пошта й пароль прив’язані до Google-акаунту, змінити їх тут не можна.',
     newEmailLabel: 'Новий email',
     newEmailHint: 'На нову адресу прийде лист із кодом підтвердження.',
     newEmailRequired: 'Введіть новий email',
@@ -990,6 +999,16 @@ const uk: Dictionary = {
     confirmButton: 'Підтвердити',
     invalidCode: 'Невірний код',
     emailChanged: 'Email успішно змінено',
+    passwordSectionTitle: 'Пароль',
+    passwordSectionHint: 'Надішлемо код на вашу пошту. Введіть його й новий пароль.',
+    googlePasswordLockedMessage:
+      'Ви увійшли через Google — пароль задається в Google-акаунті, змінити його тут не можна.',
+    sendPasswordCodeButton: 'Надіслати код для зміни пароля',
+    passwordCodeSentTo: 'Код надіслано на {{email}}. Перевірте пошту.',
+    newPasswordLabel: 'Новий пароль',
+    passwordTooShort: 'Пароль має бути не коротшим за 8 символів',
+    confirmPasswordButton: 'Змінити пароль',
+    passwordChanged: 'Пароль успішно змінено',
   },
   cookieConsent: {
     message:
@@ -1528,7 +1547,7 @@ const ru: Dictionary = {
     savedLabel: 'Сохранено',
     emailLabel: 'Электронная почта',
     googleLockedMessage:
-      'Вы вошли через Google — почта привязана к вашему Google-аккаунту, изменить её нельзя.',
+      'Вы вошли через Google — почта и пароль привязаны к Google-аккаунту, изменить их здесь нельзя.',
     newEmailLabel: 'Новый email',
     newEmailHint: 'На новый адрес придёт письмо с кодом подтверждения.',
     newEmailRequired: 'Введите новый email',
@@ -1539,6 +1558,16 @@ const ru: Dictionary = {
     confirmButton: 'Подтвердить',
     invalidCode: 'Неверный код',
     emailChanged: 'Email успешно изменён',
+    passwordSectionTitle: 'Пароль',
+    passwordSectionHint: 'Отправим код на вашу почту. Введите его и новый пароль.',
+    googlePasswordLockedMessage:
+      'Вы вошли через Google — пароль задаётся в Google-аккаунте, изменить его здесь нельзя.',
+    sendPasswordCodeButton: 'Отправить код для смены пароля',
+    passwordCodeSentTo: 'Код отправлен на {{email}}. Проверьте почту.',
+    newPasswordLabel: 'Новый пароль',
+    passwordTooShort: 'Пароль должен быть не короче 8 символов',
+    confirmPasswordButton: 'Сменить пароль',
+    passwordChanged: 'Пароль успешно изменён',
   },
   cookieConsent: {
     message:
