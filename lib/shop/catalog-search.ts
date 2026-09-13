@@ -5,6 +5,11 @@ import { sanitizeSearch } from '@/lib/api/helpers'
  * One-character fragments are dropped when a longer token exists, so
  * "ролики 29" still matches, while a lone "24" remains searchable.
  */
+/** Catalog listing uses `search`; keep `q` as an alias for typed/shared URLs. */
+export function catalogSearchQuery(get: (key: string) => string | undefined): string {
+  return sanitizeSearch(get('search') || get('q') || '')
+}
+
 export function searchTokens(raw: string): string[] {
   const cleaned = sanitizeSearch(raw).trim()
   if (!cleaned) return []

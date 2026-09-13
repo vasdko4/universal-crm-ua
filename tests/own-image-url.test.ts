@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { storefrontMediaUrl, rewritePromHtmlImages } from '@/lib/shop/own-image-url'
+import { storefrontMediaUrl, rewritePromHtmlImages, promMediaPath } from '@/lib/shop/own-image-url'
 import { parseAllowedImageUrl } from '@/lib/api/safe-image-url'
 
 describe('storefrontMediaUrl', () => {
@@ -22,6 +22,21 @@ describe('storefrontMediaUrl', () => {
     expect(
       storefrontMediaUrl('https://shop.ua', 'https://abc.public.blob.vercel-storage.com/x.webp'),
     ).toBe('https://abc.public.blob.vercel-storage.com/x.webp')
+  })
+})
+
+describe('promMediaPath', () => {
+  it('rewrites Prom CDN onto a same-origin /api/media path', () => {
+    expect(promMediaPath('https://images.prom.ua/1_w700_h500_x.jpg')).toBe(
+      '/api/media?src=' + encodeURIComponent('https://images.prom.ua/1_w2000_h2000_x.jpg'),
+    )
+  })
+
+  it('leaves local paths and already-proxied URLs', () => {
+    expect(promMediaPath('/products/a.jpg')).toBe('/products/a.jpg')
+    expect(promMediaPath('/api/media?src=https%3A%2F%2Fimages.prom.ua%2F1.jpg')).toBe(
+      '/api/media?src=https%3A%2F%2Fimages.prom.ua%2F1.jpg',
+    )
   })
 })
 

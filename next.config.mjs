@@ -15,7 +15,7 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     // Default Next quality is 75 — too soft on Prom photos already downscaled
     // to 700×500. 90 keeps detail after WebP/AVIF.
-    qualities: [75, 90],
+    qualities: [75, 85, 90, 95],
     remotePatterns: [
       { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
       { protocol: 'https', hostname: '*.blob.vercel-storage.com' },

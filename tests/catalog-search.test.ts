@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import {
+  catalogSearchQuery,
   facetLabel,
   isFacetKey,
   parseCharFilters,
   searchTokens,
   serializeCharFilters,
 } from '@/lib/shop/catalog-search'
+
+describe('catalogSearchQuery', () => {
+  it('prefers search over q', () => {
+    const sp: Record<string, string> = { search: 'ролики', q: 'ignored' }
+    expect(catalogSearchQuery((k) => sp[k])).toBe('ролики')
+  })
+
+  it('falls back to q when search is empty', () => {
+    const sp: Record<string, string> = { q: 'ролики' }
+    expect(catalogSearchQuery((k) => sp[k])).toBe('ролики')
+  })
+})
 
 describe('searchTokens', () => {
   it('splits a phrase into AND-tokens', () => {

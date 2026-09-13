@@ -25,6 +25,27 @@ export function storefrontMediaUrl(siteOrigin: string, src: string | null | unde
   return `${origin}/api/media?src=${encodeURIComponent(upgraded)}`
 }
 
+/**
+ * Same-origin proxy path for listing/gallery `<Image>` tags. Relative so Next
+ * does not fetch images.prom.ua from the browser.
+ */
+export function promMediaPath(src: string | null | undefined): string | null {
+  if (!src) return src ?? null
+  if (src.startsWith('/api/media?')) return src
+  const upgraded = upgradePromImageUrl(src) ?? src
+  if (!/^https?:\/\//i.test(upgraded)) return upgraded
+  try {
+    if (!isPromCdn(new URL(upgraded).hostname)) return upgraded
+  } catch {
+    return upgraded
+  }
+  return `/api/media?src=${encodeURIComponent(upgraded)}`
+}
+
+export function promMediaPathList(urls: string[]): string[] {
+  return urls.map((u) => promMediaPath(u) ?? u)
+}
+
 const ABSOLUTE_URL = /https?:\/\/[^\s"'<>]+/gi
 
 /**

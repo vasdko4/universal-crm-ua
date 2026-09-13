@@ -4,12 +4,11 @@ import { CatalogToolbar } from '@/components/shop/catalog-toolbar'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
 import { JsonLd } from '@/components/shop/json-ld'
 import { getCatalogProducts, getCatalogFacets, getPriceBounds, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
-import { parseCharFilters } from '@/lib/shop/catalog-search'
+import { catalogSearchQuery, parseCharFilters } from '@/lib/shop/catalog-search'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { localizedPath } from '@/lib/i18n/config'
 import { getCanonicalSiteUrl, toAbsolute } from '@/lib/seo'
-import { sanitizeSearch } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +23,8 @@ export async function generateMetadata({
   const get = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]) as string | undefined
   // Search, filter and paginated views are near-duplicates of the canonical
   // catalog — keep them out of the index while still following links.
-  const isFiltered = Boolean(get('search') || get('inStock')) || Number(get('page') ?? 1) > 1
-  const search = sanitizeSearch(get('search') ?? '')
+  const search = catalogSearchQuery(get)
+  const isFiltered = Boolean(search || get('inStock')) || Number(get('page') ?? 1) > 1
   const title = search ? `${dict.catalog.resultsFor}: «${search}»` : dict.catalog.title
   return {
     title,
@@ -49,7 +48,7 @@ function parseParams(sp: Record<string, string | string[] | undefined>): Catalog
     return v != null && Number.isFinite(n) && n >= 0 ? n : undefined
   }
   return {
-    search: sanitizeSearch(get('search') ?? '') || undefined,
+    search: catalogSearchQuery(get) || undefined,
     sort: sort ?? 'popular',
     inStockOnly: get('inStock') === '1',
     discountOnly: get('discount') === '1',

@@ -24,7 +24,7 @@ import {
   orderItems,
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
-import { upgradePromImageUrl, upgradePromImageList } from '@/lib/shop/prom-image'
+import { promMediaPath, promMediaPathList } from '@/lib/shop/own-image-url'
 import { decodeHtmlEntities } from '@/lib/html-entities'
 
 export type { ProductOption, VariantOptions } from '@/lib/db/schema'
@@ -345,8 +345,8 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     // soon" and plain out-of-stock never are.
     inStock: !genuinelyOutOfStock || isPreorder,
     stockStatus: (r.stock_status as string) ?? null,
-    image: upgradePromImageUrl((r.image as string) ?? null),
-    images: upgradePromImageList(gallery),
+    image: promMediaPath((r.image as string) ?? null),
+    images: promMediaPathList(gallery),
     sizes: (() => {
       const stored = toStringArray(r.sizes)
       if (stored.length > 0) return stored
@@ -718,7 +718,7 @@ function mapVariantRow(v: typeof productVariants.$inferSelect): ProductVariant {
     oldPrice: vop && vop > vp ? vop : null,
     quantity: vq,
     inStock: Boolean(v.isInStock) && vq > 0,
-    image: upgradePromImageUrl(v.image ?? null),
+    image: promMediaPath(v.image ?? null),
   }
 }
 
