@@ -1203,6 +1203,8 @@ export type AdminDictionary = {
     queueMissingTtn: string
     queueOverdue: string
     queueReviews: string
+    loadError: string
+    tryAgain: string
   }
   pages: {
     title: string
@@ -2917,6 +2919,8 @@ const uk: AdminDictionary = {
     queueMissingTtn: 'Без ТТН',
     queueOverdue: 'Давно в дорозі',
     queueReviews: 'Відгуки',
+    loadError: 'Не вдалося завантажити дані дашборда. Спробуйте ще раз.',
+    tryAgain: 'Спробувати ще раз',
   },
   pages: {
     title: 'Сторінки',
@@ -4636,6 +4640,8 @@ const ru: AdminDictionary = {
     queueMissingTtn: 'Без ТТН',
     queueOverdue: 'Давно в пути',
     queueReviews: 'Отзывы',
+    loadError: 'Не удалось загрузить данные дашборда. Попробуйте ещё раз.',
+    tryAgain: 'Попробовать ещё раз',
   },
   pages: {
     title: 'Страницы',

@@ -8,6 +8,7 @@ import { AdminSidebar } from '@/components/admin-sidebar'
 import { AdminHeader } from '@/components/admin-header'
 import { permissionForPath, hasPermission, NAV_SECTIONS } from '@/lib/permissions'
 import { AdminLocaleProvider } from '@/lib/i18n/admin/context'
+import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,13 +50,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   const settings = await getStoreSettingsInternal().catch(() => null)
+  const dict = getAdminDictionary(user.locale)
 
   return (
     <AdminLocaleProvider locale={user.locale}>
       <div className="flex min-h-screen bg-muted/30">
         <AdminSidebar
           user={{ name: user.name, email: user.email, role: user.role, permissions: user.permissions }}
-          storeName={settings?.storeName ?? 'Админ-центр'}
+          storeName={settings?.storeName ?? dict.sidebar.adminCenter}
           logoUrl={settings?.logoUrl ?? null}
         />
         <main className="flex min-w-0 flex-1 flex-col">
