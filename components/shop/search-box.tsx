@@ -132,11 +132,11 @@ export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () =
                       <p className="truncate text-sm font-medium text-popover-foreground">{p.name}</p>
                       <div className="flex items-baseline gap-2">
                         <span className="text-sm font-semibold text-primary">
-                          {formatPrice(p.price, p.currency)}
+                          {formatPrice(p.price, p.currency, locale)}
                         </span>
                         {p.oldPrice ? (
                           <span className="text-xs text-muted-foreground line-through">
-                            {formatPrice(p.oldPrice, p.currency)}
+                            {formatPrice(p.oldPrice, p.currency, locale)}
                           </span>
                         ) : null}
                       </div>

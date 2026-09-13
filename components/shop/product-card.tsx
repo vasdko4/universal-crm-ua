@@ -183,11 +183,11 @@ export function ProductCard({ product }: { product: ShopProduct }) {
           <div className="min-w-0">
             {product.oldPrice && product.oldPrice > product.price ? (
               <span className="block truncate text-[10px] leading-none text-muted-foreground line-through sm:text-[11px]">
-                {formatPrice(product.oldPrice, product.currency)}
+                {formatPrice(product.oldPrice, product.currency, locale)}
               </span>
             ) : null}
             <span className="block truncate text-sm font-bold leading-tight tracking-tight text-foreground sm:text-[15px]">
-              {formatPrice(product.price, product.currency)}
+              {formatPrice(product.price, product.currency, locale)}
             </span>
           </div>
           <Button

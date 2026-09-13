@@ -171,12 +171,12 @@ export default async function OrderConfirmationPage({
                     <p className="truncate text-xs text-muted-foreground">{it.variantLabel}</p>
                   ) : null}
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {formatPrice(Number(it.price))} × {it.quantity}
+                    {formatPrice(Number(it.price), 'UAH', locale)} × {it.quantity}
                     {it.sku ? ` · ${it.sku}` : ''}
                   </p>
                 </div>
                 <span className="shrink-0 text-sm font-semibold text-card-foreground">
-                  {formatPrice(Number(it.total))}
+                  {formatPrice(Number(it.total), 'UAH', locale)}
                 </span>
               </>
             )
@@ -198,7 +198,7 @@ export default async function OrderConfirmationPage({
         </ul>
         <div className="flex items-center justify-between border-t border-border px-5 py-4">
           <span className="font-semibold text-card-foreground">{t.toPay}</span>
-          <span className="text-lg font-bold text-primary">{formatPrice(Number(order.total))}</span>
+          <span className="text-lg font-bold text-primary">{formatPrice(Number(order.total), 'UAH', locale)}</span>
         </div>
       </div>
 

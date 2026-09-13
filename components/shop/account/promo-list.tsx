@@ -60,14 +60,14 @@ export function PromoList({ promos }: { promos: CustomerPromo[] }) {
                   <Badge variant="secondary">
                     {p.discountType === 'percentage'
                       ? `-${p.discountValue}%`
-                      : `-${formatPrice(p.discountValue)}`}
+                      : `-${formatPrice(p.discountValue, 'UAH', locale)}`}
                   </Badge>
                   {p.usedByMe && <Badge variant="outline">{t.promoUsed}</Badge>}
                 </div>
                 <p className="truncate text-sm text-muted-foreground">{p.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {p.minOrderAmount != null &&
-                    `${t.promoMinOrder}: ${formatPrice(p.minOrderAmount)} · `}
+                    `${t.promoMinOrder}: ${formatPrice(p.minOrderAmount, 'UAH', locale)} · `}
                   {p.endsAt ? `${t.promoUntil} ${formatDate(p.endsAt, locale)}` : t.promoNoExpiry}
                   {p.usesLeft != null && ` · ${t.promoUsesLeft}: ${p.usesLeft}`}
                 </p>

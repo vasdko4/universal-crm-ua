@@ -82,9 +82,9 @@ export function OrderReceipt({
               {it.sku && <p className="text-[11px] text-neutral-500">SKU {it.sku}</p>}
               <div className="flex justify-between text-neutral-600">
                 <span>
-                  {it.quantity} × {formatPrice(it.price, currency)}
+                  {it.quantity} × {formatPrice(it.price, currency, locale)}
                 </span>
-                <span>{formatPrice(it.total, currency)}</span>
+                <span>{formatPrice(it.total, currency, locale)}</span>
               </div>
             </div>
           ))}
@@ -95,23 +95,23 @@ export function OrderReceipt({
         <div className="flex flex-col gap-1">
           <div className="flex justify-between">
             <span>{dict.goods}</span>
-            <span>{formatPrice(itemsTotal, currency)}</span>
+            <span>{formatPrice(itemsTotal, currency, locale)}</span>
           </div>
           {discountTotal > 0 && (
             <div className="flex justify-between">
               <span>{dict.discount}</span>
-              <span>−{formatPrice(discountTotal, currency)}</span>
+              <span>−{formatPrice(discountTotal, currency, locale)}</span>
             </div>
           )}
           {deliveryCost > 0 && (
             <div className="flex justify-between">
               <span>{dict.delivery}</span>
-              <span>{formatPrice(deliveryCost, currency)}</span>
+              <span>{formatPrice(deliveryCost, currency, locale)}</span>
             </div>
           )}
           <div className="mt-1 flex justify-between border-t border-dashed border-neutral-400 pt-1 text-sm font-bold">
             <span>{dict.total.toUpperCase()}</span>
-            <span>{formatPrice(total, currency)}</span>
+            <span>{formatPrice(total, currency, locale)}</span>
           </div>
         </div>
 

@@ -149,7 +149,7 @@ export function PayForm({
 
         <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
           <span className="text-sm text-muted-foreground">{t.toPay}</span>
-          <span className="text-xl font-bold text-foreground">{formatPrice(total)}</span>
+          <span className="text-xl font-bold text-foreground">{formatPrice(total, 'UAH', locale)}</span>
         </div>
 
         {autoChecking && (
@@ -227,7 +227,7 @@ export function PayForm({
 
       <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
         <span className="text-sm text-muted-foreground">{t.toPay}</span>
-        <span className="text-xl font-bold text-foreground">{formatPrice(total)}</span>
+        <span className="text-xl font-bold text-foreground">{formatPrice(total, 'UAH', locale)}</span>
       </div>
 
       <Button size="lg" className="mt-5 w-full gap-2" onClick={handlePay} disabled={processing}>
@@ -237,7 +237,7 @@ export function PayForm({
           </>
         ) : (
           <>
-            {t.payButton} {formatPrice(total)}
+            {t.payButton} {formatPrice(total, 'UAH', locale)}
           </>
         )}
       </Button>

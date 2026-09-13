@@ -209,17 +209,17 @@ export function ProductPurchasePanel({
           <div className="flex items-end gap-3">
             {displayOldPrice && (
               <span className="text-base text-muted-foreground line-through">
-                {formatPrice(displayOldPrice, product.currency)}
+                {formatPrice(displayOldPrice, product.currency, locale)}
               </span>
             )}
             <span className="text-[28px] font-bold leading-none text-foreground lg:text-3xl">
               {!selectedVariant && product.variants.length > 1 ? `${tp.priceFrom} ` : ''}
-              {formatPrice(displayPrice, product.currency)}
+              {formatPrice(displayPrice, product.currency, locale)}
             </span>
           </div>
           {qty > 1 && (
             <span className="text-sm text-muted-foreground">
-              {formatPrice(price, product.currency)} × {qty} {tp.unitsShort}
+              {formatPrice(price, product.currency, locale)} × {qty} {tp.unitsShort}
             </span>
           )}
         </div>

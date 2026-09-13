@@ -62,7 +62,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const description =
     stripPromMarketplaceCopy(product.metaDescription?.trim() || '') ||
     plainText(product.description) ||
-    `${product.name} — купить с доставкой по Украине. ${formatPrice(product.price, product.currency)}.`
+    `${product.name} — купить с доставкой по Украине. ${formatPrice(product.price, product.currency, locale)}.`
   const path = `/product/${product.slug}`
   const canonical = localizedPath(path, locale)
   const image = product.image || '/hero-electronics.png'

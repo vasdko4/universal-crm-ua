@@ -84,7 +84,7 @@ export default async function MyOrdersPage() {
                       · {o.itemsCount} {t.itemsCountUnit}
                     </p>
                   </div>
-                  <div className="text-lg font-bold text-primary">{formatPrice(Number(o.total))}</div>
+                  <div className="text-lg font-bold text-primary">{formatPrice(Number(o.total), 'UAH', locale)}</div>
                 </div>
 
                 <ul className="mt-4 divide-y divide-border border-t border-border">
@@ -104,11 +104,11 @@ export default async function MyOrdersPage() {
                             {item.name}
                           </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {item.quantity} × {formatPrice(Number(item.price))}
+                            {item.quantity} × {formatPrice(Number(item.price), 'UAH', locale)}
                           </p>
                         </div>
                         <div className="text-sm font-semibold text-card-foreground">
-                          {formatPrice(Number(item.total))}
+                          {formatPrice(Number(item.total), 'UAH', locale)}
                         </div>
                       </>
                     )

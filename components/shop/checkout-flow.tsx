@@ -1055,7 +1055,7 @@ export function CheckoutFlow({
                         </button>
                       </div>
                       <span className="text-sm font-semibold text-foreground">
-                        {formatPrice(i.price * i.quantity)}
+                        {formatPrice(i.price * i.quantity, 'UAH', locale)}
                       </span>
                     </div>
                     {i.quantity >= max && (
@@ -1120,7 +1120,7 @@ export function CheckoutFlow({
 
           <div className="mt-4 flex justify-between border-t border-border pt-4 text-sm text-muted-foreground">
             <span>{t.itemsCount} ({totalItems})</span>
-            <span className="text-foreground">{formatPrice(subtotal)}</span>
+            <span className="text-foreground">{formatPrice(subtotal, 'UAH', locale)}</span>
           </div>
           {discount > 0 && (
             <div className="mt-2 flex justify-between text-sm">
@@ -1128,7 +1128,7 @@ export function CheckoutFlow({
                 {t.discount}
                 {!noStack && autoAmount > 0 && autoDiscount ? ` (${autoDiscount.name})` : ''}
               </span>
-              <span className="font-medium text-primary">−{formatPrice(discount)}</span>
+              <span className="font-medium text-primary">−{formatPrice(discount, 'UAH', locale)}</span>
             </div>
           )}
           <div className="mt-2 flex justify-between text-sm text-muted-foreground">
@@ -1137,13 +1137,13 @@ export function CheckoutFlow({
           </div>
           <div className="mt-4 flex justify-between border-t border-border pt-4">
             <span className="font-semibold text-foreground">{t.toPay}</span>
-            <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
+            <span className="text-lg font-bold text-foreground">{formatPrice(total, 'UAH', locale)}</span>
           </div>
 
           {belowMinOrder && (
             <p className="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
-              {t.minOrderPrefix} {formatPrice(minOrder!.amount)}. {t.minOrderAddMore}{' '}
-              {formatPrice(minOrderShortfall)}.
+              {t.minOrderPrefix} {formatPrice(minOrder!.amount, 'UAH', locale)}. {t.minOrderAddMore}{' '}
+              {formatPrice(minOrderShortfall, 'UAH', locale)}.
             </p>
           )}
 
@@ -1309,7 +1309,7 @@ function OrderSuccess({
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {t.successContact}{' '}
-          <span className="font-semibold text-foreground">{formatPrice(result.total)}</span>
+          <span className="font-semibold text-foreground">{formatPrice(result.total, 'UAH', locale)}</span>
         </p>
 
         {snapshot && snapshot.items.length > 0 && (
@@ -1333,11 +1333,11 @@ function OrderSuccess({
                       <p className="text-[11px] text-muted-foreground">{i.variantLabel}</p>
                     ) : null}
                     <p className="text-xs text-muted-foreground">
-                      {i.quantity} × {formatPrice(i.price)}
+                      {i.quantity} × {formatPrice(i.price, 'UAH', locale)}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-foreground">
-                    {formatPrice(i.price * i.quantity)}
+                    {formatPrice(i.price * i.quantity, 'UAH', locale)}
                   </span>
                 </li>
               ))}
@@ -1352,7 +1352,7 @@ function OrderSuccess({
               <div className="mt-3 flex flex-col gap-1 border-t border-border pt-3 text-sm">
                 <div className="flex justify-between text-muted-foreground">
                   <span>{t.itemsCount}</span>
-                  <span>{formatPrice(result.itemsTotal)}</span>
+                  <span>{formatPrice(result.itemsTotal, 'UAH', locale)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -1360,11 +1360,11 @@ function OrderSuccess({
                     {t.discount}
                     {result.promoCode ? ` (${result.promoCode})` : ''}
                   </span>
-                  <span className="font-medium text-primary">−{formatPrice(result.discount)}</span>
+                  <span className="font-medium text-primary">−{formatPrice(result.discount, 'UAH', locale)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-foreground">
                   <span>{t.toPay}</span>
-                  <span>{formatPrice(result.total)}</span>
+                  <span>{formatPrice(result.total, 'UAH', locale)}</span>
                 </div>
               </div>
             )}

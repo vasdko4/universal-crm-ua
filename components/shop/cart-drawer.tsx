@@ -86,7 +86,7 @@ export function CartDrawer({ children }: { children: ReactNode }) {
                           <Plus className="size-3" />
                         </Button>
                       </div>
-                      <span className="text-sm font-semibold">{formatPrice(item.price * item.quantity)}</span>
+                      <span className="text-sm font-semibold">{formatPrice(item.price * item.quantity, 'UAH', locale)}</span>
                     </div>
                   </div>
                   <Button
@@ -105,7 +105,7 @@ export function CartDrawer({ children }: { children: ReactNode }) {
             <SheetFooter className="flex-col gap-3 sm:flex-col">
               <div className="flex items-center justify-between text-base">
                 <span className="text-muted-foreground">{t.total}:</span>
-                <span className="text-xl font-bold">{formatPrice(total)}</span>
+                <span className="text-xl font-bold">{formatPrice(total, 'UAH', locale)}</span>
               </div>
               <Button asChild size="lg" className="w-full" onClick={() => setDrawerOpen(false)}>
                 <Link href={lp('/checkout')}>{t.checkout}</Link>

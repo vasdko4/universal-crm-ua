@@ -97,7 +97,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
 
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-foreground">
-                    {formatPrice(item.price * item.quantity)}
+                    {formatPrice(item.price * item.quantity, 'UAH', locale)}
                   </span>
                   <button
                     type="button"
@@ -119,7 +119,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
           <h2 className="text-base font-semibold text-foreground">{t.total}</h2>
           <div className="mt-4 flex justify-between text-sm text-muted-foreground">
             <span>{t.itemsCount} ({count})</span>
-            <span className="text-foreground">{formatPrice(total)}</span>
+            <span className="text-foreground">{formatPrice(total, 'UAH', locale)}</span>
           </div>
           <div className="mt-2 flex justify-between text-sm text-muted-foreground">
             <span>{t.delivery}</span>
@@ -127,12 +127,12 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
           </div>
           <div className="mt-4 flex justify-between border-t border-border pt-4">
             <span className="font-semibold text-foreground">{t.toPay}</span>
-            <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
+            <span className="text-lg font-bold text-foreground">{formatPrice(total, 'UAH', locale)}</span>
           </div>
           {belowMinOrder && (
             <p className="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
-              {t.minOrderPrefix} {formatPrice(minOrder!.amount)}. {t.minOrderAddMore}{' '}
-              {formatPrice(minOrderShortfall)}.
+              {t.minOrderPrefix} {formatPrice(minOrder!.amount, 'UAH', locale)}. {t.minOrderAddMore}{' '}
+              {formatPrice(minOrderShortfall, 'UAH', locale)}.
             </p>
           )}
           {belowMinOrder ? (

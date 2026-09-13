@@ -200,11 +200,11 @@ export default async function MyOrderDetailPage({
                     </span>
                   ) : null}
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {it.quantity} × {formatPrice(Number(it.price))}
+                    {it.quantity} × {formatPrice(Number(it.price), 'UAH', locale)}
                   </p>
                 </div>
                 <span className="text-sm font-semibold text-card-foreground">
-                  {formatPrice(Number(it.total))}
+                  {formatPrice(Number(it.total), 'UAH', locale)}
                 </span>
               </>
             )
@@ -230,12 +230,12 @@ export default async function MyOrderDetailPage({
               {t.discount}
               {order.promoCode ? ` (${order.promoCode})` : ''}
             </span>
-            <span className="font-medium text-primary">−{formatPrice(Number(order.discountTotal))}</span>
+            <span className="font-medium text-primary">−{formatPrice(Number(order.discountTotal), 'UAH', locale)}</span>
           </div>
         )}
         <div className="flex items-center justify-between border-t border-border px-5 py-4">
           <span className="font-semibold text-card-foreground">{t.grandTotal}</span>
-          <span className="text-lg font-bold text-primary">{formatPrice(Number(order.total))}</span>
+          <span className="text-lg font-bold text-primary">{formatPrice(Number(order.total), 'UAH', locale)}</span>
         </div>
       </div>
 
