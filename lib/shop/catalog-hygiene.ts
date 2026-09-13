@@ -40,21 +40,30 @@ export async function runCatalogHygiene(): Promise<void> {
       AND old_price / price BETWEEN 1.9 AND 2.1
   `)
 
+  // Prom titles use both pipes and colons ("…, ціна 2125 ₴: купити на Prom.ua | Україна, Київ").
   await pool.query(`
     UPDATE products
     SET
-      meta_title_uk = NULLIF(trim(both FROM regexp_replace(regexp_replace(coalesce(meta_title_uk, ''),
-        '\\s*[|·•]?\\s*(купити на )?Prom\\.ua\\b.*$', '', 'gi'),
-        '\\s*[|·•]\\s*Україна,?\\s*Київ\\b.*$', '', 'gi')), ''),
-      meta_title_ru = NULLIF(trim(both FROM regexp_replace(regexp_replace(coalesce(meta_title_ru, ''),
-        '\\s*[|·•]?\\s*(купить на )?Prom\\.ua\\b.*$', '', 'gi'),
-        '\\s*[|·•]\\s*Украина,?\\s*Киев\\b.*$', '', 'gi')), ''),
+      meta_title_uk = NULLIF(trim(both FROM regexp_replace(
+        regexp_replace(coalesce(meta_title_uk, ''),
+          '[:|,·•]?\\s*(купити на )?Prom\\.ua\\b.*$', '', 'gi'),
+        '[,:]?\\s*(ціна|цена)\\s+[\\d\\s.,]+[₴грн.]*\\s*$', '', 'gi')), ''),
+      meta_title_ru = NULLIF(trim(both FROM regexp_replace(
+        regexp_replace(coalesce(meta_title_ru, ''),
+          '[:|,·•]?\\s*(купить на )?Prom\\.ua\\b.*$', '', 'gi'),
+        '[,:]?\\s*(ціна|цена)\\s+[\\d\\s.,]+[₴грн.]*\\s*$', '', 'gi')), ''),
+      meta_description_uk = NULLIF(trim(both FROM regexp_replace(coalesce(meta_description_uk, ''),
+        '[:|,·•]?\\s*(купити на )?Prom\\.ua\\b.*$', '', 'gi')), ''),
+      meta_description_ru = NULLIF(trim(both FROM regexp_replace(coalesce(meta_description_ru, ''),
+        '[:|,·•]?\\s*(купить на )?Prom\\.ua\\b.*$', '', 'gi')), ''),
       updated_at = NOW()
     WHERE deleted_at IS NULL
       AND prom_id IS NOT NULL
       AND (
-        coalesce(meta_title_uk, '') ~* 'prom\\.ua|україна,?\\s*київ'
-        OR coalesce(meta_title_ru, '') ~* 'prom\\.ua|украина,?\\s*киев'
+        coalesce(meta_title_uk, '') ~* 'prom\\.ua|купити на|україна,?\\s*київ'
+        OR coalesce(meta_title_ru, '') ~* 'prom\\.ua|купить на|украина,?\\s*киев'
+        OR coalesce(meta_description_uk, '') ~* 'prom\\.ua'
+        OR coalesce(meta_description_ru, '') ~* 'prom\\.ua'
       )
   `)
 
@@ -125,4 +134,25 @@ export async function runCatalogHygiene(): Promise<void> {
       AND lower(trim(t.name_uk)) IN ('електроніка', 'электроника')
       AND c.is_visible IS DISTINCT FROM false
   `)
+
+  // Seeded demo roots (accessories / audio / peripherals) stay empty after
+  // Prom products land in "Електроніка". Hide them so the catalog chips
+  // don't show 0-item categories. Leave them visible on a seed-only shop.
+  if (Number(imported[0]?.n ?? 0) > 0) {
+    await pool.query(`
+      UPDATE categories
+      SET is_visible = false, updated_at = NOW()
+      WHERE parent_id IS NULL
+        AND slug IN ('accessories', 'audio', 'peripherals')
+        AND is_visible IS DISTINCT FROM false
+        AND NOT EXISTS (
+          SELECT 1
+          FROM product_category pc
+          JOIN products p ON p.id = pc.product_id
+          WHERE pc.category_id = categories.id
+            AND p.deleted_at IS NULL
+            AND p.is_visible IS DISTINCT FROM false
+        )
+    `)
+  }
 }

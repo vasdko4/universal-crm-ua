@@ -279,12 +279,18 @@ export function honestOldPrice(price: number | null, oldPrice: number | null): n
 
 /** Drop Prom.ua marketplace leftovers from <title> / meta description. */
 export function stripPromMarketplaceCopy(text: string): string {
+  let s = text
+  // Prom titles often use a colon, not a pipe: "…, ціна 2125 ₴: купити на Prom.ua | Україна, Київ"
+  s = s.replace(/[:—–-]\s*(купити|купить)\s+на\s+prom\.ua\b.*$/gi, '')
+  s = s.replace(/\s*(купити|купить)\s+на\s+prom\.ua\b.*$/gi, '')
   const junk = /prom\.ua|купити на|купить на|україна|украина|київ|киев/i
-  const parts = text
+  const parts = s
     .split(/\s*[|·•]\s*/)
     .map((p) => p.replace(/\s*(купити|купить)\s+на\s+prom\.ua\b/gi, '').trim())
     .filter((p) => p.length > 0 && !junk.test(p))
-  return parts.join(' ').replace(/\s{2,}/g, ' ').trim()
+  s = parts.join(' ').replace(/\s{2,}/g, ' ').trim()
+  s = s.replace(/[,:]?\s*(ціна|цена)\s+[\d\s.,]+[₴грн.]*\s*$/i, '').trim()
+  return s.replace(/[|:·•,\s]+$/g, '').trim()
 }
 
 /** Pulls the rendered `<title>` and `<meta name="description">` out of a fetched product page. */

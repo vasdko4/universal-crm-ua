@@ -27,6 +27,7 @@ import { localizedPath } from '@/lib/i18n/config'
 import { getCanonicalSiteUrl, toAbsolute, extractBrand, merchantReturnPolicy, shippingDetails } from '@/lib/seo'
 import { formatShippingPrice, normalizeGtin } from '@/lib/shop/google-merchant-feed'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { stripPromMarketplaceCopy } from '@/lib/prom-import/scraper'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,15 +57,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const data = await loadProduct(slug, locale).catch(() => null)
   if (!data) notFound()
   const { product } = data
+  const title = stripPromMarketplaceCopy(product.metaTitle?.trim() || '') || product.name
   const description =
-    product.metaDescription?.trim() ||
+    stripPromMarketplaceCopy(product.metaDescription?.trim() || '') ||
     plainText(product.description) ||
     `${product.name} — купить с доставкой по Украине. ${formatPrice(product.price, product.currency)}.`
   const path = `/product/${product.slug}`
   const canonical = localizedPath(path, locale)
   const image = product.image || '/hero-electronics.png'
   return {
-    title: product.metaTitle?.trim() || product.name,
+    title,
     description,
     alternates: {
       canonical,
@@ -72,12 +74,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     },
     openGraph: {
       type: 'website',
-      title: product.metaTitle?.trim() || product.name,
+      title,
       description,
       url: canonical,
       images: [{ url: image, alt: product.name }],
     },
-    twitter: { card: 'summary_large_image', title: product.metaTitle?.trim() || product.name, description, images: [image] },
+    twitter: { card: 'summary_large_image', title, description, images: [image] },
   }
 }
 

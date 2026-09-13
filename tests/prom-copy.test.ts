@@ -16,5 +16,10 @@ describe('stripPromMarketplaceCopy', () => {
   it('removes Prom.ua marketplace tails from titles', () => {
     expect(stripPromMarketplaceCopy('Павербанк купити на Prom.ua | Україна, Київ')).toBe('Павербанк')
     expect(stripPromMarketplaceCopy('Ролики | Prom.ua')).toBe('Ролики')
+    expect(
+      stripPromMarketplaceCopy(
+        'Павербанк Hoco, ціна 2125 ₴: купити на Prom.ua | Україна, Київ',
+      ),
+    ).toBe('Павербанк Hoco')
   })
 })
