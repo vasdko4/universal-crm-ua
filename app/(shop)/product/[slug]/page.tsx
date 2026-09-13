@@ -28,7 +28,7 @@ import { getCanonicalSiteUrl, toAbsolute, extractBrand, merchantReturnPolicy, sh
 import { formatShippingPrice, normalizeGtin } from '@/lib/shop/google-merchant-feed'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { stripPromMarketplaceCopy } from '@/lib/prom-import/scraper'
-import { storefrontMediaUrl } from '@/lib/shop/own-image-url'
+import { storefrontMediaUrl, rewritePromHtmlImages } from '@/lib/shop/own-image-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -274,7 +274,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <div className="mt-12">
         <ProductTabs
           productId={product.id}
-          description={product.description}
+          description={product.description ? rewritePromHtmlImages(product.description, siteUrl) : product.description}
           characteristics={characteristics}
           reviews={reviews.map((r) => ({
             id: r.id,

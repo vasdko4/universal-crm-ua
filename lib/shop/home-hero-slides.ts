@@ -72,7 +72,7 @@ export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide
     {
       badge: 'Оплата',
       title: 'Карткою онлайн або при отриманні',
-      text: 'Наложений платіж або безпечна оплата карткою на сайті — як зручніше.',
+      text: 'Накладений платіж або безпечна оплата карткою на сайті — як зручніше.',
       href: catalog,
       cta: catalogCta,
       tone: 'pay',

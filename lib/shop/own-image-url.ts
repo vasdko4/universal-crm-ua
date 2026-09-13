@@ -24,3 +24,22 @@ export function storefrontMediaUrl(siteOrigin: string, src: string | null | unde
   }
   return `${origin}/api/media?src=${encodeURIComponent(upgraded)}`
 }
+
+const ABSOLUTE_URL = /https?:\/\/[^\s"'<>]+/gi
+
+/**
+ * Prom import leaves raw `<img src="https://images.prom.ua/...">` in product
+ * HTML. Rewrite those onto /api/media so the storefront does not hotlink the
+ * marketplace CDN from descriptions.
+ */
+export function rewritePromHtmlImages(html: string, siteOrigin: string): string {
+  if (!html) return html
+  return html.replace(ABSOLUTE_URL, (url) => {
+    try {
+      if (!isPromCdn(new URL(url).hostname)) return url
+      return storefrontMediaUrl(siteOrigin, url)
+    } catch {
+      return url
+    }
+  })
+}

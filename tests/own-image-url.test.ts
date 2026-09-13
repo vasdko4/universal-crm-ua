@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { storefrontMediaUrl } from '@/lib/shop/own-image-url'
+import { storefrontMediaUrl, rewritePromHtmlImages } from '@/lib/shop/own-image-url'
 import { parseAllowedImageUrl } from '@/lib/api/safe-image-url'
 
 describe('storefrontMediaUrl', () => {
@@ -22,6 +22,18 @@ describe('storefrontMediaUrl', () => {
     expect(
       storefrontMediaUrl('https://shop.ua', 'https://abc.public.blob.vercel-storage.com/x.webp'),
     ).toBe('https://abc.public.blob.vercel-storage.com/x.webp')
+  })
+})
+
+describe('rewritePromHtmlImages', () => {
+  it('rewrites Prom img src onto /api/media and leaves other hosts', () => {
+    const html =
+      '<p>x</p><img src="https://images.prom.ua/7366176545_7366176545.jpg?PIMAGE_ID=7366176545" alt="">' +
+      '<img src="https://cdn.example.com/a.jpg">'
+    const out = rewritePromHtmlImages(html, 'https://shop.ua')
+    expect(out).toContain('https://shop.ua/api/media?src=')
+    expect(out).not.toContain('src="https://images.prom.ua/')
+    expect(out).toContain('https://cdn.example.com/a.jpg')
   })
 })
 

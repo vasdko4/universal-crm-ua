@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
@@ -7,6 +8,11 @@ import { GoogleSignInButton } from '@/components/shop/auth/google-sign-in-button
 import { getGoogleAuthEnabled } from '@/app/actions/settings-store'
 import { getServerDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { dict } = await getServerDictionary()
+  return { title: dict.auth.loginTitle }
+}
 
 export default async function LoginPage() {
   const { locale, dict: t } = await getServerDictionary()

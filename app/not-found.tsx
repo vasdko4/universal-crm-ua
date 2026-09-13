@@ -6,7 +6,10 @@ import { localizedPath } from '@/lib/i18n/config'
 
 export async function generateMetadata() {
   const { dict } = await getServerDictionary()
-  return { title: dict.notFoundPage.title }
+  return {
+    title: dict.notFoundPage.title,
+    robots: { index: false, follow: true },
+  }
 }
 
 export default async function NotFound() {

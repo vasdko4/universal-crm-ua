@@ -1,7 +1,13 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ForgotPasswordForm } from '@/components/shop/auth/forgot-password-form'
 import { getServerDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { dict } = await getServerDictionary()
+  return { title: dict.auth.forgotTitle }
+}
 
 export default async function ForgotPasswordPage() {
   const { locale, dict: t } = await getServerDictionary()
