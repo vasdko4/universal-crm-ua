@@ -23,6 +23,7 @@ import {
   type PromListItem,
   type PromVariationItem,
 } from '@/lib/prom-import/scraper'
+import { findAliasedCategory } from '@/lib/shop/category-aliases'
 import {
   SIZE_OPTION_NAME_UK,
   extractSizeFromName,
@@ -191,20 +192,16 @@ async function ensureCategoryPath(
 
     // Match by name within the same parent (categories has no unique
     // constraint on name/slug, so we look it up manually to avoid creating
-    // duplicate categories on every re-import).
-    const match: { id: number }[] = await db
-      .select({ id: categories.id })
+    // duplicate categories on every re-import). Also accept explicit aliases
+    // so Prom "Техніка та електроніка" lands on the seeded "Електроніка" root.
+    const siblings: { id: number; nameUk: string; nameRu: string | null }[] = await db
+      .select({ id: categories.id, nameUk: categories.nameUk, nameRu: categories.nameRu })
       .from(categories)
-      .where(
-        and(
-          eq(categories.nameUk, nameUk),
-          parentId === null ? isNull(categories.parentId) : eq(categories.parentId, parentId),
-        ),
-      )
-      .limit(1)
+      .where(parentId === null ? isNull(categories.parentId) : eq(categories.parentId, parentId))
+    const aliased = findAliasedCategory(siblings, nameUk)
 
-    if (match.length > 0) {
-      leafId = match[0].id
+    if (aliased) {
+      leafId = aliased.id
     } else {
       const slug = slugify(breadcrumbsUk[i].alias || nameUk) || `cat-${Date.now()}-${i}`
       const insertedRows: { id: number }[] = await db

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSessionCookie } from 'better-auth/cookies'
+import { storefrontAuthShortcut } from '@/lib/shop/auth-shortcuts'
 
 // Public storefront account routes that must stay reachable while logged out.
 const PUBLIC_ACCOUNT_PATHS = ['/account/login', '/account/register', '/account/forgot-password']
@@ -43,6 +44,14 @@ export function proxy(request: NextRequest) {
   if (!isLocaleExempt(pathname) && (pathname === '/ru' || pathname.startsWith('/ru/'))) {
     locale = 'ru'
     innerPathname = pathname.slice(3) || '/'
+  }
+
+  const shortcut = storefrontAuthShortcut(innerPathname)
+  if (shortcut) {
+    const dest = locale === 'ru' ? `/ru${shortcut}` : shortcut
+    const url = new URL(dest, request.url)
+    url.search = request.nextUrl.search
+    return NextResponse.redirect(url)
   }
 
   // Guard the protected storefront account area at the edge, before rendering.

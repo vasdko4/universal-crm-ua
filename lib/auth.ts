@@ -140,11 +140,11 @@ function buildAuth(google: GoogleCreds) {
         role: { type: 'string', required: false, defaultValue: 'manager', input: false },
         is_active: { type: 'boolean', required: false, defaultValue: true, input: false },
         phone: { type: 'string', required: false, input: true },
-        // Admin-center interface language (uk/ru), tied to the admin account and
-        // stored in the DB so it never needs to be re-asked on every login. Kept
-        // out of the sign-up form (input: false) — changed only from the admin
-        // sidebar language switcher via app/actions/admin-locale.ts.
-        locale: { type: 'string', required: false, defaultValue: 'ru', input: false },
+        // Interface language (uk/ru). Default matches the storefront
+        // (DEFAULT_LOCALE). Staff can still switch from the admin sidebar
+        // (app/actions/admin-locale.ts); storefront sign-up overwrites this
+        // from the current UI locale in finalizeCustomerRole.
+        locale: { type: 'string', required: false, defaultValue: 'uk', input: false },
       },
     },
     trustedOrigins: [

@@ -58,7 +58,10 @@ export async function finalizeCustomerRole(phone: string) {
   if (!user) return { success: false }
   // The customer role must be set unconditionally — never leave a storefront
   // sign-up with the default staff role, even if the phone step fails.
-  await pool.query(`UPDATE "user" SET role='customer' WHERE id=$1`, [user.id])
+  // Locale follows the storefront language the shopper registered in, not
+  // the Better Auth additionalFields default.
+  const locale = await getLocale().catch(() => 'uk' as const)
+  await pool.query(`UPDATE "user" SET role='customer', locale=$2 WHERE id=$1`, [user.id, locale])
   const norm = normalizeUaPhone(phone ?? '')
   if (!norm) return { success: false, error: 'Введите корректный номер телефона' }
   if (await phoneTakenByOther(norm, user.id)) {
