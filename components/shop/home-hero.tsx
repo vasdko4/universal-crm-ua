@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import type { TemplateLayout } from '@/lib/shop/templates'
 import { localizedPath, type Locale } from '@/lib/i18n/config'
 import { HomeHeroCarousel } from '@/components/shop/home-hero-carousel'
-import { defaultHeroSlides } from '@/lib/shop/home-hero-slides'
+import { defaultHeroSlides, type HeroSlide } from '@/lib/shop/home-hero-slides'
 
 export type HeroContent = {
   badge: string
