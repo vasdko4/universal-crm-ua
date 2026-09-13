@@ -406,18 +406,12 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   if (input.paymentMethod === 'requisites') {
     const { rows } = await pool.query(`SELECT config FROM payment_methods WHERE code='requisites'`)
     const cfg = (rows[0]?.config as Record<string, string> | null) ?? {}
-    const parts: string[] = []
-    if (cfg.recipientName) parts.push(`Получатель: ${cfg.recipientName}`)
-    if (cfg.edrpou) parts.push(`ЕГРПОУ/ИНН: ${cfg.edrpou}`)
-    if (cfg.iban) parts.push(`IBAN: ${cfg.iban}`)
-    if (cfg.cardNumber) parts.push(`Карта: ${cfg.cardNumber}`)
-    if (cfg.cardHolder) parts.push(`Получатель карты: ${cfg.cardHolder}`)
-    parts.push(`Назначение платежа: оплата заказа №${orderNumber}`)
-    parts.push(`Сумма: ${total} грн`)
-    requisites = parts.join('\n')
+    const { formatRequisitesPreview } = await import('@/lib/payments/public-requisites')
+    const loc = locale === 'ru' ? 'ru' as const : 'uk' as const
+    requisites = formatRequisitesPreview(cfg, { amount: Number(total), locale: loc, orderNumber })
     await pool
       .query(`UPDATE orders SET note = $1 WHERE id = $2`, [
-        `Реквизиты для оплаты:\n${requisites}`,
+        `${loc === 'ru' ? 'Реквизиты для оплаты' : 'Реквізити для оплати'}:\n${requisites}`,
         order.id,
       ])
       .catch(() => {})

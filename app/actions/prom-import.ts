@@ -23,6 +23,13 @@ import {
   type PromListItem,
   type PromVariationItem,
 } from '@/lib/prom-import/scraper'
+import {
+  SIZE_OPTION_NAME_UK,
+  extractSizeFromName,
+  extractSizeFromUrlText,
+  familyKeyFromParts,
+  type SizeFamilyState,
+} from '@/lib/prom-import/size-families'
 
 // Safety cap: a Prom.ua shop can have thousands of listings. Importing that
 // many product pages one at a time (2 fetches each, for uk+ru) would take
@@ -39,6 +46,8 @@ type PromImportState = {
   origin: string
   pending: PromListItem[]
   capped: boolean
+  /** Size-range siblings already imported as one product (name-based families). */
+  sizeFamilies?: Record<string, SizeFamilyState>
 }
 
 // Same self-heal pattern as ensureImportTable() in app/actions/import.ts:
@@ -145,7 +154,7 @@ export async function startPromImport(shopUrl: string) {
   const capped = first.total > MAX_PRODUCTS_PER_JOB
   const pending = Array.from(seen.values()).slice(0, MAX_PRODUCTS_PER_JOB)
 
-  const state: PromImportState = { shopUrl: trimmed, origin, pending, capped }
+  const state: PromImportState = { shopUrl: trimmed, origin, pending, capped, sizeFamilies: {} }
   const [task] = await db
     .insert(importTasks)
     .values({
@@ -372,6 +381,82 @@ function buildVariants(
   return { options, variants, anyInStock: all.some((v) => v.inStock) }
 }
 
+
+function sizeHintFromListing(nameUk: string, nameRu: string, urlText: string) {
+  return extractSizeFromName(nameUk) || extractSizeFromName(nameRu) || extractSizeFromUrlText(urlText)
+}
+
+function stripSizeSuffix(name: string, size: string): string {
+  const extracted = extractSizeFromName(name)
+  if (extracted && extracted.size === size) return extracted.base
+  return name
+}
+
+/**
+ * Adds one size (from a standalone Prom listing) onto an already-imported
+ * canonical product, then retires the duplicate row if this listing was
+ * imported as its own product on an earlier run.
+ */
+async function mergeSizeIntoProduct(opts: {
+  productId: number
+  size: string
+  inStock: boolean
+  price: string
+  oldPrice: string | null
+  duplicateProductId?: number
+}) {
+  const [row] = await db
+    .select({ options: products.options, sizes: products.sizes, isInStock: products.isInStock })
+    .from(products)
+    .where(eq(products.id, opts.productId))
+    .limit(1)
+  if (!row) return
+  const options: ProductOption[] = Array.isArray(row.options) ? [...(row.options as ProductOption[])] : []
+  let sizeOpt = options.find((o) => SIZE_AXIS_NAMES.some((n) => o.name.toLowerCase().includes(n)))
+  if (!sizeOpt) {
+    sizeOpt = { name: SIZE_OPTION_NAME_UK, type: 'text', values: [] }
+    options.push(sizeOpt)
+  }
+  if (!sizeOpt.values.includes(opts.size)) sizeOpt.values = [...sizeOpt.values, opts.size]
+  const existingVars = await db
+    .select({ id: productVariants.id, options: productVariants.options })
+    .from(productVariants)
+    .where(eq(productVariants.productId, opts.productId))
+  const already = existingVars.some((v) => {
+    const o = (v.options ?? {}) as Record<string, string>
+    return o[sizeOpt!.name] === opts.size
+  })
+  if (!already) {
+    await db.insert(productVariants).values({
+      productId: opts.productId,
+      options: { [sizeOpt.name]: opts.size },
+      price: opts.price,
+      oldPrice: opts.oldPrice,
+      quantity: opts.inStock ? 1 : 0,
+      isInStock: opts.inStock,
+      sortOrder: existingVars.length,
+    })
+  }
+  const anyInStock = opts.inStock || Boolean(row.isInStock)
+  await db
+    .update(products)
+    .set({
+      options,
+      sizes: sizesFromOptions(options),
+      variantsEnabled: true,
+      isInStock: anyInStock,
+      quantity: anyInStock ? 1 : 0,
+      stockStatus: anyInStock ? 'В наличии' : 'Нет в наличии',
+    })
+    .where(eq(products.id, opts.productId))
+  if (opts.duplicateProductId && opts.duplicateProductId !== opts.productId) {
+    await db
+      .update(products)
+      .set({ deletedAt: new Date() })
+      .where(eq(products.id, opts.duplicateProductId))
+  }
+}
+
 /** Processes the next small batch of a Prom.ua import job. Call repeatedly until `done: true`. */
 export async function continuePromImport(taskId: number) {
   await assertPermission('import')
@@ -448,6 +533,33 @@ export async function continuePromImport(taskId: number) {
         existing.push(...bySku)
       }
 
+      // Standalone Prom listings that only differ by a size range in the
+      // title ("Ролики 29-33" / "Ролики 34-37") are not linked via
+      // ProductVariationQuery. Fold them into one product with a size axis
+      // so the storefront shows «Обрати розмір» instead of two cards.
+      const sizeFamilies = (state.sizeFamilies ??= {})
+      const sizeHint = sizeHintFromListing(p.nameUk, p.nameRu, item.urlText)
+      if (sizeHint && p.variationItems.length === 0) {
+        const key = familyKeyFromParts(sizeHint.base)
+        const family = sizeFamilies[key]
+        if (family && family.productId) {
+          await mergeSizeIntoProduct({
+            productId: family.productId,
+            size: sizeHint.size,
+            inStock: p.inStock,
+            price: String(p.price ?? 0),
+            oldPrice: p.oldPrice != null ? String(p.oldPrice) : null,
+            duplicateProductId: existing[0]?.id,
+          })
+          sizeFamilies[key] = {
+            ...family,
+            merged: true,
+          }
+          success++
+          continue
+        }
+      }
+
       // Every product needs a working `/product/<slug>` URL — without one,
       // the storefront falls back to the numeric id (see getShopProducts in
       // lib/shop/queries.ts) and the product detail page's legacy-numeric-id
@@ -465,7 +577,14 @@ export async function continuePromImport(taskId: number) {
       // choice is — otherwise it showed as unavailable just because the one
       // size/color Prom.ua happened to serve us was sold out (see the
       // buildVariants comment).
-      const { options, variants, anyInStock } = buildVariants(item.id, p.inStock, p.attributesUk, p.variationItems)
+      let { options, variants, anyInStock } = buildVariants(item.id, p.inStock, p.attributesUk, p.variationItems)
+      if (sizeHint && p.variationItems.length === 0 && variants.length === 0) {
+        options = [{ name: SIZE_OPTION_NAME_UK, type: 'text', values: [sizeHint.size] }]
+        variants = [{ options: { [SIZE_OPTION_NAME_UK]: sizeHint.size }, isInStock: p.inStock, sortOrder: 0 }]
+        anyInStock = p.inStock
+        p.nameUk = stripSizeSuffix(p.nameUk, sizeHint.size)
+        p.nameRu = stripSizeSuffix(p.nameRu, sizeHint.size)
+      }
       const isInStock = anyInStock
 
       const values = {
@@ -526,6 +645,17 @@ export async function continuePromImport(taskId: number) {
             sortOrder: v.sortOrder,
           })),
         )
+      }
+
+      if (sizeHint && p.variationItems.length === 0) {
+        const key = familyKeyFromParts(sizeHint.base)
+        sizeFamilies[key] = {
+          productId,
+          promId: item.id,
+          size: sizeHint.size,
+          inStock: isInStock,
+          merged: Boolean(sizeFamilies[key]?.merged),
+        }
       }
 
       if (leafCatId) {

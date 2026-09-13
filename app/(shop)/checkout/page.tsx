@@ -8,6 +8,7 @@ import {
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { getUserAddresses } from '@/app/actions/addresses'
 import { getPublicStoreSettings } from '@/app/actions/settings-store'
+import { publicRequisitesFromConfig } from '@/lib/payments/public-requisites'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,7 +52,11 @@ export default async function CheckoutPage({
   // dropping it is a pure fix with no behavior change.
   const payments = payment
     .filter((p) => (p.code === 'online' ? hasGateway : true))
-    .map((p) => ({ code: p.code, name: p.name }))
+    .map((p) => ({
+      code: p.code,
+      name: p.name,
+      requisites: p.code === 'requisites' ? publicRequisitesFromConfig(p.config as Record<string, unknown>) : null,
+    }))
 
   const deliveries = delivery.map((d) => ({
     code: d.code,

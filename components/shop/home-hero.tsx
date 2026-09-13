@@ -33,6 +33,7 @@ export function HomeHero({
   content,
   locale = 'uk',
   imageUrl,
+  slides,
 }: {
   layout: TemplateLayout
   content: HeroContent
@@ -40,12 +41,13 @@ export function HomeHero({
   locale?: Locale
   /** Admin-configured hero image (Настройки → Главная); empty = default. */
   imageUrl?: string
+  slides?: HeroSlide[]
 }) {
   const customImage = imageUrl?.trim() || ''
   const image = customImage || DEFAULT_HERO_IMAGE
   if (layout === 'boutique') return <BoutiqueHero content={content} locale={locale} image={image} />
   if (layout === 'minimal') return <MinimalHero content={content} locale={locale} />
-  return <HomeHeroCarousel slides={defaultHeroSlides(locale, content.toCatalog)} />
+  return <HomeHeroCarousel slides={slides ?? defaultHeroSlides(locale, content.toCatalog)} />
 }
 
 /* Editorial full-width hero with overlaid text. */

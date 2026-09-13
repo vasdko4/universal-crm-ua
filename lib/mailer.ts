@@ -18,7 +18,7 @@ export async function sendMail(payload: MailPayload): Promise<{ sent: boolean; f
   const settings = await getStoreSettingsInternal()
   const email = (settings.emailSettings ?? {}) as Record<string, string | boolean>
 
-  const configured = Boolean(email.enabled && email.smtpHost && email.smtpUser)
+  const configured = Boolean(email.smtpHost && email.smtpUser && (email.enabled || email.smtpPassword))
   if (!configured) {
     console.log(
       `[v0] Email not configured — fallback log.\nTo: ${payload.to}\nSubject: ${payload.subject}\n${payload.text}`,

@@ -107,11 +107,27 @@ export type HomeHeroLocaleContent = {
   buttonText: string
 }
 
+export type HomeHeroSlideLocale = {
+  badge: string
+  title: string
+  text: string
+  cta: string
+}
+
+export type HomeHeroSlide = {
+  image: string
+  href: string
+  uk: HomeHeroSlideLocale
+  ru: HomeHeroSlideLocale
+}
+
 export type HomeHeroSettings = {
   /** URL картинки hero-блока. Пусто = стандартная /hero-electronics.png. */
   imageUrl: string
   uk: HomeHeroLocaleContent
   ru: HomeHeroLocaleContent
+  /** Classic-template carousel. Empty slides = built-in defaults. */
+  slides: HomeHeroSlide[]
 }
 
 // Блок из 4 карточек-преимуществ под hero-блоком главной страницы (иконки
@@ -242,7 +258,7 @@ export const DEFAULTS: StoreSettingsData = {
     provider: 'gmail',
     fromEmail: '',
     fromName: '',
-    smtpHost: '',
+    smtpHost: 'smtp.gmail.com',
     smtpPort: '587',
     smtpUser: '',
     smtpPassword: '',
@@ -267,6 +283,7 @@ export const DEFAULTS: StoreSettingsData = {
     imageUrl: '',
     uk: { badge: '', title: '', text: '', buttonText: '' },
     ru: { badge: '', title: '', text: '', buttonText: '' },
+    slides: [],
   },
   // Pre-filled with the same text currently hard-coded on the homepage
   // (app/(shop)/page.tsx HOME_CONTENT.benefits) so the admin form shows the
@@ -367,12 +384,30 @@ export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
 
 // Deep-merge stored hero content over defaults so partially saved objects
 // (e.g. only the uk block filled) always resolve to a complete shape.
+function emptySlide(): HomeHeroSlide {
+  return {
+    image: '',
+    href: '',
+    uk: { badge: '', title: '', text: '', cta: '' },
+    ru: { badge: '', title: '', text: '', cta: '' },
+  }
+}
+
 function mergeHomeHero(stored: Partial<HomeHeroSettings> | null | undefined): HomeHeroSettings {
   if (!stored) return DEFAULTS.homeHero
+  const slides = Array.isArray(stored.slides)
+    ? stored.slides.slice(0, 4).map((s) => ({
+        ...emptySlide(),
+        ...s,
+        uk: { ...emptySlide().uk, ...(s?.uk ?? {}) },
+        ru: { ...emptySlide().ru, ...(s?.ru ?? {}) },
+      }))
+    : []
   return {
     imageUrl: stored.imageUrl ?? '',
     uk: { ...DEFAULTS.homeHero.uk, ...(stored.uk ?? {}) },
     ru: { ...DEFAULTS.homeHero.ru, ...(stored.ru ?? {}) },
+    slides,
   }
 }
 

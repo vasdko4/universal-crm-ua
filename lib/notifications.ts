@@ -202,6 +202,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
       logoUrl: settings.logoUrl,
       phone: settings.contact?.phones?.find(Boolean) ?? null,
       supportEmail: (settings.emailSettings?.fromEmail as string) || null,
+      locale: settings.defaultLocale === 'ru' ? 'ru' as const : 'uk' as const,
     }
 
     // 1) Customer confirmation email.
@@ -209,7 +210,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
     // is on and we have an address (typed at checkout or from the account),
     // even if generic customer emails are disabled in notifications.
     const smtpReady = Boolean(settings.emailSettings?.enabled && settings.emailSettings?.smtpHost && settings.emailSettings?.smtpUser)
-    const isRequisites = o.paymentMethod === 'requisites' || Boolean(o.note?.startsWith('Реквизиты для оплаты:'))
+    const isRequisites = o.paymentMethod === 'requisites' || Boolean(o.note?.startsWith('Реквизиты для оплаты:') || o.note?.startsWith('Реквізити для оплати:'))
     const shouldEmailCustomer =
       Boolean(o.customerEmail) && (n.customerEmailEnabled || (isRequisites && smtpReady))
     if (shouldEmailCustomer && o.customerEmail) {

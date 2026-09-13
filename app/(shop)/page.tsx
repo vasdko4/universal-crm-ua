@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { ArrowRight, Truck, ShieldCheck, CreditCard, Headphones } from 'lucide-react'
 import { ProductCard } from '@/components/shop/product-card'
 import { HomeHero } from '@/components/shop/home-hero'
+import { resolveHeroSlides } from '@/lib/shop/home-hero-slides'
 import { getTemplate } from '@/lib/shop/templates'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
 import { JsonLd } from '@/components/shop/json-ld'
@@ -152,6 +153,7 @@ export default async function HomePage() {
         layout={template.layout}
         content={hero}
         imageUrl={heroImageUrl}
+        slides={resolveHeroSlides(locale, hero.toCatalog, settings?.homeHero?.slides)}
         categories={topCategories.map((cat) => ({
           id: cat.id,
           name: cat.name,

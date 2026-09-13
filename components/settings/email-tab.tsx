@@ -76,7 +76,13 @@ export function EmailSection({ data, setData, t }: SectionProps) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label>{t.providerLabel}</Label>
-          <Select value={e.provider} onValueChange={(v) => set({ provider: v })}>
+          <Select
+            value={e.provider}
+            onValueChange={(v) => {
+              if (v === 'gmail') set({ provider: v, smtpHost: e.smtpHost || 'smtp.gmail.com', smtpPort: e.smtpPort || '587' })
+              else set({ provider: v })
+            }}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>

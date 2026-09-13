@@ -26,6 +26,7 @@ export type {
   GoogleAuthSettings,
   HomeHeroLocaleContent,
   HomeHeroSettings,
+  HomeHeroSlide,
   HomeBenefitItem,
   HomeBenefitsSettings,
   MinOrderSettings,

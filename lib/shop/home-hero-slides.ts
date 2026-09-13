@@ -1,4 +1,5 @@
 import { localizedPath, type Locale } from '@/lib/i18n/config'
+import type { HomeHeroSlide } from '@/lib/store-settings'
 
 export type HeroSlide = {
   badge: string
@@ -96,4 +97,32 @@ export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide
       image: images.catalog,
     },
   ]
+}
+
+/** Overlay admin-edited slide copy/images on the built-in carousel. */
+export function resolveHeroSlides(
+  locale: Locale,
+  catalogCta: string,
+  stored: HomeHeroSlide[] | undefined | null,
+): HeroSlide[] {
+  const defaults = defaultHeroSlides(locale, catalogCta)
+  if (!stored || stored.length === 0) return defaults
+  return defaults.map((d, i) => {
+    const s = stored[i]
+    if (!s) return d
+    const loc = locale === 'ru' ? s.ru : s.uk
+    const pick = (value: string | undefined, fallback: string) => {
+      const v = value?.trim()
+      return v ? v : fallback
+    }
+    return {
+      ...d,
+      badge: pick(loc?.badge, d.badge),
+      title: pick(loc?.title, d.title),
+      text: pick(loc?.text, d.text),
+      cta: pick(loc?.cta, d.cta),
+      image: pick(s.image, d.image),
+      href: pick(s.href, d.href),
+    }
+  })
 }

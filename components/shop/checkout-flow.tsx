@@ -43,11 +43,12 @@ import { cn } from '@/lib/utils'
 import { trackBeginCheckout } from '@/components/shop/google-ads'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { CopyRequisites } from '@/components/shop/copy-requisites'
+import { formatRequisitesPreview } from '@/lib/payments/public-requisites'
 
 // No `config` here on purpose — that column holds admin secrets (Nova Poshta
 // apiKey, bank IBAN/EDRPOU). See app/(shop)/checkout/page.tsx for why it must
 // never cross the Server->Client Component boundary on this page.
-type Method = { code: string; name: string }
+type Method = { code: string; name: string; requisites?: import('@/lib/payments/public-requisites').PublicRequisites | null }
 
 type NpCity = { ref: string; name: string; area: string; deliveryCityRef: string }
 type NpWarehouse = { ref: string; name: string; number: string }
@@ -960,6 +961,16 @@ export function CheckoutFlow({
                 }
               />
             ))}
+            {payment === 'requisites' &&
+              availablePayments.find((m) => m.code === 'requisites')?.requisites && (
+                <CopyRequisites
+                  className="mt-1"
+                  text={formatRequisitesPreview(
+                    availablePayments.find((m) => m.code === 'requisites')!.requisites!,
+                    { amount: total, locale: locale === 'ru' ? 'ru' : 'uk' },
+                  )}
+                />
+              )}
           </div>
 
           <div className="mt-4">
