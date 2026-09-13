@@ -181,7 +181,10 @@ export async function staffTwoFactorSatisfied(userId: string): Promise<boolean> 
 
 export async function requireAdmin(): Promise<AdminUser> {
   const user = await getAdminUser()
-  if (!user) redirect('/sign-in')
+  // Guests (and storefront customers) must not land on the staff sign-in
+  // form via /admin — that advertises the admin center. Staff who know
+  // the URL still use /sign-in directly.
+  if (!user) redirect('/')
   if (user.permissions.length === 0) redirect('/')
   if (!(await staffTwoFactorSatisfied(user.id))) redirect('/sign-in?2fa=1')
   return user

@@ -224,6 +224,54 @@ CREATE INDEX IF NOT EXISTS idx_stock_movements_order ON "stock_movements" ("orde
 -- default only — do not overwrite staff who already picked Russian.
 ALTER TABLE "user" ALTER COLUMN "locale" SET DEFAULT 'uk';
 
+-- Hide the six demo SKUs once a real catalog (Prom import) is in the same DB.
+-- Skip on a seed-only install (CI / empty shop) so the demo catalog stays.
+UPDATE products
+SET is_visible = false, updated_at = NOW()
+WHERE deleted_at IS NULL
+  AND prom_id IS NULL
+  AND sku IN ('IPH15P-128', 'CASE-15P-SIL', 'JBL-CH5', 'LOG-G502', 'KEY-K2', 'APP-2023-001')
+  AND EXISTS (SELECT 1 FROM products p WHERE p.deleted_at IS NULL AND p.prom_id IS NOT NULL);
+
+-- Fold Prom.ua "Техніка та електроніка" onto seeded "Електроніка".
+INSERT INTO product_category (product_id, category_id)
+SELECT pc.product_id, t.id
+FROM product_category pc
+JOIN categories c ON c.id = pc.category_id
+JOIN categories t ON t.id <> c.id
+ AND t.parent_id IS NOT DISTINCT FROM c.parent_id
+ AND lower(trim(c.name_uk)) IN ('техніка та електроніка', 'техника и электроника')
+ AND lower(trim(t.name_uk)) IN ('електроніка', 'электроника')
+WHERE NOT EXISTS (
+  SELECT 1 FROM product_category x
+  WHERE x.product_id = pc.product_id AND x.category_id = t.id
+);
+
+UPDATE categories AS child
+SET parent_id = t.id, updated_at = NOW()
+FROM categories c
+JOIN categories t ON t.id <> c.id
+ AND t.parent_id IS NOT DISTINCT FROM c.parent_id
+ AND lower(trim(c.name_uk)) IN ('техніка та електроніка', 'техника и электроника')
+ AND lower(trim(t.name_uk)) IN ('електроніка', 'электроника')
+WHERE child.parent_id = c.id;
+
+DELETE FROM product_category
+WHERE category_id IN (
+  SELECT c.id FROM categories c
+  JOIN categories t ON t.id <> c.id AND t.parent_id IS NULL AND c.parent_id IS NULL
+   AND lower(trim(c.name_uk)) IN ('техніка та електроніка', 'техника и электроника')
+   AND lower(trim(t.name_uk)) IN ('електроніка', 'электроника')
+);
+
+UPDATE categories c
+SET is_visible = false, updated_at = NOW()
+FROM categories t
+WHERE c.id <> t.id
+  AND c.parent_id IS NULL AND t.parent_id IS NULL
+  AND lower(trim(c.name_uk)) IN ('техніка та електроніка', 'техника и электроника')
+  AND lower(trim(t.name_uk)) IN ('електроніка', 'электроника');
+
 -- Older installs created `orders` without fulfillment `status` /
 -- `payment_status`. CREATE TABLE IF NOT EXISTS never adds columns to an
 -- existing table, so admin order lists crash with:

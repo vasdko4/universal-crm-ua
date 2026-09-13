@@ -1109,7 +1109,7 @@ const uk: Dictionary = {
     tabLogin: 'Вхід',
     tabRegister: 'Реєстрація',
     emailDomainError:
-      'Реєстрація доступна лише з поштою Gmail або інших популярних сервісів (ukr.net, outlook.com, icloud.com тощо)',
+      'Вкажіть справжню електронну пошту. Одноразові скриньки не приймаються.',
   },
   errorPage: {
     label: 'Помилка',
@@ -1668,7 +1668,7 @@ const ru: Dictionary = {
     tabLogin: 'Вход',
     tabRegister: 'Регистрация',
     emailDomainError:
-      'Регистрация доступна только с почтой Gmail или других популярных сервисов (ukr.net, outlook.com, icloud.com и т.д.)',
+      'Укажите настоящую электронную почту. Одноразовые ящики не принимаются.',
   },
   errorPage: {
     label: 'Ошибка',
