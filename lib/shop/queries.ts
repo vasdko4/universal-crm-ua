@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache'
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { Locale } from '@/lib/i18n/config'
 import { sanitizeSearch } from '@/lib/api/helpers'
+import { searchTokens } from '@/lib/shop/catalog-search'
 import { db } from '@/lib/db'
 import {
   products,
@@ -44,6 +45,60 @@ export const CACHE_TAGS = {
 }
 // Seconds a cached storefront query stays fresh before a background refresh.
 const STOREFRONT_TTL = 60
+
+/** LIKE pattern; `%`/`_` in the query are treated as literals. */
+function likePattern(token: string): string {
+  return `%${token.replace(/[%_\\]/g, '')}%`
+}
+
+/**
+ * Name, SKU, barcode, option JSON, and Prom characteristics.
+ * Each token must match at least one of those fields (AND across tokens).
+ */
+function productSearchCondition(search: string): SQL | undefined {
+  const tokens = searchTokens(search)
+  if (tokens.length === 0) return undefined
+  const parts = tokens.map((token) => {
+    const s = likePattern(token)
+    return or(
+      ilike(products.nameRu, s),
+      ilike(products.nameUk, s),
+      ilike(products.sku, s),
+      ilike(products.barcode, s),
+      sql`CAST(${products.options} AS text) ILIKE ${s}`,
+      sql`EXISTS (
+        SELECT 1 FROM product_characteristics pc
+        WHERE pc.product_id = ${products.id}
+          AND (pc.value ILIKE ${s} OR pc.name ILIKE ${s})
+      )`,
+    )!
+  })
+  return parts.length === 1 ? parts[0] : and(...parts)
+}
+
+function searchRelevanceOrder(search: string): SQL {
+  const tokens = searchTokens(search)
+  const first = tokens[0] ? likePattern(tokens[0]) : '%\u0000%'
+  return sql`CASE
+    WHEN ${products.nameUk} ILIKE ${first} OR ${products.nameRu} ILIKE ${first} THEN 0
+    WHEN ${products.sku} ILIKE ${first} THEN 1
+    ELSE 2
+  END`
+}
+
+/** Root-ish category so inverters cluster separately from rollers on page 1. */
+const categoryClusterSql = sql`COALESCE(
+  (
+    SELECT COALESCE(parent.parent_id, parent.id, leaf.id)
+    FROM product_category pc
+    INNER JOIN categories leaf ON leaf.id = pc.category_id
+    LEFT JOIN categories parent ON parent.id = leaf.parent_id
+    WHERE pc.product_id = ${products.id}
+    ORDER BY leaf.sort_order ASC, leaf.id ASC
+    LIMIT 1
+  ),
+  2147483647
+)`
 
 export type ProductVariant = {
   id: number
@@ -367,10 +422,8 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   const conditions = [params.hideOutOfStock ? homeWhere : baseWhere]
 
   const search = sanitizeSearch(params.search ?? '')
-  if (search) {
-    const s = `%${search}%`
-    conditions.push(or(ilike(products.nameRu, s), ilike(products.nameUk, s), ilike(products.sku, s))!)
-  }
+  const searchWhere = productSearchCondition(search)
+  if (searchWhere) conditions.push(searchWhere)
   if (params.minPrice != null) conditions.push(sql`${products.price} >= ${params.minPrice}`)
   if (params.maxPrice != null) conditions.push(sql`${products.price} <= ${params.maxPrice}`)
   if (params.inStockOnly) conditions.push(sql`${products.quantity} > 0`)
@@ -424,20 +477,22 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   const outOfStockLast = asc(sql`CASE WHEN (${plainOutOfStockSql}) THEN 1 ELSE 0 END`)
   const primaryOrderBy =
     params.sort === 'price_asc'
-      ? asc(products.price)
+      ? [asc(products.price)]
       : params.sort === 'price_desc'
-        ? desc(products.price)
+        ? [desc(products.price)]
         : params.sort === 'new'
-          ? desc(products.createdAt)
+          ? [desc(products.createdAt)]
           : popularFallback
-            ? desc(products.createdAt)
+            ? [asc(categoryClusterSql), desc(products.createdAt)]
             : [
+                asc(categoryClusterSql),
                 desc(products.isPopular),
                 desc(sql`${products.ordersCount} + ${products.purchasesBoost}`),
               ]
   const orderBy = [
     outOfStockLast,
-    ...(Array.isArray(primaryOrderBy) ? primaryOrderBy : [primaryOrderBy]),
+    ...(search ? [asc(searchRelevanceOrder(search))] : []),
+    ...primaryOrderBy,
   ]
 
   const [rows, countRes] = await Promise.all([
@@ -475,10 +530,8 @@ export function getPriceBounds(params: { categoryId?: number; search?: string } 
 async function _getPriceBounds(params: { categoryId?: number; search?: string } = {}) {
   const conditions = [baseWhere]
   const search = sanitizeSearch(params.search ?? '')
-  if (search) {
-    const s = `%${search}%`
-    conditions.push(or(ilike(products.nameRu, s), ilike(products.nameUk, s), ilike(products.sku, s))!)
-  }
+  const searchWhere = productSearchCondition(search)
+  if (searchWhere) conditions.push(searchWhere)
   if (params.categoryId) {
     const categoryIds = await getCategoryAndDescendantIds(params.categoryId)
     const rows = await db
