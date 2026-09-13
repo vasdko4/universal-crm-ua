@@ -135,7 +135,7 @@ export async function sendCartReminder(id: number): Promise<{ success: boolean; 
   const siteUrl = (settings.seo?.siteUrl || '').replace(/\/$/, '')
   const items = (cart.items as AbandonedCartItem[]) ?? []
   const lines = items.map((i) => `• ${i.name} — ${i.quantity} шт.`).join('\n')
-  const total = Number(cart.itemsTotal).toLocaleString('uk-UA')
+  const total = Number(cart.itemsTotal).toLocaleString('uk-UA').replace(/\u00a0/g, ' ')
 
   const text = `Здравствуйте${cart.customerName ? `, ${cart.customerName}` : ''}!
 

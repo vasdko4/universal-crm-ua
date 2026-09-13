@@ -31,8 +31,9 @@ function statusLabels(t: AdminDictionary): Record<string, { label: string; cls: 
   }
 }
 
-function money(v: string | number) {
-  return `${Number(v).toLocaleString('uk-UA')} ₴`
+function money(v: string | number, locale: string = 'uk') {
+  const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return `${Number(v).toLocaleString(tag).replace(/\u00a0/g, ' ')} ₴`
 }
 
 function timeAgo(d: Date | string | null, t: AdminDictionary): string {
@@ -52,7 +53,7 @@ export function AbandonedCartsManager({
   initialCarts: AbandonedCart[]
   stats: AbandonedCartsStats
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, locale } = useAdminI18n()
   const STATUS_LABEL = statusLabels(t)
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -105,7 +106,7 @@ export function AbandonedCartsManager({
         <StatCard label={t.abandonedCarts.statOpen} value={String(stats.open)} />
         <StatCard label={t.abandonedCarts.statReminded} value={String(stats.reminded)} />
         <StatCard label={t.abandonedCarts.statRecovered} value={String(stats.recovered)} />
-        <StatCard label={t.abandonedCarts.statPotentialRevenue} value={money(stats.potentialRevenue)} />
+        <StatCard label={t.abandonedCarts.statPotentialRevenue} value={money(stats.potentialRevenue, locale)} />
       </div>
 
       {notice && (
@@ -183,7 +184,7 @@ export function AbandonedCartsManager({
                       )}
                     </div>
                   </div>
-                  <p className="text-lg font-semibold text-foreground">{money(cart.itemsTotal)}</p>
+                  <p className="text-lg font-semibold text-foreground">{money(cart.itemsTotal, locale)}</p>
                 </div>
 
                 <ul className="flex flex-col gap-1 rounded-lg bg-muted/50 p-3 text-sm">
@@ -191,7 +192,7 @@ export function AbandonedCartsManager({
                     <li key={idx} className="flex items-center justify-between gap-3">
                       <span className="min-w-0 truncate text-foreground">{i.name}</span>
                       <span className="shrink-0 text-muted-foreground">
-                        {tpl(t.abandonedCarts.itemQtyTemplate, { qty: i.quantity, price: money(i.price) })}
+                        {tpl(t.abandonedCarts.itemQtyTemplate, { qty: i.quantity, price: money(i.price, locale) })}
                       </span>
                     </li>
                   ))}

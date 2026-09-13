@@ -59,7 +59,7 @@ export function PromotionForm({
   products: Option[]
   promotion?: Promotion
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, locale } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const isEdit = promotion != null
@@ -518,11 +518,11 @@ export function PromotionForm({
               />
               <StatBox
                 label={t.promotions.statOrdersTotal}
-                value={`${Number(promotion?.totalOrdersAmount ?? 0).toLocaleString('uk-UA')} ₴`}
+                value={`${Number(promotion?.totalOrdersAmount ?? 0).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA').replace(/\u00a0/g, ' ')} ₴`}
               />
               <StatBox
                 label={t.promotions.statDiscountTotal}
-                value={`${Number(promotion?.totalDiscountAmount ?? 0).toLocaleString('uk-UA')} ₴`}
+                value={`${Number(promotion?.totalDiscountAmount ?? 0).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA').replace(/\u00a0/g, ' ')} ₴`}
               />
             </div>
             <p className="mt-3 text-xs text-slate-400">{t.promotions.statsHint}</p>

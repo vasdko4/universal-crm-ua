@@ -19,10 +19,11 @@ const STATUS_LABELS = {
   },
 } as const
 
-function money(v: string | number, currency = 'UAH') {
+function money(v: string | number, currency = 'UAH', locale: string = 'uk') {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
+  const tag = locale === 'ru' || locale === 'ru-RU' ? 'ru-RU' : 'uk-UA'
   const symbol = currency === 'UAH' ? 'грн' : currency
-  return `${n.toLocaleString('uk-UA')} ${symbol}`
+  return `${n.toLocaleString(tag).replace(/\u00a0/g, ' ')} ${symbol}`
 }
 
 function esc(s: string) {
@@ -178,7 +179,7 @@ export function buildOrderMessage(
   const itemLines = items
     .map(
       (i) =>
-        `• ${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''} — ${i.quantity} ${L.qty} × ${money(i.price, order.currency)}`,
+        `• ${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''} — ${i.quantity} ${L.qty} × ${money(i.price, order.currency, loc)}`,
     )
     .join('\n')
 
@@ -191,9 +192,9 @@ ${heading}. ${intro}
 ${L.items}:
 ${itemLines}
 
-${L.itemsSum}: ${money(order.itemsTotal, order.currency)}
-${L.deliveryCost}: ${Number(order.deliveryCost) > 0 ? money(order.deliveryCost, order.currency) : L.carrierTariff}
-${L.total}: ${money(order.total, order.currency)}
+${L.itemsSum}: ${money(order.itemsTotal, order.currency, loc)}
+${L.deliveryCost}: ${Number(order.deliveryCost) > 0 ? money(order.deliveryCost, order.currency, loc) : L.carrierTariff}
+${L.total}: ${money(order.total, order.currency, loc)}
 ${L.status}: ${statusLabel}${deliveryLine ? `\n${deliveryLine}` : ''}${trackingLine ? `\n${trackingLine}` : ''}${requisitesText ? `\n\n${requisitesText}` : ''}
 
 ${siteUrl ? `${L.follow}: ${siteUrl}/account/orders\n` : ''}
@@ -230,7 +231,7 @@ ${L.footer}`
         <td style="padding:12px 12px;border-bottom:1px solid #ececea;vertical-align:top">
           ${nameHtml}
           ${i.variantLabel ? `<div style="font-size:13px;color:#6b6b68;margin-top:2px">${esc(i.variantLabel)}</div>` : ''}
-          <div style="font-size:13px;color:#6b6b68;margin-top:4px">${i.quantity} ${L.qty} × ${money(i.price, order.currency)}</div>
+          <div style="font-size:13px;color:#6b6b68;margin-top:4px">${i.quantity} ${L.qty} × ${money(i.price, order.currency, loc)}</div>
         </td>
         <td style="padding:12px 0;border-bottom:1px solid #ececea;text-align:right;vertical-align:top;white-space:nowrap;font-weight:600">${money(i.total ?? Number(i.price) * i.quantity, order.currency)}</td>
       </tr>`
@@ -281,9 +282,9 @@ ${L.footer}`
   </td></tr>
   <tr><td style="padding:12px 28px 24px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#4a4a47">
-      <tr><td style="padding:4px 0">${esc(L.itemsSum)}</td><td style="padding:4px 0;text-align:right">${money(order.itemsTotal, order.currency)}</td></tr>
-      <tr><td style="padding:4px 0">${esc(L.deliveryCost)}</td><td style="padding:4px 0;text-align:right">${Number(order.deliveryCost) > 0 ? money(order.deliveryCost, order.currency) : L.carrierTariff}</td></tr>
-      <tr><td style="padding:10px 0 0;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${esc(L.total)}</td><td style="padding:10px 0 0;text-align:right;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${money(order.total, order.currency)}</td></tr>
+      <tr><td style="padding:4px 0">${esc(L.itemsSum)}</td><td style="padding:4px 0;text-align:right">${money(order.itemsTotal, order.currency, loc)}</td></tr>
+      <tr><td style="padding:4px 0">${esc(L.deliveryCost)}</td><td style="padding:4px 0;text-align:right">${Number(order.deliveryCost) > 0 ? money(order.deliveryCost, order.currency, loc) : L.carrierTariff}</td></tr>
+      <tr><td style="padding:10px 0 0;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${esc(L.total)}</td><td style="padding:10px 0 0;text-align:right;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${money(order.total, order.currency, loc)}</td></tr>
     </table>
     <div style="margin-top:14px;font-size:13px;color:#6b6b68">
       ${esc(L.statusOrder)}: <strong style="color:#1a1a1a">${esc(statusLabel)}</strong>

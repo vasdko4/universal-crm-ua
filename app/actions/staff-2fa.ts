@@ -73,7 +73,7 @@ export async function beginStaffTwoFactor(): Promise<
       me.id,
     ])
     const settings = await getStoreSettingsInternal().catch(() => null)
-    const issuer = settings?.storeName || 'Universal Magazine'
+    const issuer = settings?.storeName || 'Techno Store'
     const otpauth = otpauthUrl({ secret, account: me.email, issuer })
     return { ok: true, secret, otpauth }
   } catch (e) {

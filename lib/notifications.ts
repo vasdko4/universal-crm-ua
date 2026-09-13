@@ -5,10 +5,11 @@ import { buildOrderMessage } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getProductSlugMap } from '@/lib/shop/queries'
 
-function money(v: string | number, currency = 'UAH') {
+function money(v: string | number, currency = 'UAH', locale: string = 'uk') {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
+  const tag = locale === 'ru' || locale === 'ru-RU' ? 'ru-RU' : 'uk-UA'
   const symbol = currency === 'UAH' ? '₴' : currency
-  return `${n.toLocaleString('uk-UA')} ${symbol}`
+  return `${n.toLocaleString(tag).replace(/\u00a0/g, ' ')} ${symbol}`
 }
 
 /**

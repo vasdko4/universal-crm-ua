@@ -99,3 +99,26 @@ test('admin sign-in form is reachable', async ({ page }) => {
   await expect(page.locator('#password')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Увійти' })).toBeVisible()
 })
+
+test('demo admin can open the dashboard', async ({ page }) => {
+  await page.goto('/sign-in')
+  await page.locator('#email').fill('admin@magazine.store')
+  await page.locator('#password').fill('Admin12345')
+  await page.getByRole('button', { name: 'Увійти' }).click()
+  await page.waitForURL(/\/admin/, { timeout: 30_000 })
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/Ласкаво просимо|Admin/i)
+})
+
+test('demo admin can open the storefront cabinet', async ({ page }) => {
+  await page.goto('/account/login')
+  await dismissLocaleModal(page)
+  await page.locator('#email').fill('admin@magazine.store')
+  await page.locator('#password').fill('Admin12345')
+  await page.getByRole('button', { name: 'Увійти' }).click()
+  await page.waitForURL(/\/account(?:$|\?)/, { timeout: 30_000 })
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/Вітаємо/i)
+  await expect(page.getByRole('link', { name: 'Мої замовлення' })).toBeVisible()
+  await page.getByRole('link', { name: 'Мої замовлення' }).click()
+  await expect(page.getByRole('heading', { level: 2 })).toContainText(/замовлен/i)
+})
