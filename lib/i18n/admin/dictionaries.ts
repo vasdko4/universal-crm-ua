@@ -1317,6 +1317,15 @@ export type AdminDictionary = {
     cancel: string
     save: string
     toastRoleSaved: string
+    searchPlaceholder: string
+    emptyUsers: string
+    emptyRoles: string
+    accessNone: string
+    accessRead: string
+    accessWrite: string
+    passwordHint: string
+    usersCount: string
+    rolesCount: string
   }
   articles: {
     title: string
@@ -3022,6 +3031,15 @@ const uk: AdminDictionary = {
     cancel: 'Скасувати',
     save: 'Зберегти',
     toastRoleSaved: 'Роль збережено',
+    searchPlaceholder: 'Пошук за іменем або email',
+    emptyUsers: 'Користувачів ще немає',
+    emptyRoles: 'Ролей ще немає',
+    accessNone: 'Немає',
+    accessRead: 'Читання',
+    accessWrite: 'Запис',
+    passwordHint: 'Мінімум 8 символів',
+    usersCount: 'користувачів',
+    rolesCount: 'ролей',
   },
   articles: {
     title: 'Статті та блог',
@@ -4732,6 +4750,15 @@ const ru: AdminDictionary = {
     cancel: 'Отмена',
     save: 'Сохранить',
     toastRoleSaved: 'Роль сохранена',
+    searchPlaceholder: 'Поиск по имени или email',
+    emptyUsers: 'Пользователей ещё нет',
+    emptyRoles: 'Ролей ещё нет',
+    accessNone: 'Нет',
+    accessRead: 'Чтение',
+    accessWrite: 'Запись',
+    passwordHint: 'Минимум 8 символов',
+    usersCount: 'пользователей',
+    rolesCount: 'ролей',
   },
   articles: {
     title: 'Статьи и блог',
