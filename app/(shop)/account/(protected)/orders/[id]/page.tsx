@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, User, Phone, Mail, Truck, MapPin, Package } from 'lucide-react'
@@ -29,6 +30,12 @@ function InfoRow({
   )
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  const dict = getDictionary(locale)
+  return { title: dict.account.navOrders }
+}
+
 export default async function MyOrderDetailPage({
   params,
 }: {
@@ -56,7 +63,7 @@ export default async function MyOrderDetailPage({
         <ArrowLeft className="size-4" /> {t.backToOrders}
       </Link>
 
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-card-foreground">
             {t.orderHeading}
@@ -77,7 +84,7 @@ export default async function MyOrderDetailPage({
       </div>
 
       {/* Recipient & delivery details */}
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="rounded-2xl border border-border bg-card p-6">
         <h3 className="mb-2 text-base font-semibold text-card-foreground">{t.recipientAndDelivery}</h3>
         <div className="grid gap-x-6 sm:grid-cols-2">
           {order.trackingNumber ? (
@@ -170,7 +177,7 @@ export default async function MyOrderDetailPage({
         <CopyRequisites className="w-full text-left" text={order.note.replace(/^Реквізити для оплати:\n/, '').replace(/^Реквизиты для оплаты:\n/, '')} />
       )}
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="rounded-2xl border border-border bg-card">
         <ul className="divide-y divide-border">
           {items.map((it) => {
             const body = (

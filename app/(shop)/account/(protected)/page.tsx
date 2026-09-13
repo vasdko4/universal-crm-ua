@@ -1,7 +1,14 @@
+import type { Metadata } from 'next'
 import { getShopUser } from '@/lib/session'
 import { pool } from '@/lib/db'
 import { ProfileForm } from '@/components/shop/profile-form'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  const dict = getDictionary(locale)
+  return { title: dict.profile.sectionTitle }
+}
 
 export default async function AccountProfilePage() {
   const user = await getShopUser()

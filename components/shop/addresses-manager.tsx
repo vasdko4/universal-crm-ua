@@ -114,10 +114,13 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground md:text-3xl">{t.addressesTitle}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">{t.addressesTitle}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t.addressesDescription}</p>
+        </div>
         {!editing && (
-          <Button onClick={startAdd} className="gap-1">
+          <Button onClick={startAdd} className="shrink-0 gap-1">
             <Plus className="size-4" /> {t.addAddress}
           </Button>
         )}
@@ -234,8 +237,10 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
 
       {!editing && initialAddresses.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card px-6 py-16 text-center">
-          <MapPin className="mb-4 size-10 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{t.addressesEmpty}</p>
+          <div className="flex size-14 items-center justify-center rounded-full bg-muted">
+            <MapPin className="size-7 text-muted-foreground" />
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">{t.addressesEmpty}</p>
         </div>
       )}
 

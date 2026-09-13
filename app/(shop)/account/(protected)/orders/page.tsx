@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Package } from 'lucide-react'
 import { getMyOrders } from '@/app/actions/shop'
@@ -7,112 +8,137 @@ import { Button } from '@/components/ui/button'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  const dict = getDictionary(locale)
+  return { title: dict.account.navOrders }
+}
+
 export default async function MyOrdersPage() {
   const locale = await getLocale()
   const dict = getDictionary(locale)
   const t = dict.account
   let orders: Awaited<ReturnType<typeof getMyOrders>> = []
+  let loadError = false
   try {
     orders = await getMyOrders()
   } catch (e) {
+    loadError = true
     console.error('[account/orders] page failed:', e)
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="flex flex-col items-center rounded-xl border border-border bg-card px-6 py-16 text-center">
-        <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-          <Package className="size-7 text-muted-foreground" />
-        </div>
-        <h2 className="mt-4 text-lg font-semibold text-card-foreground">{t.noOrders}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t.noOrdersDescription}</p>
-        <Button asChild className="mt-5">
-          <Link href={localizedPath('/catalog', locale)}>{t.goToCatalog}</Link>
-        </Button>
-      </div>
-    )
   }
 
   return (
     <div className="space-y-4">
-      {orders.map((o) => {
-        const statusLabel = getOrderStatusLabel(o.status, locale)
-        return (
-          <div key={o.id} className="rounded-xl border border-border bg-card p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={localizedPath(`/account/orders/${o.id}`, locale)}
-                    className="font-semibold text-card-foreground hover:text-primary"
-                  >
-                    №{o.orderNumber}
-                  </Link>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                    {statusLabel}
-                  </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                    {getPaymentStatusLabel(o.paymentStatus, locale)}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {o.createdAt ? new Date(o.createdAt).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'uk-UA') : ''} ·{' '}
-                  {o.itemsCount} {t.itemsCountUnit}
-                </p>
-              </div>
-              <div className="text-lg font-bold text-primary">{formatPrice(Number(o.total))}</div>
-            </div>
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">{t.navOrders}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t.ordersDescription}</p>
+      </div>
 
-            <ul className="mt-4 divide-y divide-border border-t border-border">
-              {o.items.map((item) => {
-                const content = (
-                  <>
-                    <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
-                      {item.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- order snapshots may be off-allowlist hosts
-                        <img src={item.image} alt={item.name} className="size-full object-contain" />
-                      ) : (
-                        <Package className="size-6 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-card-foreground group-hover:text-primary">
-                        {item.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {item.quantity} × {formatPrice(Number(item.price))}
-                      </p>
-                    </div>
-                    <div className="text-sm font-semibold text-card-foreground">
-                      {formatPrice(Number(item.total))}
-                    </div>
-                  </>
-                )
-                return (
-                  <li key={item.id}>
-                    {item.productId ? (
-                      <Link
-                        href={localizedPath(`/product/${o.productSlugs[item.productId] ?? item.productId}`, locale)}
-                        className="group flex items-center gap-3 py-3"
-                      >
-                        {content}
-                      </Link>
-                    ) : (
-                      <div className="flex items-center gap-3 py-3">{content}</div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-
-            <div className="mt-4 flex justify-end">
-              <Button asChild variant="outline" size="sm">
-                <Link href={localizedPath(`/account/orders/${o.id}`, locale)}>{t.orderDetailsButton}</Link>
-              </Button>
-            </div>
+      {loadError ? (
+        <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-16 text-center">
+          <div className="flex size-14 items-center justify-center rounded-full bg-muted">
+            <Package className="size-7 text-muted-foreground" />
           </div>
-        )
-      })}
+          <h3 className="mt-4 text-lg font-semibold text-card-foreground">{t.ordersLoadError}</h3>
+          <Button asChild className="mt-5">
+            <a href={localizedPath('/account/orders', locale)}>{t.tryAgain}</a>
+          </Button>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-16 text-center">
+          <div className="flex size-14 items-center justify-center rounded-full bg-muted">
+            <Package className="size-7 text-muted-foreground" />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold text-card-foreground">{t.noOrders}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{t.noOrdersDescription}</p>
+          <Button asChild className="mt-5">
+            <Link href={localizedPath('/catalog', locale)}>{t.goToCatalog}</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((o) => {
+            const statusLabel = getOrderStatusLabel(o.status, locale)
+            return (
+              <div key={o.id} className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={localizedPath(`/account/orders/${o.id}`, locale)}
+                        className="font-semibold text-card-foreground hover:text-primary"
+                      >
+                        №{o.orderNumber}
+                      </Link>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {statusLabel}
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {getPaymentStatusLabel(o.paymentStatus, locale)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {o.createdAt
+                        ? new Date(o.createdAt).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'uk-UA')
+                        : ''}{' '}
+                      · {o.itemsCount} {t.itemsCountUnit}
+                    </p>
+                  </div>
+                  <div className="text-lg font-bold text-primary">{formatPrice(Number(o.total))}</div>
+                </div>
+
+                <ul className="mt-4 divide-y divide-border border-t border-border">
+                  {o.items.map((item) => {
+                    const content = (
+                      <>
+                        <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                          {item.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- order snapshots may be off-allowlist hosts
+                            <img src={item.image} alt={item.name} className="size-full object-contain" />
+                          ) : (
+                            <Package className="size-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-card-foreground group-hover:text-primary">
+                            {item.name}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {item.quantity} × {formatPrice(Number(item.price))}
+                          </p>
+                        </div>
+                        <div className="text-sm font-semibold text-card-foreground">
+                          {formatPrice(Number(item.total))}
+                        </div>
+                      </>
+                    )
+                    return (
+                      <li key={item.id}>
+                        {item.productId ? (
+                          <Link
+                            href={localizedPath(`/product/${o.productSlugs[item.productId] ?? item.productId}`, locale)}
+                            className="group flex items-center gap-3 py-3"
+                          >
+                            {content}
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-3 py-3">{content}</div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+
+                <div className="mt-4 flex justify-end">
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={localizedPath(`/account/orders/${o.id}`, locale)}>{t.orderDetailsButton}</Link>
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

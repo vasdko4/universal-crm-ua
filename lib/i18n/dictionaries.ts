@@ -402,6 +402,11 @@ export type Dictionary = {
     shippedTo: string
     discount: string
     grandTotal: string
+    ordersLoadError: string
+    tryAgain: string
+    ordersDescription: string
+    addressesDescription: string
+    promosDescription: string
   }
   // Order receipt (components/orders/order-receipt.tsx)
   receipt: {
@@ -971,6 +976,11 @@ const uk: Dictionary = {
     shippedTo: 'Куди відправлено',
     discount: 'Знижка',
     grandTotal: 'Разом',
+    ordersLoadError: 'Не вдалося завантажити замовлення. Спробуйте ще раз.',
+    tryAgain: 'Спробувати ще раз',
+    ordersDescription: 'Історія ваших покупок і статус доставки.',
+    addressesDescription: 'Збережені адреси для швидкого оформлення замовлень.',
+    promosDescription: 'Персональні коди знижок, доступні у вашому кабінеті.',
   },
   receipt: {
     sectionTitle: 'Чек замовлення',
@@ -1538,6 +1548,11 @@ const ru: Dictionary = {
     shippedTo: 'Куда отправлено',
     discount: 'Скидка',
     grandTotal: 'Итого',
+    ordersLoadError: 'Не удалось загрузить заказы. Попробуйте ещё раз.',
+    tryAgain: 'Попробовать ещё раз',
+    ordersDescription: 'История ваших покупок и статус доставки.',
+    addressesDescription: 'Сохранённые адреса для быстрого оформления заказов.',
+    promosDescription: 'Персональные коды скидок, доступные в вашем кабинете.',
   },
   receipt: {
     sectionTitle: 'Чек заказа',

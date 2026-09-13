@@ -6,6 +6,7 @@ import type { CustomerPromo } from '@/app/actions/customer-promos'
 import { useI18n } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { formatPrice } from '@/lib/shop/format'
 
 function formatDate(iso: string, locale: string) {
   return new Date(iso).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'ru-RU', {
@@ -32,19 +33,24 @@ export function PromoList({ promos }: { promos: CustomerPromo[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-foreground">{t.promosTitle}</h1>
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">{t.promosTitle}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t.promosDescription}</p>
+      </div>
       {promos.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-10 text-center">
-          <TicketPercent className="size-10 text-muted-foreground" />
-          <p className="text-muted-foreground">{t.promosEmpty}</p>
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card px-6 py-16 text-center">
+          <div className="flex size-14 items-center justify-center rounded-full bg-muted">
+            <TicketPercent className="size-7 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">{t.promosEmpty}</p>
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
           {promos.map((p) => (
             <li
               key={p.id}
-              className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -54,14 +60,14 @@ export function PromoList({ promos }: { promos: CustomerPromo[] }) {
                   <Badge variant="secondary">
                     {p.discountType === 'percentage'
                       ? `-${p.discountValue}%`
-                      : `-${p.discountValue.toLocaleString('ru-RU')} ₴`}
+                      : `-${formatPrice(p.discountValue)}`}
                   </Badge>
                   {p.usedByMe && <Badge variant="outline">{t.promoUsed}</Badge>}
                 </div>
                 <p className="truncate text-sm text-muted-foreground">{p.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {p.minOrderAmount != null &&
-                    `${t.promoMinOrder}: ${p.minOrderAmount.toLocaleString('ru-RU')} ₴ · `}
+                    `${t.promoMinOrder}: ${formatPrice(p.minOrderAmount)} · `}
                   {p.endsAt ? `${t.promoUntil} ${formatDate(p.endsAt, locale)}` : t.promoNoExpiry}
                   {p.usesLeft != null && ` · ${t.promoUsesLeft}: ${p.usesLeft}`}
                 </p>
