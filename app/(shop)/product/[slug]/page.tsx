@@ -28,6 +28,7 @@ import { getCanonicalSiteUrl, toAbsolute, extractBrand, merchantReturnPolicy, sh
 import { formatShippingPrice, normalizeGtin } from '@/lib/shop/google-merchant-feed'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { stripPromMarketplaceCopy } from '@/lib/prom-import/scraper'
+import { storefrontMediaUrl } from '@/lib/shop/own-image-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,6 +66,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const path = `/product/${product.slug}`
   const canonical = localizedPath(path, locale)
   const image = product.image || '/hero-electronics.png'
+  const ogImage = storefrontMediaUrl(await getCanonicalSiteUrl(), image)
   return {
     title,
     description,
@@ -77,9 +79,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title,
       description,
       url: canonical,
-      images: [{ url: image, alt: product.name }],
+      images: [{ url: ogImage, alt: product.name }],
     },
-    twitter: { card: 'summary_large_image', title, description, images: [image] },
+    twitter: { card: 'summary_large_image', title, description, images: [ogImage] },
   }
 }
 
@@ -130,7 +132,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const lp = (path: string) => localizedPath(path, locale)
   // Gallery images improve product rich results; fall back to the main image.
   const images = (product.images.length ? product.images : [product.image || '/hero-electronics.png']).map((src) =>
-    abs(src),
+    storefrontMediaUrl(siteUrl, src),
   )
 
   const gtin = normalizeGtin(product.barcode)

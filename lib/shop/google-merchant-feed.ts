@@ -1,5 +1,6 @@
 import { localizedPath, type Locale } from '@/lib/i18n/config'
 import { decodeHtmlEntities } from '@/lib/html-entities'
+import { storefrontMediaUrl } from '@/lib/shop/own-image-url'
 
 function toAbsolute(base: string, path = '/'): string {
   if (!path) return base
@@ -202,13 +203,13 @@ export function buildItemXml(
 ): string {
   const abs = (path: string) => toAbsolute(siteUrl, path)
   const link = abs(localizedPath(`/product/${offer.slug || offer.id}`, locale))
-  const image = offer.image ? abs(offer.image) : null
+  const image = offer.image ? storefrontMediaUrl(siteUrl, offer.image) : null
   if (!image) return ''
 
   const additionalImages = offer.images
     .filter((img) => img && img !== offer.image)
     .slice(0, 10)
-    .map((img) => `      <g:additional_image_link>${escapeXml(abs(img))}</g:additional_image_link>`)
+    .map((img) => `      <g:additional_image_link>${escapeXml(storefrontMediaUrl(siteUrl, img))}</g:additional_image_link>`)
     .join('\n')
 
   const availability = offer.isPreorder ? 'preorder' : 'in stock'

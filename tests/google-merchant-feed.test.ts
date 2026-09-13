@@ -130,7 +130,20 @@ describe('item XML', () => {
     expect(xml).toContain('<g:country>UA</g:country>')
     expect(xml).toContain('<g:shipping_weight>0.350 kg</g:shipping_weight>')
     expect(xml).toContain('https://magazine.store/product/iphone-15')
+    expect(xml).toContain('https://magazine.store/img/iphone.jpg')
     expect(xml).not.toContain('<p>')
+  })
+
+  it('proxies Prom.ua photos through /api/media', () => {
+    const [offer] = expandFeedOffers(
+      product({
+        image: 'https://images.prom.ua/1_w700_h500_x.jpg',
+        images: ['https://images.prom.ua/1_w700_h500_x.jpg'],
+      }),
+    )
+    const xml = buildItemXml(offer, 'https://magazine.store', 'uk', merchant)
+    expect(xml).toContain('/api/media?src=')
+    expect(xml).not.toContain('>https://images.prom.ua/')
   })
 
   it('sets identifier_exists=no when there is no gtin and no brand+mpn', () => {
