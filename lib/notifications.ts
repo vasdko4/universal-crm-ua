@@ -289,3 +289,37 @@ function normalizeOrder(r: Record<string, unknown>): Order {
 function normalizeItem(r: Record<string, unknown>): OrderItem {
   return { ...r, variantLabel: r.variant_label, productId: r.product_id } as OrderItem
 }
+
+/** Email the customer when a TTN appears (admin entered it or NP sync). */
+export async function notifyShippedOrder(orderId: number): Promise<void> {
+  try {
+    const [orderRes, itemsRes, settings] = await Promise.all([
+      pool.query('SELECT * FROM orders WHERE id = $1', [orderId]),
+      pool.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]),
+      getStoreSettingsInternal(),
+    ])
+    if (!orderRes.rows[0]) return
+    const o = normalizeOrder(orderRes.rows[0])
+    if (!o.customerEmail || !o.trackingNumber) return
+    const items = itemsRes.rows.map(normalizeItem)
+    const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
+    const envUrl = process.env.NEXT_PUBLIC_SITE_URL
+      ? String(process.env.NEXT_PUBLIC_SITE_URL)
+      : process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : ''
+    const siteUrl = (settings.seo?.siteUrl || envUrl).replace(/\/$/, '')
+    const storeCtx = {
+      storeName: settings.storeName,
+      siteUrl,
+      logoUrl: settings.logoUrl,
+      phone: settings.contact?.phones?.find(Boolean) ?? null,
+      supportEmail: (settings.emailSettings?.fromEmail as string) || null,
+      locale: settings.defaultLocale === 'ru' ? 'ru' as const : 'uk' as const,
+    }
+    const msg = buildOrderMessage('shipped', o, items, storeCtx, productSlugs)
+    await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
+  } catch (e) {
+    console.log('[v0] notifyShippedOrder failed:', (e as Error).message)
+  }
+}

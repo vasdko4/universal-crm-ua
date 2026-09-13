@@ -254,13 +254,18 @@ export function ProductPurchasePanel({
                   <Plus className="size-4" />
                 </Button>
               </div>
-              {(!hasVariants || selectedVariant) && maxQty > 0 && (
+              {(!hasVariants || selectedVariant) && available && (
                 <span
-                  className={cn('whitespace-nowrap text-sm', maxQty <= LOW_STOCK_THRESHOLD ? 'font-semibold text-destructive' : 'text-muted-foreground')}
+                  className={cn(
+                    'whitespace-nowrap text-sm',
+                    maxQty >= 2 && maxQty <= LOW_STOCK_THRESHOLD
+                      ? 'font-semibold text-destructive'
+                      : 'text-muted-foreground',
+                  )}
                 >
-                  {maxQty <= LOW_STOCK_THRESHOLD
+                  {maxQty >= 2 && maxQty <= LOW_STOCK_THRESHOLD
                     ? fillTemplate(tp.lowStockLeft, { count: maxQty })
-                    : `${tp.inStockCount} ${maxQty} ${tp.unitsShort}`}
+                    : tp.inStock}
                 </span>
               )}
             </div>

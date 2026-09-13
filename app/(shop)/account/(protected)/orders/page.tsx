@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Package } from 'lucide-react'
 import { getMyOrders } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
-import { getOrderStatusLabel } from '@/lib/order-status'
+import { getOrderStatusLabel, getPaymentStatusLabel } from '@/lib/order-status'
 import { Button } from '@/components/ui/button'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -50,6 +50,9 @@ export default async function MyOrdersPage() {
                   </Link>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                     {statusLabel}
+                  </span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    {getPaymentStatusLabel(o.paymentStatus, locale)}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">

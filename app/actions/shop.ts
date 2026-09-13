@@ -695,6 +695,8 @@ const myOrderColumns = {
   orderNumber: orders.orderNumber,
   status: orders.status,
   paymentStatus: orders.paymentStatus,
+  paymentMethod: orders.paymentMethod,
+  note: orders.note,
   createdAt: orders.createdAt,
   total: orders.total,
   discountTotal: orders.discountTotal,

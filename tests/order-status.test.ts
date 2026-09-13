@@ -6,12 +6,14 @@ describe('admin order status labels default to uk', () => {
     expect(getOrderStatusLabel('new', 'uk')).toBe('Новий')
     expect(getOrderStatusLabel('shipped', 'uk')).toBe('Відправлено')
     expect(ORDER_STATUSES.find((s) => s.value === 'new')?.label).toBe('Новий')
-    expect(getPaymentStatusLabel('paid', 'uk')).toBe('Оплачено')
+    expect(getPaymentStatusLabel('paid', 'uk')).toBe('Сплачено')
+    expect(getPaymentStatusLabel('unpaid', 'uk')).toBe('Очікує оплати')
   })
 
   it('still has Russian when the admin locale is ru', () => {
     expect(getOrderStatusLabel('new', 'ru')).toBe('Новый')
     expect(getOrderStatusLabel('shipped', 'ru')).toBe('Отправлен')
     expect(getPaymentStatusLabel('paid', 'ru')).toBe('Оплачен')
+    expect(getPaymentStatusLabel('unpaid', 'ru')).toBe('Ожидает оплаты')
   })
 })

@@ -11,8 +11,8 @@ export const ORDER_STATUSES = [
 ] as const
 
 export const PAYMENT_STATUSES = [
-  { value: 'unpaid', label: 'Не оплачено' },
-  { value: 'paid', label: 'Оплачено' },
+  { value: 'unpaid', label: 'Очікує оплати' },
+  { value: 'paid', label: 'Сплачено' },
   { value: 'partially_refunded', label: 'Часткове повернення' },
   { value: 'refunded', label: 'Повернення' },
 ] as const
@@ -28,7 +28,7 @@ export const ORDER_STATUS_LABELS_RU: Record<string, string> = {
 }
 
 export const PAYMENT_STATUS_LABELS_RU: Record<string, string> = {
-  unpaid: 'Не оплачен',
+  unpaid: 'Ожидает оплаты',
   paid: 'Оплачен',
   partially_refunded: 'Частичный возврат',
   refunded: 'Возврат',
@@ -71,6 +71,7 @@ const PAYMENT_METHOD_LABELS_RU: Record<string, string> = {
   cod: 'Наложенный платёж',
   prepay: 'Предоплата на карту',
   cash: 'Наличные',
+  requisites: 'По реквизитам',
 }
 
 const PAYMENT_METHOD_LABELS_UK: Record<string, string> = {
@@ -78,6 +79,7 @@ const PAYMENT_METHOD_LABELS_UK: Record<string, string> = {
   cod: 'Накладений платіж',
   prepay: 'Передоплата на картку',
   cash: 'Готівка',
+  requisites: 'За реквізитами',
 }
 
 export function getPaymentMethodLabel(method: string | null | undefined, locale: Locale): string | null {

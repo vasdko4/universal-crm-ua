@@ -880,10 +880,17 @@ async function _getProductByWhere(whereClause: SQL | undefined, locale: Locale =
   }
 }
 
-export function getRelatedProducts(id: number, categoryIds: number[], limit = 4, locale: Locale = 'uk') {
+export function getRelatedProducts(
+  id: number,
+  categoryIds: number[],
+  limit = 4,
+  locale: Locale = 'uk',
+  brand?: string | null,
+) {
+  const brandKey = brand?.trim() || ''
   return unstable_cache(
-    () => _getRelatedProducts(id, categoryIds, limit, locale),
-    ['related', String(id), categoryIds.join('-'), String(limit), locale],
+    () => _getRelatedProducts(id, categoryIds, limit, locale, brandKey),
+    ['related', String(id), categoryIds.join('-'), String(limit), locale, brandKey],
     { tags: [CACHE_TAGS.catalog], revalidate: STOREFRONT_TTL },
   )()
 }
@@ -937,30 +944,60 @@ async function _getFrequentlyBoughtTogether(id: number, limit = 4, locale: Local
     .slice(0, limit)
 }
 
-async function _getRelatedProducts(id: number, categoryIds: number[], limit = 4, locale: Locale = 'uk') {
+async function _getRelatedProducts(
+  id: number,
+  categoryIds: number[],
+  limit = 4,
+  locale: Locale = 'uk',
+  brand = '',
+) {
   const productSelect = buildProductSelect(locale)
-  if (categoryIds.length === 0) {
-    const rows = await db
-      .select(productSelect)
-      .from(products)
-      .where(and(baseWhere, ne(products.id, id)))
-      .orderBy(desc(products.isPopular))
-      .limit(limit)
-    return withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
-  }
+  // Never fall back to "popular from the whole shop" — that mixed inverters
+  // with rollers. Empty category → no related row, not a random showcase.
+  if (categoryIds.length === 0) return []
+
   const related = await db
     .selectDistinct({ pid: productCategory.productId })
     .from(productCategory)
     .where(and(inArray(productCategory.categoryId, categoryIds), ne(productCategory.productId, id)))
-    .limit(20)
-  const ids = related.map((r) => r.pid)
-  if (ids.length === 0) return []
-  const rows = await db
-    .select(productSelect)
-    .from(products)
-    .where(and(baseWhere, inArray(products.id, ids)))
-    .limit(limit)
-  return withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
+  const catIds = related.map((r) => r.pid)
+  if (catIds.length === 0) return []
+
+  async function load(ids: number[]) {
+    if (ids.length === 0) return []
+    const rows = await db
+      .select(productSelect)
+      .from(products)
+      .where(and(baseWhere, inArray(products.id, ids)))
+    const order = new Map(ids.map((pid, i) => [pid, i]))
+    return withListingSizes(
+      rows
+        .map((r) => toShopProduct(r as Record<string, unknown>))
+        .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)),
+    )
+  }
+
+  if (brand) {
+    const brandRows = await db
+      .selectDistinct({ pid: productCharacteristics.productId })
+      .from(productCharacteristics)
+      .where(
+        and(
+          inArray(productCharacteristics.productId, catIds),
+          sql`lower(${productCharacteristics.name}) IN ('бренд','виробник','производитель','марка','brand','manufacturer')`,
+          sql`lower(${productCharacteristics.value}) = ${brand.toLowerCase()}`,
+        ),
+      )
+    const brandedIds = brandRows.map((r) => r.pid)
+    const branded = await load(brandedIds)
+    if (branded.length >= limit) return branded.slice(0, limit)
+    const restIds = catIds.filter((pid) => !brandedIds.includes(pid))
+    const rest = await load(restIds)
+    const seen = new Set(branded.map((p) => p.id))
+    return [...branded, ...rest.filter((p) => !seen.has(p.id))].slice(0, limit)
+  }
+
+  return (await load(catIds)).slice(0, limit)
 }
 
 export function getApprovedReviews(productId: number) {

@@ -413,6 +413,10 @@ export async function updateOrderStatus(id: number, status: string) {
   const label = getOrderStatusLabel(status, user.locale)
   const t = getAdminDictionary(user.locale).auditLog
   await addHistory(id, 'status', fillAuditTemplate(t.orderStatusChanged, { label }))
+  if (status === 'shipped' && current.status !== 'shipped' && current.trackingNumber) {
+    const { notifyShippedOrder } = await import('@/lib/notifications')
+    void notifyShippedOrder(id)
+  }
   const { auditLog } = await import('@/lib/audit-log')
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
@@ -451,12 +455,18 @@ export async function updateOrderDelivery(
   },
 ) {
   const user = await assertWritePermission('orders')
+  const [current] = await db.select({ trackingNumber: orders.trackingNumber, status: orders.status }).from(orders).where(eq(orders.id, id)).limit(1)
   const set: Record<string, unknown> = { updatedAt: new Date() }
   if (data.deliveryMethod !== undefined) set.deliveryMethod = data.deliveryMethod
   if (data.deliveryCity !== undefined) set.deliveryCity = data.deliveryCity
   if (data.deliveryBranch !== undefined) set.deliveryBranch = data.deliveryBranch
   if (data.deliveryAddress !== undefined) set.deliveryAddress = data.deliveryAddress
-  if (data.trackingNumber !== undefined) set.trackingNumber = data.trackingNumber
+  if (data.trackingNumber !== undefined) {
+    set.trackingNumber = data.trackingNumber
+    if (data.trackingNumber.trim() && current && current.status !== 'shipped' && current.status !== 'done' && current.status !== 'cancelled') {
+      set.status = 'shipped'
+    }
+  }
   if (data.deliveryStatus !== undefined) set.deliveryStatus = data.deliveryStatus
   await db.update(orders).set(set).where(eq(orders.id, id))
   if (data.trackingNumber) {
@@ -467,8 +477,14 @@ export async function updateOrderDelivery(
         number: data.trackingNumber,
       }),
     )
+    const ttn = data.trackingNumber.trim()
+    if (ttn && ttn !== (current?.trackingNumber ?? '')) {
+      const { notifyShippedOrder } = await import('@/lib/notifications')
+      void notifyShippedOrder(id)
+    }
   }
   revalidatePath(`/admin/orders/${id}`)
+  revalidatePath('/account/orders')
   return { success: true }
 }
 

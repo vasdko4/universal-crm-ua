@@ -93,9 +93,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   const { product, characteristics, categories } = data
   const productId = product.id
+  const brand = extractBrand(characteristics)
   const [related, boughtTogether, reviews, questions, summary, settings, deliveryRows, paymentRows, gateways, promo] =
     await Promise.all([
-      getRelatedProducts(productId, categories.map((c) => c.id), 4, locale),
+      getRelatedProducts(productId, categories.map((c) => c.id), 4, locale, brand),
       getFrequentlyBoughtTogether(productId, 4, locale),
       getApprovedReviews(productId),
       getAnsweredQuestions(productId),
@@ -117,7 +118,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .filter((p) => (p.code === 'online' ? hasGateway : true))
     .map((p) => ({ code: p.code, name: p.name }))
 
-  const brand = extractBrand(characteristics)
   // Price stays valid until the end of next year — signals a stable offer.
   const priceValidUntil = `${new Date().getFullYear() + 1}-12-31`
   // Admin SEO settings (if configured) take priority over env vars, matching

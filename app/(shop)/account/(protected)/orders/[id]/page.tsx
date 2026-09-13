@@ -4,6 +4,7 @@ import { ArrowLeft, User, Phone, Mail, Truck, MapPin, Package } from 'lucide-rea
 import { getMyOrderDetail } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
 import { getOrderStatusLabel, getPaymentStatusLabel, getDeliveryMethodLabel } from '@/lib/order-status'
+import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { parsePositiveInt } from '@/lib/api/helpers'
@@ -84,7 +85,27 @@ export default async function MyOrderDetailPage({
               icon={Package}
               label={t.trackingNumber}
               value={
-                <span className="font-mono tracking-wide text-primary">{order.trackingNumber}</span>
+                order.deliveryMethod === 'nova_poshta' ? (
+                  <a
+                    href={`https://novaposhta.ua/tracking/?cargo_number=${encodeURIComponent(order.trackingNumber)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono tracking-wide text-primary hover:underline"
+                  >
+                    {order.trackingNumber}
+                  </a>
+                ) : order.deliveryMethod === 'ukrposhta' ? (
+                  <a
+                    href={`https://track.ukrposhta.ua/tracking_UA.html?barcode=${encodeURIComponent(order.trackingNumber)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono tracking-wide text-primary hover:underline"
+                  >
+                    {order.trackingNumber}
+                  </a>
+                ) : (
+                  <span className="font-mono tracking-wide text-primary">{order.trackingNumber}</span>
+                )
               }
             />
           ) : (
@@ -144,6 +165,10 @@ export default async function MyOrderDetailPage({
           ) : null}
         </div>
       </div>
+
+      {order.paymentMethod === 'requisites' && order.note && (
+        <CopyRequisites className="w-full text-left" text={order.note.replace(/^Реквізити для оплати:\n/, '').replace(/^Реквизиты для оплаты:\n/, '')} />
+      )}
 
       <div className="rounded-xl border border-border bg-card">
         <ul className="divide-y divide-border">
