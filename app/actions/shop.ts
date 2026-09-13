@@ -767,6 +767,7 @@ export async function getMyOrders() {
         id: order.id,
         orderNumber: order.orderNumber,
         status: order.status,
+        paymentStatus: order.paymentStatus,
         createdAt: order.createdAt,
         total: order.total,
         items,
