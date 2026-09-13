@@ -1749,7 +1749,7 @@ const uk: AdminDictionary = {
     logs: 'Логи',
     settings: 'Налаштування',
     system_updates: 'Оновлення',
-    trash: 'Кошик',
+    trash: 'Смітник',
   },
   roles: {
     admin: 'Адміністратор',
@@ -2035,7 +2035,7 @@ const uk: AdminDictionary = {
     toastDeleteError: 'Помилка видалення',
   },
   trash: {
-    title: 'Кошик',
+    title: 'Смітник',
     subtitle: 'Видалені товари. Їх можна відновити або видалити назавжди.',
     restore: 'Відновити',
     deleteForever: 'Видалити назавжди',

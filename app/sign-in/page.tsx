@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { countUsers } from '@/app/actions/users'
@@ -7,6 +8,15 @@ import { getLocale } from '@/lib/i18n/server'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  const dict = getAdminDictionary(locale)
+  return {
+    title: dict.signIn.subtitle,
+    robots: { index: false, follow: false },
+  }
+}
 
 export default async function SignInPage() {
   const user = await getAdminUser()

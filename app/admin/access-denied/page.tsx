@@ -1,12 +1,16 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { requireAdmin } from '@/lib/session'
 import { ALL_PERMISSIONS } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { Lock } from 'lucide-react'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { getLocale } from '@/lib/i18n/server'
 
-export const metadata = {
-  title: 'Доступ запрещён / Доступ заборонено',
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  const t = getAdminDictionary(locale).accessDenied
+  return { title: t.title }
 }
 
 export default async function AccessDeniedPage({

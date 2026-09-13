@@ -130,7 +130,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/logs', label: 'Логи', icon: ScrollText, permission: 'logs' },
       { href: '/admin/settings', label: 'Налаштування', icon: Settings, permission: 'settings' },
       { href: '/admin/updates', label: 'Оновлення', icon: RefreshCw, permission: 'system_updates' },
-      { href: '/admin/trash', label: 'Кошик', icon: Trash2, permission: 'trash' },
+      { href: '/admin/trash', label: 'Смітник', icon: Trash2, permission: 'trash' },
     ],
   },
 ]

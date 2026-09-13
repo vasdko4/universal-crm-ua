@@ -12,18 +12,11 @@ import { AdminLocaleProvider } from '@/lib/i18n/admin/context'
 export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [user, settings] = await Promise.all([
-    getAdminUser(),
-    getStoreSettingsInternal().catch(() => null),
-  ])
+  const user = await getAdminUser()
   const locale = user?.locale ?? 'uk'
-  const name = settings?.storeName || 'Universal Magazine'
-  const suffix = locale === 'ru' ? 'интернет-магазин' : 'інтернет-магазин'
   return {
-    title: {
-      default: `${name} — ${suffix}`,
-      template: `%s — ${name}`,
-    },
+    title: locale === 'ru' ? 'Админ-центр' : 'Адмін-центр',
+    robots: { index: false, follow: false },
   }
 }
 
