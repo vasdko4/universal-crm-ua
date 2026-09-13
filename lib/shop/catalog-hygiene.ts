@@ -28,6 +28,36 @@ export async function runCatalogHygiene(): Promise<void> {
     )
   }
 
+  // Drop Prom.ua's doubled strike-through (exactly 2×) so the storefront
+  // stops showing a fake −50% on almost every imported card.
+  await pool.query(`
+    UPDATE products
+    SET old_price = NULL, updated_at = NOW()
+    WHERE deleted_at IS NULL
+      AND prom_id IS NOT NULL
+      AND old_price IS NOT NULL
+      AND price > 0
+      AND old_price / price BETWEEN 1.9 AND 2.1
+  `)
+
+  await pool.query(`
+    UPDATE products
+    SET
+      meta_title_uk = NULLIF(trim(both FROM regexp_replace(regexp_replace(coalesce(meta_title_uk, ''),
+        '\\s*[|·•]?\\s*(купити на )?Prom\\.ua\\b.*$', '', 'gi'),
+        '\\s*[|·•]\\s*Україна,?\\s*Київ\\b.*$', '', 'gi')), ''),
+      meta_title_ru = NULLIF(trim(both FROM regexp_replace(regexp_replace(coalesce(meta_title_ru, ''),
+        '\\s*[|·•]?\\s*(купить на )?Prom\\.ua\\b.*$', '', 'gi'),
+        '\\s*[|·•]\\s*Украина,?\\s*Киев\\b.*$', '', 'gi')), ''),
+      updated_at = NOW()
+    WHERE deleted_at IS NULL
+      AND prom_id IS NOT NULL
+      AND (
+        coalesce(meta_title_uk, '') ~* 'prom\\.ua|україна,?\\s*київ'
+        OR coalesce(meta_title_ru, '') ~* 'prom\\.ua|украина,?\\s*киев'
+      )
+  `)
+
   await pool.query(`
     WITH alias_map AS (
       SELECT c.id AS from_id, t.id AS to_id

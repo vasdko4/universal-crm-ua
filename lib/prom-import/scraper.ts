@@ -249,7 +249,8 @@ function parseProductCard(p: any) {
     value: (a.values || []).map((v: any) => v.value).join(', '),
   }))
   const price = p.hasDiscount ? (p.discountedPrice ?? p.price) : (p.price ?? p.priceOriginal)
-  const oldPrice = p.hasDiscount && p.priceOriginal && p.priceOriginal !== price ? p.priceOriginal : null
+  const rawOld = p.hasDiscount && p.priceOriginal && p.priceOriginal !== price ? p.priceOriginal : null
+  const oldPrice = honestOldPrice(price != null ? Number(price) : null, rawOld != null ? Number(rawOld) : null)
   return {
     promId: p.id as number,
     name: decodeHtmlEntities((p.name || '') as string),
@@ -264,13 +265,35 @@ function parseProductCard(p: any) {
   }
 }
 
+/**
+ * Prom.ua listing "discounts" are often a doubled strike-through (exactly 2×).
+ * Keep a compare-at only when the markdown looks like a real, smaller cut.
+ */
+export function honestOldPrice(price: number | null, oldPrice: number | null): number | null {
+  if (price == null || oldPrice == null) return null
+  if (!(oldPrice > price) || price <= 0) return null
+  const ratio = oldPrice / price
+  if (ratio >= 1.9 && ratio <= 2.1) return null
+  return oldPrice
+}
+
+/** Drop Prom.ua marketplace leftovers from <title> / meta description. */
+export function stripPromMarketplaceCopy(text: string): string {
+  const junk = /prom\.ua|купити на|купить на|україна|украина|київ|киев/i
+  const parts = text
+    .split(/\s*[|·•]\s*/)
+    .map((p) => p.replace(/\s*(купити|купить)\s+на\s+prom\.ua\b/gi, '').trim())
+    .filter((p) => p.length > 0 && !junk.test(p))
+  return parts.join(' ').replace(/\s{2,}/g, ' ').trim()
+}
+
 /** Pulls the rendered `<title>` and `<meta name="description">` out of a fetched product page. */
 function extractHeadMeta(html: string): { title: string; description: string } {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/)
   const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/)
   return {
-    title: titleMatch ? decodeHtmlEntities(titleMatch[1]).trim() : '',
-    description: descMatch ? decodeHtmlEntities(descMatch[1]).trim() : '',
+    title: stripPromMarketplaceCopy(titleMatch ? decodeHtmlEntities(titleMatch[1]).trim() : ''),
+    description: stripPromMarketplaceCopy(descMatch ? decodeHtmlEntities(descMatch[1]).trim() : ''),
   }
 }
 

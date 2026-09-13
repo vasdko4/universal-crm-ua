@@ -10,7 +10,12 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     await pool.query('SELECT 1')
-    return NextResponse.json({ status: 'ok', db: 'up', time: new Date().toISOString() })
+    return NextResponse.json({
+      status: 'ok',
+      db: 'up',
+      time: new Date().toISOString(),
+      sha: (process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || 'dev').slice(0, 7),
+    })
   } catch {
     return NextResponse.json(
       { status: 'error', db: 'down', time: new Date().toISOString() },
