@@ -119,11 +119,8 @@ export function ProductCard({ product }: { product: ShopProduct }) {
               −{discount}%
             </span>
           )}
-          {product.isPopular && product.inStock && !product.isPreorder && !product.isComingSoon && (
-            <span className="rounded bg-foreground/90 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-background">
-              {dict.product.popularBadge}
-            </span>
-          )}
+          {/* «Хіт» is admin-curated; Prom imports leave isPopular unset, and
+              a store-wide flag would paint the whole first page as hits. */}
           {product.isPreorder ? (
             <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium leading-4 text-primary-foreground">
               {dict.product.preorder}
@@ -168,7 +165,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
           )}
         </div>
 
-        {product.purchasedCount > 0 ? (
+        {product.purchasedCount >= 5 ? (
           <span className="text-[10px] text-muted-foreground sm:text-[11px]">
             {fillTemplate(
               pluralize(

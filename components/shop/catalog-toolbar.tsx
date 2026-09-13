@@ -15,21 +15,25 @@ import {
 } from '@/components/ui/popover'
 import { SlidersHorizontal, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/client'
+import type { CatalogFacet } from '@/lib/shop/catalog-search'
+import { facetLabel, parseCharFilters, serializeCharFilters } from '@/lib/shop/catalog-search'
 
 export function CatalogToolbar({
   total,
   priceBounds,
+  facets = [],
 }: {
   total: number
   /** Real min/max price across the products this filter currently applies
    *  to, shown as placeholders so "від"/"до" reflect actual available
    *  prices instead of empty boxes. */
   priceBounds?: { min: number; max: number }
+  facets?: CatalogFacet[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
 
   const SORT_OPTIONS = [
     { value: 'popular', label: dict.catalog.sortPopular },
@@ -43,6 +47,7 @@ export function CatalogToolbar({
   const discount = params.get('discount') === '1'
   const minPrice = params.get('minPrice') ?? ''
   const maxPrice = params.get('maxPrice') ?? ''
+  const charFilters = parseCharFilters(params.get('chars'))
 
   // Draft price values live locally until the user applies them, so typing
   // doesn't trigger a navigation on every keystroke.
@@ -77,14 +82,27 @@ export function CatalogToolbar({
 
   function resetAll() {
     const next = new URLSearchParams(params.toString())
-    for (const k of ['inStock', 'discount', 'minPrice', 'maxPrice', 'sort']) next.delete(k)
+    for (const k of ['inStock', 'discount', 'minPrice', 'maxPrice', 'sort', 'chars']) next.delete(k)
     setDraftMin('')
     setDraftMax('')
     navigate(next)
   }
 
+  function toggleChar(name: string, value: string) {
+    const nextFilters = charFilters.some(
+      (f) => f.name === name && f.value === value,
+    )
+      ? charFilters.filter((f) => !(f.name === name && f.value === value))
+      : [...charFilters, { name, value }]
+    const next = new URLSearchParams(params.toString())
+    const serialized = serializeCharFilters(nextFilters)
+    if (serialized) next.set('chars', serialized)
+    else next.delete('chars')
+    navigate(next)
+  }
+
   const priceActive = Boolean(minPrice || maxPrice)
-  const activeCount = [inStock, discount, priceActive].filter(Boolean).length
+  const activeCount = [inStock, discount, priceActive, charFilters.length > 0].filter(Boolean).length
   const priceLabel = priceActive
     ? minPrice && maxPrice
       ? `${minPrice} – ${maxPrice} ₴`
@@ -189,6 +207,41 @@ export function CatalogToolbar({
             </Label>
           </div>
 
+          {facets.map((facet) => {
+            const selected = charFilters.filter((f) => f.name === facet.name)
+            const label = facetLabel(facet.name, locale === 'ru' ? 'ru' : 'uk')
+            return (
+              <Popover key={facet.name}>
+                <PopoverTrigger asChild>
+                  <Button variant={selected.length > 0 ? 'default' : 'outline'} size="sm" className="gap-1.5">
+                    {label}
+                    {selected.length > 0 ? ` (${selected.length})` : ''}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-56 p-2">
+                  <p className="px-1 pb-2 text-sm font-medium text-foreground">{label}</p>
+                  <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+                    {facet.values.map((v) => {
+                      const on = charFilters.some((f) => f.name === facet.name && f.value === v.value)
+                      return (
+                        <li key={v.value}>
+                          <button
+                            type="button"
+                            onClick={() => toggleChar(facet.name, v.value)}
+                            className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm ${on ? 'bg-primary/10 font-medium text-primary' : 'hover:bg-accent'}`}
+                          >
+                            <span className="truncate">{v.value}</span>
+                            <span className="ml-2 shrink-0 text-xs text-muted-foreground">{v.count}</span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            )
+          })}
+
           {/* Sort */}
           <Select value={sort} onValueChange={(v) => update('sort', v)}>
             <SelectTrigger className="w-44">
@@ -241,6 +294,19 @@ export function CatalogToolbar({
               </button>
             </Badge>
           )}
+          {charFilters.map((f) => (
+            <Badge key={`${f.name}:${f.value}`} variant="secondary" className="gap-1 pr-1">
+              {facetLabel(f.name, locale === 'ru' ? 'ru' : 'uk')}: {f.value}
+              <button
+                type="button"
+                aria-label={`${dict.catalog.resetFilters}: ${f.value}`}
+                className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                onClick={() => toggleChar(f.name, f.value)}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
           {discount && (
             <Badge variant="secondary" className="gap-1 pr-1">
               {dict.catalog.discountOnly}

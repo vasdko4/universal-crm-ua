@@ -3,7 +3,7 @@ import { unstable_cache } from 'next/cache'
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { Locale } from '@/lib/i18n/config'
 import { sanitizeSearch } from '@/lib/api/helpers'
-import { searchTokens } from '@/lib/shop/catalog-search'
+import { searchTokens, type CharFilter, type CatalogFacet, type CatalogFacetValue } from '@/lib/shop/catalog-search'
 import { db } from '@/lib/db'
 import {
   products,
@@ -76,6 +76,35 @@ function productSearchCondition(search: string): SQL | undefined {
   return parts.length === 1 ? parts[0] : and(...parts)
 }
 
+
+function characteristicFilterCondition(filters: CharFilter[] | undefined): SQL | undefined {
+  if (!filters || filters.length === 0) return undefined
+  const byName = new Map<string, string[]>()
+  for (const f of filters) {
+    const name = f.name.trim()
+    const value = f.value.trim()
+    if (!name || !value) continue
+    const list = byName.get(name) ?? []
+    list.push(value)
+    byName.set(name, list)
+  }
+  const parts: SQL[] = []
+  for (const [name, values] of byName) {
+    const namePat = likePattern(name)
+    const valueMatch =
+      values.length === 1
+        ? sql`pc.value ILIKE ${likePattern(values[0])}`
+        : or(...values.map((v) => sql`pc.value ILIKE ${likePattern(v)}`))!
+    parts.push(sql`EXISTS (
+      SELECT 1 FROM product_characteristics pc
+      WHERE pc.product_id = ${products.id}
+        AND pc.name ILIKE ${namePat}
+        AND ${valueMatch}
+    )`)
+  }
+  return parts.length === 1 ? parts[0] : and(...parts)
+}
+
 function searchRelevanceOrder(search: string): SQL {
   const tokens = searchTokens(search)
   const first = tokens[0] ? likePattern(tokens[0]) : '%\u0000%'
@@ -136,7 +165,7 @@ export type ShopProduct = {
   weight: number | null
   metaTitle: string | null
   metaDescription: string | null
-  /** Displayed purchase count: real orders + admin-set boost. */
+  /** Displayed purchase count: real storefront orders only (boost is sort-only). */
   purchasedCount: number
   /** Admin-set marketing status while quantity is 0 — see schema.ts for details. */
   availabilityMode: 'default' | 'coming_soon' | 'preorder'
@@ -306,7 +335,10 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     slug: (r.slug as string) || `${r.id}`,
     description: (r.description as string) ?? null,
     price,
-    oldPrice: oldPrice && oldPrice > price ? oldPrice : null,
+    oldPrice:
+      oldPrice && oldPrice > price && !(oldPrice / price >= 1.95 && oldPrice / price <= 2.05)
+        ? oldPrice
+        : null,
     currency: (r.currency as string) ?? 'UAH',
     quantity,
     // Pre-order products stay purchasable even at zero quantity; "coming
@@ -329,7 +361,7 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     weight: r.weight != null && r.weight !== '' ? Number(r.weight) : null,
     metaTitle: decodeHtmlEntities((r.meta_title as string) || '') || null,
     metaDescription: decodeHtmlEntities((r.meta_description as string) || '') || null,
-    purchasedCount: Number(r.orders_count ?? 0) + Number(r.purchases_boost ?? 0),
+    purchasedCount: Number(r.orders_count ?? 0),
     availabilityMode,
     isComingSoon,
     isPreorder,
@@ -403,6 +435,8 @@ export type CatalogParams = {
    * page keeps them (sorted last) so shoppers can still find and track them.
    */
   hideOutOfStock?: boolean
+  /** Prom characteristic facets, e.g. size / voltage / brand. */
+  charFilters?: CharFilter[]
   page?: number
   perPage?: number
   locale?: Locale
@@ -429,6 +463,8 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   if (params.inStockOnly) conditions.push(sql`${products.quantity} > 0`)
   if (params.discountOnly)
     conditions.push(sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`)
+  const charWhere = characteristicFilterCondition(params.charFilters)
+  if (charWhere) conditions.push(charWhere)
 
   // "Popular" is meant to be manually curated (admin center), but imports
   // (e.g. Prom.ua) never set this flag, so a strict filter here would leave
@@ -520,18 +556,92 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
  * filter itself), so the "від"/"до" filter can show real, currently
  * available bounds instead of empty placeholders.
  */
-export function getPriceBounds(params: { categoryId?: number; search?: string } = {}) {
+export function getPriceBounds(params: { categoryId?: number; search?: string; charFilters?: CharFilter[] } = {}) {
   return unstable_cache(() => _getPriceBounds(params), ['catalog-price-bounds', JSON.stringify(params)], {
     tags: [CACHE_TAGS.catalog],
     revalidate: STOREFRONT_TTL,
   })()
 }
 
-async function _getPriceBounds(params: { categoryId?: number; search?: string } = {}) {
+export type { CatalogFacet, CatalogFacetValue }
+
+export function getCatalogFacets(params: {
+  categoryId?: number
+  search?: string
+  charFilters?: CharFilter[]
+} = {}) {
+  return unstable_cache(() => _getCatalogFacets(params), ['catalog-facets', JSON.stringify(params)], {
+    tags: [CACHE_TAGS.catalog],
+    revalidate: STOREFRONT_TTL,
+  })()
+}
+
+async function _getCatalogFacets(params: {
+  categoryId?: number
+  search?: string
+  charFilters?: CharFilter[]
+} = {}): Promise<CatalogFacet[]> {
+  const conditions = [baseWhere]
+  const searchWhere = productSearchCondition(sanitizeSearch(params.search ?? ''))
+  if (searchWhere) conditions.push(searchWhere)
+  const charWhere = characteristicFilterCondition(params.charFilters)
+  if (charWhere) conditions.push(charWhere)
+  if (params.categoryId) {
+    const categoryIds = await getCategoryAndDescendantIds(params.categoryId)
+    const rows = await db
+      .select({ pid: productCategory.productId })
+      .from(productCategory)
+      .where(inArray(productCategory.categoryId, categoryIds))
+    const idFilter = rows.map((r) => r.pid)
+    if (idFilter.length === 0) return []
+    conditions.push(inArray(products.id, idFilter))
+  }
+  const where = and(...conditions)
+  const rows = await db
+    .select({
+      name: productCharacteristics.name,
+      value: productCharacteristics.value,
+      c: sql<number>`count(*)::int`,
+    })
+    .from(productCharacteristics)
+    .innerJoin(products, eq(products.id, productCharacteristics.productId))
+    .where(
+      and(
+        where,
+        sql`lower(${productCharacteristics.name}) IN (
+          'розмір','размер','size',
+          'напруга','напряжение','voltage',
+          'бренд','brand','виробник','производитель',
+          'колір','цвет','color',
+          'потужність','мощность',
+          'матеріал','материал'
+        )`,
+        sql`${productCharacteristics.value} <> ''`,
+      ),
+    )
+    .groupBy(productCharacteristics.name, productCharacteristics.value)
+    .having(sql`count(*) >= 2`)
+    .orderBy(productCharacteristics.name, desc(sql`count(*)`), productCharacteristics.value)
+    .limit(80)
+  const grouped = new Map<string, CatalogFacetValue[]>()
+  for (const row of rows) {
+    const name = String(row.name ?? '').trim()
+    const value = String(row.value ?? '').trim()
+    if (!name || !value) continue
+    const values = grouped.get(name) ?? []
+    values.push({ value, count: Number(row.c ?? 0) })
+    grouped.set(name, values)
+  }
+  return [...grouped.entries()].map(([name, values]) => ({ name, values: values.slice(0, 12) }))
+}
+
+async function _getPriceBounds(params: { categoryId?: number; search?: string; charFilters?: CharFilter[] } = {}) {
   const conditions = [baseWhere]
   const search = sanitizeSearch(params.search ?? '')
   const searchWhere = productSearchCondition(search)
   if (searchWhere) conditions.push(searchWhere)
+  const charWhere = characteristicFilterCondition(params.charFilters)
+  if (charWhere) conditions.push(charWhere)
   if (params.categoryId) {
     const categoryIds = await getCategoryAndDescendantIds(params.categoryId)
     const rows = await db

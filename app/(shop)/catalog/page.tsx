@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { CatalogToolbar } from '@/components/shop/catalog-toolbar'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
 import { JsonLd } from '@/components/shop/json-ld'
-import { getCatalogProducts, getPriceBounds, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
+import { getCatalogProducts, getCatalogFacets, getPriceBounds, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
+import { parseCharFilters } from '@/lib/shop/catalog-search'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { localizedPath } from '@/lib/i18n/config'
@@ -30,8 +31,8 @@ export async function generateMetadata({
     title,
     description:
       locale === 'ru'
-        ? 'Полный каталог электроники: смартфоны, наушники, аудио и аксессуары с доставкой по Украине.'
-        : 'Повний каталог електроніки: смартфони, навушники, аудіо та аксесуари з доставкою по Україні.',
+        ? 'Каталог товаров с доставкой по Украине: техника, инструменты, спорт и товары для дома.'
+        : 'Каталог товарів з доставкою по Україні: техніка, інструменти, спорт і товари для дому.',
     alternates: {
       canonical: localizedPath('/catalog', locale),
       languages: { uk: '/catalog', ru: localizedPath('/catalog', 'ru'), 'x-default': '/catalog' },
@@ -55,6 +56,7 @@ function parseParams(sp: Record<string, string | string[] | undefined>): Catalog
     popularOnly: get('popular') === '1',
     minPrice: toPrice(get('minPrice')),
     maxPrice: toPrice(get('maxPrice')),
+    charFilters: parseCharFilters(get('chars')),
     page: Number(get('page') ?? 1),
     perPage: 24,
   }
@@ -68,10 +70,11 @@ export default async function CatalogPage({
   const sp = await searchParams
   const { locale, dict } = await getServerDictionary()
   const params = { ...parseParams(sp), page: 1 }
-  const [{ items, total, page, perPage }, categories, priceBounds] = await Promise.all([
+  const [{ items, total, page, perPage }, categories, priceBounds, facets] = await Promise.all([
     getCatalogProducts({ ...params, locale }),
     getShopCategories(locale),
-    getPriceBounds({ search: params.search }),
+    getPriceBounds({ search: params.search, charFilters: params.charFilters }),
+    getCatalogFacets({ search: params.search, charFilters: params.charFilters }),
   ])
   const topCategories = categories.filter((c) => !c.parentId)
 
@@ -131,7 +134,7 @@ export default async function CatalogPage({
       )}
 
       <div className="space-y-6">
-        <CatalogToolbar total={total} priceBounds={priceBounds} />
+        <CatalogToolbar total={total} priceBounds={priceBounds} facets={facets} />
 
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border py-20 text-center">
@@ -139,7 +142,7 @@ export default async function CatalogPage({
           </div>
         ) : (
           <InfiniteProducts
-            key={`${params.search ?? ''}|${params.sort}|${params.inStockOnly}|${params.discountOnly}|${params.popularOnly}|${params.minPrice ?? ''}|${params.maxPrice ?? ''}`}
+            key={`${params.search ?? ''}|${params.sort}|${params.inStockOnly}|${params.discountOnly}|${params.popularOnly}|${params.minPrice ?? ''}|${params.maxPrice ?? ''}|${JSON.stringify(params.charFilters ?? [])}`}
             initialItems={items}
             total={total}
             params={{ ...params, page: undefined, perPage, locale }}

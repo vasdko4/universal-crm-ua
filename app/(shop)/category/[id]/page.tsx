@@ -5,7 +5,8 @@ import { notFound } from 'next/navigation'
 import { CatalogToolbar } from '@/components/shop/catalog-toolbar'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
 import { JsonLd } from '@/components/shop/json-ld'
-import { getCatalogProducts, getCategoryById, getPriceBounds, type CatalogParams } from '@/lib/shop/queries'
+import { getCatalogProducts, getCatalogFacets, getCategoryById, getPriceBounds, type CatalogParams } from '@/lib/shop/queries'
+import { parseCharFilters } from '@/lib/shop/catalog-search'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { getCanonicalSiteUrl, toAbsolute } from '@/lib/seo'
@@ -77,13 +78,15 @@ export default async function CategoryPage({
     discountOnly: get('discount') === '1',
     minPrice: toPrice(get('minPrice')),
     maxPrice: toPrice(get('maxPrice')),
+    charFilters: parseCharFilters(get('chars')),
     page: 1,
     perPage: 24,
     locale,
   }
-  const [{ items, total, page, perPage }, priceBounds] = await Promise.all([
+  const [{ items, total, page, perPage }, priceBounds, facets] = await Promise.all([
     getCatalogProducts(catalogParams),
-    getPriceBounds({ categoryId }),
+    getPriceBounds({ categoryId, charFilters: catalogParams.charFilters }),
+    getCatalogFacets({ categoryId, charFilters: catalogParams.charFilters }),
   ])
 
   // Product listing structured data helps this category surface in search.
@@ -116,14 +119,14 @@ export default async function CategoryPage({
       )}
 
       <div className="space-y-6">
-        <CatalogToolbar total={total} priceBounds={priceBounds} />
+        <CatalogToolbar total={total} priceBounds={priceBounds} facets={facets} />
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border py-20 text-center">
             <p className="text-muted-foreground">{dict.catalog.nothingFound}</p>
           </div>
         ) : (
           <InfiniteProducts
-            key={`${categoryId}|${catalogParams.sort}|${catalogParams.inStockOnly}|${catalogParams.discountOnly}|${catalogParams.minPrice ?? ''}|${catalogParams.maxPrice ?? ''}`}
+            key={`${categoryId}|${catalogParams.sort}|${catalogParams.inStockOnly}|${catalogParams.discountOnly}|${catalogParams.minPrice ?? ''}|${catalogParams.maxPrice ?? ''}|${get('chars') ?? ''}`}
             initialItems={items}
             total={total}
             params={catalogParams}

@@ -142,11 +142,11 @@ export function CatalogCategoriesMobile({
                       <LayoutGrid className="size-5 text-muted-foreground" aria-hidden="true" />
                     )}
                   </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block truncate text-sm font-semibold text-foreground">{parent.name}</span>
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                    <span className="w-full truncate text-sm font-semibold leading-5 text-foreground">{parent.name}</span>
                     {children.length > 0 && (
-                      <span className="block text-xs text-muted-foreground">
-                        {children.length}{' '}
+                      <span className="text-xs leading-4 text-muted-foreground">
+                        {children.length}&nbsp;
                         {pluralize(
                           children.length,
                           dict.catalog.subcategoriesCountOne,
