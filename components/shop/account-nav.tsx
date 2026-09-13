@@ -29,22 +29,23 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
   }
 
   return (
-    <nav className="flex flex-row gap-1 overflow-x-auto rounded-xl border border-border bg-card p-2 lg:flex-col lg:overflow-visible">
+    <nav className="flex flex-row gap-1 overflow-x-auto rounded-2xl border border-border bg-card p-1.5 lg:flex-col lg:overflow-visible lg:p-2">
       {LINKS.map((l) => {
-        const active = stripLocalePrefix(pathname) === l.href
+        const current = stripLocalePrefix(pathname)
+        const active = l.href === '/account' ? current === '/account' : current === l.href || current.startsWith(l.href + '/')
         const Icon = l.icon
         return (
           <Link
             key={l.href}
             href={lp(l.href)}
             className={cn(
-              'flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              'flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors',
               active
-                ? 'bg-primary text-primary-foreground'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
-            <Icon className="size-4" />
+            <Icon className="size-4 shrink-0" />
             {l.label}
           </Link>
         )
@@ -52,17 +53,18 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
       {isAdmin && (
         <a
           href="/admin"
-          className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+          className="flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
         >
-          <ShieldCheck className="size-4" />
+          <ShieldCheck className="size-4 shrink-0" />
           {dict.account.navAdmin}
         </a>
       )}
       <button
+        type="button"
         onClick={logout}
-        className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+        className="flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:mt-1"
       >
-        <LogOut className="size-4" />
+        <LogOut className="size-4 shrink-0" />
         {dict.account.logout}
       </button>
     </nav>

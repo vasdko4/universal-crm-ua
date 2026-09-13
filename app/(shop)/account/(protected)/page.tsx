@@ -11,8 +11,6 @@ export default async function AccountProfilePage() {
   const dict = getDictionary(locale)
   const t = dict.profile
 
-  // Google-authenticated users cannot change their email: it is the identity
-  // link to their Google account (enforced server-side in shop-auth actions).
   const { rows } = await pool.query(
     `SELECT "providerId", password FROM account WHERE "userId"=$1`,
     [user.id],
@@ -24,20 +22,18 @@ export default async function AccountProfilePage() {
   )
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="text-lg font-semibold text-card-foreground">{t.sectionTitle}</h2>
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">{t.sectionTitle}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{t.sectionDescription}</p>
-        <div className="mt-5">
-          <ProfileForm
-            initialName={user.name}
-            initialPhone={user.phone ?? ''}
-            email={user.email}
-            emailLocked={isGoogleAccount}
-            passwordLocked={isGoogleAccount || !hasPassword}
-          />
-        </div>
       </div>
+      <ProfileForm
+        initialName={user.name}
+        initialPhone={user.phone ?? ''}
+        email={user.email}
+        emailLocked={isGoogleAccount}
+        passwordLocked={isGoogleAccount || !hasPassword}
+      />
     </div>
   )
 }

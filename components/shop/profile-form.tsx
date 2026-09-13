@@ -26,9 +26,7 @@ export function ProfileForm({
   initialName: string
   initialPhone: string
   email: string
-  /** Google accounts: email is the Google identity and cannot be changed. */
   emailLocked?: boolean
-  /** Google / passwordless accounts: no local password to change. */
   passwordLocked?: boolean
 }) {
   const { dict } = useI18n()
@@ -137,23 +135,26 @@ export function ProfileForm({
   }
 
   return (
-    <div className="flex max-w-md flex-col gap-8">
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="name">{t.nameLabel}</Label>
-          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="phone">{dict.account.phone}</Label>
-          <Input id="phone" type="tel" value={initialPhone || '—'} disabled />
-          <p className="text-xs text-muted-foreground">{t.phoneImmutableNote}</p>
+    <div className="flex flex-col gap-4">
+      <form onSubmit={onSubmit} className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <h3 className="text-sm font-semibold text-foreground">{t.nameLabel}</h3>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="name">{t.nameLabel}</Label>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="phone">{dict.account.phone}</Label>
+            <Input id="phone" type="tel" value={initialPhone || '—'} disabled />
+            <p className="text-xs text-muted-foreground">{t.phoneImmutableNote}</p>
+          </div>
         </div>
         {error && (
-          <p className="text-sm text-destructive" role="alert">
+          <p className="mt-3 text-sm text-destructive" role="alert">
             {error}
           </p>
         )}
-        <div className="flex items-center gap-3">
+        <div className="mt-5 flex items-center gap-3">
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="size-4 animate-spin" />}
             {dict.account.save}
@@ -166,42 +167,42 @@ export function ProfileForm({
         </div>
       </form>
 
-      <div className="flex flex-col gap-4 border-t border-border pt-6">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="email">{t.emailLabel}</Label>
-          <Input id="email" value={email} disabled />
-        </div>
-
-        {emailLocked ? (
-          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-3">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <p className="text-xs leading-relaxed text-muted-foreground">{t.googleLockedMessage}</p>
+      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <h3 className="text-sm font-semibold text-foreground">{t.emailLabel}</h3>
+        <div className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email">{t.emailLabel}</Label>
+            <Input id="email" value={email} disabled />
           </div>
-        ) : emailStep === 'idle' ? (
-          <div className="flex flex-col gap-3">
+
+          {emailLocked ? (
+            <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 p-3">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <p className="text-xs leading-relaxed text-muted-foreground">{t.googleLockedMessage}</p>
+            </div>
+          ) : emailStep === 'idle' ? (
             <div className="flex flex-col gap-2">
               <Label htmlFor="new-email">{t.newEmailLabel}</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   id="new-email"
                   type="email"
                   placeholder="new@example.com"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
+                  className="sm:flex-1"
                 />
-                <Button type="button" variant="outline" onClick={onRequestCode} disabled={emailLoading}>
+                <Button type="button" variant="outline" onClick={onRequestCode} disabled={emailLoading} className="sm:w-auto">
                   {emailLoading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
                   {dict.auth.sendCodeButton}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">{t.newEmailHint}</p>
             </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
+          ) : (
             <div className="flex flex-col gap-2">
               <Label htmlFor="email-code">{t.codeFromEmail}</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Input
                   id="email-code"
                   inputMode="numeric"
@@ -209,90 +210,89 @@ export function ProfileForm({
                   placeholder="123456"
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                  className="max-w-32 tracking-widest"
+                  className="sm:max-w-32 tracking-widest"
                 />
-                <Button type="button" onClick={onConfirmCode} disabled={emailLoading}>
-                  {emailLoading && <Loader2 className="size-4 animate-spin" />}
-                  {t.confirmButton}
+                <div className="flex gap-2">
+                  <Button type="button" onClick={onConfirmCode} disabled={emailLoading}>
+                    {emailLoading && <Loader2 className="size-4 animate-spin" />}
+                    {t.confirmButton}
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={onCancelEmailChange}>
+                    {dict.account.cancel}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {emailInfo && <p className="text-sm text-primary">{emailInfo}</p>}
+          {emailError && (
+            <p className="text-sm text-destructive" role="alert">
+              {emailError}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <h3 className="text-sm font-semibold text-foreground">{t.passwordSectionTitle}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{t.passwordSectionHint}</p>
+        <div className="mt-4 flex flex-col gap-4">
+          {passwordLocked ? (
+            <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 p-3">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <p className="text-xs leading-relaxed text-muted-foreground">{t.googlePasswordLockedMessage}</p>
+            </div>
+          ) : passwordStep === 'idle' ? (
+            <Button type="button" variant="outline" onClick={onRequestPasswordCode} disabled={passwordLoading} className="w-full sm:w-fit">
+              {passwordLoading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+              {t.sendPasswordCodeButton}
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="password-code">{t.codeFromEmail}</Label>
+                <Input
+                  id="password-code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={passwordCode}
+                  onChange={(e) => setPasswordCode(e.target.value.replace(/\D/g, ''))}
+                  className="sm:max-w-32 tracking-widest"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="new-password">{t.newPasswordLabel}</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  minLength={8}
+                />
+                <p className="text-xs text-muted-foreground">{t.passwordTooShort}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={onConfirmPassword} disabled={passwordLoading}>
+                  {passwordLoading && <Loader2 className="size-4 animate-spin" />}
+                  {t.confirmPasswordButton}
                 </Button>
-                <Button type="button" variant="ghost" onClick={onCancelEmailChange}>
+                <Button type="button" variant="ghost" onClick={onCancelPasswordChange}>
                   {dict.account.cancel}
                 </Button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {emailInfo && <p className="text-sm text-primary">{emailInfo}</p>}
-        {emailError && (
-          <p className="text-sm text-destructive" role="alert">
-            {emailError}
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-4 border-t border-border pt-6">
-        <div>
-          <p className="text-sm font-medium text-foreground">{t.passwordSectionTitle}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{t.passwordSectionHint}</p>
+          {passwordInfo && <p className="text-sm text-primary">{passwordInfo}</p>}
+          {passwordError && (
+            <p className="text-sm text-destructive" role="alert">
+              {passwordError}
+            </p>
+          )}
         </div>
-
-        {passwordLocked ? (
-          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/50 p-3">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <p className="text-xs leading-relaxed text-muted-foreground">{t.googlePasswordLockedMessage}</p>
-          </div>
-        ) : passwordStep === 'idle' ? (
-          <div className="flex flex-col gap-2">
-            <Button type="button" variant="outline" onClick={onRequestPasswordCode} disabled={passwordLoading}>
-              {passwordLoading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
-              {t.sendPasswordCodeButton}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password-code">{t.codeFromEmail}</Label>
-              <Input
-                id="password-code"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="123456"
-                value={passwordCode}
-                onChange={(e) => setPasswordCode(e.target.value.replace(/\D/g, ''))}
-                className="max-w-32 tracking-widest"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="new-password">{t.newPasswordLabel}</Label>
-              <Input
-                id="new-password"
-                type="password"
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                minLength={8}
-              />
-              <p className="text-xs text-muted-foreground">{t.passwordTooShort}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" onClick={onConfirmPassword} disabled={passwordLoading}>
-                {passwordLoading && <Loader2 className="size-4 animate-spin" />}
-                {t.confirmPasswordButton}
-              </Button>
-              <Button type="button" variant="ghost" onClick={onCancelPasswordChange}>
-                {dict.account.cancel}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {passwordInfo && <p className="text-sm text-primary">{passwordInfo}</p>}
-        {passwordError && (
-          <p className="text-sm text-destructive" role="alert">
-            {passwordError}
-          </p>
-        )}
       </div>
     </div>
   )

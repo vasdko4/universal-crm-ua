@@ -358,6 +358,7 @@ export type Dictionary = {
     promoNoExpiry: string
     promoUsesLeft: string
     logout: string
+    greeting: string
     addressesTitle: string
     addressesEmpty: string
     addAddress: string
@@ -927,6 +928,7 @@ const uk: Dictionary = {
     promoNoExpiry: 'Без обмеження терміну',
     promoUsesLeft: 'Залишилось використань',
     logout: 'Вийти',
+    greeting: 'Вітаємо, {{name}}',
     addressesTitle: 'Мої адреси',
     addressesEmpty: 'У вас ще немає збережених адрес',
     addAddress: 'Додати адресу',
@@ -1493,6 +1495,7 @@ const ru: Dictionary = {
     promoNoExpiry: 'Без ограничения срока',
     promoUsesLeft: 'Осталось использований',
     logout: 'Выйти',
+    greeting: 'Здравствуйте, {{name}}',
     addressesTitle: 'Мои адреса',
     addressesEmpty: 'У вас ещё нет сохранённых адресов',
     addAddress: 'Добавить адрес',
