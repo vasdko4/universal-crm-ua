@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { parseAllowedImageUrl } from '@/lib/api/safe-image-url'
+import { buildAllowedImageUrl } from '@/lib/api/safe-image-url'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
 
 /**
  * Same-origin image proxy for Prom.ua photos used in JSON-LD, Open Graph
  * and the Google Merchant feed. Emails keep using /api/email-image.
  *
- * SSRF: `src` is rebuilt from an allowlisted hostname.
+ * SSRF: hostname is taken from a server-controlled allow-list of literals;
+ * the raw `src` query never reaches fetch.
  */
 export async function GET(req: NextRequest) {
   if (isRateLimited('media-image', clientIp(req), 120, 60_000)) {
@@ -15,11 +16,11 @@ export async function GET(req: NextRequest) {
   const src = req.nextUrl.searchParams.get('src')
   if (!src) return new NextResponse('Missing src', { status: 400 })
 
-  const url = parseAllowedImageUrl(src)
-  if (!url) return new NextResponse('Host not allowed', { status: 403 })
+  const safeUrl = buildAllowedImageUrl(src)
+  if (!safeUrl) return new NextResponse('Host not allowed', { status: 403 })
 
   try {
-    const upstream = await fetch(url.href, {
+    const upstream = await fetch(safeUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; UniversalMagazineMedia/1.0)' },
       redirect: 'error',
       signal: AbortSignal.timeout(10_000),

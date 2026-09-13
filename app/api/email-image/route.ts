@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { parseAllowedImageUrl } from '@/lib/api/safe-image-url'
+import { buildAllowedImageUrl } from '@/lib/api/safe-image-url'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
 
 /**
@@ -10,8 +10,8 @@ import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
  * pictures show up broken in the inbox. This route fetches the image
  * server-side and serves it from our own domain, which email proxies accept.
  *
- * SSRF: `src` is rebuilt from an allowlisted hostname (see parseAllowedImageUrl)
- * and fetch does not follow redirects.
+ * SSRF: hostname is taken from a server-controlled allow-list of literals;
+ * fetch does not follow redirects.
  */
 export async function GET(req: NextRequest) {
   if (isRateLimited('email-image', clientIp(req), 60, 60_000)) {
@@ -20,11 +20,11 @@ export async function GET(req: NextRequest) {
   const src = req.nextUrl.searchParams.get('src')
   if (!src) return new NextResponse('Missing src', { status: 400 })
 
-  const url = parseAllowedImageUrl(src)
-  if (!url) return new NextResponse('Host not allowed', { status: 403 })
+  const safeUrl = buildAllowedImageUrl(src)
+  if (!safeUrl) return new NextResponse('Host not allowed', { status: 403 })
 
   try {
-    const upstream = await fetch(url.href, {
+    const upstream = await fetch(safeUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; UniversalMagazineMailer/1.0)' },
       redirect: 'error',
       signal: AbortSignal.timeout(10_000),
