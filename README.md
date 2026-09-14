@@ -10,7 +10,7 @@
 
 **Version 2.5.0** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
 
-**Демо:** https://magazine-test-ten.vercel.app
+**Демо:** https://magazine-test-ten.vercel.app — в `<title>` пока «Techno Store»: это `storeName` в БД демо, не код. Меняется в `/admin` → Налаштування.
 **Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/tag/v2.5.0
 **Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.5.0`
 
@@ -175,7 +175,7 @@ HTTPS: `certbot --nginx -d shop.example.com`.
 
 ### Локальная разработка
 
-Нужны Node.js 20+, pnpm, Docker (только для Postgres).
+Нужны Node.js 22+, pnpm, Docker (только для Postgres).
 
 ```bash
 pnpm setup          # .env.local, зависимости, Postgres, пустая схема
@@ -193,7 +193,7 @@ pnpm test
 ### Витрина
 
 - Каталог, категории, группы, фильтры, поиск, карточка товара, варианты
-- Корзина, оформление, личный кабинет, адреса, избранное, промокоды
+- Корзина, оформление, личный кабинет (профиль, смена почты/пароля по коду), адреса, избранное, промокоды
 - Отзывы и вопросы по товару
 - Статьи и произвольные страницы (`/p/...`)
 - UA / RU: отдельные поля `*_uk` / `*_ru`, URL `/ru/...`
@@ -219,7 +219,7 @@ pnpm test
 Интеграции, которые включаются ключами, а не отдельным хостингом: SMTP, Telegram-бот,
 Google Ads / Analytics, ключ Новой Почты.
 
-### Стек 2.0
+### Стек 2.5
 
 | Слой | |
 |---|---|
@@ -270,4 +270,9 @@ Cron доставки: `GET /api/cron/delivery-sync` с `Authorization: Bearer $
 - [db/README.md](db/README.md) — схема и миграции
 
 Релиз образа: `git tag vX.Y.Z && git push origin vX.Y.Z` (workflow `.github/workflows/release.yml`).
-GitHub App теги не создаёт — для CI без тега достаточно ветки `v2.5.0`.
+GitHub App теги не создаёт. Обходной путь:
+
+1. Ветка `vX.Y.Z` с `main` — собирает Docker-образ (`next build --webpack`: Turbopack + sharp под pnpm падает).
+2. Ветка `release-page-X.Y.Z` — создаёт GitHub Release и тег `vX.Y.Z`.
+
+Для 2.5.0 оба шага уже сделаны. Docker-сборка на Vercel/e2e по-прежнему без `output: 'standalone'`.
