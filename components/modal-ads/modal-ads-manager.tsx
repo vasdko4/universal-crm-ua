@@ -85,9 +85,10 @@ function contrastText(hex: string): string {
   return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#111111' : '#ffffff'
 }
 
-function formatDate(d: Date | string | null) {
+function formatDate(d: Date | string | null, locale: string = 'uk') {
   if (!d) return null
-  return new Intl.DateTimeFormat('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
+  const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return new Intl.DateTimeFormat(tag, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(d))
 }
 
 function toLocalInput(d: Date | string | null): string {
@@ -170,7 +171,7 @@ export function ModalAdsManager({
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const { dict } = useAdminI18n()
+  const { dict, locale } = useAdminI18n()
   const t = dict.modalAds
   const [query, setQuery] = useState(search)
   const [formOpen, setFormOpen] = useState(false)
@@ -420,8 +421,8 @@ export function ModalAdsManager({
                         {' · '}
                         {pages}
                         {` · ${t.sinceLabel} `}
-                        {formatDate(ad.startsAt)}
-                        {ad.endsAt ? ` ${t.untilLabel} ${formatDate(ad.endsAt)}` : ''}
+                        {formatDate(ad.startsAt, locale)}
+                        {ad.endsAt ? ` ${t.untilLabel} ${formatDate(ad.endsAt, locale)}` : ''}
                       </p>
                     </div>
                   </div>

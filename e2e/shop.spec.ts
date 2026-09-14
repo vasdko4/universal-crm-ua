@@ -117,6 +117,12 @@ test('demo admin can open the dashboard', async ({ page }) => {
   await page.locator('aside').getByRole('link', { name: 'Акції' }).click()
   await page.waitForURL(/\/admin\/promotions/, { timeout: 15_000 })
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await page.locator('aside').getByRole('link', { name: 'Платежі' }).click()
+  await page.waitForURL(/\/admin\/payments/, { timeout: 15_000 })
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await page.locator('aside').getByRole('link', { name: 'Модальна реклама' }).click()
+  await page.waitForURL(/\/admin\/modal-ads/, { timeout: 15_000 })
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 })
 
 test('demo admin can open the storefront cabinet', async ({ page }) => {

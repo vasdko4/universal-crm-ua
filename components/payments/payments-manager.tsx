@@ -326,7 +326,7 @@ export function PaymentsManager({
                           )}
                         </TableCell>
                         <TableCell className="hidden text-right text-xs text-muted-foreground tabular-nums sm:table-cell">
-                          {p.createdAt ? new Date(p.createdAt).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' }) : '—'}
+                          {p.createdAt ? new Date(p.createdAt).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA', { timeZone: 'Europe/Kyiv' }) : '—'}
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
