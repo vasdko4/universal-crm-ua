@@ -3,8 +3,9 @@ import { Eye, ShoppingCart, Package, Banknote, TrendingUp, Percent } from 'lucid
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import type { Locale } from '@/lib/i18n/config'
 
-function formatUah(n: number) {
-  return new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format(n) + ' грн'
+function formatUah(n: number, locale: string) {
+  const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return new Intl.NumberFormat(tag, { maximumFractionDigits: 0 }).format(n) + ' грн'
 }
 
 // Server component: funnel metrics for one product over the last 30 days.
@@ -22,7 +23,7 @@ export async function ProductAnalyticsPanel({
     { label: t.views, value: String(a.views), icon: Eye },
     { label: t.addToCart, value: String(a.addToCarts), icon: ShoppingCart },
     { label: t.unitsSold, value: String(a.unitsSold), icon: Package },
-    { label: t.revenue, value: formatUah(a.revenue), icon: Banknote },
+    { label: t.revenue, value: formatUah(a.revenue, locale), icon: Banknote },
     { label: t.cartRate, value: a.cartRate.toFixed(1) + '%', icon: Percent },
     { label: t.purchaseRate, value: a.purchaseRate.toFixed(1) + '%', icon: TrendingUp },
   ]

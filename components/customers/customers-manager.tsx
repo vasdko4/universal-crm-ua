@@ -84,14 +84,15 @@ function scoreColor(score: number) {
   return 'bg-destructive/15 text-destructive border-destructive/30'
 }
 
-function formatMoney(v: string) {
+function formatMoney(v: string, locale: string = 'uk') {
   const n = Number(v)
-  return new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)
+  const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return new Intl.NumberFormat(tag, { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)
 }
 
-function formatDate(d: Date | null) {
+function formatDate(d: Date | null, locale: string = 'uk') {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Kyiv' })
+  return new Date(d).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Kyiv' })
 }
 
 export function CustomersManager({
@@ -105,7 +106,7 @@ export function CustomersManager({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { dict } = useAdminI18n()
+  const { dict, locale } = useAdminI18n()
   const t = dict.customers
   const CONTACT_LABELS: Record<string, string> = {
     viber: t.contactViber,
@@ -326,9 +327,9 @@ export function CustomersManager({
                   </TableCell>
                   <TableCell className="text-center tabular-nums">{c.ordersCount}</TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
-                    {formatMoney(c.totalTurnover)} ₴
+                    {formatMoney(c.totalTurnover, locale)} ₴
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(c.lastOrderDate)}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(c.lastOrderDate, locale)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

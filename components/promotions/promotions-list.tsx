@@ -58,13 +58,17 @@ function statusTabs(t: AdminDictionary) {
   ] as const
 }
 
-function formatMoney(v: number) {
-  return new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format(v)
+function numberTag(locale: string) {
+  return locale === 'ru' ? 'ru-RU' : 'uk-UA'
 }
 
-function formatDate(d: Date | string | null) {
+function formatMoney(v: number, locale: string = 'uk') {
+  return new Intl.NumberFormat(numberTag(locale), { maximumFractionDigits: 0 }).format(v)
+}
+
+function formatDate(d: Date | string | null, locale: string = 'uk') {
   if (!d) return null
-  return new Intl.DateTimeFormat('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
+  return new Intl.DateTimeFormat(numberTag(locale), { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
     new Date(d),
   )
 }
@@ -80,7 +84,7 @@ export function PromotionsList({
   search: string
   status: 'all' | 'active' | 'inactive'
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, locale } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState(search)
@@ -275,19 +279,19 @@ function PromotionCard({
   onToggle: (id: number, value: boolean) => void
   onDelete: () => void
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, locale } = useAdminI18n()
   const discount =
     p.discountType === 'percentage'
       ? `${Number(p.discountValue)}%`
-      : `${formatMoney(Number(p.discountValue))} ₴`
+      : `${formatMoney(Number(p.discountValue), locale)} ₴`
   const targetLabel =
     p.targetType === 'all'
       ? t.promotions.targetAll
       : p.targetType === 'groups'
         ? t.promotions.targetGroups
         : t.promotions.targetProducts
-  const start = formatDate(p.startsAt)
-  const end = formatDate(p.endsAt)
+  const start = formatDate(p.startsAt, locale)
+  const end = formatDate(p.endsAt, locale)
 
   return (
     <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
@@ -330,7 +334,7 @@ function PromotionCard({
 
       <div className="hidden shrink-0 text-right md:block">
         <p className="text-xs text-slate-400">{t.promotions.totalDiscountLabel}</p>
-        <p className="font-semibold text-slate-900">{formatMoney(Number(p.totalDiscountAmount))} ₴</p>
+        <p className="font-semibold text-slate-900">{formatMoney(Number(p.totalDiscountAmount), locale)} ₴</p>
       </div>
 
       <label className="flex shrink-0 cursor-pointer items-center gap-2">
