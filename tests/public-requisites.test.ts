@@ -29,6 +29,6 @@ describe('formatRequisitesPreview', () => {
     expect(text).toContain('Отримувач: ТОВ Магазин')
     expect(text).toContain('IBAN: UA123')
     expect(text).toContain('оплата замовлення №1001')
-    expect(text).toContain('Сума: 1500 грн')
+    expect(text).toContain('Сума: 1500 ₴')
   })
 })

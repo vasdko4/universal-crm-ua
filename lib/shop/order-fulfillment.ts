@@ -23,7 +23,7 @@ export async function adjustStockForOrder(orderId: number, sign: 1 | -1) {
         quantityAfter: Number(res.rows[0]?.quantity),
         reason: sign === 1 ? 'cancel' : 'sale',
         orderId,
-        actor: 'Система',
+        actor: 'System',
       })
     }
   }
@@ -73,7 +73,7 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
           quantityAfter: Number(variantRes.rows[0]?.quantity),
           reason: 'sale',
           orderId,
-          actor: 'Система',
+          actor: 'System',
         })
       }
       // products.quantity is the maintained aggregate of all variant
@@ -101,7 +101,7 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
           quantityAfter: Number(productRes.rows[0]?.quantity),
           reason: 'sale',
           orderId,
-          actor: 'Система',
+          actor: 'System',
         })
       }
       if (productRes.rowCount === 0) {
@@ -122,7 +122,7 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
     const warning = `⚠ Недостаточно остатка на складе на момент подтверждения заказа: ${details}. Проверьте наличие перед отправкой.`
     await db
       .insert(orderHistory)
-      .values({ orderId, type: 'note', message: warning, actor: 'Система' })
+      .values({ orderId, type: 'note', message: warning, actor: 'System' })
       .catch(() => {})
     await pool
       .query(`UPDATE orders SET note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`, [warning, orderId])
@@ -169,8 +169,8 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
         .values({
           orderId,
           type: 'note',
-          message: `Применён промокод ${order.promoCode} — скидка ${manualAmount.toFixed(2)} грн`,
-          actor: order.customerName ?? 'Система',
+          message: `Промокод ${order.promoCode} — ${manualAmount.toFixed(2)} ₴`,
+          actor: order.customerName ?? 'System',
         })
         .catch(() => {})
     }
@@ -188,8 +188,8 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
       .values({
         orderId,
         type: 'note',
-        message: `Применена автоматическая скидка — ${autoAmount.toFixed(2)} грн`,
-        actor: order.customerName ?? 'Система',
+        message: `Автознижка — ${autoAmount.toFixed(2)} ₴`,
+        actor: order.customerName ?? 'System',
       })
       .catch(() => {})
   }

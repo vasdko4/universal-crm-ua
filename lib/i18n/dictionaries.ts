@@ -139,6 +139,8 @@ export type Dictionary = {
     purchasedFew: string
     purchasedMany: string
     selectVariant: string
+    chooseOption: string
+    outOfStockOption: string
     notAvailable: string
     addedToCart: string
     addedToCartVariant: string
@@ -718,6 +720,8 @@ const uk: Dictionary = {
     purchasedFew: 'Купили {{count}} рази',
     purchasedMany: 'Купили {{count}} разів',
     selectVariant: 'Оберіть варіант товару',
+    chooseOption: 'Оберіть: {{name}}',
+    outOfStockOption: '{{name}} — немає в наявності',
     notAvailable: 'Товару немає в наявності',
     addedToCart: 'Товар додано в кошик',
     addedToCartVariant: 'Додано в кошик',
@@ -1296,6 +1300,8 @@ const ru: Dictionary = {
     purchasedFew: 'Купили {{count}} раза',
     purchasedMany: 'Купили {{count}} раз',
     selectVariant: 'Выберите вариант товара',
+    chooseOption: 'Выберите: {{name}}',
+    outOfStockOption: '{{name}} — нет в наличии',
     notAvailable: 'Товара нет в наличии',
     addedToCart: 'Товар добавлен в корзину',
     addedToCartVariant: 'Добавлено в корзину',

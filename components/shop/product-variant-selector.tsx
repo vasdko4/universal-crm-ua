@@ -2,6 +2,8 @@
 
 import { cn } from '@/lib/utils'
 import type { ProductOption, ProductVariant } from '@/lib/shop/queries'
+import { useI18n } from '@/lib/i18n/client'
+import { fillTemplate } from '@/lib/i18n/dictionaries'
 
 type Props = {
   options: ProductOption[]
@@ -33,6 +35,7 @@ function valueHasStock(
 }
 
 export function ProductVariantSelector({ options, variants, selected, onSelect }: Props) {
+  const { dict } = useI18n()
   if (options.length === 0) return null
 
   return (
@@ -46,7 +49,9 @@ export function ProductVariantSelector({ options, variants, selected, onSelect }
               {selected[opt.name] ? (
                 <span className="text-sm text-muted-foreground">{selected[opt.name]}</span>
               ) : (
-                <span className="text-xs text-destructive">Выберите: {opt.name.toLowerCase()}</span>
+                <span className="text-xs text-destructive">
+                  {fillTemplate(dict.product.chooseOption, { name: opt.name.toLowerCase() })}
+                </span>
               )}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -63,7 +68,11 @@ export function ProductVariantSelector({ options, variants, selected, onSelect }
                       data-testid="product-option"
                       aria-pressed={active}
                       aria-label={val}
-                      title={available ? val : `${val} — нет в наличии`}
+                      title={
+                        available
+                          ? val
+                          : fillTemplate(dict.product.outOfStockOption, { name: val })
+                      }
                       className={cn(
                         'relative flex size-10 items-center justify-center rounded-full border-2 transition',
                         active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/60',

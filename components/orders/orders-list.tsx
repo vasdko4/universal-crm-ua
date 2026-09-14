@@ -293,7 +293,9 @@ export function OrdersList({
                     </p>
                   )}
                   {o.trackingNumber && (
-                    <p className="text-xs text-warning">ЕН {o.trackingNumber}</p>
+                    <p className="text-xs text-warning">
+                      {t.trackingLabel}: {o.trackingNumber}
+                    </p>
                   )}
                   <div className="mt-1">
                     <PaymentBadge status={o.paymentStatus} />

@@ -671,6 +671,10 @@ export type AdminDictionary = {
     npApiKeyHintReal: string
     npApiKeyHintDemo: string
     npCheckTitle: string
+    npSenderPhoneLabel: string
+    npDefaultWeightLabel: string
+    npPullFromCabinet: string
+    npPullHint: string
     ukrDesc: string
     ukrToggleLabel: string
     ukrToggleDesc: string
@@ -2386,6 +2390,11 @@ const uk: AdminDictionary = {
     npApiKeyHintReal: 'Пошук виконується через реальний API Нова Пошта.',
     npApiKeyHintDemo: 'Без ключа доступний демо-режим із прикладами відділень.',
     npCheckTitle: 'Перевірка отримання: відділення і поштомати',
+    npSenderPhoneLabel: 'Телефон відправника',
+    npDefaultWeightLabel: 'Вага за замовч. (кг)',
+    npPullFromCabinet: 'Підтягнути з кабінету',
+    npPullHint:
+      '«Підтягнути з кабінету» одразу збирає Ref-и. ТТН з картки теж підтягне й збереже їх, якщо поля порожні. Вага береться з карток товарів, інакше — значення нижче.',
     ukrDesc: 'Доставка поштовими відділеннями Укрпошти',
     ukrToggleLabel: 'Доставка Укрпоштою',
     ukrToggleDesc: 'Клієнти зможуть обрати доставку Укрпоштою під час оформлення',
@@ -4107,6 +4116,11 @@ const ru: AdminDictionary = {
     npApiKeyHintReal: 'Поиск выполняется через реальный API Нова Пошта.',
     npApiKeyHintDemo: 'Без ключа доступен демо-режим с примерами отделений.',
     npCheckTitle: 'Проверка получения: отделения и почтоматы',
+    npSenderPhoneLabel: 'Телефон отправителя',
+    npDefaultWeightLabel: 'Вес по умолч. (кг)',
+    npPullFromCabinet: 'Подтянуть из кабинета',
+    npPullHint:
+      '«Подтянуть из кабинета» сразу собирает Ref-ы. ТТН с карточки тоже подтянет и сохранит их, если поля пустые. Вес берётся из карточек товаров, иначе — значение ниже.',
     ukrDesc: 'Доставка почтовыми отделениями Укрпошты',
     ukrToggleLabel: 'Доставка Укрпоштой',
     ukrToggleDesc: 'Клиенты смогут выбрать доставку Укрпоштой при оформлении',

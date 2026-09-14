@@ -50,12 +50,15 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
   const [editing, setEditing] = useState<FormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
 
   function startAdd() {
+    setFormError(null)
     setEditing({ ...emptyForm })
   }
 
   function startEdit(a: UserAddress) {
+    setFormError(null)
     setEditing({
       id: a.id,
       label: a.label ?? '',
@@ -73,7 +76,11 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
 
   async function save() {
     if (!editing) return
-    if (!editing.firstName.trim() || !editing.phone.trim()) return
+    if (!editing.firstName.trim() || !editing.phone.trim()) {
+      setFormError(t.genericError)
+      return
+    }
+    setFormError(null)
     setSaving(true)
     const res = await saveUserAddress({
       id: editing.id,
@@ -90,8 +97,11 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
     })
     setSaving(false)
     if (res.ok) {
+      setFormError(null)
       setEditing(null)
       router.refresh()
+    } else {
+      setFormError(t.genericError)
     }
   }
 
@@ -212,6 +222,11 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
                   onChange={(e) => setEditing({ ...editing, branch: e.target.value })}
                 />
               </div>
+            )}
+            {formError && (
+              <p className="text-sm text-destructive sm:col-span-2" role="alert">
+                {formError}
+              </p>
             )}
             <label className="flex items-center gap-2 sm:col-span-2">
               <input

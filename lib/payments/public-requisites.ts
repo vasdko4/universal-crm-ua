@@ -45,6 +45,6 @@ export function formatRequisitesPreview(
       `${uk ? 'Призначення платежу' : 'Назначение платежа'}: ${uk ? 'оплата замовлення' : 'оплата заказа'} №${opts.orderNumber}`,
     )
   }
-  parts.push(`${uk ? 'Сума' : 'Сумма'}: ${opts.amount} ${uk ? 'грн' : 'грн'}`)
+  parts.push(`${uk ? 'Сума' : 'Сумма'}: ${opts.amount} ₴`)
   return parts.join('\n')
 }

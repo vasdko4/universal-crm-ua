@@ -30,6 +30,7 @@ import { restoreProducts, permanentlyDeleteProducts, emptyTrash } from "@/app/ac
 import { useAdminI18n } from "@/lib/i18n/admin/context"
 import { pickLocalized } from "@/lib/i18n/config"
 import { pluralize } from "@/lib/i18n/plural"
+import { formatPrice } from "@/lib/shop/format"
 
 type TrashedProduct = {
   id: number
@@ -198,7 +199,7 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
                     {p.sku ? <Badge variant="outline">{p.sku}</Badge> : <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {Number(p.price).toLocaleString(locale === "ru" ? "ru-RU" : "uk-UA")} грн
+                    {formatPrice(Number(p.price), "UAH", locale)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{p.quantity}</TableCell>
                   <TableCell className="text-muted-foreground">

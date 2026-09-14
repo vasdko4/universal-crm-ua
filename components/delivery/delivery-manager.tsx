@@ -124,21 +124,19 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
             <Input value={contactSenderRef} onChange={(e) => setContactSenderRef(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Телефон відправника</Label>
+            <Label>{t.delivery.npSenderPhoneLabel}</Label>
             <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="+380..." />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Вага за замовч. (кг)</Label>
+            <Label>{t.delivery.npDefaultWeightLabel}</Label>
             <Input value={defaultWeight} onChange={(e) => setDefaultWeight(e.target.value)} />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          «Підтягнути з кабінету» одразу зберігає Ref-и. ТТН з картки теж підтягне й збереже їх, якщо поля порожні. Вага береться з карток товарів, інакше — значення нижче.
-        </p>
+        <p className="text-xs text-muted-foreground">{t.delivery.npPullHint}</p>
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={pullSender} disabled={isPending || !apiKey.trim()}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-            Підтягнути з кабінету
+            {t.delivery.npPullFromCabinet}
           </Button>
           <Button onClick={handleSave} disabled={isPending}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
