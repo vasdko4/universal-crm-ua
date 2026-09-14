@@ -8,11 +8,11 @@
 Каталог, заказы, клиенты, Новая Почта, Monobank / WayForPay — на вашей машине,
 без SaaS и без обязательного облака.
 
-**Version 2.0.0** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
+**Version 2.5.0** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
 
 **Демо:** https://magazine-test-ten.vercel.app
-**Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/tag/v2.0.0
-**Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.0.0`
+**Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/tag/v2.5.0
+**Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.5.0`
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
@@ -83,7 +83,7 @@ DOMAIN=shop.example.com bash install.sh
 Другая версия образа:
 
 ```bash
-IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.0.0 bash install.sh
+IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.5.0 bash install.sh
 ```
 
 Пропустить подготовку ОС (Docker уже стоит):
@@ -270,4 +270,4 @@ Cron доставки: `GET /api/cron/delivery-sync` с `Authorization: Bearer $
 - [db/README.md](db/README.md) — схема и миграции
 
 Релиз образа: `git tag vX.Y.Z && git push origin vX.Y.Z` (workflow `.github/workflows/release.yml`).
-GitHub App теги не создаёт — для CI без тега достаточно ветки `v2.0.0`.
+GitHub App теги не создаёт — для CI без тега достаточно ветки `v2.5.0`.

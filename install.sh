@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# Magazine 2.0 — установка готового образа с GHCR в одну команду.
+# Magazine 2.5 — установка готового образа с GHCR в одну команду.
 # Исходный код и сборка НЕ нужны: скрипт сам скачивает образ и всё настроит.
 #
 #   curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
@@ -14,7 +14,7 @@
 #   4. При указанном домене поднимает Caddy с автоматическим HTTPS
 #
 # Неинтерактивно: DOMAIN=shop.example.com bash install.sh
-# Другая версия:  IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.0.0 bash install.sh
+# Другая версия:  IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.5.0 bash install.sh
 # Пропустить hardening ОС: SKIP_VM_SETUP=1 bash install.sh
 #
 # ПОЧЕМУ ghcr.io, А НЕ Docker Hub: release.yml (CI) публикует каждый
