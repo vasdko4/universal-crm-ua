@@ -37,6 +37,7 @@ export type ProductFilters = {
 }
 
 export async function getProducts(filters: ProductFilters = {}) {
+  await assertPermission('products')
   const { search, categoryId, status = 'all', sort = 'newest', page = 1, perPage = 10 } = filters
 
   const conditions: SQL[] = [isNull(products.deletedAt)]
@@ -108,6 +109,7 @@ export async function getProducts(filters: ProductFilters = {}) {
 }
 
 export async function getProduct(id: number) {
+  await assertPermission('products')
   const [product] = await db
     .select()
     .from(products)

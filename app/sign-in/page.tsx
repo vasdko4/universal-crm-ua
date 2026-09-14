@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
-import { countUsers } from '@/app/actions/users'
+import { isSetupNeeded } from '@/app/actions/setup'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { SignInForm } from '@/components/auth/sign-in-form'
 import { getLocale } from '@/lib/i18n/server'
@@ -23,13 +23,13 @@ export default async function SignInPage() {
   const twoFaOk = user ? await staffTwoFactorSatisfied(user.id) : true
   if (user && twoFaOk) redirect('/admin')
 
-  const [total, settings, locale] = await Promise.all([
-    countUsers().catch(() => 0),
+  const [needsSetup, settings, locale] = await Promise.all([
+    isSetupNeeded().catch(() => false),
     getStoreSettingsInternal().catch(() => null),
     getLocale(),
   ])
 
-  if (total === 0) redirect('/setup')
+  if (needsSetup) redirect('/setup')
 
   const dict = getAdminDictionary(locale)
   return (

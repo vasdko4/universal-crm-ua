@@ -5,11 +5,11 @@ import { asc, eq, sql } from 'drizzle-orm'
 import { getAuth } from '@/lib/auth'
 import { db, pool } from '@/lib/db'
 import { roles } from '@/lib/db/schema'
-import { getAdminUser } from '@/lib/session'
+import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
-export async function countUsers(): Promise<number> {
+async function countUsers(): Promise<number> {
   const res = await pool.query('SELECT COUNT(*)::int AS c FROM "user"')
   return res.rows[0]?.c ?? 0
 }
@@ -49,6 +49,7 @@ export type AdminUserRow = {
 export async function listUsers(): Promise<AdminUserRow[]> {
   const me = await getAdminUser()
   if (!me || !me.permissions.includes('*')) return []
+  if (!(await staffTwoFactorSatisfied(me.id))) return []
   const res = await pool.query(
     `SELECT id, name, email, role, is_active, "createdAt" FROM "user" ORDER BY "createdAt" ASC`,
   )
@@ -66,6 +67,9 @@ async function requireAdminGuard() {
   const me = await getAdminUser()
   if (!me || !me.permissions.includes('*')) {
     throw new Error('Недостаточно прав')
+  }
+  if (!(await staffTwoFactorSatisfied(me.id))) {
+    throw new Error('Потрібен код 2FA')
   }
   return me
 }

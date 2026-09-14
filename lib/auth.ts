@@ -149,19 +149,26 @@ function buildAuth(google: GoogleCreds) {
     },
     trustedOrigins: [
       'http://localhost:3000',
-      'https://*.vusercontent.net',
-      'https://*.vercel.app',
-      'https://*.v0.dev',
+      // Preview/platform origins only when actually running there. A
+      // self-hosted store must not accept CSRF from arbitrary *.vercel.app
+      // / *.v0.dev sites.
+      ...(process.env.V0_RUNTIME_URL
+        ? ['https://*.vusercontent.net', 'https://*.v0.dev', process.env.V0_RUNTIME_URL]
+        : []),
+      ...(process.env.VERCEL
+        ? [
+            'https://*.vercel.app',
+            ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+            ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
+              ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
+              : []),
+          ]
+        : []),
       // Self-hosted deployments: trust the configured public URL(s). APP_URL
       // covers setups where the public domain differs from BETTER_AUTH_URL
       // (e.g. a TLS-terminating proxy/domain in front of the VPS).
       ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
       ...(process.env.APP_URL ? [process.env.APP_URL] : []),
-      ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
-      ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-      ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
-        ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
-        : []),
     ],
     session: {
       expiresIn: 60 * 60 * 24 * 7,

@@ -11,6 +11,7 @@ import { isRateLimited } from '@/lib/api/rate-limit'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { sanitizeSearch } from '@/lib/api/helpers'
+import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
 
 export type PromotionInput = {
   type: 'promocode' | 'discount'
@@ -56,6 +57,7 @@ function validate(input: PromotionInput): string | null {
 }
 
 export async function generatePromoCode(): Promise<string> {
+  await assertPermission('promotions')
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
   for (let i = 0; i < 8; i++) code += chars[randomInt(chars.length)]
@@ -385,42 +387,9 @@ export async function recordPromotionUsage(input: {
   orderAmount: number
   discountAmount: number
 }) {
-  const withinLimit = sql`(${promotions.usageLimit} IS NULL OR ${promotions.usedCount} < ${promotions.usageLimit})`
-
-  await db.transaction(async (tx) => {
-    const [updated] = await tx
-      .update(promotions)
-      .set({
-        usedCount: sql`${promotions.usedCount} + 1`,
-        totalOrdersAmount: sql`${promotions.totalOrdersAmount} + ${input.orderAmount}`,
-        totalDiscountAmount: sql`${promotions.totalDiscountAmount} + ${input.discountAmount}`,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(promotions.id, input.promotionId), withinLimit))
-      .returning({ id: promotions.id })
-
-    // Still log the usage record even if the limit was already hit by a
-    // concurrent order — the order/discount already happened, so admins
-    // should be able to see it in the usage history regardless.
-    if (!updated) {
-      await tx
-        .update(promotions)
-        .set({
-          totalOrdersAmount: sql`${promotions.totalOrdersAmount} + ${input.orderAmount}`,
-          totalDiscountAmount: sql`${promotions.totalDiscountAmount} + ${input.discountAmount}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(promotions.id, input.promotionId))
-    }
-
-    await tx.insert(promotionUsages).values({
-      promotionId: input.promotionId,
-      orderReference: input.orderReference ?? null,
-      orderAmount: String(input.orderAmount),
-      discountAmount: String(input.discountAmount),
-    })
-  })
-
-  revalidatePath('/admin/promotions')
-  return { success: true }
+  // Admin-only wrapper. Checkout fulfillment must use
+  // recordPromotionUsageInternal (lib/shop/promo-usage.ts) so a client
+  // cannot inflate usedCount without placing an order.
+  await assertPermission('promotions')
+  return recordPromotionUsageInternal(input)
 }

@@ -1,7 +1,7 @@
 import { db, pool } from '@/lib/db'
 import { orders, orderItems, orderHistory, promotions } from '@/lib/db/schema'
 import { eq, sql } from 'drizzle-orm'
-import { recordPromotionUsage } from '@/app/actions/promotions'
+import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
 import { recordStockMovement } from '@/lib/shop/stock-ledger'
 
 /**
@@ -158,7 +158,7 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
       .where(sql`UPPER(${promotions.promoCode}) = ${order.promoCode.toUpperCase()}`)
       .limit(1)
     if (promo) {
-      await recordPromotionUsage({
+      await recordPromotionUsageInternal({
         promotionId: promo.id,
         orderReference: order.orderNumber,
         orderAmount: total,
@@ -177,7 +177,7 @@ export async function applyOrderFulfillment(orderId: number): Promise<void> {
   }
 
   if (order.autoDiscountId && autoAmount > 0) {
-    await recordPromotionUsage({
+    await recordPromotionUsageInternal({
       promotionId: order.autoDiscountId,
       orderReference: order.orderNumber,
       orderAmount: total,
