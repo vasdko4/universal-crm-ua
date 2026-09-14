@@ -35,6 +35,7 @@ import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
+import { formatPrice } from '@/lib/shop/format'
 
 /** Client IP for server actions (no Request object available — use headers). */
 async function actionClientIp(): Promise<string> {
@@ -261,7 +262,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     const dict = getDictionary(locale)
     return {
       success: false,
-      error: `${dict.checkout.minOrderPrefix} ${minOrder.amount} грн. ${dict.checkout.minOrderAddMore} ${(minOrder.amount - itemsTotal).toFixed(2)} грн.`,
+      error: `${dict.checkout.minOrderPrefix} ${formatPrice(minOrder.amount, 'UAH', locale)}. ${dict.checkout.minOrderAddMore} ${formatPrice(minOrder.amount - itemsTotal, 'UAH', locale)}.`,
     }
   }
 
@@ -575,7 +576,8 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
 const REAL_GATEWAY_CODES = ['wayforpay', 'monobank']
 
 export async function markOrderPaid(orderNumber: string) {
-  const t = getDictionary(await getLocale()).serverErrors
+  const locale = await getLocale()
+  const t = getDictionary(locale).serverErrors
   const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1)
   if (!order) return { success: false, error: t.orderNotFound }
   if (order.paymentStatus === 'paid') return { success: true }
@@ -601,8 +603,8 @@ export async function markOrderPaid(orderNumber: string) {
   await db.insert(orderHistory).values({
     orderId: order.id,
     type: 'payment',
-    message: 'Оплата получена (онлайн)',
-    actor: 'Система',
+    message: locale === 'ru' ? 'Оплата получена (онлайн)' : 'Оплату отримано (онлайн)',
+    actor: 'System',
   })
   // Promote the pending order to a real, finalized order (stock, promo, stats).
   await finalizePaidOrder(orderNumber)

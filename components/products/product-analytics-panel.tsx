@@ -5,7 +5,7 @@ import type { Locale } from '@/lib/i18n/config'
 
 function formatUah(n: number, locale: string) {
   const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
-  return new Intl.NumberFormat(tag, { maximumFractionDigits: 0 }).format(n) + ' грн'
+  return new Intl.NumberFormat(tag, { maximumFractionDigits: 0 }).format(n) + ' ₴'
 }
 
 // Server component: funnel metrics for one product over the last 30 days.

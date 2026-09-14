@@ -22,7 +22,7 @@ const STATUS_LABELS = {
 function money(v: string | number, currency = 'UAH', locale: string = 'uk') {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
   const tag = locale === 'ru' || locale === 'ru-RU' ? 'ru-RU' : 'uk-UA'
-  const symbol = currency === 'UAH' ? 'грн' : currency
+  const symbol = currency === 'UAH' ? '₴' : currency
   return `${n.toLocaleString(tag).replace(/\u00a0/g, ' ')} ${symbol}`
 }
 

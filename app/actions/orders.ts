@@ -190,7 +190,7 @@ async function addHistory(orderId: number, type: string, message: string) {
     orderId,
     type,
     message,
-    actor: me?.name ?? 'Система',
+    actor: me?.name ?? 'System',
   })
 }
 
