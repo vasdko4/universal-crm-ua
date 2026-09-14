@@ -626,7 +626,7 @@ CREATE TABLE IF NOT EXISTS "site_groups" (
 
 CREATE TABLE IF NOT EXISTS "store_settings" (
   "id" integer DEFAULT 1 NOT NULL,
-  "store_name" varchar(255) DEFAULT 'Мой магазин'::character varying NOT NULL,
+  "store_name" varchar(255) DEFAULT 'Мій магазин'::character varying NOT NULL,
   "store_description" text,
   "logo_url" varchar(500),
   "favicon_url" varchar(500),

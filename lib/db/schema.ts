@@ -617,7 +617,7 @@ export const stockMovements = pgTable('stock_movements', {
 
 export const storeSettings = pgTable('store_settings', {
   id: integer('id').primaryKey().default(1),
-  storeName: varchar('store_name', { length: 255 }).notNull().default('Мой магазин'),
+  storeName: varchar('store_name', { length: 255 }).notNull().default('Мій магазин'),
   storeDescription: text('store_description'),
   logoUrl: varchar('logo_url', { length: 500 }),
   faviconUrl: varchar('favicon_url', { length: 500 }),

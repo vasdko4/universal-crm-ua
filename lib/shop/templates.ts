@@ -23,7 +23,9 @@ export type TemplateLayout = 'standard' | 'marketplace' | 'boutique' | 'minimal'
 export type TemplatePreset = {
   id: TemplateId
   name: string
+  nameRu: string
   description: string
+  descriptionRu: string
   /** Preview swatches (CSS colors) shown on the selection card. */
   swatches: { bg: string; card: string; primary: string; accent: string }
   radius: string
@@ -37,7 +39,9 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'classic',
     name: 'Класичний',
+    nameRu: 'Классический',
     description: 'Світлий, бірюзовий акцент, помірні скруглення. Універсальний вигляд.',
+    descriptionRu: 'Светлый, бирюзовый акцент, умеренные скругления. Универсальный вид.',
     swatches: {
       bg: 'oklch(0.985 0.002 90)',
       card: 'oklch(1 0 0)',
@@ -50,7 +54,9 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'warm',
     name: 'Теплий',
+    nameRu: 'Тёплый',
     description: 'Тепла палітра, помаранчевий акцент, крупні скруглення. М’який стиль.',
+    descriptionRu: 'Тёплая палитра, оранжевый акцент, крупные скругления. Мягкий стиль.',
     swatches: {
       bg: 'oklch(0.99 0.012 85)',
       card: 'oklch(1 0.004 85)',
@@ -63,7 +69,9 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'dark-tech',
     name: 'Dark Tech',
+    nameRu: 'Dark Tech',
     description: 'Темна тема, синій акцент, гострі кути. Технологічний вигляд.',
+    descriptionRu: 'Тёмная тема, синий акцент, острые углы. Технологичный вид.',
     swatches: {
       bg: 'oklch(0.19 0.02 260)',
       card: 'oklch(0.24 0.025 260)',
@@ -76,7 +84,9 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'elegant',
     name: 'Елегантний',
+    nameRu: 'Элегантный',
     description: 'Монохром із золотим акцентом, тонкі лінії. Преміальний вигляд.',
+    descriptionRu: 'Монохром с золотым акцентом, тонкие линии. Премиальный вид.',
     swatches: {
       bg: 'oklch(0.975 0.003 80)',
       card: 'oklch(0.995 0.002 80)',
@@ -89,8 +99,11 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'marketplace',
     name: 'Маркетплейс',
+    nameRu: 'Маркетплейс',
     description:
       'Щільна вітрина у стилі Prom: компактний промо-банер, плитки категорій та багато товарів на екрані.',
+    descriptionRu:
+      'Плотная витрина в стиле Prom: компактный промо-баннер, плитки категорий и много товаров на экране.',
     swatches: {
       bg: 'oklch(0.97 0.005 250)',
       card: 'oklch(1 0 0)',
@@ -104,8 +117,11 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'boutique',
     name: 'Бутік',
+    nameRu: 'Бутик',
     description:
       'Повноекранний editorial-банер, глибокий зелений із кремовим. Для магазинів моди та декору.',
+    descriptionRu:
+      'Полноэкранный editorial-баннер, глубокий зелёный с кремовым. Для магазинов моды и декора.',
     swatches: {
       bg: 'oklch(0.97 0.008 90)',
       card: 'oklch(0.99 0.005 90)',
@@ -119,8 +135,11 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'nordic',
     name: 'Мінімал',
+    nameRu: 'Минимал',
     description:
       'Чорно-білий мінімалізм із великою типографікою без банера. Максимум уваги на товари.',
+    descriptionRu:
+      'Чёрно-белый минимализм с крупной типографикой без баннера. Максимум внимания на товары.',
     swatches: {
       bg: 'oklch(0.99 0 0)',
       card: 'oklch(1 0 0)',
@@ -134,8 +153,11 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'berry',
     name: 'Ягідний',
+    nameRu: 'Ягодный',
     description:
       'Насичений ягідно-рожевий акцент на світлому тлі, м’які скруглення. Сучасний, дружній вигляд для гаджетів і аксесуарів.',
+    descriptionRu:
+      'Насыщенный ягодно-розовый акцент на светлом фоне, мягкие скругления. Современный, дружелюбный вид для гаджетов и аксессуаров.',
     swatches: {
       bg: 'oklch(0.98 0.006 350)',
       card: 'oklch(1 0.003 350)',
@@ -148,8 +170,11 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'ocean',
     name: 'Океан',
+    nameRu: 'Океан',
     description:
       'Глибокий синьо-бірюзовий акцент, щільна вітрина у стилі маркетплейсу. Свіжий і технологічний вигляд.',
+    descriptionRu:
+      'Глубокий сине-бирюзовый акцент, плотная витрина в стиле маркетплейса. Свежий и технологичный вид.',
     swatches: {
       bg: 'oklch(0.97 0.01 220)',
       card: 'oklch(1 0.004 220)',
@@ -163,8 +188,11 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'forest',
     name: 'Ліс',
+    nameRu: 'Лес',
     description:
       'Темна смарагдово-зелена тема з повноекранним editorial-банером. Преміальний вигляд для еко- та lifestyle-брендів.',
+    descriptionRu:
+      'Тёмная изумрудно-зелёная тема с полноэкранным editorial-баннером. Премиальный вид для эко- и lifestyle-брендов.',
     swatches: {
       bg: 'oklch(0.16 0.02 150)',
       card: 'oklch(0.22 0.025 150)',
@@ -178,8 +206,11 @@ export const TEMPLATES: TemplatePreset[] = [
   {
     id: 'mint',
     name: 'Мʼята',
+    nameRu: 'Мята',
     description:
       'Свіжий м’ятний фон з коралловим акцентом, велика типографіка без банера. Яскравий, молодіжний мінімалізм.',
+    descriptionRu:
+      'Свежий мятный фон с коралловым акцентом, крупная типографика без баннера. Яркий, молодёжный минимализм.',
     swatches: {
       bg: 'oklch(0.985 0.01 165)',
       card: 'oklch(1 0.005 165)',

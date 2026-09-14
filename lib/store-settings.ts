@@ -223,7 +223,7 @@ export type MinOrderSettings = {
 }
 
 export const DEFAULTS: StoreSettingsData = {
-  storeName: 'Мой магазин',
+  storeName: 'Мій магазин',
   storeDescription: '',
   logoUrl: null,
   faviconUrl: null,

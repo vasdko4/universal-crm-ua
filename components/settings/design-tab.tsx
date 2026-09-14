@@ -60,6 +60,7 @@ import {
 import type { SectionProps } from './settings-types'
 
 export function DesignSection({ data, setData, t }: SectionProps) {
+  const { locale } = useAdminI18n()
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
@@ -139,8 +140,12 @@ export function DesignSection({ data, setData, t }: SectionProps) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">{tpl.name}</p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{tpl.description}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {locale === 'ru' ? tpl.nameRu : tpl.name}
+                  </p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {locale === 'ru' ? tpl.descriptionRu : tpl.description}
+                  </p>
                 </div>
               </button>
             )
@@ -162,8 +167,8 @@ export function DesignSection({ data, setData, t }: SectionProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="uk">Українська</SelectItem>
-            <SelectItem value="ru">Русский</SelectItem>
+            <SelectItem value="uk">{t.localeUk}</SelectItem>
+            <SelectItem value="ru">{t.localeRu}</SelectItem>
           </SelectContent>
         </Select>
       </div>
