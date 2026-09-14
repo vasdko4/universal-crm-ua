@@ -176,7 +176,14 @@ export async function staffTwoFactorSatisfied(userId: string): Promise<boolean> 
   if (!sessionId) return false
   const jar = await cookies()
   const cookie = jar.get('staff_2fa')?.value
-  return twoFactorCookieValid(userId, process.env.BETTER_AUTH_SECRET || 'dev-staff-2fa', cookie, sessionId)
+  const secret = process.env.BETTER_AUTH_SECRET
+  if (!secret) {
+    // Production without BETTER_AUTH_SECRET must not accept a well-known
+    // fallback HMAC key. Dev keeps a local-only default.
+    if (process.env.NODE_ENV === 'production') return false
+    return twoFactorCookieValid(userId, 'dev-staff-2fa', cookie, sessionId)
+  }
+  return twoFactorCookieValid(userId, secret, cookie, sessionId)
 }
 
 export async function requireAdmin(): Promise<AdminUser> {

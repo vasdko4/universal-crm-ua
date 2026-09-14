@@ -298,7 +298,7 @@ export async function getTopPaths(days = 30, limit = 8): Promise<TopPathRow[]> {
 }
 
 // Whitelisted event types — anything else is rejected to keep the table clean.
-const ALLOWED_EVENT_TYPES = new Set(['pageview', 'product_view', 'add_to_cart', 'order'])
+const ALLOWED_EVENT_TYPES = new Set(['pageview', 'product_view', 'add_to_cart'])
 
 // Public tracker (called from storefront or other apps via API).
 export async function trackEvent(input: {
@@ -317,12 +317,12 @@ export async function trackEvent(input: {
   const sessionId = typeof input.sessionId === 'string' ? input.sessionId.slice(0, 64) : null
   const referrer = typeof input.referrer === 'string' ? input.referrer.slice(0, 300) : null
   const productId = Number.isInteger(input.productId) ? input.productId : null
-  const orderId = Number.isInteger(input.orderId) ? input.orderId : null
-  const amount = typeof input.amount === 'number' && Number.isFinite(input.amount) ? input.amount : null
+  // Public tracker: never persist client-supplied orderId/amount. Revenue
+  // stats are read from the orders table, not analytics_events.
   await pool.query(
     `INSERT INTO analytics_events (type, path, product_id, order_id, amount, session_id, referrer)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [input.type, path, productId, orderId, amount, sessionId, referrer],
+     VALUES ($1, $2, $3, NULL, NULL, $4, $5)`,
+    [input.type, path, productId, sessionId, referrer],
   )
   // Keep the denormalized per-product view counter in sync for quick sorting.
   if (input.type === 'product_view' && productId) {

@@ -20,21 +20,36 @@ export async function bootstrapAdmin(input: {
   email: string
   password: string
 }) {
-  const total = await countUsers()
-  if (total > 0) return { success: false, error: 'Администратор уже существует' }
-
+  // Serialize first-admin creation. Two parallel calls used to both see
+  // count=0, both sign up, and both get role=admin.
+  const LOCK = 884_201_117
+  const client = await pool.connect()
   try {
-    const auth = await getAuth()
-    await auth.api.signUpEmail({
-      body: { name: input.name, email: input.email, password: input.password },
-    })
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Ошибка создания' }
+    await client.query('SELECT pg_advisory_lock($1)', [LOCK])
+    const counted = await client.query('SELECT COUNT(*)::int AS c FROM "user"')
+    if ((counted.rows[0]?.c ?? 0) > 0) {
+      return { success: false, error: 'Администратор уже существует' }
+    }
+
+    try {
+      const auth = await getAuth()
+      await auth.api.signUpEmail({
+        body: { name: input.name, email: input.email, password: input.password },
+      })
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : 'Ошибка создания' }
+    }
+    await client.query(`UPDATE "user" SET role = 'admin' WHERE email = $1`, [input.email])
+    revalidatePath('/admin/users')
+    return { success: true }
+  } finally {
+    try {
+      await client.query('SELECT pg_advisory_unlock($1)', [LOCK])
+    } catch {
+      /* ignore */
+    }
+    client.release()
   }
-  // Promote to admin.
-  await pool.query(`UPDATE "user" SET role = 'admin' WHERE email = $1`, [input.email])
-  revalidatePath('/admin/users')
-  return { success: true }
 }
 
 export type AdminUserRow = {

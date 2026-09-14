@@ -15,7 +15,12 @@ const COOKIE = 'staff_2fa'
 const MAX_AGE = 60 * 60 * 24 * 14
 
 function cookieSecret(): string {
-  return process.env.BETTER_AUTH_SECRET || 'dev-staff-2fa'
+  const secret = process.env.BETTER_AUTH_SECRET
+  if (secret) return secret
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('BETTER_AUTH_SECRET is required')
+  }
+  return 'dev-staff-2fa'
 }
 
 export async function getStaffTwoFactorState(): Promise<{

@@ -9,6 +9,8 @@ import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { sendMail } from '@/lib/mailer'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { isRateLimited } from '@/lib/api/rate-limit'
+import { headers } from 'next/headers'
 
 // Cart snapshots (name, item names) are visitor-supplied via the public,
 // unauthenticated saveAbandonedCart action below — never trust them as safe
@@ -42,14 +44,18 @@ export async function saveAbandonedCart(input: {
   email?: string
   items: AbandonedCartItem[]
 }): Promise<{ ok: boolean }> {
+  const h = await headers()
+  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  if (isRateLimited('abandoned-cart', ip, 20, 60_000)) return { ok: false }
+
   const token = input.token?.trim()
   // Token must look like our client-generated id — reject junk early.
   if (!token || !/^[a-z0-9-]{16,64}$/i.test(token)) return { ok: false }
   if (!input.items?.length) return { ok: false }
   // Require at least one way to contact the visitor, otherwise the row is useless.
-  const phone = input.phone?.trim() || null
-  const email = input.email?.trim() || null
-  const name = input.name?.trim() || null
+  const phone = input.phone?.trim().slice(0, 32) || null
+  const email = input.email?.trim().slice(0, 255) || null
+  const name = input.name?.trim().slice(0, 120) || null
   if (!phone && !email) return { ok: false }
 
   const items = input.items.slice(0, 50).map((i) => ({
