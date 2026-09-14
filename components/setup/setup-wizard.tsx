@@ -12,6 +12,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
+import { useSetupLocale } from '@/lib/i18n/setup-locale'
+import { fillTemplate } from '@/lib/i18n/dictionaries'
+import type { SetupDictionary } from '@/lib/i18n/setup'
+import { SetupLangSwitch } from '@/components/setup/setup-lang-switch'
 import {
   Store,
   Palette,
@@ -32,20 +36,13 @@ import {
 
 type StepId = 'welcome' | 'db' | 'admin' | 'store' | 'design' | 'seo' | 'finish'
 
-const STEPS: { id: StepId; label: string }[] = [
-  { id: 'welcome', label: 'Начало' },
-  { id: 'db', label: 'База данных' },
-  { id: 'admin', label: 'Администратор' },
-  { id: 'store', label: 'Магазин' },
-  { id: 'design', label: 'Дизайн' },
-  { id: 'seo', label: 'SEO' },
-  { id: 'finish', label: 'Готово' },
-]
+const STEP_IDS: StepId[] = ['welcome', 'db', 'admin', 'store', 'design', 'seo', 'finish']
 
 export function SetupWizard() {
   const router = useRouter()
+  const { locale, t, setLocale } = useSetupLocale()
   const [stepIndex, setStepIndex] = useState(0)
-  const step = STEPS[stepIndex].id
+  const step = STEP_IDS[stepIndex]
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -76,7 +73,7 @@ export function SetupWizard() {
     try {
       setDbStatus(await getDatabaseStatus())
     } catch {
-      setDbStatus({ configured: false, connected: false, schemaReady: false, error: 'Не удалось проверить подключение' })
+      setDbStatus({ configured: false, connected: false, schemaReady: false, error: t.db.checkFailed })
     }
     setDbChecking(false)
   }
@@ -94,19 +91,18 @@ export function SetupWizard() {
   const goNext = () => {
     setError(null)
     if (step === 'db') {
-      if (!dbStatus?.connected || !dbStatus?.schemaReady)
-        return setError('База данных недоступна. Проверьте подключение, прежде чем продолжить.')
+      if (!dbStatus?.connected || !dbStatus?.schemaReady) return setError(t.db.unreachable)
     }
     if (step === 'admin') {
-      if (!name.trim()) return setError('Укажите имя администратора')
-      if (!/^\S+@\S+\.\S+$/.test(email)) return setError('Укажите корректный email')
-      if (password.length < 8) return setError('Пароль должен быть не короче 8 символов')
-      if (password !== confirm) return setError('Пароли не совпадают')
+      if (!name.trim()) return setError(t.admin.nameRequired)
+      if (!/^\S+@\S+\.\S+$/.test(email)) return setError(t.admin.emailInvalid)
+      if (password.length < 8) return setError(t.admin.passwordShort)
+      if (password !== confirm) return setError(t.admin.passwordMismatch)
     }
     if (step === 'store') {
-      if (!storeName.trim()) return setError('Укажите название магазина')
+      if (!storeName.trim()) return setError(t.store.nameRequired)
     }
-    setStepIndex((i) => Math.min(i + 1, STEPS.length - 1))
+    setStepIndex((i) => Math.min(i + 1, STEP_IDS.length - 1))
   }
 
   const goBack = () => {
@@ -135,7 +131,7 @@ export function SetupWizard() {
     })
     if (!res.success) {
       setLoading(false)
-      setError(res.error ?? 'Не удалось выполнить установку')
+      setError(res.error ?? t.nav.setupFailed)
       return
     }
     // Sign the freshly created admin in and enter the admin center.
@@ -153,50 +149,55 @@ export function SetupWizard() {
     router.refresh()
   }
 
+  const metaTitlePlaceholder = storeName
+    ? fillTemplate(t.seo.metaTitleWithName, { name: storeName })
+    : t.seo.metaTitleFallback
+
   return (
-    <main translate="no" className="flex min-h-svh items-center justify-center bg-muted/40 px-4 py-10">
+    <main translate="no" lang={locale} className="flex min-h-svh items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-xl">
-        <Stepper current={stepIndex} />
+        <SetupLangSwitch locale={locale} t={t} onChange={setLocale} />
+        <Stepper current={stepIndex} t={t} />
 
         <Card className="mt-6 p-6 sm:p-8">
           {step === 'welcome' && (
-            <StepShell
-              icon={<Store className="size-6" />}
-              title="Установка магазина"
-              subtitle="Мастер поможет создать администратора и выполнить базовую настройку. Это займёт меньше минуты."
-            >
+            <StepShell icon={<Store className="size-6" />} title={t.welcome.title} subtitle={t.welcome.subtitle}>
               <ul className="mt-2 flex flex-col gap-3 text-sm text-muted-foreground">
-                <FeatureRow icon={<Database className="size-4" />} text="Проверка подключения к базе данных" />
-                <FeatureRow icon={<ShieldCheck className="size-4" />} text="Учётная запись администратора" />
-                <FeatureRow icon={<Store className="size-4" />} text="Название и описание магазина" />
-                <FeatureRow icon={<Truck className="size-4" />} text="Доставка и оплата (Нова Пошта и др.)" />
-                <FeatureRow icon={<Globe className="size-4" />} text="Домен и SEO для Google" />
-                <FeatureRow icon={<Sparkles className="size-4" />} text="Чистая версия или демо-данные" />
+                <FeatureRow icon={<Database className="size-4" />} text={t.welcome.featureDb} />
+                <FeatureRow icon={<ShieldCheck className="size-4" />} text={t.welcome.featureAdmin} />
+                <FeatureRow icon={<Store className="size-4" />} text={t.welcome.featureStore} />
+                <FeatureRow icon={<Truck className="size-4" />} text={t.welcome.featureDelivery} />
+                <FeatureRow icon={<Globe className="size-4" />} text={t.welcome.featureSeo} />
+                <FeatureRow icon={<Sparkles className="size-4" />} text={t.welcome.featureDemo} />
               </ul>
             </StepShell>
           )}
 
           {step === 'db' && (
-            <StepShell
-              icon={<Database className="size-6" />}
-              title="База данных"
-              subtitle="Проверка подключения к PostgreSQL. Скрипт работает на любом хостинге — подключение задаётся переменной DATABASE_URL или на экране настройки БД."
-            >
+            <StepShell icon={<Database className="size-6" />} title={t.db.title} subtitle={t.db.subtitle}>
               <div className="mt-2 flex flex-col gap-3">
                 {dbChecking || !dbStatus ? (
                   <div className="flex items-center gap-3 rounded-lg border border-border p-4 text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
-                    Проверяем подключение к базе данных…
+                    {t.db.checking}
                   </div>
                 ) : (
                   <>
-                    <DbCheckRow ok={dbStatus.configured} label="Параметры подключения заданы" hint="DATABASE_URL найден в окружении" />
-                    <DbCheckRow ok={dbStatus.connected} label="Подключение к базе данных" hint={dbStatus.connected ? 'Сервер PostgreSQL отвечает' : dbStatus.error || 'Нет ответа от сервера'} />
-                    <DbCheckRow ok={dbStatus.schemaReady} label="Схема базы данных" hint={dbStatus.schemaReady ? 'Все таблицы созданы' : 'Таблицы будут созданы автоматически'} />
+                    <DbCheckRow ok={dbStatus.configured} label={t.db.paramsOk} hint={t.db.paramsHint} />
+                    <DbCheckRow
+                      ok={dbStatus.connected}
+                      label={t.db.connected}
+                      hint={dbStatus.connected ? t.db.connectedHint : dbStatus.error || t.db.noReply}
+                    />
+                    <DbCheckRow
+                      ok={dbStatus.schemaReady}
+                      label={t.db.schema}
+                      hint={dbStatus.schemaReady ? t.db.schemaReady : t.db.schemaPending}
+                    />
                     <div className="flex justify-end">
                       <Button variant="outline" size="sm" onClick={checkDb} disabled={dbChecking}>
                         <RefreshCw className="size-4" />
-                        Проверить снова
+                        {t.db.recheck}
                       </Button>
                     </div>
                   </>
@@ -206,14 +207,10 @@ export function SetupWizard() {
           )}
 
           {step === 'admin' && (
-            <StepShell
-              icon={<ShieldCheck className="size-6" />}
-              title="Администратор"
-              subtitle="Создайте учётную запись с полным доступом к админ-центру."
-            >
+            <StepShell icon={<ShieldCheck className="size-6" />} title={t.admin.title} subtitle={t.admin.subtitle}>
               <div className="mt-2 flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="s-name">Имя</Label>
+                  <Label htmlFor="s-name">{t.admin.name}</Label>
                   <Input id="s-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -229,18 +226,18 @@ export function SetupWizard() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="s-password">Пароль</Label>
+                    <Label htmlFor="s-password">{t.admin.password}</Label>
                     <Input
                       id="s-password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       autoComplete="new-password"
-                      placeholder="Минимум 8 символов"
+                      placeholder={t.admin.passwordPlaceholder}
                     />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="s-confirm">Повтор пароля</Label>
+                    <Label htmlFor="s-confirm">{t.admin.confirm}</Label>
                     <Input
                       id="s-confirm"
                       type="password"
@@ -255,63 +252,53 @@ export function SetupWizard() {
           )}
 
           {step === 'store' && (
-            <StepShell
-              icon={<Store className="size-6" />}
-              title="Магазин"
-              subtitle="Основные данные магазина. Всё можно изменить позже в настройках."
-            >
+            <StepShell icon={<Store className="size-6" />} title={t.store.title} subtitle={t.store.subtitle}>
               <div className="mt-2 flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="s-store">Название магазина</Label>
+                  <Label htmlFor="s-store">{t.store.name}</Label>
                   <Input
                     id="s-store"
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    placeholder="Например, Universal Magazine"
+                    placeholder={t.store.namePlaceholder}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="s-desc">Описание</Label>
+                  <Label htmlFor="s-desc">{t.store.description}</Label>
                   <Textarea
                     id="s-desc"
                     value={storeDescription}
                     onChange={(e) => setStoreDescription(e.target.value)}
                     rows={2}
-                    placeholder="Короткое описание магазина"
+                    placeholder={t.store.descriptionPlaceholder}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="s-np">API-ключ Нова Пошта (необязательно)</Label>
+                  <Label htmlFor="s-np">{t.store.npKey}</Label>
                   <Input
                     id="s-np"
                     value={novaPoshtaApiKey}
                     onChange={(e) => setNovaPoshtaApiKey(e.target.value)}
-                    placeholder="Для поиска городов и отделений"
+                    placeholder={t.store.npPlaceholder}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Нужен для выбора отделений при оформлении. Можно добавить позже в разделе «Доставка».
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t.store.npHint}</p>
                 </div>
               </div>
             </StepShell>
           )}
 
           {step === 'design' && (
-            <StepShell
-              icon={<Palette className="size-6" />}
-              title="Дизайн магазина"
-              subtitle="Выберите оформление витрины. Его можно сменить в любой момент в настройках."
-            >
+            <StepShell icon={<Palette className="size-6" />} title={t.design.title} subtitle={t.design.subtitle}>
               <div className="mt-2 grid max-h-[50svh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
-                {TEMPLATES.map((t) => {
-                  const active = templateId === t.id
+                {TEMPLATES.map((tmpl) => {
+                  const active = templateId === tmpl.id
                   return (
                     <button
-                      key={t.id}
+                      key={tmpl.id}
                       type="button"
                       role="radio"
                       aria-checked={active}
-                      onClick={() => setTemplateId(t.id)}
+                      onClick={() => setTemplateId(tmpl.id)}
                       className={
                         'relative flex flex-col gap-2 rounded-xl border-2 p-2 text-left transition-colors ' +
                         (active ? 'border-primary' : 'border-border hover:border-primary/40')
@@ -324,23 +311,23 @@ export function SetupWizard() {
                       )}
                       <div
                         className="flex flex-col gap-1.5 p-2"
-                        style={{ backgroundColor: t.swatches.bg, borderRadius: t.radius }}
+                        style={{ backgroundColor: tmpl.swatches.bg, borderRadius: tmpl.radius }}
                       >
-                        <span className="h-1.5 w-10 rounded-full" style={{ backgroundColor: t.swatches.primary }} />
+                        <span className="h-1.5 w-10 rounded-full" style={{ backgroundColor: tmpl.swatches.primary }} />
                         <div className="grid grid-cols-2 gap-1.5">
                           {[0, 1].map((i) => (
                             <div
                               key={i}
                               className="flex flex-col gap-1 p-1.5"
-                              style={{ backgroundColor: t.swatches.card, borderRadius: t.radius }}
+                              style={{ backgroundColor: tmpl.swatches.card, borderRadius: tmpl.radius }}
                             >
-                              <span className="h-1 w-full rounded-full" style={{ backgroundColor: t.swatches.accent }} />
-                              <span className="h-1 w-2/3 rounded-full" style={{ backgroundColor: t.swatches.primary }} />
+                              <span className="h-1 w-full rounded-full" style={{ backgroundColor: tmpl.swatches.accent }} />
+                              <span className="h-1 w-2/3 rounded-full" style={{ backgroundColor: tmpl.swatches.primary }} />
                             </div>
                           ))}
                         </div>
                       </div>
-                      <span className="text-xs font-medium text-foreground">{t.name}</span>
+                      <span className="text-xs font-medium text-foreground">{tmpl.name}</span>
                     </button>
                   )
                 })}
@@ -349,49 +336,42 @@ export function SetupWizard() {
           )}
 
           {step === 'seo' && (
-            <StepShell
-              icon={<Globe className="size-6" />}
-              title="SEO для Google"
-              subtitle="Данные для поисковых систем. Домен определится автоматически по адресу сайта. Всё можно изменить позже в настройках."
-            >
+            <StepShell icon={<Globe className="size-6" />} title={t.seo.title} subtitle={t.seo.subtitle}>
               <div className="mt-2 flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="s-mtitle">Заголовок для Google (meta title)</Label>
+                  <Label htmlFor="s-mtitle">{t.seo.metaTitle}</Label>
                   <Input
                     id="s-mtitle"
                     value={metaTitle}
                     onChange={(e) => setMetaTitle(e.target.value)}
-                    placeholder={storeName ? `${storeName} — интернет-магазин` : 'Мой магазин — интернет-магазин'}
+                    placeholder={metaTitlePlaceholder}
                     maxLength={70}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="s-mdesc">Описание для Google (meta description)</Label>
+                  <Label htmlFor="s-mdesc">{t.seo.metaDescription}</Label>
                   <Textarea
                     id="s-mdesc"
                     value={metaDescription}
                     onChange={(e) => setMetaDescription(e.target.value)}
                     rows={2}
                     maxLength={170}
-                    placeholder="Короткое описание, которое увидят в результатах поиска"
+                    placeholder={t.seo.metaDescriptionPlaceholder}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="s-gsc">Код подтверждения Google Search Console (необязательно)</Label>
+                  <Label htmlFor="s-gsc">{t.seo.gsc}</Label>
                   <Input
                     id="s-gsc"
                     value={googleVerification}
                     onChange={(e) => setGoogleVerification(e.target.value)}
-                    placeholder="Содержимое meta-тега google-site-verification"
+                    placeholder={t.seo.gscPlaceholder}
                   />
                 </div>
                 <label className="flex cursor-pointer items-start justify-between gap-4 rounded-lg border border-border p-4">
                   <div>
-                    <p className="text-sm font-medium text-foreground">Разрешить индексацию в Google</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Отключите, если сайт ещё не готов к запуску — он будет скрыт из поиска (noindex),
-                      пока вы не включите индексацию в настройках.
-                    </p>
+                    <p className="text-sm font-medium text-foreground">{t.seo.indexing}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{t.seo.indexingHint}</p>
                   </div>
                   <Switch checked={indexingEnabled} onCheckedChange={setIndexingEnabled} />
                 </label>
@@ -400,12 +380,8 @@ export function SetupWizard() {
           )}
 
           {step === 'finish' && (
-            <StepShell
-              icon={<Sparkles className="size-6" />}
-              title="Почти готово"
-              subtitle="Выберите, с чего начать, и завершите установку."
-            >
-              <div className="mt-2 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Вариант установки">
+            <StepShell icon={<Sparkles className="size-6" />} title={t.finish.title} subtitle={t.finish.subtitle}>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t.finish.variantAria}>
                 <button
                   type="button"
                   role="radio"
@@ -421,10 +397,8 @@ export function SetupWizard() {
                   <span className="flex size-8 items-center justify-center rounded-md bg-muted text-foreground">
                     <PackageOpen className="size-4" />
                   </span>
-                  <span className="text-sm font-medium text-foreground">Демо-версия</span>
-                  <span className="text-xs text-muted-foreground">
-                    С примерами товаров, категорий и заказов — сразу видно витрину в работе.
-                  </span>
+                  <span className="text-sm font-medium text-foreground">{t.finish.demoTitle}</span>
+                  <span className="text-xs text-muted-foreground">{t.finish.demoHint}</span>
                 </button>
                 <button
                   type="button"
@@ -441,23 +415,27 @@ export function SetupWizard() {
                   <span className="flex size-8 items-center justify-center rounded-md bg-muted text-foreground">
                     <Package className="size-4" />
                   </span>
-                  <span className="text-sm font-medium text-foreground">Чистая версия</span>
-                  <span className="text-xs text-muted-foreground">
-                    Пустой магазин без демо-данных — для запуска с собственным каталогом.
-                  </span>
+                  <span className="text-sm font-medium text-foreground">{t.finish.cleanTitle}</span>
+                  <span className="text-xs text-muted-foreground">{t.finish.cleanHint}</span>
                 </button>
               </div>
 
               <div className="mt-4 rounded-lg bg-muted/50 p-4 text-sm">
-                <p className="font-medium text-foreground">Проверьте данные</p>
+                <p className="font-medium text-foreground">{t.finish.review}</p>
                 <dl className="mt-2 flex flex-col gap-1 text-muted-foreground">
-                  <Row label="Администратор" value={`${name} (${email})`} />
-                  <Row label="Магазин" value={storeName} />
-                  <Row label="Дизайн" value={TEMPLATES.find((t) => t.id === templateId)?.name ?? templateId} />
-                  <Row label="Домен" value="определится автоматически" />
-                  <Row label="Индексация Google" value={indexingEnabled ? 'включена' : 'выключена'} />
-                  <Row label="Нова Пошта" value={novaPoshtaApiKey ? 'ключ указан' : 'не указан'} />
-                  <Row label="Вариант установки" value={installDemo ? 'демо-версия' : 'чистая версия'} />
+                  <Row label={t.finish.rowAdmin} value={`${name} (${email})`} />
+                  <Row label={t.finish.rowStore} value={storeName} />
+                  <Row label={t.finish.rowDesign} value={TEMPLATES.find((tmpl) => tmpl.id === templateId)?.name ?? templateId} />
+                  <Row label={t.finish.rowDomain} value={t.finish.domainAuto} />
+                  <Row
+                    label={t.finish.rowIndexing}
+                    value={indexingEnabled ? t.finish.indexingOn : t.finish.indexingOff}
+                  />
+                  <Row label={t.finish.rowNp} value={novaPoshtaApiKey ? t.finish.npSet : t.finish.npUnset} />
+                  <Row
+                    label={t.finish.rowVariant}
+                    value={installDemo ? t.finish.variantDemo : t.finish.variantClean}
+                  />
                 </dl>
               </div>
             </StepShell>
@@ -473,7 +451,7 @@ export function SetupWizard() {
             {stepIndex > 0 ? (
               <Button variant="ghost" onClick={goBack} disabled={loading}>
                 <ArrowLeft className="size-4" />
-                Назад
+                {t.nav.back}
               </Button>
             ) : (
               <span />
@@ -481,13 +459,13 @@ export function SetupWizard() {
 
             {step !== 'finish' ? (
               <Button onClick={goNext}>
-                {stepIndex === 0 ? 'Начать' : 'Далее'}
+                {stepIndex === 0 ? t.nav.start : t.nav.next}
                 <ArrowRight className="size-4" />
               </Button>
             ) : (
               <Button onClick={handleFinish} disabled={loading}>
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                Завершить установку
+                {t.nav.complete}
               </Button>
             )}
           </div>
@@ -497,26 +475,21 @@ export function SetupWizard() {
   )
 }
 
-function Stepper({ current }: { current: number }) {
+function Stepper({ current, t }: { current: number; t: SetupDictionary }) {
   return (
     <ol className="flex items-center gap-2">
-      {STEPS.map((s, i) => {
+      {STEP_IDS.map((id, i) => {
         const done = i < current
         const active = i === current
         return (
-          <li key={s.id} className="flex flex-1 flex-col gap-2">
+          <li key={id} className="flex flex-1 flex-col gap-2">
             <div
               className={
-                'h-1.5 rounded-full transition-colors ' +
-                (done || active ? 'bg-primary' : 'bg-border')
+                'h-1.5 rounded-full transition-colors ' + (done || active ? 'bg-primary' : 'bg-border')
               }
             />
-            <span
-              className={
-                'text-xs font-medium ' + (active ? 'text-foreground' : 'text-muted-foreground')
-              }
-            >
-              {s.label}
+            <span className={'text-xs font-medium ' + (active ? 'text-foreground' : 'text-muted-foreground')}>
+              {t.steps[id]}
             </span>
           </li>
         )
@@ -541,9 +514,7 @@ function StepShell({
       <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
         {icon}
       </div>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-foreground text-balance">
-        {title}
-      </h1>
+      <h1 className="mt-4 text-xl font-semibold tracking-tight text-foreground text-balance">{title}</h1>
       <p className="mt-1 text-sm text-muted-foreground text-pretty">{subtitle}</p>
       {children}
     </div>
@@ -553,9 +524,7 @@ function StepShell({
 function FeatureRow({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <li className="flex items-center gap-3">
-      <span className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground">
-        {icon}
-      </span>
+      <span className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground">{icon}</span>
       {text}
     </li>
   )

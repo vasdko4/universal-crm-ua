@@ -9,9 +9,13 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Database, Loader2, Check, RefreshCw, TerminalSquare } from 'lucide-react'
+import { useSetupLocale } from '@/lib/i18n/setup-locale'
+import { SetupLangSwitch } from '@/components/setup/setup-lang-switch'
 
 export function DatabaseSetup() {
   const router = useRouter()
+  const { locale, t, setLocale } = useSetupLocale()
+  const d = t.database
 
   const [mode, setMode] = useState<'fields' | 'url'>('fields')
   const [host, setHost] = useState('localhost')
@@ -39,15 +43,11 @@ export function DatabaseSetup() {
     )
     setSaving(false)
     if (!res.ok) {
-      setError(res.error ?? 'Не удалось сохранить подключение')
+      setError(res.error ?? d.saveFailed)
       return
     }
     setSaved(true)
-    setNotice(
-      res.schemaApplied
-        ? 'Подключение успешно, схема базы данных создана.'
-        : 'Подключение успешно. Схема уже существует.',
-    )
+    setNotice(res.schemaApplied ? d.savedSchema : d.savedExists)
   }
 
   const handleRecheck = async () => {
@@ -59,24 +59,22 @@ export function DatabaseSetup() {
       router.refresh()
       return
     }
-    setError(
-      'Приложение всё ещё использует прежнее подключение. Перезапустите dev-сервер (Ctrl+C, затем «pnpm dev») и нажмите «Проверить подключение».',
-    )
+    setError(d.stillOld)
   }
 
   return (
-    <main translate="no" className="flex min-h-svh items-center justify-center bg-muted/40 px-4 py-10">
+    <main translate="no" lang={locale} className="flex min-h-svh items-center justify-center bg-muted/40 px-4 py-10">
       <div className="w-full max-w-xl">
+        <SetupLangSwitch locale={locale} t={t} onChange={setLocale} />
         <Card className="p-6 sm:p-8">
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Database className="size-6" />
           </div>
-          <h1 className="mt-4 text-xl font-semibold tracking-tight text-foreground text-balance">
-            Подключение к базе данных
-          </h1>
+          <h1 className="mt-4 text-xl font-semibold tracking-tight text-foreground text-balance">{d.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
-            Укажите данные вашей базы PostgreSQL (например, из OSPanel). Настройки сохранятся в файл
-            <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">.env.local</code>.
+            {d.subtitleBefore}
+            <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">.env.local</code>
+            {d.subtitleAfter}
           </p>
 
           {!saved ? (
@@ -92,7 +90,7 @@ export function DatabaseSetup() {
                       : 'text-muted-foreground hover:text-foreground')
                   }
                 >
-                  По полям
+                  {d.byFields}
                 </button>
                 <button
                   type="button"
@@ -104,7 +102,7 @@ export function DatabaseSetup() {
                       : 'text-muted-foreground hover:text-foreground')
                   }
                 >
-                  Строка подключения
+                  {d.byUrl}
                 </button>
               </div>
 
@@ -112,41 +110,62 @@ export function DatabaseSetup() {
                 <div className="mt-4 flex flex-col gap-4">
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="flex flex-col gap-2 sm:col-span-2">
-                      <Label htmlFor="db-host">Хост</Label>
+                      <Label htmlFor="db-host">{d.host}</Label>
                       <Input id="db-host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="localhost" />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="db-port">Порт</Label>
-                      <Input id="db-port" value={port} onChange={(e) => setPort(e.target.value)} placeholder="5432" inputMode="numeric" />
+                      <Label htmlFor="db-port">{d.port}</Label>
+                      <Input
+                        id="db-port"
+                        value={port}
+                        onChange={(e) => setPort(e.target.value)}
+                        placeholder="5432"
+                        inputMode="numeric"
+                      />
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Label htmlFor="db-name">База данных</Label>
-                    <Input id="db-name" value={database} onChange={(e) => setDatabase(e.target.value)} placeholder="magazine" />
+                    <Label htmlFor="db-name">{d.database}</Label>
+                    <Input
+                      id="db-name"
+                      value={database}
+                      onChange={(e) => setDatabase(e.target.value)}
+                      placeholder="magazine"
+                    />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="db-user">Пользователь</Label>
-                      <Input id="db-user" value={user} onChange={(e) => setUser(e.target.value)} placeholder="postgres" autoComplete="off" />
+                      <Label htmlFor="db-user">{d.user}</Label>
+                      <Input
+                        id="db-user"
+                        value={user}
+                        onChange={(e) => setUser(e.target.value)}
+                        placeholder="postgres"
+                        autoComplete="off"
+                      />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="db-pass">Пароль</Label>
-                      <Input id="db-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="off" />
+                      <Label htmlFor="db-pass">{d.password}</Label>
+                      <Input
+                        id="db-pass"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="off"
+                      />
                     </div>
                   </div>
                   <label className="flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-border p-3">
                     <div>
-                      <p className="text-sm font-medium text-foreground">SSL-подключение</p>
-                      <p className="text-xs text-muted-foreground">
-                        Для локальной базы (OSPanel) обычно выключено. Включите для облачных БД.
-                      </p>
+                      <p className="text-sm font-medium text-foreground">{d.ssl}</p>
+                      <p className="text-xs text-muted-foreground">{d.sslHint}</p>
                     </div>
                     <Switch checked={ssl} onCheckedChange={setSsl} />
                   </label>
                 </div>
               ) : (
                 <div className="mt-4 flex flex-col gap-2">
-                  <Label htmlFor="db-url">Строка подключения</Label>
+                  <Label htmlFor="db-url">{d.url}</Label>
                   <Input
                     id="db-url"
                     value={url}
@@ -154,9 +173,7 @@ export function DatabaseSetup() {
                     placeholder="postgresql://user:password@localhost:5432/magazine"
                     autoComplete="off"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Формат: postgresql://пользователь:пароль@хост:порт/база
-                  </p>
+                  <p className="text-xs text-muted-foreground">{d.urlFormat}</p>
                 </div>
               )}
 
@@ -169,7 +186,7 @@ export function DatabaseSetup() {
               <div className="mt-6 flex justify-end">
                 <Button onClick={handleSave} disabled={saving}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                  Проверить и сохранить
+                  {d.save}
                 </Button>
               </div>
             </>
@@ -184,18 +201,13 @@ export function DatabaseSetup() {
               <div className="rounded-lg border border-border p-4 text-sm">
                 <p className="flex items-center gap-2 font-medium text-foreground">
                   <TerminalSquare className="size-4" />
-                  Перезапустите сервер разработки
+                  {d.restartTitle}
                 </p>
-                <p className="mt-2 text-muted-foreground">
-                  Чтобы приложение использовало новое подключение, остановите сервер (Ctrl+C в терминале)
-                  и запустите снова:
-                </p>
+                <p className="mt-2 text-muted-foreground">{d.restartBody}</p>
                 <pre className="mt-2 overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-xs text-foreground">
                   pnpm dev
                 </pre>
-                <p className="mt-2 text-muted-foreground">
-                  Затем нажмите «Проверить подключение», чтобы продолжить установку.
-                </p>
+                <p className="mt-2 text-muted-foreground">{d.restartThen}</p>
               </div>
 
               {error && (
@@ -206,11 +218,11 @@ export function DatabaseSetup() {
 
               <div className="flex items-center justify-between gap-3">
                 <Button variant="ghost" onClick={() => setSaved(false)} disabled={checking}>
-                  Изменить данные
+                  {d.change}
                 </Button>
                 <Button onClick={handleRecheck} disabled={checking}>
                   {checking ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                  Проверить подключение
+                  {d.check}
                 </Button>
               </div>
             </div>

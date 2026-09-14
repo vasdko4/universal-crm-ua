@@ -3,11 +3,14 @@ import { isSetupNeeded } from '@/app/actions/setup'
 import { getDatabaseStatus } from '@/app/actions/db-config'
 import { SetupWizard } from '@/components/setup/setup-wizard'
 import { DatabaseSetup } from '@/components/setup/database-setup'
+import { getLocale } from '@/lib/i18n/server'
+import { getSetupDictionary } from '@/lib/i18n/setup'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Установка магазина',
+export async function generateMetadata() {
+  const locale = await getLocale()
+  return { title: getSetupDictionary(locale).pageTitle }
 }
 
 export default async function SetupPage({
