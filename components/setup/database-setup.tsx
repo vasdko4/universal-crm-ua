@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveDatabaseConfig, getDatabaseStatus } from '@/app/actions/db-config'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,10 @@ export function DatabaseSetup() {
   const router = useRouter()
   const { locale, t, setLocale } = useSetupLocale()
   const d = t.database
+
+  useEffect(() => {
+    document.title = t.pageTitle
+  }, [t.pageTitle])
 
   const [mode, setMode] = useState<'fields' | 'url'>('fields')
   const [host, setHost] = useState('localhost')

@@ -111,6 +111,18 @@ export type SetupDictionary = {
     complete: string
     setupFailed: string
   }
+  errors: {
+    alreadyConfigured: string
+    emailRequired: string
+    alreadyInstalled: string
+    invalidPostgres: string
+    dbNameRequired: string
+    connectFailed: string
+    schemaApplyFailed: string
+    envSaveFailed: string
+  }
+  templates: Record<string, string>
+  storeDefaultName: string
   database: {
     title: string
     subtitleBefore: string
@@ -254,6 +266,31 @@ const uk: SetupDictionary = {
     complete: 'Завершити встановлення',
     setupFailed: 'Не вдалося виконати встановлення',
   },
+  errors: {
+    alreadyConfigured: 'Магазин уже налаштований',
+    emailRequired: 'Вкажіть email',
+    alreadyInstalled:
+      'Встановлення вже виконано. Підключення до БД змінюється через .env.local на сервері.',
+    invalidPostgres: 'Вкажіть коректні дані підключення до PostgreSQL',
+    dbNameRequired: 'Вкажіть назву бази даних',
+    connectFailed: 'Не вдалося підключитися: {{message}}',
+    schemaApplyFailed: 'Підключення успішне, але не вдалося застосувати схему: {{message}}',
+    envSaveFailed: 'Не вдалося зберегти .env.local: {{message}}',
+  },
+  templates: {
+    classic: 'Класичний',
+    warm: 'Теплий',
+    'dark-tech': 'Dark Tech',
+    elegant: 'Елегантний',
+    marketplace: 'Маркетплейс',
+    boutique: 'Бутік',
+    nordic: 'Мінімал',
+    berry: 'Ягідний',
+    ocean: 'Океан',
+    forest: 'Ліс',
+    mint: "М'ята",
+  },
+  storeDefaultName: 'Мій магазин',
   database: {
     title: 'Підключення до бази даних',
     subtitleBefore: 'Вкажіть дані вашої бази PostgreSQL (наприклад, з OSPanel). Налаштування зберігаються у файлі',
@@ -399,6 +436,31 @@ const ru: SetupDictionary = {
     complete: 'Завершить установку',
     setupFailed: 'Не удалось выполнить установку',
   },
+  errors: {
+    alreadyConfigured: 'Магазин уже настроен',
+    emailRequired: 'Укажите email',
+    alreadyInstalled:
+      'Установка уже выполнена. Подключение к БД меняется через .env.local на сервере.',
+    invalidPostgres: 'Укажите корректные данные подключения к PostgreSQL',
+    dbNameRequired: 'Укажите имя базы данных',
+    connectFailed: 'Не удалось подключиться: {{message}}',
+    schemaApplyFailed: 'Подключение успешно, но не удалось применить схему: {{message}}',
+    envSaveFailed: 'Не удалось сохранить .env.local: {{message}}',
+  },
+  templates: {
+    classic: 'Классический',
+    warm: 'Тёплый',
+    'dark-tech': 'Dark Tech',
+    elegant: 'Элегантный',
+    marketplace: 'Маркетплейс',
+    boutique: 'Бутик',
+    nordic: 'Минимал',
+    berry: 'Ягодный',
+    ocean: 'Океан',
+    forest: 'Лес',
+    mint: 'Мята',
+  },
+  storeDefaultName: 'Мой магазин',
   database: {
     title: 'Подключение к базе данных',
     subtitleBefore: 'Укажите данные вашей базы PostgreSQL (например, из OSPanel). Настройки сохраняются в файле',

@@ -9,16 +9,18 @@ import { pool } from '@/lib/db'
 import { revalidateTag } from 'next/cache'
 import { normalizeOrigin } from '@/lib/seo'
 import { TEMPLATES } from '@/lib/shop/templates'
+import { getLocale } from '@/lib/i18n/server'
+import { getSetupDictionary } from '@/lib/i18n/setup'
 
 // Essential operational data every fresh install needs to function: admin/staff
 // roles (permissions live here), plus the default delivery and payment methods.
 // All inserts are idempotent so re-running is safe.
 const SYSTEM_SQL = `
 INSERT INTO "roles" ("code","name","description","permissions","is_system") VALUES
-  ('admin','Администратор','Полный доступ ко всем модулям','["*"]'::jsonb,true),
-  ('manager','Менеджер','Управление заказами, товарами, клиентами','["dashboard","orders","products","customers","reviews"]'::jsonb,true),
-  ('content','Контент-менеджер','Управление контентом и маркетингом','["dashboard","pages","articles","promotions","reviews"]'::jsonb,false),
-  ('customer','Покупатель','Клиент магазина (без доступа в админку)','[]'::jsonb,true)
+  ('admin','Адміністратор','Повний доступ до всіх модулів','["*"]'::jsonb,true),
+  ('manager','Менеджер','Керування замовленнями, товарами, клієнтами','["dashboard","orders","products","customers","reviews"]'::jsonb,true),
+  ('content','Контент-менеджер','Керування контентом і маркетингом','["dashboard","pages","articles","promotions","reviews"]'::jsonb,false),
+  ('customer','Покупець','Клієнт магазину (без доступу в адмінку)','[]'::jsonb,true)
 ON CONFLICT ("code") DO NOTHING;
 
 INSERT INTO "delivery_methods" ("code","name","is_active","is_removable","config","sort_order") VALUES
@@ -27,9 +29,9 @@ INSERT INTO "delivery_methods" ("code","name","is_active","is_removable","config
 ON CONFLICT ("code") DO NOTHING;
 
 INSERT INTO "payment_methods" ("code","name","is_active","config","sort_order") VALUES
-  ('cod','Наложенный платёж',true,'{}'::jsonb,1),
-  ('online','Онлайн оплата (платёжные шлюзы)',true,'{}'::jsonb,2),
-  ('requisites','Оплата по реквизитам',true,'{}'::jsonb,3)
+  ('cod','Накладений платіж',true,'{}'::jsonb,1),
+  ('online','Онлайн-оплата (платіжні шлюзи)',true,'{}'::jsonb,2),
+  ('requisites','Оплата за реквізитами',true,'{}'::jsonb,3)
 ON CONFLICT ("code") DO NOTHING;
 
 INSERT INTO "payment_gateways" ("code","name","is_active","is_test_mode","config","sort_order") VALUES
@@ -105,17 +107,19 @@ async function detectSiteUrl(): Promise<string> {
 }
 
 export async function runSetup(input: SetupInput) {
+  const t = getSetupDictionary(await getLocale())
+
   // Hard guard: setup can only run on a fresh install with no users.
   const needed = await isSetupNeeded()
   if (!needed) {
-    return { success: false as const, error: 'Магазин уже настроен' }
+    return { success: false as const, error: t.errors.alreadyConfigured }
   }
 
   const email = input.admin.email.trim().toLowerCase()
-  if (!input.admin.name.trim()) return { success: false as const, error: 'Укажите имя администратора' }
-  if (!email) return { success: false as const, error: 'Укажите email' }
+  if (!input.admin.name.trim()) return { success: false as const, error: t.admin.nameRequired }
+  if (!email) return { success: false as const, error: t.errors.emailRequired }
   if (input.admin.password.length < 8)
-    return { success: false as const, error: 'Пароль должен быть не короче 8 символов' }
+    return { success: false as const, error: t.admin.passwordShort }
 
   try {
     // 1) Seed essential system data (roles / delivery / payment).
@@ -164,7 +168,7 @@ export async function runSetup(input: SetupInput) {
          "seo" = EXCLUDED."seo",
          "updated_at" = now()`,
       [
-        input.store.name.trim() || 'Мой магазин',
+        input.store.name.trim() || t.storeDefaultName,
         input.store.description.trim() || null,
         templateId,
         seoJson,
@@ -184,7 +188,7 @@ export async function runSetup(input: SetupInput) {
   } catch (e) {
     return {
       success: false as const,
-      error: e instanceof Error ? e.message : 'Не удалось выполнить установку',
+      error: e instanceof Error ? e.message : t.nav.setupFailed,
     }
   }
 }

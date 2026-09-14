@@ -10,6 +10,9 @@ import {
   saveDatabaseUrl,
   sslForConnectionString,
 } from '@/lib/db/config'
+import { getLocale } from '@/lib/i18n/server'
+import { getSetupDictionary } from '@/lib/i18n/setup'
+import { fillTemplate } from '@/lib/i18n/dictionaries'
 
 export type DatabaseStatus = {
   configured: boolean
@@ -51,6 +54,8 @@ export type SaveDatabaseResult = {
  * pool bind to the new connection.
  */
 export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<SaveDatabaseResult> {
+  const t = getSetupDictionary(await getLocale()).errors
+
   // SECURITY: this action rewrites DATABASE_URL on disk. Allow it only while
   // the app is genuinely unconfigured (no working DB / empty schema / no
   // users). Once the store is installed, changing the DB requires editing
@@ -61,7 +66,7 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
               COALESCE((SELECT COUNT(*) FROM "user"), 0)::int AS users`,
     )
     if (guard.rows[0]?.has_schema && guard.rows[0]?.users > 0) {
-      return { ok: false, error: 'Установка уже выполнена. Подключение к БД меняется через .env.local на сервере.' }
+      return { ok: false, error: t.alreadyInstalled }
     }
   } catch {
     // Current pool is broken/unconfigured — that's exactly the state where
@@ -81,10 +86,10 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
         })
 
   if (!url || !/^postgres(ql)?:\/\//.test(url)) {
-    return { ok: false, error: 'Укажите корректные данные подключения к PostgreSQL' }
+    return { ok: false, error: t.invalidPostgres }
   }
   if (input.mode === 'fields' && !input.database.trim()) {
-    return { ok: false, error: 'Укажите имя базы данных' }
+    return { ok: false, error: t.dbNameRequired }
   }
 
   const client = new Client({ connectionString: url, ssl: sslForConnectionString(url) })
@@ -93,7 +98,7 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
     await client.query('SELECT 1')
   } catch (e) {
     await client.end().catch(() => {})
-    return { ok: false, error: `Не удалось подключиться: ${(e as Error).message}` }
+    return { ok: false, error: fillTemplate(t.connectFailed, { message: (e as Error).message }) }
   }
 
   let schemaApplied = false
@@ -107,7 +112,7 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
       }
     }
   } catch (e) {
-    return { ok: false, error: `Подключение успешно, но не удалось применить схему: ${(e as Error).message}` }
+    return { ok: false, error: fillTemplate(t.schemaApplyFailed, { message: (e as Error).message }) }
   } finally {
     await client.end().catch(() => {})
   }
@@ -115,7 +120,7 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
   try {
     saveDatabaseUrl(url)
   } catch (e) {
-    return { ok: false, error: `Не удалось сохранить .env.local: ${(e as Error).message}` }
+    return { ok: false, error: fillTemplate(t.envSaveFailed, { message: (e as Error).message }) }
   }
 
   return { ok: true, schemaApplied }

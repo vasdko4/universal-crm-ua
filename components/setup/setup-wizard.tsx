@@ -68,6 +68,10 @@ export function SetupWizard() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    document.title = t.pageTitle
+  }, [t.pageTitle])
+
   const checkDb = async () => {
     setDbChecking(true)
     try {
@@ -327,7 +331,9 @@ export function SetupWizard() {
                           ))}
                         </div>
                       </div>
-                      <span className="text-xs font-medium text-foreground">{tmpl.name}</span>
+                      <span className="text-xs font-medium text-foreground">
+                        {t.templates[tmpl.id] ?? tmpl.name}
+                      </span>
                     </button>
                   )
                 })}
@@ -425,7 +431,10 @@ export function SetupWizard() {
                 <dl className="mt-2 flex flex-col gap-1 text-muted-foreground">
                   <Row label={t.finish.rowAdmin} value={`${name} (${email})`} />
                   <Row label={t.finish.rowStore} value={storeName} />
-                  <Row label={t.finish.rowDesign} value={TEMPLATES.find((tmpl) => tmpl.id === templateId)?.name ?? templateId} />
+                  <Row
+                    label={t.finish.rowDesign}
+                    value={t.templates[templateId] ?? TEMPLATES.find((tmpl) => tmpl.id === templateId)?.name ?? templateId}
+                  />
                   <Row label={t.finish.rowDomain} value={t.finish.domainAuto} />
                   <Row
                     label={t.finish.rowIndexing}
