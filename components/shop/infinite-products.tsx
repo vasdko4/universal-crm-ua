@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ProductCard } from '@/components/shop/product-card'
 import { loadMoreProducts } from '@/app/actions/catalog'
 import type { ShopProduct, CatalogParams } from '@/lib/shop/queries'
+import { useI18n } from '@/lib/i18n/client'
 
 /**
  * Renders a product grid with a "Show more" button. The first page is rendered
@@ -25,6 +26,7 @@ export function InfiniteProducts({
   // Query params WITHOUT `page` — the component manages paging internally.
   params: CatalogParams
 }) {
+  const { dict } = useI18n()
   const perPage = params.perPage ?? 24
   const [items, setItems] = useState<ShopProduct[]>(initialItems)
   const [page, setPage] = useState(1)
@@ -32,7 +34,7 @@ export function InfiniteProducts({
   const [done, setDone] = useState(initialItems.length >= total)
   const busyRef = useRef(false)
 
-  const label = params.locale === 'ru' ? 'Показать ещё' : 'Показати ще'
+  const label = dict.common.showMore
 
   const loadMore = useCallback(async () => {
     if (busyRef.current || done) return

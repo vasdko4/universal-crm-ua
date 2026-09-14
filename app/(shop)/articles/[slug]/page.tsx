@@ -75,7 +75,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
   const tags = rawTags.map((tag) => dict.articles.tagNames[tag] ?? tag)
 
   const publishedIso = article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined
-  const storeName = settings?.storeName || 'Интернет-магазин электроники'
+  const storeName = settings?.storeName?.trim() || 'Мій магазин'
   // Resolve the site origin once (admin SEO settings take priority over env
   // vars) so canonical links, JSON-LD and OG data all agree on the same
   // domain — important right after a fresh install under a custom domain.
