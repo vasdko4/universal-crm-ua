@@ -122,4 +122,8 @@ test('demo admin can open the storefront cabinet', async ({ page }) => {
   await expect(ordersNav).toBeVisible()
   await ordersNav.click()
   await expect(page.getByRole('heading', { level: 2 })).toContainText(/замовлен/i)
+  await page.locator('nav').getByRole('link', { name: 'Мої адреси' }).click()
+  await expect(page.getByRole('heading', { level: 2 })).toContainText(/адрес/i)
+  await page.locator('nav').getByRole('link', { name: 'Промокоди' }).click()
+  await expect(page.getByRole('heading', { level: 2 })).toContainText(/промокод/i)
 })

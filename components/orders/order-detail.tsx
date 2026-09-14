@@ -47,14 +47,15 @@ import type { Order, OrderItem, OrderHistoryEntry } from '@/lib/db/schema'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { OrderReceiptSection } from '@/components/orders/order-receipt-section'
 
-function money(v: string | number) {
+function money(v: string | number, locale: string = 'uk') {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
-  return new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 }).format(n) + ' ₴'
+  const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return new Intl.NumberFormat(tag, { maximumFractionDigits: 2 }).format(n) + ' ₴'
 }
 
-function formatDate(d: Date | null) {
+function formatDate(d: Date | null, locale: string = 'uk') {
   if (!d) return '—'
-  return new Date(d).toLocaleString('uk-UA', {
+  return new Date(d).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -212,7 +213,7 @@ export function OrderDetail({
           </Button>
           <div>
             <h1 className="text-lg font-semibold text-foreground">{t.orderNumber}{order.orderNumber}</h1>
-            <p className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</p>
+            <p className="text-xs text-muted-foreground">{formatDate(order.createdAt, locale)}</p>
           </div>
           <StatusBadge status={order.status} />
         </div>
@@ -275,10 +276,10 @@ export function OrderDetail({
                     ) : null}
                     <p className="text-xs text-muted-foreground">
                       {item.sku ? `${t.sku}: ${item.sku} · ` : ''}
-                      {money(item.price)} × {item.quantity} {t.units}
+                      {money(item.price, locale)} × {item.quantity} {t.units}
                     </p>
                   </div>
-                  <p className="text-sm font-semibold text-foreground">{money(item.total)}</p>
+                  <p className="text-sm font-semibold text-foreground">{money(item.total, locale)}</p>
                 </div>
               ))}
             </div>
@@ -448,7 +449,7 @@ export function OrderDetail({
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.cost}</span>
-                <span className="text-foreground">{money(order.deliveryCost)}</span>
+                <span className="text-foreground">{money(order.deliveryCost, locale)}</span>
               </div>
               <div className="mt-2 flex items-end gap-2 border-t border-border pt-3">
                 <div className="flex-1">
@@ -501,7 +502,7 @@ export function OrderDetail({
                   <div className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(h.createdAt)}
+                      {formatDate(h.createdAt, locale)}
                       {h.actor ? ` · ${h.actor}` : ''}
                     </p>
                     <p className="text-sm text-foreground">{h.message}</p>
@@ -519,23 +520,23 @@ export function OrderDetail({
             <div className="mt-3 flex flex-col gap-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{order.itemsCount} {t.itemsCountLabel}</span>
-                <span className="text-foreground">{money(order.itemsTotal)}</span>
+                <span className="text-foreground">{money(order.itemsTotal, locale)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.delivery}</span>
-                <span className="text-foreground">{money(order.deliveryCost)}</span>
+                <span className="text-foreground">{money(order.deliveryCost, locale)}</span>
               </div>
               {Number(order.discountTotal) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
                     {t.discount}{order.promoCode ? ` (${order.promoCode})` : ''}
                   </span>
-                  <span className="text-primary">−{money(order.discountTotal)}</span>
+                  <span className="text-primary">−{money(order.discountTotal, locale)}</span>
                 </div>
               )}
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold">
                 <span className="text-foreground">{t.toPay}</span>
-                <span className="text-primary">{money(order.total)}</span>
+                <span className="text-primary">{money(order.total, locale)}</span>
               </div>
             </div>
           </section>

@@ -93,7 +93,7 @@ function escHtml(s: string): string {
 /** Plain-text version for the admin alert email. */
 function buildAdminOrderText(order: Order, items: OrderItem[], siteUrl: string): string {
   const lines = items
-    .map((i) => `• ${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''} — ${i.quantity} шт. × ${money(i.price, order.currency)}`)
+    .map((i) => `• ${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''} — ${i.quantity} шт. × ${money(i.price, order.currency, 'uk')}`)
     .join('\n')
   const delivery = [
     order.deliveryMethod ? CARRIER_LABELS[order.deliveryMethod] : null,
@@ -113,7 +113,7 @@ function buildAdminOrderText(order: Order, items: OrderItem[], siteUrl: string):
 Товары:
 ${lines}
 
-Итого: ${money(order.total, order.currency)}
+Итого: ${money(order.total, order.currency, 'uk')}
 Оплата: ${PAYMENT_LABELS[order.paymentMethod ?? ''] ?? order.paymentMethod ?? '—'} (${paid})${delivery ? `\nДоставка: ${delivery}` : ''}${order.note ? `\nКомментарий: ${order.note}` : ''}${link}`
 }
 
@@ -134,7 +134,7 @@ export function buildAdminOrderTelegramHtml(
         siteUrl && i.productId
           ? `<a href="${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}">${name}</a>`
           : `<b>${name}</b>`
-      return `▪️ ${label}\n      ${i.quantity} шт. × ${money(i.price, order.currency)}`
+      return `▪️ ${label}\n      ${i.quantity} шт. × ${money(i.price, order.currency, 'uk')}`
     })
     .join('\n')
   const delivery = [
@@ -156,7 +156,7 @@ export function buildAdminOrderTelegramHtml(
   ]
   if (order.customerEmail) parts.push(`✉️ ${escHtml(order.customerEmail)}`)
   parts.push('', `📦 <b>Товары (${items.length}):</b>`, lines, '')
-  parts.push(`💰 <b>Итого: ${money(order.total, order.currency)}</b>`)
+  parts.push(`💰 <b>Итого: ${money(order.total, order.currency, 'uk')}</b>`)
   parts.push(`💳 ${escHtml(payLabel)} — ${paidBadge}`)
   if (delivery) parts.push(`🚚 ${escHtml(delivery)}`)
   if (order.note && !order.note.startsWith('Реквизиты для оплаты:'))
@@ -230,7 +230,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
       jobs.push(
         sendMail({
           to: adminTo,
-          subject: `Новый заказ №${o.orderNumber} — ${money(o.total, o.currency)}`,
+          subject: `Новый заказ №${o.orderNumber} — ${money(o.total, o.currency, 'uk')}`,
           text,
         }).catch((e) => console.log('[v0] admin email failed:', (e as Error).message)),
       )

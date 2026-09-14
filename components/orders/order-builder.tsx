@@ -55,13 +55,14 @@ type ProductResult = {
   variantLabel?: string | null
 }
 
-function money(n: number) {
-  return new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 }).format(n) + ' ₴'
+function money(n: number, locale: string = 'uk') {
+  const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return new Intl.NumberFormat(tag, { maximumFractionDigits: 2 }).format(n) + ' ₴'
 }
 
 export function OrderBuilder() {
   const router = useRouter()
-  const { dict } = useAdminI18n()
+  const { dict, locale } = useAdminI18n()
   const t = dict.orders
   const [isPending, startTransition] = useTransition()
 
@@ -225,7 +226,7 @@ export function OrderBuilder() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {money(item.price)}
+                        {money(item.price, locale)}
                         {item.sku ? ` · ${item.sku}` : ''}
                         {item.stock !== undefined ? ` · ${t.stockLabel}: ${item.stock}` : ''}
                       </p>
@@ -240,7 +241,7 @@ export function OrderBuilder() {
                       </Button>
                     </div>
                     <p className="w-24 text-right text-sm font-medium text-foreground">
-                      {money(item.price * item.quantity)}
+                      {money(item.price * item.quantity, locale)}
                     </p>
                     <Button variant="ghost" size="icon" className="size-7 text-destructive" onClick={() => removeItem(idx)}>
                       <Trash2 className="size-4" />
@@ -323,15 +324,15 @@ export function OrderBuilder() {
             <div className="mt-3 flex flex-col gap-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.itemsInOrder} ({itemsCount})</span>
-                <span className="text-foreground">{money(itemsTotal)}</span>
+                <span className="text-foreground">{money(itemsTotal, locale)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.delivery}</span>
-                <span className="text-foreground">{money(Number.parseFloat(deliveryCost) || 0)}</span>
+                <span className="text-foreground">{money(Number.parseFloat(deliveryCost) || 0, locale)}</span>
               </div>
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-semibold">
                 <span className="text-foreground">{t.toPay}</span>
-                <span className="text-primary">{money(total)}</span>
+                <span className="text-primary">{money(total, locale)}</span>
               </div>
             </div>
           </section>
@@ -418,7 +419,7 @@ export function OrderBuilder() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {money(Number.parseFloat(p.price))} · {t.stockLabel}: {p.quantity}
+                      {money(Number.parseFloat(p.price), locale)} · {t.stockLabel}: {p.quantity}
                     </p>
                   </div>
                   <Plus className="size-4 text-primary" />

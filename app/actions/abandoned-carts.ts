@@ -134,43 +134,74 @@ export async function sendCartReminder(id: number): Promise<{ success: boolean; 
   const settings = await getStoreSettingsInternal()
   const siteUrl = (settings.seo?.siteUrl || '').replace(/\/$/, '')
   const items = (cart.items as AbandonedCartItem[]) ?? []
-  const lines = items.map((i) => `• ${i.name} — ${i.quantity} шт.`).join('\n')
-  const total = Number(cart.itemsTotal).toLocaleString('uk-UA').replace(/\u00a0/g, ' ')
+  const loc = settings.defaultLocale === 'ru' ? 'ru' : 'uk'
+  const tag = loc === 'ru' ? 'ru-RU' : 'uk-UA'
+  const lines = items.map((i) => `• ${i.name} — ${i.quantity} ${loc === 'ru' ? 'шт.' : 'шт.'}`).join('\n')
+  const total = Number(cart.itemsTotal).toLocaleString(tag).replace(/\u00a0/g, ' ')
+  const copy = loc === 'ru'
+    ? {
+        hello: 'Здравствуйте',
+        left: 'Вы оставили товары в корзине магазина',
+        sum: 'Сумма',
+        wait: 'Товары ждут вас — количество на складе ограничено.',
+        back: 'Вернуться к покупкам',
+        regards: 'С уважением',
+        htmlTitle: 'Вы забыли товары в корзине',
+        htmlWait: 'вас ждут',
+        htmlCta: 'Вернуться в корзину',
+        htmlStock: 'Количество товаров на складе ограничено.',
+        subject: 'Вы забыли товары в корзине',
+        qty: 'шт.',
+      }
+    : {
+        hello: 'Вітаємо',
+        left: 'Ви залишили товари в кошику магазину',
+        sum: 'Сума',
+        wait: 'Товари чекають на вас — кількість на складі обмежена.',
+        back: 'Повернутися до покупок',
+        regards: 'З повагою',
+        htmlTitle: 'Ви забули товари в кошику',
+        htmlWait: 'на вас чекають',
+        htmlCta: 'Повернутися в кошик',
+        htmlStock: 'Кількість товарів на складі обмежена.',
+        subject: 'Ви забули товари в кошику',
+        qty: 'шт.',
+      }
 
-  const text = `Здравствуйте${cart.customerName ? `, ${cart.customerName}` : ''}!
+  const text = `${copy.hello}${cart.customerName ? `, ${cart.customerName}` : ''}!
 
-Вы оставили товары в корзине магазина «${settings.storeName}»:
+${copy.left} «${settings.storeName}»:
 
 ${lines}
 
-Сумма: ${total} ₴
+${copy.sum}: ${total} ₴
 
-Товары ждут вас — количество на складе ограничено.${siteUrl ? `\nВернуться к покупкам: ${siteUrl}/cart` : ''}
+${copy.wait}${siteUrl ? `\n${copy.back}: ${siteUrl}/cart` : ''}
 
-С уважением, ${settings.storeName}`
+${copy.regards}, ${settings.storeName}`
 
   const html = `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;color:#1e293b">
-  <h2 style="margin:0 0 8px">Вы забыли товары в корзине</h2>
-  <p>Здравствуйте${cart.customerName ? `, ${esc(cart.customerName)}` : ''}!</p>
-  <p>В магазине «${esc(settings.storeName)}» вас ждут:</p>
+  <h2 style="margin:0 0 8px">${copy.htmlTitle}</h2>
+  <p>${copy.hello}${cart.customerName ? `, ${esc(cart.customerName)}` : ''}!</p>
+  <p>${loc === 'ru' ? 'В магазине' : 'У магазині'} «${esc(settings.storeName)}» ${copy.htmlWait}:</p>
   <table style="width:100%;border-collapse:collapse;margin:16px 0">
     ${items
       .map(
         (i) => `<tr style="border-bottom:1px solid #e2e8f0">
       <td style="padding:8px 0">${esc(i.name)}</td>
-      <td style="padding:8px 0;text-align:right;white-space:nowrap">${i.quantity} шт.</td>
+      <td style="padding:8px 0;text-align:right;white-space:nowrap">${i.quantity} ${copy.qty}</td>
     </tr>`,
       )
       .join('')}
   </table>
-  <p style="font-size:18px">Сумма: <strong>${total} ₴</strong></p>
-  ${siteUrl ? `<p><a href="${siteUrl}/cart" style="display:inline-block;background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">Вернуться в корзину</a></p>` : ''}
-  <p style="color:#64748b;font-size:13px;margin-top:16px">Количество товаров на складе ограничено.</p>
+  <p style="font-size:18px">${copy.sum}: <strong>${total} ₴</strong></p>
+  ${siteUrl ? `<p><a href="${siteUrl}/cart" style="display:inline-block;background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">${copy.htmlCta}</a></p>` : ''}
+  <p style="color:#64748b;font-size:13px;margin-top:16px">${copy.htmlStock}</p>
 </div>`
 
   const result = await sendMail({
     to: cart.customerEmail,
-    subject: `Вы забыли товары в корзине — ${settings.storeName}`,
+    subject: `${copy.subject} — ${settings.storeName}`,
     text,
     html,
   })

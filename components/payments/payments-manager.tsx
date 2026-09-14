@@ -79,8 +79,9 @@ function statusMeta(t: AdminDictionary, status: string): { label: string; classN
   return map[status] ?? map.created
 }
 
-function money(v: string | number, currency: string) {
-  return `${Number(v).toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+function money(v: string | number, currency: string, locale: string = 'uk') {
+  const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return `${Number(v).toLocaleString(tag, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
 }
 
 const emptyForm = {
@@ -102,7 +103,7 @@ export function PaymentsManager({
   payments: Payment[]
   methods: PaymentMethod[]
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, locale } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [createOpen, setCreateOpen] = useState(false)
@@ -238,13 +239,13 @@ export function PaymentsManager({
             <StatCard
               icon={CheckCircle2}
               label={t.payments.statPaid}
-              value={money(stats.paid, 'UAH')}
+              value={money(stats.paid, 'UAH', locale)}
               accent="success"
             />
             <StatCard
               icon={Undo2}
               label={t.payments.statRefunded}
-              value={money(stats.refunded, 'UAH')}
+              value={money(stats.refunded, 'UAH', locale)}
               accent="primary"
             />
             <StatCard icon={Clock} label={t.payments.statPending} value={String(stats.pending)} accent="warning" />
@@ -306,10 +307,10 @@ export function PaymentsManager({
                           <span className="text-sm">{gatewayName(p.gatewayCode)}</span>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          <p className="font-medium">{money(p.amount, p.currency)}</p>
+                          <p className="font-medium">{money(p.amount, p.currency, locale)}</p>
                           {refunded > 0 && (
                             <p className="text-xs text-muted-foreground">
-                              {t.payments.refundedPrefix} {money(refunded, p.currency)}
+                              {t.payments.refundedPrefix} {money(refunded, p.currency, locale)}
                             </p>
                           )}
                         </TableCell>
@@ -512,8 +513,8 @@ export function PaymentsManager({
               {refunding && (
                 <>
                   {t.payments.refundDialogDescPrefix} {refunding.orderReference} —{' '}
-                  {money(refunding.amount, refunding.currency)}. {t.payments.refundDialogAlreadyRefunded}{' '}
-                  {money(refunding.refundedAmount, refunding.currency)}.
+                  {money(refunding.amount, refunding.currency, locale)}. {t.payments.refundDialogAlreadyRefunded}{' '}
+                  {money(refunding.refundedAmount, refunding.currency, locale)}.
                 </>
               )}
             </DialogDescription>

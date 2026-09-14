@@ -30,14 +30,15 @@ import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 type Stats = { total: number; new: number; active: number; revenue: number }
 
-function money(v: string | number) {
+function money(v: string | number, locale: string = 'uk') {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
-  return new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format(n) + ' ₴'
+  const tag = locale === 'ru' ? 'ru-RU' : 'uk-UA'
+  return new Intl.NumberFormat(tag, { maximumFractionDigits: 0 }).format(n) + ' ₴'
 }
 
-function formatDate(d: Date | null) {
+function formatDate(d: Date | null, locale: string = 'uk') {
   if (!d) return '—'
-  return new Date(d).toLocaleString('uk-UA', {
+  return new Date(d).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -111,7 +112,7 @@ export function OrdersList({
     { label: t.statTotal, value: stats.total, icon: ShoppingCart },
     { label: t.statNew, value: stats.new, icon: Package },
     { label: t.statActive, value: stats.active, icon: Truck },
-    { label: t.statRevenue, value: money(stats.revenue), icon: TrendingUp },
+    { label: t.statRevenue, value: money(stats.revenue, locale), icon: TrendingUp },
   ]
 
   return (
@@ -264,9 +265,9 @@ export function OrdersList({
                   <Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">
                     №{o.orderNumber}
                   </Link>
-                  <p className="text-xs text-muted-foreground">{formatDate(o.createdAt)}</p>
+                  <p className="text-xs text-muted-foreground">{formatDate(o.createdAt, locale)}</p>
                   <p className="mt-1 text-sm text-foreground">
-                    {money(o.total)} · {o.itemsCount} {t.units}
+                    {money(o.total, locale)} · {o.itemsCount} {t.units}
                   </p>
                 </div>
 
