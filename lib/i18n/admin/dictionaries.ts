@@ -1339,6 +1339,16 @@ export type AdminDictionary = {
     passwordHint: string
     usersCount: string
     rolesCount: string
+    adminAlreadyExists: string
+    createFailed: string
+    insufficientRights: string
+    twoFactorRequired: string
+    cannotDemoteSelf: string
+    cannotDeactivateSelf: string
+    cannotDeleteSelf: string
+    roleSaveFailed: string
+    cannotDeleteSystemRole: string
+    roleInUse: string
   }
   articles: {
     title: string
@@ -3067,6 +3077,16 @@ const uk: AdminDictionary = {
     passwordHint: 'Мінімум 8 символів',
     usersCount: 'користувачів',
     rolesCount: 'ролей',
+    adminAlreadyExists: 'Адміністратор уже існує',
+    createFailed: 'Помилка створення',
+    insufficientRights: 'Недостатньо прав',
+    twoFactorRequired: 'Потрібен код 2FA',
+    cannotDemoteSelf: 'Не можна позбавити самого себе прав адміністратора',
+    cannotDeactivateSelf: 'Не можна деактивувати самого себе',
+    cannotDeleteSelf: 'Не можна видалити самого себе',
+    roleSaveFailed: 'Помилка збереження ролі',
+    cannotDeleteSystemRole: 'Системну роль не можна видалити',
+    roleInUse: 'Роль призначена користувачам',
   },
   articles: {
     title: 'Статті та блог',
@@ -4800,6 +4820,16 @@ const ru: AdminDictionary = {
     passwordHint: 'Минимум 8 символов',
     usersCount: 'пользователей',
     rolesCount: 'ролей',
+    adminAlreadyExists: 'Администратор уже существует',
+    createFailed: 'Ошибка создания',
+    insufficientRights: 'Недостаточно прав',
+    twoFactorRequired: 'Нужен код 2FA',
+    cannotDemoteSelf: 'Нельзя лишить самого себя прав администратора',
+    cannotDeactivateSelf: 'Нельзя деактивировать самого себя',
+    cannotDeleteSelf: 'Нельзя удалить самого себя',
+    roleSaveFailed: 'Ошибка сохранения роли',
+    cannotDeleteSystemRole: 'Системную роль нельзя удалить',
+    roleInUse: 'Роль назначена пользователям',
   },
   articles: {
     title: 'Статьи и блог',

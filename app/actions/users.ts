@@ -8,6 +8,7 @@ import { roles } from '@/lib/db/schema'
 import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { getLocale } from '@/lib/i18n/server'
 
 async function countUsers(): Promise<number> {
   const res = await pool.query('SELECT COUNT(*)::int AS c FROM "user"')
@@ -28,7 +29,8 @@ export async function bootstrapAdmin(input: {
     await client.query('SELECT pg_advisory_lock($1)', [LOCK])
     const counted = await client.query('SELECT COUNT(*)::int AS c FROM "user"')
     if ((counted.rows[0]?.c ?? 0) > 0) {
-      return { success: false, error: 'Администратор уже существует' }
+      const e = getAdminDictionary(await getLocale()).users
+      return { success: false, error: e.adminAlreadyExists }
     }
 
     try {
@@ -37,7 +39,8 @@ export async function bootstrapAdmin(input: {
         body: { name: input.name, email: input.email, password: input.password },
       })
     } catch (e) {
-      return { success: false, error: e instanceof Error ? e.message : 'Ошибка создания' }
+      const dict = getAdminDictionary(await getLocale()).users
+      return { success: false, error: e instanceof Error ? e.message : dict.createFailed }
     }
     await client.query(`UPDATE "user" SET role = 'admin' WHERE email = $1`, [input.email])
     revalidatePath('/admin/users')
@@ -80,11 +83,12 @@ export async function listUsers(): Promise<AdminUserRow[]> {
 
 async function requireAdminGuard() {
   const me = await getAdminUser()
+  const e = getAdminDictionary(me?.locale ?? (await getLocale())).users
   if (!me || !me.permissions.includes('*')) {
-    throw new Error('Недостаточно прав')
+    throw new Error(e.insufficientRights)
   }
   if (!(await staffTwoFactorSatisfied(me.id))) {
-    throw new Error('Потрібен код 2FA')
+    throw new Error(e.twoFactorRequired)
   }
   return me
 }
@@ -103,7 +107,8 @@ export async function createUser(input: {
       body: { name: input.name, email: input.email, password: input.password },
     })
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Ошибка создания' }
+    const dict = getAdminDictionary(me.locale).users
+    return { success: false, error: e instanceof Error ? e.message : dict.createFailed }
   }
   await pool.query(`UPDATE "user" SET role = $1 WHERE email = $2`, [input.role, input.email])
   void auditLog({
@@ -126,7 +131,7 @@ export async function updateUserRole(userId: string, role: string) {
     const [newRole] = await db.select().from(roles).where(eq(roles.code, role)).limit(1)
     const newPermissions = (newRole?.permissions as string[] | null) ?? []
     if (!newPermissions.includes('*')) {
-      return { success: false, error: 'Нельзя лишить самого себя прав администратора' }
+      return { success: false, error: getAdminDictionary(me.locale).users.cannotDemoteSelf }
     }
   }
   await pool.query(`UPDATE "user" SET role = $1, "updatedAt" = NOW() WHERE id = $2`, [role, userId])
@@ -142,7 +147,7 @@ export async function updateUserRole(userId: string, role: string) {
 export async function setUserActive(userId: string, isActive: boolean) {
   const me = await requireAdminGuard()
   if (me.id === userId && !isActive) {
-    return { success: false, error: 'Нельзя деактивировать самого себя' }
+    return { success: false, error: getAdminDictionary(me.locale).users.cannotDeactivateSelf }
   }
   await pool.query(`UPDATE "user" SET is_active = $1, "updatedAt" = NOW() WHERE id = $2`, [
     isActive,
@@ -161,7 +166,7 @@ export async function setUserActive(userId: string, isActive: boolean) {
 
 export async function deleteUser(userId: string) {
   const me = await requireAdminGuard()
-  if (me.id === userId) return { success: false, error: 'Нельзя удалить самого себя' }
+  if (me.id === userId) return { success: false, error: getAdminDictionary(me.locale).users.cannotDeleteSelf }
   await pool.query(`DELETE FROM "user" WHERE id = $1`, [userId])
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
@@ -222,19 +227,20 @@ export async function saveRole(input: {
   revalidatePath('/admin/users')
   return { success: true as const, error: undefined as string | undefined }
   } catch (e) {
-    return { success: false as const, error: e instanceof Error ? e.message : 'Ошибка сохранения роли' }
+    const dict = getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users
+    return { success: false as const, error: e instanceof Error ? e.message : dict.roleSaveFailed }
   }
 }
 
 export async function deleteRole(id: number) {
   await requireAdminGuard()
   const [existing] = await db.select().from(roles).where(eq(roles.id, id)).limit(1)
-  if (existing?.isSystem) return { success: false, error: 'Системную роль нельзя удалить' }
+  if (existing?.isSystem) return { success: false, error: getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users.cannotDeleteSystemRole }
   const inUse = await pool.query(`SELECT COUNT(*)::int AS c FROM "user" WHERE role = $1`, [
     existing?.code,
   ])
   if ((inUse.rows[0]?.c ?? 0) > 0) {
-    return { success: false, error: 'Роль назначена пользователям' }
+    return { success: false, error: getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users.roleInUse }
   }
   await db.delete(roles).where(eq(roles.id, id))
   revalidatePath('/admin/users')
