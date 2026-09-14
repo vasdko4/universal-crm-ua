@@ -675,6 +675,10 @@ export type AdminDictionary = {
     npDefaultWeightLabel: string
     npPullFromCabinet: string
     npPullHint: string
+    npCitySenderRef: string
+    npSenderRef: string
+    npSenderAddressRef: string
+    npContactSenderRef: string
     ukrDesc: string
     ukrToggleLabel: string
     ukrToggleDesc: string
@@ -1142,6 +1146,9 @@ export type AdminDictionary = {
     statusRecovered: string
     itemQtyTemplate: string
     toastReminderSent: string
+    errorNotFound: string
+    errorNoEmail: string
+    errorSmtp: string
     timeMinutesAgo: string
     timeHoursAgo: string
     timeDaysAgo: string
@@ -2395,6 +2402,10 @@ const uk: AdminDictionary = {
     npPullFromCabinet: 'Підтягнути з кабінету',
     npPullHint:
       '«Підтягнути з кабінету» одразу збирає Ref-и. ТТН з картки теж підтягне й збереже їх, якщо поля порожні. Вага береться з карток товарів, інакше — значення нижче.',
+    npCitySenderRef: 'Ref міста відправника',
+    npSenderRef: 'Ref відправника',
+    npSenderAddressRef: 'Ref адреси відправника',
+    npContactSenderRef: 'Ref контакту відправника',
     ukrDesc: 'Доставка поштовими відділеннями Укрпошти',
     ukrToggleLabel: 'Доставка Укрпоштою',
     ukrToggleDesc: 'Клієнти зможуть обрати доставку Укрпоштою під час оформлення',
@@ -2862,6 +2873,9 @@ const uk: AdminDictionary = {
     statusRecovered: 'Купив',
     itemQtyTemplate: '{qty} шт. × {price}',
     toastReminderSent: 'Нагадування надіслано',
+    errorNotFound: 'Кошик не знайдено',
+    errorNoEmail: 'У покупця немає email — зв’яжіться по телефону',
+    errorSmtp: 'SMTP не налаштований — лист не пішов, налаштуйте Email у налаштуваннях',
     timeMinutesAgo: '{n} хв тому',
     timeHoursAgo: '{n} год тому',
     timeDaysAgo: '{n} дн тому',
@@ -4121,6 +4135,10 @@ const ru: AdminDictionary = {
     npPullFromCabinet: 'Подтянуть из кабинета',
     npPullHint:
       '«Подтянуть из кабинета» сразу собирает Ref-ы. ТТН с карточки тоже подтянет и сохранит их, если поля пустые. Вес берётся из карточек товаров, иначе — значение ниже.',
+    npCitySenderRef: 'Ref города отправителя',
+    npSenderRef: 'Ref отправителя',
+    npSenderAddressRef: 'Ref адреса отправителя',
+    npContactSenderRef: 'Ref контакта отправителя',
     ukrDesc: 'Доставка почтовыми отделениями Укрпошты',
     ukrToggleLabel: 'Доставка Укрпоштой',
     ukrToggleDesc: 'Клиенты смогут выбрать доставку Укрпоштой при оформлении',
@@ -4588,6 +4606,9 @@ const ru: AdminDictionary = {
     statusRecovered: 'Купил',
     itemQtyTemplate: '{qty} шт. × {price}',
     toastReminderSent: 'Напоминание отправлено',
+    errorNotFound: 'Корзина не найдена',
+    errorNoEmail: 'У покупателя нет email — свяжитесь по телефону',
+    errorSmtp: 'SMTP не настроен — письмо не ушло, настройте Email в настройках',
     timeMinutesAgo: '{n} мин назад',
     timeHoursAgo: '{n} ч назад',
     timeDaysAgo: '{n} дн назад',

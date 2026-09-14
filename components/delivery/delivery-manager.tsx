@@ -108,19 +108,19 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label>CitySender Ref</Label>
+            <Label>{t.delivery.npCitySenderRef}</Label>
             <Input value={senderCityRef} onChange={(e) => setSenderCityRef(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Sender Ref</Label>
+            <Label>{t.delivery.npSenderRef}</Label>
             <Input value={senderRef} onChange={(e) => setSenderRef(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>SenderAddress Ref</Label>
+            <Label>{t.delivery.npSenderAddressRef}</Label>
             <Input value={senderAddressRef} onChange={(e) => setSenderAddressRef(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>ContactSender Ref</Label>
+            <Label>{t.delivery.npContactSenderRef}</Label>
             <Input value={contactSenderRef} onChange={(e) => setContactSenderRef(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">

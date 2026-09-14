@@ -127,9 +127,10 @@ export async function getAbandonedCarts(): Promise<{
 /** Sends a reminder email to the visitor who abandoned the cart. */
 export async function sendCartReminder(id: number): Promise<{ success: boolean; error?: string }> {
   const user = await assertPermission('abandoned_carts')
+  const ac = getAdminDictionary(user.locale).abandonedCarts
   const [cart] = await db.select().from(abandonedCarts).where(eq(abandonedCarts.id, id)).limit(1)
-  if (!cart) return { success: false, error: 'Корзина не найдена' }
-  if (!cart.customerEmail) return { success: false, error: 'У покупателя нет email — свяжитесь по телефону' }
+  if (!cart) return { success: false, error: ac.errorNotFound }
+  if (!cart.customerEmail) return { success: false, error: ac.errorNoEmail }
 
   const settings = await getStoreSettingsInternal()
   const siteUrl = (settings.seo?.siteUrl || '').replace(/\/$/, '')
@@ -209,7 +210,7 @@ ${copy.regards}, ${settings.storeName}`
   // The email did not actually go out (no SMTP configured) — keep the cart
   // in "open" so the admin can retry after configuring email.
   if (result.fallback) {
-    return { success: false, error: 'SMTP не настроен — письмо не ушло, настройте Email в настройках' }
+    return { success: false, error: ac.errorSmtp }
   }
 
   await db
