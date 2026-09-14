@@ -8,7 +8,8 @@ const nextConfig = {
   // Vercel has its own packager; `output: 'standalone'` there can produce
   // "invalid deployment package" / patch_build_4xx failures. GitHub Actions
   // e2e also skips it — Turbopack standalone trips over the sharp native
-  // binary under pnpm.
+  // binary under pnpm. Docker builds with `next build --webpack` so standalone
+  // tracing of libvips works (see Dockerfile).
   ...(process.env.VERCEL || process.env.CI ? {} : { output: 'standalone' }),
   // Serve modern formats and let Next resize/compress images for faster LCP.
   images: {

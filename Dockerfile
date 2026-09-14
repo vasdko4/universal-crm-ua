@@ -28,7 +28,10 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     BETTER_AUTH_SECRET="build-time-placeholder-not-used-at-runtime" \
     BETTER_AUTH_URL="http://localhost:3000"
 
-RUN pnpm build
+# Next 16 defaults to Turbopack, which panics tracing sharp's pnpm store
+# (`Is a directory (os error 21)` on @img/sharp-libvips-linuxmusl-x64).
+# Webpack standalone still copies native libvips via outputFileTracingIncludes.
+RUN pnpm exec next build --webpack
 
 # ── runner: minimal runtime, only the standalone server + static assets ───
 FROM base AS runner
