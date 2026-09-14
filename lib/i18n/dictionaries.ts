@@ -453,6 +453,11 @@ export type Dictionary = {
     passwordTooShort: string
     confirmPasswordButton: string
     passwordChanged: string
+    changeEmailButton: string
+    confirmNewPasswordLabel: string
+    passwordsMismatch: string
+    passwordUnavailableMessage: string
+    googleAccountBadge: string
   }
   cookieConsent: {
     message: string
@@ -1027,6 +1032,12 @@ const uk: Dictionary = {
     passwordTooShort: 'Пароль має бути не коротшим за 8 символів',
     confirmPasswordButton: 'Змінити пароль',
     passwordChanged: 'Пароль успішно змінено',
+    changeEmailButton: 'Змінити пошту',
+    confirmNewPasswordLabel: 'Повторіть новий пароль',
+    passwordsMismatch: 'Паролі не збігаються',
+    passwordUnavailableMessage:
+      'Для цього акаунта пароль не задано — змінити його тут неможливо.',
+    googleAccountBadge: 'Google',
   },
   cookieConsent: {
     message:
@@ -1599,6 +1610,12 @@ const ru: Dictionary = {
     passwordTooShort: 'Пароль должен быть не короче 8 символов',
     confirmPasswordButton: 'Сменить пароль',
     passwordChanged: 'Пароль успешно изменён',
+    changeEmailButton: 'Сменить почту',
+    confirmNewPasswordLabel: 'Повторите новый пароль',
+    passwordsMismatch: 'Пароли не совпадают',
+    passwordUnavailableMessage:
+      'Для этого аккаунта пароль не задан — изменить его здесь нельзя.',
+    googleAccountBadge: 'Google',
   },
   cookieConsent: {
     message:

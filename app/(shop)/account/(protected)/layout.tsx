@@ -27,15 +27,19 @@ export default async function AccountLayout({ children }: { children: React.Reac
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-      <header className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary sm:size-14 sm:text-base">
-          {initials(user.name, user.email)}
-        </div>
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            {fillTemplate(dict.account.greeting, { name: firstName })}
-          </h1>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">{user.email}</p>
+      <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-primary" />
+        <div className="pointer-events-none absolute -right-10 -top-16 size-40 rounded-full bg-primary/10 blur-2xl" />
+        <div className="relative flex items-center gap-4">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-base font-semibold text-primary-foreground shadow-sm sm:size-16 sm:text-lg">
+            {initials(user.name, user.email)}
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              {fillTemplate(dict.account.greeting, { name: firstName })}
+            </h1>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">{user.email}</p>
+          </div>
         </div>
       </header>
       <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
