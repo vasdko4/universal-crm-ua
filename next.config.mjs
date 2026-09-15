@@ -122,8 +122,8 @@ const nextConfig = {
 // SENTRY_AUTH_TOKEN + SENTRY_ORG + SENTRY_PROJECT are set (e.g. in CI); it's
 // a harmless no-op wrapper otherwise, safe to build/run without any of them.
 export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
+  org: process.env.SENTRY_ORG || 'no-da1',
+  project: process.env.SENTRY_PROJECT || 'javascript-nextjs',
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: true,
   webpack: { treeshake: { removeDebugLogging: true } },
