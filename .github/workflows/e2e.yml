@@ -35,6 +35,9 @@ jobs:
       CRON_SECRET: e2e-cron-secret-not-for-prod-use-32bytes
       NEXT_TELEMETRY_DISABLED: '1'
       CI: 'true'
+      # CI-only admin. Not in seed.sql / README — created by e2e-bootstrap.mjs.
+      E2E_ADMIN_EMAIL: e2e-admin@gmail.com
+      E2E_ADMIN_PASSWORD: e2e-Ci-Admin-${{ github.run_id }}!
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -48,6 +51,8 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Apply schema and demo seed
         run: node scripts/db-setup.mjs --seed
+      - name: Create e2e admin
+        run: node scripts/e2e-bootstrap.mjs
       - name: Run Playwright
         run: pnpm test:e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

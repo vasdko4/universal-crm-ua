@@ -1,6 +1,5 @@
 minimumReleaseAge: 1440
 allowBuilds:
-  '@sentry/cli': true
   sharp: true
   unrs-resolver: true
 overrides:

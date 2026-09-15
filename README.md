@@ -270,9 +270,6 @@ Cron доставки: `GET /api/cron/delivery-sync` с `Authorization: Bearer $
 - [db/README.md](db/README.md) — схема и миграции
 
 Релиз образа: `git tag vX.Y.Z && git push origin vX.Y.Z` (workflow `.github/workflows/release.yml`).
-GitHub App теги не создаёт. Обходной путь:
+GitHub App теги не создаёт — пушьте тег с машины, где есть SSH/PAT, либо ветку `vX.Y.Z` (тот же workflow собирает образ).
 
-1. Ветка `vX.Y.Z` с `main` — собирает Docker-образ (`next build --webpack`: Turbopack + sharp под pnpm падает).
-2. Ветка `release-page-X.Y.Z` — создаёт GitHub Release и тег `vX.Y.Z`.
-
-Для 2.5.2 оба шага — `git tag v2.5.2 && git push origin v2.5.2` (или ветка `v2.5.2`). Docker-сборка на Vercel/e2e по-прежнему без `output: 'standalone'`.
+Docker-сборка на Vercel/e2e по-прежнему без `output: 'standalone'`.
