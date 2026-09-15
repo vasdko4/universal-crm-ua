@@ -51,10 +51,10 @@ function contentSecurityPolicy(nonce: string) {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
-    // No blanket https: — catalog photos + Ads/GA pixels only.
-    "img-src 'self' data: blob: https://images.prom.ua https://*.prom.ua https://cdn.prom.st https://*.prom.st https://*.public.blob.vercel-storage.com https://*.blob.vercel-storage.com https://images.unsplash.com https://www.google.com https://www.google.com.ua https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.gstatic.com",
+    // No blanket https: — catalog photos are same-origin (/api/media); Ads/GA pixels only.
+    "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://*.blob.vercel-storage.com https://images.unsplash.com https://www.google.com https://www.google.com.ua https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.gstatic.com",
     "font-src 'self' data:",
-    "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://region1.google-analytics.com https://images.prom.ua https://*.prom.ua https://*.prom.st https://*.vercel-storage.com https://*.blob.vercel-storage.com https://vitals.vercel-insights.com",
+    "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://region1.google-analytics.com https://*.vercel-storage.com https://*.blob.vercel-storage.com https://vitals.vercel-insights.com",
     "frame-src https://www.google.com https://www.googletagmanager.com https://td.doubleclick.net",
     'upgrade-insecure-requests',
   ].join('; ')

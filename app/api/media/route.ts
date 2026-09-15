@@ -10,7 +10,7 @@ import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
  * the raw `src` query never reaches fetch.
  */
 export async function GET(req: NextRequest) {
-  if (isRateLimited('media-image', clientIp(req), 120, 60_000)) {
+  if (isRateLimited('media-image', clientIp(req), 2400, 60_000)) {
     return new NextResponse('Too many requests', { status: 429 })
   }
   const src = req.nextUrl.searchParams.get('src')

@@ -26,9 +26,9 @@ describe('storefrontMediaUrl', () => {
 })
 
 describe('promMediaPath', () => {
-  it('keeps Prom CDN on Prom at listing size for Next/Image', () => {
+  it('proxies Prom CDN through /api/media at listing size', () => {
     expect(promMediaPath('https://images.prom.ua/1_w2000_h2000_x.jpg')).toBe(
-      'https://images.prom.ua/1_w700_h500_x.jpg',
+      '/api/media?src=' + encodeURIComponent('https://images.prom.ua/1_w700_h500_x.jpg'),
     )
   })
 
@@ -46,8 +46,10 @@ describe('rewritePromHtmlImages', () => {
       '<p>x</p><img src="https://images.prom.ua/7366176545_w700_h500_x.jpg" alt="">' +
       '<img src="https://cdn.example.com/a.jpg">'
     const out = rewritePromHtmlImages(html, 'https://shop.ua')
-    expect(out).toContain('https://images.prom.ua/7366176545_w1000_h1000_x.jpg')
-    expect(out).not.toContain('/api/media')
+    expect(out).toContain(
+      '/api/media?src=' + encodeURIComponent('https://images.prom.ua/7366176545_w1000_h1000_x.jpg'),
+    )
+    expect(out).not.toContain('src="https://images.prom.ua/')
     expect(out).toContain('https://cdn.example.com/a.jpg')
   })
 })

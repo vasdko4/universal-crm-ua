@@ -15,8 +15,8 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     qualities: [70, 75, 85, 90, 95],
     // Next 16 blocks local <Image src> with a query string unless listed
-    // here. Prom photos used to go through `/api/media?src=…`; listing/gallery
-    // now hit Prom via remotePatterns so the optimizer is one hop, not two.
+    // here. Listing/gallery Prom photos go through `/api/media?src=…` so the
+    // HTML never names images.prom.ua. remotePatterns stay for Blob/Unsplash.
     localPatterns: [
       { pathname: '/api/media' },
       { pathname: '/api/email-image' },

@@ -145,11 +145,12 @@ export function ProductCard({ product }: { product: ShopProduct }) {
       </div>
 
       <div className="flex flex-1 flex-col gap-1 p-2 sm:p-2.5">
-        <div className="relative min-h-[2.25rem]">
+        <div className="relative min-h-[2.5rem]">
           <Link
             ref={nameRef}
             href={href}
-            className="peer line-clamp-2 text-[12px] font-normal leading-snug text-foreground hover:text-primary sm:text-[13px]"
+            title={product.name}
+            className="peer line-clamp-2 text-[12px] font-medium leading-snug text-foreground hover:text-primary sm:text-[13px]"
           >
             {product.name}
           </Link>
