@@ -3,18 +3,15 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { orders } from '@/lib/db/schema'
 
-// SECURITY: order numbers double as the de-facto access token for the
-// unauthenticated guest order-confirmation pages (/order/[orderNumber],
-// /checkout/pay/[orderNumber] — see getOrderByNumber() in app/actions/shop.ts,
-// which has no ownership check by design so guest checkouts work without an
-// account). The old 9-digit range (1e8..1e9, ~900M values) meant a store with
-// a few thousand orders could realistically be brute-forced by an
-// unauthenticated attacker scripting requests, leaking other customers'
-// name/phone/address. 12 digits (~9e11 values) makes that infeasible even at
-// scale, and `randomInt` (CSPRNG) is stronger than `Math.random()`. Kept as
-// plain digits (not alphanumeric) so it stays easy to read/dictate over the
-// phone and every existing ilike-search / regex assumption on this column
-// keeps working unchanged.
+// SECURITY: order numbers used to double as the only access token for guest
+// confirmation/pay pages. Those pages now also require the pf_last_order
+// cookie (or a logged-in owner) — see getOrderByNumber() — but the number
+// is still shown in emails/UI and guessed numbers must not collide. The old
+// 9-digit range (1e8..1e9, ~900M values) meant a store with a few thousand
+// orders could realistically collide or be brute-forced. 12 digits (~9e11
+// values) plus `randomInt` (CSPRNG) keeps that infeasible. Kept as plain
+// digits so it stays easy to read/dictate over the phone and every existing
+// ilike-search / regex assumption on this column keeps working unchanged.
 function randomOrderNumber() {
   return randomInt(100_000_000_000, 999_999_999_999).toString()
 }

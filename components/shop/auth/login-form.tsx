@@ -8,6 +8,7 @@ import { authClient } from '@/lib/auth-client'
 import { useAuthDialog } from '@/components/shop/auth/auth-dialog'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
+import { safeInternalPath } from '@/lib/safe-url'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,8 +34,7 @@ export function LoginForm() {
       return
     }
     // Honor ?redirect= but only allow same-site paths to prevent open redirects.
-    const target = searchParams.get('redirect')
-    const safeTarget = target && target.startsWith('/') && !target.startsWith('//') ? target : localizedPath('/account', locale)
+    const safeTarget = safeInternalPath(searchParams.get('redirect'), localizedPath('/account', locale))
     // Use a hard navigation instead of the client router: it guarantees the
     // fresh session cookie is sent with the request and avoids stale router
     // cache showing the logged-out UI after sign-in.

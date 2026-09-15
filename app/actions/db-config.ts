@@ -60,6 +60,11 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
   // the app is genuinely unconfigured (no working DB / empty schema / no
   // users). Once the store is installed, changing the DB requires editing
   // .env.local on the server — never a public endpoint.
+  //
+  // If DATABASE_URL is already set, a downed pool must NOT reopen this
+  // endpoint: that would let anyone overwrite the production connection
+  // string during an outage.
+  const alreadyConfigured = Boolean(getConnectionString())
   try {
     const guard = await pool.query(
       `SELECT to_regclass('public."user"') IS NOT NULL AS has_schema,
@@ -69,8 +74,9 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
       return { ok: false, error: t.alreadyInstalled }
     }
   } catch {
-    // Current pool is broken/unconfigured — that's exactly the state where
-    // the setup screen must be able to save a new connection.
+    if (alreadyConfigured) {
+      return { ok: false, error: t.alreadyInstalled }
+    }
   }
 
   const url =

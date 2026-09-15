@@ -75,8 +75,10 @@ export function proxy(request: NextRequest) {
   const shortcut = storefrontAuthShortcut(innerPathname)
   if (shortcut) {
     const dest = locale === 'ru' ? `/ru${shortcut}` : shortcut
-    const url = new URL(dest, request.url)
+    const url = request.nextUrl.clone()
+    url.pathname = dest
     url.search = request.nextUrl.search
+    url.hash = ''
     return withHsts(NextResponse.redirect(url))
   }
 
@@ -88,8 +90,13 @@ export function proxy(request: NextRequest) {
   if (isProtectedAccountPath(innerPathname)) {
     if (!hasSessionCookie(request)) {
       const loginPath = locale === 'ru' ? '/ru/account/login' : '/account/login'
-      const loginUrl = new URL(loginPath, request.url)
-      loginUrl.searchParams.set('redirect', pathname)
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = loginPath
+      loginUrl.search = ''
+      loginUrl.hash = ''
+      const redirectTo =
+        pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : '/account'
+      loginUrl.searchParams.set('redirect', redirectTo)
       return withHsts(NextResponse.redirect(loginUrl))
     }
   }
