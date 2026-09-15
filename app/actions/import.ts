@@ -4,7 +4,7 @@ import { db, pool } from '@/lib/db'
 import { importTasks, products } from '@/lib/db/schema'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 
 // Self-heals installs whose database was created before the import_tasks table
 // was added to the schema, so /admin/import never crashes with a missing table.
@@ -65,7 +65,7 @@ export async function getImportTasks() {
 }
 
 export async function runImport(fileName: string, sourceType: 'csv' | 'xml', rows: ImportRow[]) {
-  await assertPermission('import')
+  await assertWritePermission('import')
   if (rows.length === 0) return { success: false, error: 'Файл не содержит товаров' }
   if (rows.length > 1000) return { success: false, error: 'Максимум 1000 товаров за один импорт' }
 

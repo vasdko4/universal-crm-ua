@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { db } from '@/lib/db'
 import { storeSettings } from '@/lib/db/schema'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import {
   STORE_SETTINGS_TAG,
   getStoreSettingsInternal,
@@ -96,7 +96,7 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
 }
 
 export async function updateStoreSettings(data: Partial<StoreSettingsData>) {
-  const user = await assertPermission('settings')
+  const user = await assertWritePermission('settings')
   // The settings UI keeps one big object in state and always submits it in
   // full on save, so `Object.keys(data)` lists every field regardless of
   // what the admin actually touched. Diff against the current row first so
@@ -130,7 +130,7 @@ export async function updateAppearance(data: { activeTemplate?: string; defaultL
 // caches, the store-settings cache and the full page cache. Useful after
 // direct DB edits, imports, or when a stale page just won't go away.
 export async function clearSiteCache() {
-  const user = await assertPermission('settings')
+  const user = await assertWritePermission('settings')
   const { CACHE_TAGS } = await import('@/lib/shop/queries')
   revalidateTag(CACHE_TAGS.catalog, 'max')
   revalidateTag(CACHE_TAGS.categories, 'max')

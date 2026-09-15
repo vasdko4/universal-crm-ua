@@ -351,7 +351,7 @@ async function syncRelations(productId: number, input: ProductInput) {
 }
 
 export async function createProduct(input: ProductInput) {
-  const user = await assertPermission('products')
+  const user = await assertWritePermission('products')
   const error = validateProduct(input)
   if (error) return { success: false, error }
 
@@ -377,7 +377,7 @@ export async function createProduct(input: ProductInput) {
 }
 
 export async function updateProduct(id: number, input: ProductInput) {
-  const user = await assertPermission('products')
+  const user = await assertWritePermission('products')
   const error = validateProduct(input)
   if (error) return { success: false, error }
 
@@ -409,7 +409,7 @@ export async function updateProduct(id: number, input: ProductInput) {
 }
 
 export async function softDeleteProducts(ids: number[]) {
-  const user = await assertPermission('products')
+  const user = await assertWritePermission('products')
   if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
   await db.update(products).set({ deletedAt: new Date() }).where(inArray(products.id, ids))
 
@@ -428,7 +428,7 @@ export async function softDeleteProducts(ids: number[]) {
 }
 
 export async function setProductsVisibility(ids: number[], isVisible: boolean) {
-  await assertPermission('products')
+  await assertWritePermission('products')
   if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
   await db
     .update(products)
@@ -440,7 +440,7 @@ export async function setProductsVisibility(ids: number[], isVisible: boolean) {
 }
 
 export async function duplicateProduct(id: number) {
-  await assertPermission('products')
+  await assertWritePermission('products')
   const source = await getProduct(id)
   if (!source) return { success: false, error: 'Товар не найден' }
 
@@ -487,7 +487,7 @@ export async function getTrashedProducts() {
 }
 
 export async function restoreProducts(ids: number[]) {
-  await assertPermission('trash')
+  await assertWritePermission('trash')
   if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
   await db.update(products).set({ deletedAt: null }).where(inArray(products.id, ids))
   revalidatePath('/admin/products')
@@ -497,7 +497,7 @@ export async function restoreProducts(ids: number[]) {
 }
 
 export async function permanentlyDeleteProducts(ids: number[]) {
-  await assertPermission('trash')
+  await assertWritePermission('trash')
   if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
   await db.delete(productCategory).where(inArray(productCategory.productId, ids))
   await db.delete(productGroupItems).where(inArray(productGroupItems.productId, ids))
@@ -536,7 +536,7 @@ export async function getLowStockProducts(threshold = 3, limit = 6) {
 }
 
 export async function emptyTrash() {
-  await assertPermission('trash')
+  await assertWritePermission('trash')
   const trashed = await db
     .select({ id: products.id })
     .from(products)

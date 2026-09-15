@@ -5,7 +5,7 @@ import { pages } from '@/lib/db/schema'
 import { and, count, desc, eq, ilike } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { slugify } from '@/lib/slug'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type PageInput = {
@@ -109,7 +109,7 @@ function validate(input: PageInput): string | null {
 }
 
 export async function createPage(input: PageInput) {
-  await assertPermission('pages')
+  await assertWritePermission('pages')
   const error = validate(input)
   if (error) return { success: false, error }
   const slug = await ensureSlug(input.slug?.trim() || input.title)
@@ -137,7 +137,7 @@ export async function createPage(input: PageInput) {
 }
 
 export async function updatePage(id: number, input: PageInput) {
-  await assertPermission('pages')
+  await assertWritePermission('pages')
   const error = validate(input)
   if (error) return { success: false, error }
   const current = await getPageById(id)
@@ -171,7 +171,7 @@ export async function updatePage(id: number, input: PageInput) {
 }
 
 export async function togglePageStatus(id: number, status: 'draft' | 'published') {
-  await assertPermission('pages')
+  await assertWritePermission('pages')
   await db
     .update(pages)
     .set({ status, publishedAt: status === 'published' ? new Date() : null, updatedAt: new Date() })
@@ -181,7 +181,7 @@ export async function togglePageStatus(id: number, status: 'draft' | 'published'
 }
 
 export async function deletePage(id: number) {
-  await assertPermission('pages')
+  await assertWritePermission('pages')
   await db.delete(pages).where(eq(pages.id, id))
   revalidatePath('/admin/pages')
   return { success: true }

@@ -5,7 +5,7 @@ import { deliveryMethods, paymentMethods } from '@/lib/db/schema'
 import { asc, eq } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/shop/queries'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { searchCities, searchWarehouses, type NpCity, type NpWarehouse } from '@/lib/delivery/nova-poshta'
 
 type ActionResult = { ok: boolean; message: string }
@@ -30,7 +30,7 @@ export async function updateDeliveryMethod(
   data: { isActive: boolean; config: Record<string, string> },
 ): Promise<ActionResult> {
   try {
-    await assertPermission('delivery')
+    await assertWritePermission('delivery')
     const [method] = await db
       .select()
       .from(deliveryMethods)
@@ -105,7 +105,7 @@ export async function updatePaymentMethod(
   data: { isActive: boolean; config: Record<string, string> },
 ): Promise<ActionResult> {
   try {
-    await assertPermission('payments')
+    await assertWritePermission('payments')
     await db
       .update(paymentMethods)
       .set({ isActive: data.isActive, config: data.config, updatedAt: new Date() })

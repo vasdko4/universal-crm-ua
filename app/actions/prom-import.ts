@@ -12,7 +12,7 @@ import {
   products,
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { generateUniqueSlug } from '@/lib/product-slug'
 import {
   fetchListingPage,
@@ -125,7 +125,7 @@ async function ensurePromImportColumns() {
 
 /** Starts a new Prom.ua shop import: discovers every product link, then returns a task id to poll. */
 export async function startPromImport(shopUrl: string) {
-  await assertPermission('import')
+  await assertWritePermission('import')
   const trimmed = shopUrl.trim()
   if (!isAllowedPromUrl(trimmed)) {
     return { success: false as const, error: 'Ссылка должна вести на prom.ua (страницу магазина)' }
@@ -456,7 +456,7 @@ async function mergeSizeIntoProduct(opts: {
 
 /** Processes the next small batch of a Prom.ua import job. Call repeatedly until `done: true`. */
 export async function continuePromImport(taskId: number) {
-  await assertPermission('import')
+  await assertWritePermission('import')
   await ensurePromImportColumns()
 
   const [task] = await db.select().from(importTasks).where(eq(importTasks.id, taskId)).limit(1)

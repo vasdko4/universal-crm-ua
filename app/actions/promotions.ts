@@ -6,7 +6,7 @@ import { db } from '@/lib/db'
 import { promotions, promotionUsages, productGroups, productGroupItems, products } from '@/lib/db/schema'
 import { and, asc, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { isRateLimited } from '@/lib/api/rate-limit'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
@@ -119,7 +119,7 @@ export async function getTargetOptions() {
 }
 
 export async function createPromotion(input: PromotionInput) {
-  await assertPermission('promotions')
+  await assertWritePermission('promotions')
   const error = validate(input)
   if (error) return { success: false, error }
 
@@ -145,7 +145,7 @@ export async function createPromotion(input: PromotionInput) {
 }
 
 export async function updatePromotion(id: number, input: PromotionInput) {
-  await assertPermission('promotions')
+  await assertWritePermission('promotions')
   const error = validate(input)
   if (error) return { success: false, error }
 
@@ -176,14 +176,14 @@ export async function updatePromotion(id: number, input: PromotionInput) {
 }
 
 export async function togglePromotionActive(id: number, isActive: boolean) {
-  await assertPermission('promotions')
+  await assertWritePermission('promotions')
   await db.update(promotions).set({ isActive, updatedAt: new Date() }).where(eq(promotions.id, id))
   revalidatePath('/admin/promotions')
   return { success: true }
 }
 
 export async function deletePromotion(id: number) {
-  await assertPermission('promotions')
+  await assertWritePermission('promotions')
   await db.delete(promotionUsages).where(eq(promotionUsages.promotionId, id))
   await db.delete(promotions).where(eq(promotions.id, id))
   revalidatePath('/admin/promotions')

@@ -1,6 +1,6 @@
 'use server'
 
-import { assertPermission } from '@/lib/session'
+import { assertWritePermission } from '@/lib/session'
 import { sendTelegramMessage } from '@/lib/notifications'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 
@@ -9,7 +9,7 @@ export async function sendTestTelegram(input?: {
   botToken?: string
   chatId?: string
 }): Promise<{ success: boolean; error?: string }> {
-  await assertPermission('settings')
+  await assertWritePermission('settings')
   const settings = await getStoreSettingsInternal()
   const botToken = input?.botToken?.trim() || settings.notifications.telegramBotToken
   const chatId = input?.chatId?.trim() || settings.notifications.telegramChatId

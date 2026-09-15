@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { modalAds } from '@/lib/db/schema'
 import { and, count, desc, eq, ilike, lte, or, isNull, gte, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { sanitizeSearch } from '@/lib/api/helpers'
@@ -113,7 +113,7 @@ export async function getModalAds(params: ModalAdListParams = {}) {
 }
 
 export async function createModalAd(input: ModalAdInput) {
-  const user = await assertPermission('modal_ads')
+  const user = await assertWritePermission('modal_ads')
   const error = validate(input)
   if (error) return { success: false, error }
   await db.insert(modalAds).values(toValues(input))
@@ -127,7 +127,7 @@ export async function createModalAd(input: ModalAdInput) {
 }
 
 export async function updateModalAd(id: number, input: ModalAdInput) {
-  const user = await assertPermission('modal_ads')
+  const user = await assertWritePermission('modal_ads')
   const error = validate(input)
   if (error) return { success: false, error }
   await db
@@ -144,7 +144,7 @@ export async function updateModalAd(id: number, input: ModalAdInput) {
 }
 
 export async function toggleModalAdActive(id: number, isActive: boolean) {
-  const user = await assertPermission('modal_ads')
+  const user = await assertWritePermission('modal_ads')
   await db.update(modalAds).set({ isActive, updatedAt: new Date() }).where(eq(modalAds.id, id))
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
@@ -156,7 +156,7 @@ export async function toggleModalAdActive(id: number, isActive: boolean) {
 }
 
 export async function deleteModalAd(id: number) {
-  const user = await assertPermission('modal_ads')
+  const user = await assertWritePermission('modal_ads')
   await db.delete(modalAds).where(eq(modalAds.id, id))
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
@@ -168,7 +168,7 @@ export async function deleteModalAd(id: number) {
 }
 
 export async function resetModalAdStats(id: number) {
-  await assertPermission('modal_ads')
+  await assertWritePermission('modal_ads')
   await db
     .update(modalAds)
     .set({ viewsCount: 0, clicksCount: 0, closesCount: 0, updatedAt: new Date() })

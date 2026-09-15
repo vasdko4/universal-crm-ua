@@ -6,7 +6,7 @@ import { paymentGateways, payments, paymentEvents, orders, orderHistory } from '
 import { and, desc, eq } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/shop/queries'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import {
   wayforpayCreateInvoice,
   wayforpayCheckStatus,
@@ -45,7 +45,7 @@ export async function updateGateway(
   data: { isActive: boolean; isTestMode: boolean; config: Record<string, string> },
 ): Promise<ActionResult> {
   try {
-    await assertPermission('payments')
+    await assertWritePermission('payments')
 
     // Validate the Monobank acquiring token against the live API before
     // activating: a personal-API or mistyped token silently breaks checkout.
@@ -135,7 +135,7 @@ export async function createPayment(input: {
   customerEmail?: string
   customerPhone?: string
 }): Promise<ActionResult> {
-  await assertPermission('payments')
+  await assertWritePermission('payments')
   const gateway = await getGateway(input.gatewayCode)
   if (!gateway) return { ok: false, message: 'Шлюз не найден' }
   if (!gateway.isActive) return { ok: false, message: 'Шлюз отключён. Активируйте его во вкладке «Шлюзы».' }
@@ -203,7 +203,7 @@ export async function createPayment(input: {
 }
 
 export async function refreshPaymentStatus(paymentId: number): Promise<ActionResult> {
-  await assertPermission('payments')
+  await assertWritePermission('payments')
   const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId))
   if (!payment) return { ok: false, message: 'Платёж не найден' }
   const gateway = await getGateway(payment.gatewayCode)
@@ -242,7 +242,7 @@ export async function refundPayment(
   paymentId: number,
   amount?: number,
 ): Promise<ActionResult> {
-  await assertPermission('payments')
+  await assertWritePermission('payments')
   const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId))
   if (!payment) return { ok: false, message: 'Платёж не найден' }
   if (payment.status === 'refunded') {
@@ -335,7 +335,7 @@ export async function refundPayment(
 /* ------------------------- Simulation (test mode) ------------------------ */
 
 export async function markPaymentPaid(paymentId: number): Promise<ActionResult> {
-  await assertPermission('payments')
+  await assertWritePermission('payments')
   const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId))
   if (!payment) return { ok: false, message: 'Платёж не найден' }
   const gateway = await getGateway(payment.gatewayCode)
