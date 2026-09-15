@@ -10,8 +10,8 @@
 
 **Version 2.5.2** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
 
-**Демо:** https://magazine-test-ten.vercel.app — в `<title>` пока «Techno Store»: это `storeName` в БД демо, не код. Меняется в `/admin` → Налаштування.
-**Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/tag/v2.5.2
+**Демо:** https://magazine-test-ten.vercel.app — имя в вкладке берётся из `/admin` → Налаштування (`storeName`), не из кода.
+**Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/latest
 **Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.5.2`
 
 ```bash
@@ -270,6 +270,6 @@ Cron доставки: `GET /api/cron/delivery-sync` с `Authorization: Bearer $
 - [db/README.md](db/README.md) — схема и миграции
 
 Релиз образа: `git tag vX.Y.Z && git push origin vX.Y.Z` (workflow `.github/workflows/release.yml`).
-GitHub App теги не создаёт — пушьте тег с машины, где есть SSH/PAT, либо ветку `vX.Y.Z` (тот же workflow собирает образ).
+GitHub App теги не создаёт — пушьте тег с машины, где есть SSH/PAT.
 
 Docker-сборка на Vercel/e2e по-прежнему без `output: 'standalone'`.
