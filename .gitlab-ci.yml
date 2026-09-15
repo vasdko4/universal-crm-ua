@@ -1,0 +1,25 @@
+stages:
+  - test
+
+variables:
+  LIVE_SHOP_URL: "https://magazine-test-ten.vercel.app"
+  FF_USE_FASTZIP: "true"
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "api"
+
+live_engine:
+  stage: test
+  image: node:22-bookworm
+  timeout: 10m
+  script:
+    - node scripts/live-engine-check.mjs
+  artifacts:
+    when: on_failure
+    expire_in: 7 days
+    paths:
+      - scripts/live-engine-check.mjs
