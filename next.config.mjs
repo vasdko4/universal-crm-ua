@@ -1,5 +1,22 @@
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  // Next.js emits inline boot scripts; Google Ads/GA load gtag.js.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://region1.google-analytics.com https://images.prom.ua https://*.prom.ua https://*.prom.st https://*.vercel-storage.com https://*.blob.vercel-storage.com https://vitals.vercel-insights.com",
+  "frame-src https://www.google.com https://www.googletagmanager.com https://td.doubleclick.net",
+  'upgrade-insecure-requests',
+].join('; ')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  poweredByHeader: false,
   // Standalone output copies only the pruned production node_modules + server
   // into .next/standalone, so the Docker image doesn't need the full
   // pnpm/workspace tree at runtime — keeps the runtime image small.
@@ -72,14 +89,9 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
-          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
-        ],
-      },
-      {
-        source: '/(admin|sign-in|setup)/:path*',
-        headers: [
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
           { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Content-Security-Policy', value: CONTENT_SECURITY_POLICY },
         ],
       },
     ]
