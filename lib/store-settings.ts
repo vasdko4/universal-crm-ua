@@ -155,6 +155,8 @@ export type StoreSettingsData = {
   faviconUrl: string | null
   openCartAfterAdd: boolean
   defaultLocale: string
+  /** How to pick language on first visit: ask in a modal, or match the browser. */
+  localePromptMode: 'modal' | 'browser'
   activeTemplate: string
   seo: SeoSettings
   social: {
@@ -229,6 +231,7 @@ export const DEFAULTS: StoreSettingsData = {
   faviconUrl: null,
   openCartAfterAdd: true,
   defaultLocale: 'uk',
+  localePromptMode: 'browser',
   activeTemplate: 'classic',
   seo: {
     siteUrl: '',
@@ -352,6 +355,7 @@ export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
     faviconUrl: row.faviconUrl,
     openCartAfterAdd: row.openCartAfterAdd,
     defaultLocale: row.defaultLocale ?? 'uk',
+    localePromptMode: row.localePromptMode === 'modal' ? 'modal' : 'browser',
     activeTemplate: row.activeTemplate ?? 'classic',
     seo: { ...DEFAULTS.seo, ...(row.seo as Partial<SeoSettings> | null) },
     social: { ...DEFAULTS.social, ...(row.social as StoreSettingsData['social']) },

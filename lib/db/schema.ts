@@ -623,6 +623,8 @@ export const storeSettings = pgTable('store_settings', {
   faviconUrl: varchar('favicon_url', { length: 500 }),
   openCartAfterAdd: boolean('open_cart_after_add').notNull().default(true),
   defaultLocale: varchar('default_locale', { length: 5 }).notNull().default('uk'),
+  // First-visit language: 'modal' asks the shopper, 'browser' uses Accept-Language.
+  localePromptMode: varchar('locale_prompt_mode', { length: 20 }).notNull().default('browser'),
   activeTemplate: varchar('active_template', { length: 30 }).notNull().default('classic'),
   social: jsonb('social').notNull().default({}),
   googleAds: jsonb('google_ads').notNull().default({}),

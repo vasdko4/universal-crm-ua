@@ -105,7 +105,12 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           <MobileBottomNav googleAuthEnabled={googleAuthEnabled} categories={categories} />
           <PhoneGuard />
           {settings?.contact.widget && <ContactWidgetButton widget={settings.contact.widget} />}
-          {!chosenLocale && <LocaleModal defaultLocale={settings?.defaultLocale ?? 'uk'} />}
+          {!chosenLocale && (
+            <LocaleModal
+              defaultLocale={settings?.defaultLocale ?? 'uk'}
+              mode={settings?.localePromptMode === 'modal' ? 'modal' : 'browser'}
+            />
+          )}
           {chosenLocale && modalAdsList.length > 0 && <ModalAdHost ads={modalAdsList} />}
           {((settings?.googleAds.enabled && settings.googleAds.conversionId) ||
             (settings?.googleAds.gaEnabled && settings.googleAds.gaMeasurementId)) && (

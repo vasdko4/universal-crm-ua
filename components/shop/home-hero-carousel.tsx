@@ -13,6 +13,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
   const [paused, setPaused] = useState(false)
   const n = slides.length
   const startX = useRef<number | null>(null)
+  const startY = useRef<number | null>(null)
 
   useEffect(() => {
     if (n < 2 || paused) return
@@ -28,13 +29,16 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
 
   function onPointerDown(e: React.PointerEvent) {
     startX.current = e.clientX
+    startY.current = e.clientY
   }
 
   function onPointerUp(e: React.PointerEvent) {
-    if (startX.current == null) return
+    if (startX.current == null || startY.current == null) return
     const dx = e.clientX - startX.current
+    const dy = e.clientY - startY.current
     startX.current = null
-    if (Math.abs(dx) < 40) return
+    startY.current = null
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
     go(dx < 0 ? 1 : -1)
   }
 
@@ -51,9 +55,10 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
           onPointerUp={onPointerUp}
           onPointerCancel={() => {
             startX.current = null
+            startY.current = null
           }}
         >
-          <div className="relative min-h-[16.5rem] sm:min-h-[22rem] lg:min-h-[28rem]">
+          <div className="relative aspect-[4/5] w-full sm:aspect-[16/10] lg:aspect-[21/9]">
             {slides.map((slide, i) => (
               <div
                 key={slide.title}
@@ -69,22 +74,22 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   fill
                   priority={i === 0}
                   sizes="(max-width: 1280px) 100vw, 1280px"
-                  className="object-cover"
+                  className="object-cover object-center"
                   draggable={false}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/15 lg:bg-gradient-to-r lg:from-black/80 lg:via-black/55 lg:to-black/20" />
-                <div className="relative z-10 flex h-full min-h-[16.5rem] flex-col justify-end p-4 sm:min-h-[22rem] sm:p-10 lg:min-h-[28rem] lg:p-12">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20 lg:bg-gradient-to-r lg:from-black/80 lg:via-black/50 lg:to-black/15" />
+                <div className="relative z-10 flex h-full flex-col justify-end gap-2 p-4 pb-10 sm:gap-3 sm:p-10 sm:pb-12 lg:p-12 lg:pb-14">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75 sm:text-xs">
                     {slide.badge}
                   </p>
-                  <h1 className="mt-2 max-w-2xl text-balance text-xl font-bold tracking-tight sm:mt-3 sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
+                  <h1 className="max-w-2xl text-balance text-[1.35rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
                     {slide.title}
                   </h1>
-                  <p className="mt-2 max-w-xl text-pretty text-xs text-white/90 sm:mt-3 sm:text-base">
+                  <p className="max-w-xl text-pretty text-xs leading-snug text-white/90 sm:text-base">
                     {slide.text}
                   </p>
                   {i === index ? (
-                    <Button asChild size="lg" variant="secondary" className="mt-4 h-10 w-fit rounded-full sm:mt-6">
+                    <Button asChild size="lg" variant="secondary" className="mt-1 h-10 w-fit rounded-full sm:mt-3">
                       <Link href={slide.href}>
                         {slide.cta} <ArrowRight className="ml-1 size-4" />
                       </Link>
@@ -100,7 +105,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
               <button
                 type="button"
                 onClick={() => go(-1)}
-                className="absolute left-3 top-1/2 z-20 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm hover:bg-white/25 sm:flex"
+                className="absolute left-2 top-1/2 z-20 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm hover:bg-white/25 sm:left-3 sm:flex"
                 aria-label="Previous"
               >
                 <ChevronLeft className="size-5" />
@@ -108,12 +113,12 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
               <button
                 type="button"
                 onClick={() => go(1)}
-                className="absolute right-3 top-1/2 z-20 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm hover:bg-white/25 sm:flex"
+                className="absolute right-2 top-1/2 z-20 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm hover:bg-white/25 sm:right-3 sm:flex"
                 aria-label="Next"
               >
                 <ChevronRight className="size-5" />
               </button>
-              <div className="absolute bottom-3 left-4 z-20 flex gap-2 sm:bottom-5 sm:left-10 lg:left-12">
+              <div className="absolute inset-x-0 bottom-3 z-20 flex justify-center gap-2 sm:bottom-5">
                 {slides.map((s, i) => (
                   <button
                     key={s.title}

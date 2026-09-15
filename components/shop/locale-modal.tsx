@@ -9,34 +9,61 @@ import { setLocale, getLocaleForCurrentIp } from '@/app/actions/locale'
 import { persistLocaleClientSide, useI18n } from '@/lib/i18n/client'
 import { LOCALE_COOKIE, localizedPath, stripLocalePrefix, type Locale } from '@/lib/i18n/config'
 
-export function LocaleModal({ defaultLocale = 'uk' }: { defaultLocale?: string }) {
+function localeFromBrowser(): Locale | null {
+  if (typeof navigator === 'undefined') return null
+  const langs = navigator.languages?.length ? navigator.languages : [navigator.language]
+  for (const raw of langs) {
+    const tag = raw.toLowerCase()
+    if (tag.startsWith('uk') || tag.startsWith('ua')) return 'uk'
+    if (tag.startsWith('ru')) return 'ru'
+  }
+  return null
+}
+
+export function LocaleModal({
+  defaultLocale = 'uk',
+  mode = 'browser',
+}: {
+  defaultLocale?: string
+  mode?: 'modal' | 'browser'
+}) {
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { dict } = useI18n()
 
-  // Open on first paint so SSR doesn't flash the modal before hydration.
-  // Client-side cookie check guards against stale server HTML (e.g. a cached
-  // page rendered before the cookie existed) re-asking after the choice.
   useEffect(() => {
     const alreadyChosen = document.cookie
       .split('; ')
       .some((c) => c.startsWith(`${LOCALE_COOKIE}=`))
     if (alreadyChosen) return
-    // No cookie on this browser/device yet — check whether this visitor's IP
-    // already picked a language elsewhere (new browser, cleared cookies,
-    // different device on the same network) before asking again.
+
     let cancelled = false
-    getLocaleForCurrentIp()
-      .then((locale) => {
+
+    async function resolve() {
+      try {
+        const fromIp = await getLocaleForCurrentIp()
         if (cancelled) return
-        if (locale) choose(locale, { silent: true })
-        else setOpen(true)
-      })
-      .catch(() => {
-        if (!cancelled) setOpen(true)
-      })
+        if (fromIp) {
+          await choose(fromIp, { silent: true })
+          return
+        }
+      } catch {
+        // Fall through to browser / modal.
+      }
+      if (cancelled) return
+
+      if (mode === 'browser') {
+        const fromBrowser = localeFromBrowser() ?? (defaultLocale === 'ru' ? 'ru' : 'uk')
+        await choose(fromBrowser, { silent: true })
+        return
+      }
+
+      setOpen(true)
+    }
+
+    void resolve()
     return () => {
       cancelled = true
     }
@@ -45,21 +72,19 @@ export function LocaleModal({ defaultLocale = 'uk' }: { defaultLocale?: string }
 
   async function choose(locale: Locale, opts?: { silent?: boolean }) {
     if (!opts?.silent) setOpen(false)
-    // Persist immediately on the client (cookie + live UI switch) so the
-    // choice survives even if the server action response is lost.
     persistLocaleClientSide(locale)
     try {
       await setLocale(locale)
     } catch {
       // Client cookie above already keeps the choice.
     }
-    // Land on the /ru equivalent of whatever page they're on when they pick
-    // Russian, so the URL matches the rendered language from the start.
     const query = searchParams.toString()
     const target = localizedPath(stripLocalePrefix(pathname), locale) + (query ? `?${query}` : '')
     router.push(target)
     router.refresh()
   }
+
+  if (mode !== 'modal') return null
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>

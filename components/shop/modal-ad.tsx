@@ -37,21 +37,23 @@ function readSeen(): Record<string, number> {
   }
 }
 
+function sessionKey(id: number) {
+  return `modal-ad-s-${id}`
+}
+
 function canShow(ad: PublicModalAd): boolean {
-  if (ad.frequency === 'every') return true
-  if (ad.frequency === 'session') {
-    return !sessionStorage.getItem(`modal-ad-s-${ad.id}`)
-  }
-  // days
+  // Never re-open the same campaign in this tab after it already fired —
+  // "every page" used to spam a popup on each navigation.
+  if (sessionStorage.getItem(sessionKey(ad.id))) return false
+  if (ad.frequency === 'every' || ad.frequency === 'session') return true
   const seen = readSeen()[String(ad.id)]
   if (!seen) return true
   return Date.now() - seen > ad.frequencyDays * 24 * 60 * 60 * 1000
 }
 
 function markShown(ad: PublicModalAd) {
-  if (ad.frequency === 'session') {
-    sessionStorage.setItem(`modal-ad-s-${ad.id}`, '1')
-  } else if (ad.frequency === 'days') {
+  sessionStorage.setItem(sessionKey(ad.id), '1')
+  if (ad.frequency === 'days') {
     const seen = readSeen()
     seen[String(ad.id)] = Date.now()
     localStorage.setItem(LS_KEY, JSON.stringify(seen))
@@ -129,6 +131,10 @@ export function ModalAdHost({ ads }: { ads: PublicModalAd[] }) {
     } else if (ad.triggerType === 'scroll') {
       window.addEventListener('scroll', onScroll, { passive: true })
       onScroll()
+    } else if (window.matchMedia('(pointer: coarse)').matches) {
+      // Exit-intent is a desktop mouse gesture; on phones it never fires
+      // (or fires spuriously). Fall back to a one-shot delay instead.
+      timer = setTimeout(fire, Math.max(4, ad.triggerValue || 5) * 1000)
     } else {
       document.addEventListener('mouseout', onExit)
     }

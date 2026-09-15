@@ -376,3 +376,7 @@ FROM (
 WHERE p.id = sub.product_id
   AND jsonb_array_length(sub.sizes) > 0
   AND (p.sizes IS NULL OR p.sizes = '[]'::jsonb);
+
+-- First-visit language: modal picker vs browser language. Default browser so
+-- returning shops stop forcing the language dialog on every new device.
+ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "locale_prompt_mode" varchar(20) NOT NULL DEFAULT 'browser';

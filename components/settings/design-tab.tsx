@@ -172,6 +172,25 @@ export function DesignSection({ data, setData, t }: SectionProps) {
           </SelectContent>
         </Select>
       </div>
+
+      <div className="flex max-w-xl flex-col gap-3 border-t border-border pt-6">
+        <h2 className="text-base font-semibold text-foreground">{t.localePromptTitle}</h2>
+        <p className="text-sm text-muted-foreground">{t.localePromptDesc}</p>
+        <Select
+          value={data.localePromptMode}
+          onValueChange={(v) =>
+            setData((d) => ({ ...d, localePromptMode: v === 'modal' ? 'modal' : 'browser' }))
+          }
+        >
+          <SelectTrigger className="max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="browser">{t.localePromptBrowser}</SelectItem>
+            <SelectItem value="modal">{t.localePromptModal}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   )
 }

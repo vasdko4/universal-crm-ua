@@ -519,6 +519,10 @@ export type AdminDictionary = {
     premiumBadge: string
     defaultLangTitle: string
     defaultLangDesc: string
+    localePromptTitle: string
+    localePromptDesc: string
+    localePromptBrowser: string
+    localePromptModal: string
     imageReplace: string
     imageChooseFile: string
     imageDelete: string
@@ -2241,6 +2245,10 @@ const uk: AdminDictionary = {
     premiumBadge: 'Преміум',
     defaultLangTitle: 'Мова за замовчуванням',
     defaultLangDesc: 'Мова, яка пропонується новим відвідувачам під час першого входу.',
+    localePromptTitle: 'Перший вибір мови',
+    localePromptDesc: 'Модальне вікно запитує мову. Або магазин сам ставить мову браузера (українська / російська) і більше не показує попап.',
+    localePromptBrowser: 'Автоматично за мовою браузера',
+    localePromptModal: 'Показувати модальне вікно',
     imageReplace: 'Замінити',
     imageChooseFile: 'Обрати файл',
     imageDelete: 'Видалити',
@@ -3984,6 +3992,10 @@ const ru: AdminDictionary = {
     premiumBadge: 'Премиум',
     defaultLangTitle: 'Язык по умолчанию',
     defaultLangDesc: 'Язык, предлагаемый новым посетителям при первом входе.',
+    localePromptTitle: 'Первый выбор языка',
+    localePromptDesc: 'Модальное окно спрашивает язык. Либо магазин сам ставит язык браузера (украинский / русский) и больше не показывает попап.',
+    localePromptBrowser: 'Автоматически по языку браузера',
+    localePromptModal: 'Показывать модальное окно',
     imageReplace: 'Заменить',
     imageChooseFile: 'Выбрать файл',
     imageDelete: 'Удалить',
