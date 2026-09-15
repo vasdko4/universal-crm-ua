@@ -117,8 +117,7 @@ say "Setup complete!"
 echo "  Start the app with:  pnpm dev"
 echo "  Storefront:          http://localhost:3000"
 if [[ -n "$SEED_FLAG" ]]; then
-  echo "  Admin panel:         http://localhost:3000/admin"
-  echo "  Admin login:         admin@magazine.store  /  Admin12345  (demo — change it!)"
+  echo "  Demo catalog loaded. Create your admin account via the setup wizard."
 else
   echo "  On first visit you'll see the setup wizard to create your admin account."
 fi
