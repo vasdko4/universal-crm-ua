@@ -162,7 +162,7 @@ install_docker() {
       echo "  Установите Docker: curl -fsSL https://get.docker.com | sh"
       exit 1
     fi
-    curl -fsSL https://get.docker.com | as_root sh
+    curl -fsSL --proto '=https' --tlsv1.2 https://get.docker.com | as_root sh
     if command -v systemctl &>/dev/null; then
       as_root systemctl enable --now docker || true
     fi
@@ -333,7 +333,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: techno
-      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:-techno}
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: magazine
     volumes:
       - magazine_pgdata:/var/lib/postgresql/data
@@ -355,7 +355,7 @@ services:
     volumes:
       - magazine_uploads:/app/public/uploads
     environment:
-      DATABASE_URL: postgres://techno:\${POSTGRES_PASSWORD:-techno}@db:5432/magazine
+      DATABASE_URL: postgres://techno:\${POSTGRES_PASSWORD}@db:5432/magazine
       BETTER_AUTH_SECRET: \${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
       BETTER_AUTH_URL: \${BETTER_AUTH_URL:-http://localhost:3000}
       CRON_SECRET: \${CRON_SECRET:-}

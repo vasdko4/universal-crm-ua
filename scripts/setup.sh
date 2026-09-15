@@ -57,8 +57,16 @@ say "Installing dependencies"
 pnpm install
 
 # ── 4. Database ─────────────────────────────────────────────────────
-# docker-compose.yml maps host port 5433 -> container 5432 with these creds.
-DOCKER_DB_URL="postgres://techno:techno@localhost:5433/techno_store"
+# docker-compose.yml maps host port 5433 -> container 5432. Password lives in
+# .env (compose) and is copied into DATABASE_URL in .env.local — never hardcoded.
+if [ ! -f .env ] || ! grep -q '^POSTGRES_PASSWORD=' .env 2>/dev/null; then
+  DB_PASS="$(openssl rand -hex 24 2>/dev/null || head -c 24 /dev/urandom | xxd -p)"
+  printf 'POSTGRES_PASSWORD=%s\n' "$DB_PASS" >> .env
+  chmod 600 .env 2>/dev/null || true
+  ok "Generated POSTGRES_PASSWORD in .env"
+fi
+DB_PASS="$(grep '^POSTGRES_PASSWORD=' .env | head -1 | cut -d= -f2-)"
+DOCKER_DB_URL="postgres://techno:${DB_PASS}@localhost:5433/techno_store"
 
 if command -v docker >/dev/null && docker compose version >/dev/null 2>&1; then
   say "Starting Postgres (docker compose)"

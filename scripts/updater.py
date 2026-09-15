@@ -86,4 +86,6 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(f"[updater] listening on {BIND_HOST}:{PORT}", flush=True)
-    ThreadingHTTPServer((BIND_HOST, PORT), Handler).serve_forever()
+    # HTTP on the internal compose network only — the port is not published
+    # to the host. TLS would add nothing between two containers.
+    ThreadingHTTPServer((BIND_HOST, PORT), Handler).serve_forever()  # NOSONAR python:S5332

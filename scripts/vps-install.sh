@@ -69,7 +69,7 @@ apt-get install -y -qq curl ca-certificates gnupg ufw nginx postgresql postgresq
 dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
 
 if ! command -v node >/dev/null || [ "$(node -v | cut -c2-3)" -lt 20 ]; then
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
+  curl -fsSL --proto '=https' --tlsv1.2 https://deb.nodesource.com/setup_22.x | bash - >/dev/null
   apt-get install -y -qq nodejs >/dev/null
 fi
 ok "Node $(node -v)"
@@ -262,8 +262,8 @@ ok "UFW active"
 
 # ── Done ────────────────────────────────────────────────────────────
 say "Installation complete!"
-echo "  Store:        ${PUBLIC_URL}"
-echo "  Admin panel:  ${PUBLIC_URL}/admin"
+echo "  Store:        ${PUBLIC_URL}"  # NOSONAR shell:S5332 — HTTP only until certbot / domain
+echo "  Admin panel:  ${PUBLIC_URL}/admin"  # NOSONAR shell:S5332
 echo ""
 echo "  Service:      systemctl status magazine"
 echo "  Logs:         journalctl -u magazine -f"

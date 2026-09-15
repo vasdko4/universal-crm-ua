@@ -91,7 +91,7 @@ if ! command -v docker &>/dev/null; then
       echo "  Нужен root/sudo. Установите Docker: curl -fsSL https://get.docker.com | sh"
       exit 1
     fi
-    curl -fsSL https://get.docker.com | as_root sh
+    curl -fsSL --proto '=https' --tlsv1.2 https://get.docker.com | as_root sh
     command -v systemctl &>/dev/null && as_root systemctl enable --now docker || true
     [ "$(id -u)" != "0" ] && as_root usermod -aG docker "$USER" || true
     ok "Docker установлен"
