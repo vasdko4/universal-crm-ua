@@ -182,19 +182,19 @@ UPDATE "articles" SET
   "title_ru" = 'Как выбрать беспроводные наушники в 2026 году',
   "excerpt_ru" = 'Разбираем ключевые характеристики при выборе наушников.',
   "content_ru" = '<p>При выборе наушников обратите внимание на шумоподавление, время работы и качество звука.</p>'
-WHERE "slug" = 'how-to-choose-earbuds' AND COALESCE("title_ru", '') = '';
+WHERE "slug" = 'how-to-choose-earbuds' AND "title_ru" IS NULL;
 
 UPDATE "articles" SET
   "title_ru" = 'ТОП-5 смартфонов по соотношению цена/качество',
   "excerpt_ru" = 'Наша подборка лучших смартфонов месяца.',
   "content_ru" = '<p>В этом обзоре мы собрали 5 моделей, которые стоит внимания.</p>'
-WHERE "slug" = 'top-5-smartphones' AND COALESCE("title_ru", '') = '';
+WHERE "slug" = 'top-5-smartphones' AND "title_ru" IS NULL;
 
 UPDATE "articles" SET
   "title_ru" = 'Как ухаживать за механической клавиатурой',
   "excerpt_ru" = 'Простые советы для долговечности вашей клавиатуры.',
   "content_ru" = '<p>Регулярно чистите переключатели и снимайте кейкапы.</p>'
-WHERE "slug" = 'keyboard-care' AND COALESCE("title_ru", '') = '';
+WHERE "slug" = 'keyboard-care' AND "title_ru" IS NULL;
 
 -- Staff TOTP (admin 2FA).
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(64);

@@ -287,14 +287,15 @@ function Lightbox({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={alt}
-      className="fixed inset-0 z-[100] flex flex-col bg-black/92"
-      onClick={onClose}
-    >
-      <div className="flex items-center justify-between p-3 text-white" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label={alt} className="fixed inset-0 z-[100] flex flex-col">
+      <button
+        type="button"
+        aria-label={labels.close}
+        className="absolute inset-0 bg-black/92"
+        onClick={onClose}
+      />
+
+      <div className="relative z-10 flex items-center justify-between p-3 text-white">
         <span className="rounded-full bg-white/10 px-3 py-1 text-sm tabular-nums">
           {index + 1} / {count}
         </span>
@@ -308,7 +309,7 @@ function Lightbox({
         </button>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 sm:px-12" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-2 sm:px-12">
         {count > 1 && (
           <button
             type="button"
@@ -361,7 +362,7 @@ function Lightbox({
       </div>
 
       {count > 1 && (
-        <div className="flex justify-center gap-2 overflow-x-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        <div className="relative z-10 flex justify-center gap-2 overflow-x-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {gallery.map((src, i) => (
             <button
               key={src + i}
