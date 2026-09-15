@@ -36,6 +36,13 @@ function isLocaleExempt(pathname: string) {
   return LOCALE_EXEMPT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
 }
 
+const HSTS = 'max-age=31536000; includeSubDomains; preload'
+
+function withHsts(response: NextResponse) {
+  response.headers.set('Strict-Transport-Security', HSTS)
+  return response
+}
+
 function contentSecurityPolicy(nonce: string) {
   return [
     "default-src 'self'",
@@ -70,7 +77,7 @@ export function proxy(request: NextRequest) {
     const dest = locale === 'ru' ? `/ru${shortcut}` : shortcut
     const url = new URL(dest, request.url)
     url.search = request.nextUrl.search
-    return NextResponse.redirect(url)
+    return withHsts(NextResponse.redirect(url))
   }
 
   // Guard the protected storefront account area at the edge, before rendering.
@@ -83,7 +90,7 @@ export function proxy(request: NextRequest) {
       const loginPath = locale === 'ru' ? '/ru/account/login' : '/account/login'
       const loginUrl = new URL(loginPath, request.url)
       loginUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(loginUrl)
+      return withHsts(NextResponse.redirect(loginUrl))
     }
   }
 
@@ -109,7 +116,7 @@ export function proxy(request: NextRequest) {
     response = NextResponse.next({ request: { headers: requestHeaders } })
   }
   response.headers.set('Content-Security-Policy', csp)
-  return response
+  return withHsts(response)
 }
 
 export const config = {
