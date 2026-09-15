@@ -2,7 +2,7 @@
 
 import { pool } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
-import { assertPermission, getAdminUser } from '@/lib/session'
+import { assertPermission, assertWritePermission, getAdminUser } from '@/lib/session'
 import { hasPermission } from '@/lib/permissions'
 import type { Locale } from '@/lib/i18n/config'
 
@@ -84,7 +84,7 @@ export async function getBestsellers(limit = 20): Promise<BestsellerRow[]> {
 }
 
 export async function toggleProductPopular(productId: number, value: boolean) {
-  await assertPermission('bestsellers')
+  await assertWritePermission('bestsellers')
   await pool.query(`UPDATE products SET is_popular = $1 WHERE id = $2`, [value, productId])
   revalidatePath('/admin/bestsellers')
   revalidatePath('/admin/products')

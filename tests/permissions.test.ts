@@ -46,6 +46,11 @@ describe('canWrite', () => {
     expect(hasPermission(['orders:read'], 'orders')).toBe(true)
     expect(canWrite(['orders:read'], 'orders')).toBe(false)
   })
+
+  it('does not let a read key write even when mixed with unrelated write keys', () => {
+    expect(canWrite(['orders:read', 'products:write'], 'orders')).toBe(false)
+    expect(canWrite(['orders:read', 'products:write'], 'products')).toBe(true)
+  })
 })
 
 describe('permissionForPath', () => {

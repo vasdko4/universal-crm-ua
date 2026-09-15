@@ -9,7 +9,7 @@ import {
 } from '@/lib/db/schema'
 import { asc, eq, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { stripEdgeDashes } from '@/lib/text'
 
 function slugify(text: string) {
@@ -79,7 +79,7 @@ function validate(input: GroupInput): string | null {
 }
 
 export async function createGroup(input: GroupInput) {
-  await assertPermission('groups')
+  await assertWritePermission('groups')
   const error = validate(input)
   if (error) return { success: false, error }
 
@@ -97,7 +97,7 @@ export async function createGroup(input: GroupInput) {
 }
 
 export async function updateGroup(id: number, input: GroupInput) {
-  await assertPermission('groups')
+  await assertWritePermission('groups')
   const error = validate(input)
   if (error) return { success: false, error }
 
@@ -119,7 +119,7 @@ export async function updateGroup(id: number, input: GroupInput) {
 }
 
 export async function deleteGroup(id: number) {
-  await assertPermission('groups')
+  await assertWritePermission('groups')
   try {
     await db.delete(productGroupItems).where(eq(productGroupItems.groupId, id))
     await db.delete(productGroups).where(eq(productGroups.id, id))
@@ -131,7 +131,7 @@ export async function deleteGroup(id: number) {
 }
 
 export async function toggleGroupActive(id: number, isActive: boolean) {
-  await assertPermission('groups')
+  await assertWritePermission('groups')
   await db
     .update(productGroups)
     .set({ isActive, updatedAt: new Date() })

@@ -5,7 +5,7 @@ import { productReviews, productQuestions, products } from '@/lib/db/schema'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/shop/queries'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 
 type Status = 'pending' | 'approved' | 'rejected'
 
@@ -139,7 +139,7 @@ export async function createReview(input: {
 }
 
 export async function setReviewStatus(id: number, status: Status) {
-  await assertPermission('reviews')
+  await assertWritePermission('reviews')
   await db.update(productReviews).set({ status, updatedAt: new Date() }).where(eq(productReviews.id, id))
   revalidatePath('/admin/reviews')
   revalidateTag(CACHE_TAGS.reviews, 'max')
@@ -147,7 +147,7 @@ export async function setReviewStatus(id: number, status: Status) {
 }
 
 export async function replyToReview(id: number, reply: string) {
-  await assertPermission('reviews')
+  await assertWritePermission('reviews')
   await db.update(productReviews).set({ adminReply: reply, updatedAt: new Date() }).where(eq(productReviews.id, id))
   revalidatePath('/admin/reviews')
   revalidateTag(CACHE_TAGS.reviews, 'max')
@@ -155,7 +155,7 @@ export async function replyToReview(id: number, reply: string) {
 }
 
 export async function deleteReview(id: number) {
-  await assertPermission('reviews')
+  await assertWritePermission('reviews')
   await db.delete(productReviews).where(eq(productReviews.id, id))
   revalidatePath('/admin/reviews')
   revalidateTag(CACHE_TAGS.reviews, 'max')
@@ -251,7 +251,7 @@ export async function createQuestion(input: {
 }
 
 export async function answerQuestion(id: number, answer: string) {
-  await assertPermission('reviews')
+  await assertWritePermission('reviews')
   if (!answer.trim()) return { success: false, error: 'Ответ не может быть пустым' }
   await db
     .update(productQuestions)
@@ -263,7 +263,7 @@ export async function answerQuestion(id: number, answer: string) {
 }
 
 export async function deleteQuestion(id: number) {
-  await assertPermission('reviews')
+  await assertWritePermission('reviews')
   await db.delete(productQuestions).where(eq(productQuestions.id, id))
   revalidatePath('/admin/reviews')
   revalidateTag(CACHE_TAGS.reviews, 'max')

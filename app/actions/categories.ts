@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { categories, productCategory } from '@/lib/db/schema'
 import { asc, eq, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { revalidateStorefront } from '@/lib/shop/cache'
 import { stripEdgeDashes } from '@/lib/text'
 
@@ -67,7 +67,7 @@ function validate(input: CategoryInput): string | null {
 }
 
 export async function createCategory(input: CategoryInput) {
-  await assertPermission('categories')
+  await assertWritePermission('categories')
   const error = validate(input)
   if (error) return { success: false, error }
 
@@ -88,7 +88,7 @@ export async function createCategory(input: CategoryInput) {
 }
 
 export async function updateCategory(id: number, input: CategoryInput) {
-  await assertPermission('categories')
+  await assertWritePermission('categories')
   const error = validate(input)
   if (error) return { success: false, error }
 
@@ -115,7 +115,7 @@ export async function updateCategory(id: number, input: CategoryInput) {
 }
 
 export async function deleteCategory(id: number) {
-  await assertPermission('categories')
+  await assertWritePermission('categories')
   const [child] = await db
     .select({ id: categories.id })
     .from(categories)
@@ -132,7 +132,7 @@ export async function deleteCategory(id: number) {
 }
 
 export async function toggleCategoryVisibility(id: number, isVisible: boolean) {
-  await assertPermission('categories')
+  await assertWritePermission('categories')
   await db
     .update(categories)
     .set({ isVisible, updatedAt: new Date() })

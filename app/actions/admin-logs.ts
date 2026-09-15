@@ -1,7 +1,7 @@
 'use server'
 
 import { pool } from '@/lib/db'
-import { requirePermission } from '@/lib/session'
+import { requirePermission, assertWritePermission } from '@/lib/session'
 import type { AdminLog } from '@/lib/db/schema'
 import { parsePage, sanitizeSearch } from '@/lib/api/helpers'
 
@@ -79,7 +79,7 @@ export async function getAdminLogs(filter: LogsFilter = {}): Promise<LogsResult>
 
 // Clear logs older than N days (or all when days = 0). Audit-worthy itself.
 export async function clearAdminLogs(days: number): Promise<{ ok: boolean; removed: number }> {
-  const user = await requirePermission('logs')
+  const user = await assertWritePermission('logs')
 
   const res =
     days > 0

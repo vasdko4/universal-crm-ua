@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { customers, customerContacts } from '@/lib/db/schema'
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { parsePage, sanitizeSearch } from '@/lib/api/helpers'
 import { looksLikeEmail } from '@/lib/text'
 
@@ -131,7 +131,7 @@ function cleanContacts(contacts?: ContactInput[]) {
 }
 
 export async function createCustomer(input: CustomerInput) {
-  await assertPermission('customers')
+  await assertWritePermission('customers')
   const error = validate(input)
   if (error) return { success: false, error }
 
@@ -159,7 +159,7 @@ export async function createCustomer(input: CustomerInput) {
 }
 
 export async function updateCustomer(id: number, input: CustomerInput) {
-  await assertPermission('customers')
+  await assertWritePermission('customers')
   const error = validate(input)
   if (error) return { success: false, error }
 
@@ -190,7 +190,7 @@ export async function updateCustomer(id: number, input: CustomerInput) {
 }
 
 export async function deleteCustomer(id: number) {
-  await assertPermission('customers')
+  await assertWritePermission('customers')
   // Мягкое удаление
   await db
     .update(customers)
@@ -201,7 +201,7 @@ export async function deleteCustomer(id: number) {
 }
 
 export async function addCustomerTag(id: number, tag: string) {
-  await assertPermission('customers')
+  await assertWritePermission('customers')
   const clean = tag.trim()
   if (!clean) return { success: false, error: 'Пустой тег' }
 
@@ -223,7 +223,7 @@ export async function addCustomerTag(id: number, tag: string) {
 }
 
 export async function removeCustomerTag(id: number, tag: string) {
-  await assertPermission('customers')
+  await assertWritePermission('customers')
   const [row] = await db
     .select({ tags: customers.tags })
     .from(customers)

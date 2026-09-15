@@ -5,7 +5,7 @@ import { articles, articleCategories } from '@/lib/db/schema'
 import { and, asc, count, desc, eq, ilike } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { slugify } from '@/lib/slug'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { sanitizeSearch } from '@/lib/api/helpers'
 
 export type ArticleInput = {
@@ -135,7 +135,7 @@ function validate(input: ArticleInput): string | null {
 }
 
 export async function createArticle(input: ArticleInput) {
-  await assertPermission('articles')
+  await assertWritePermission('articles')
   const error = validate(input)
   if (error) return { success: false, error }
   const slug = await ensureSlug(input.slug?.trim() || input.title)
@@ -164,7 +164,7 @@ export async function createArticle(input: ArticleInput) {
 }
 
 export async function updateArticle(id: number, input: ArticleInput) {
-  await assertPermission('articles')
+  await assertWritePermission('articles')
   const error = validate(input)
   if (error) return { success: false, error }
   const current = await getArticleById(id)
@@ -199,7 +199,7 @@ export async function updateArticle(id: number, input: ArticleInput) {
 }
 
 export async function toggleArticleStatus(id: number, status: 'draft' | 'published') {
-  await assertPermission('articles')
+  await assertWritePermission('articles')
   await db
     .update(articles)
     .set({ status, publishedAt: status === 'published' ? new Date() : null, updatedAt: new Date() })
@@ -209,21 +209,21 @@ export async function toggleArticleStatus(id: number, status: 'draft' | 'publish
 }
 
 export async function toggleArticleFeatured(id: number, isFeatured: boolean) {
-  await assertPermission('articles')
+  await assertWritePermission('articles')
   await db.update(articles).set({ isFeatured, updatedAt: new Date() }).where(eq(articles.id, id))
   revalidatePath('/admin/articles')
   return { success: true }
 }
 
 export async function deleteArticle(id: number) {
-  await assertPermission('articles')
+  await assertWritePermission('articles')
   await db.delete(articles).where(eq(articles.id, id))
   revalidatePath('/admin/articles')
   return { success: true }
 }
 
 export async function createArticleCategory(name: string) {
-  await assertPermission('articles')
+  await assertWritePermission('articles')
   if (!name.trim()) return { success: false, error: 'Название обязательно' }
   await db.insert(articleCategories).values({ name: name.trim(), slug: slugify(name) || 'category' })
   revalidatePath('/admin/articles')

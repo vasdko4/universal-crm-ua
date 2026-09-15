@@ -4,7 +4,7 @@ import { desc, eq, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db, pool } from '@/lib/db'
 import { abandonedCarts, type AbandonedCart } from '@/lib/db/schema'
-import { assertPermission } from '@/lib/session'
+import { assertPermission, assertWritePermission } from '@/lib/session'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { sendMail } from '@/lib/mailer'
@@ -132,7 +132,7 @@ export async function getAbandonedCarts(): Promise<{
 
 /** Sends a reminder email to the visitor who abandoned the cart. */
 export async function sendCartReminder(id: number): Promise<{ success: boolean; error?: string }> {
-  const user = await assertPermission('abandoned_carts')
+  const user = await assertWritePermission('abandoned_carts')
   const ac = getAdminDictionary(user.locale).abandonedCarts
   const [cart] = await db.select().from(abandonedCarts).where(eq(abandonedCarts.id, id)).limit(1)
   if (!cart) return { success: false, error: ac.errorNotFound }
@@ -238,7 +238,7 @@ ${copy.regards}, ${settings.storeName}`
 
 /** Removes carts from the list (e.g. spam or handled by phone). */
 export async function dismissAbandonedCarts(ids: number[]): Promise<{ success: boolean }> {
-  const user = await assertPermission('abandoned_carts')
+  const user = await assertWritePermission('abandoned_carts')
   if (!ids.length) return { success: false }
   await db
     .update(abandonedCarts)

@@ -223,6 +223,12 @@ export async function getAdminUserWithPermission(key: PermissionKey): Promise<Ad
   return user
 }
 
+export async function getAdminUserWithWritePermission(key: PermissionKey): Promise<AdminUser | null> {
+  const user = await getAdminUserWithPermission(key)
+  if (!user || !canWrite(user.permissions, key)) return null
+  return user
+}
+
 export async function assertWritePermission(key: PermissionKey): Promise<AdminUser> {
   const user = await assertPermission(key)
   if (!canWrite(user.permissions, key)) throw new Error('Немає прав на зміну: ' + key)
