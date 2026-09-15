@@ -89,10 +89,10 @@ export function ProductCard({ product }: { product: ShopProduct }) {
                 alt={product.name}
                 fill
                 sizes={IMAGE_SIZES}
-                quality={85}
+                quality={75}
                 className={cn(
                   'object-cover transition duration-500 group-hover:scale-[1.03]',
-                  hoverImage && 'group-hover:opacity-0',
+                  hoverImage && 'sm:group-hover:opacity-0',
                 )}
               />
               {hoverImage && (
@@ -101,8 +101,8 @@ export function ProductCard({ product }: { product: ShopProduct }) {
                   alt=""
                   fill
                   sizes={IMAGE_SIZES}
-                  quality={75}
-                  className="object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  quality={70}
+                  className="hidden object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:block"
                 />
               )}
             </>

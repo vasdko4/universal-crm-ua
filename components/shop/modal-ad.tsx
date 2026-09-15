@@ -172,39 +172,38 @@ export function ModalAdHost({ ads }: { ads: PublicModalAd[] }) {
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent
-        className={`gap-0 overflow-hidden rounded-2xl border-none p-0 shadow-2xl ${SIZE_CLASS[current.size] ?? SIZE_CLASS.medium}`}
+        className={`max-h-[min(88dvh,640px)] w-[calc(100%-1.5rem)] gap-0 overflow-y-auto rounded-2xl border-none p-0 shadow-2xl ${SIZE_CLASS[current.size] ?? SIZE_CLASS.medium}`}
       >
         {current.imageUrl && (
-          <div className="relative aspect-[16/9] w-full bg-secondary">
+          <div className="relative aspect-[2/1] w-full bg-secondary sm:aspect-[16/9]">
             <Image
               src={current.imageUrl || '/placeholder.svg'}
               alt=""
               fill
               className="object-cover"
-              sizes="(max-width: 640px) 100vw, 576px"
-              priority
+              sizes="(max-width: 640px) 92vw, 576px"
+              quality={70}
             />
-            {/* Soft fade so the image blends into the content area */}
-            <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background/90 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background/90 to-transparent" />
           </div>
         )}
-        <div className={`flex flex-col gap-3 px-6 pb-6 text-center ${current.imageUrl ? 'pt-3' : 'pt-8'}`}>
-          <DialogTitle className="text-balance text-2xl font-bold leading-tight">
+        <div className={`flex flex-col gap-2.5 px-4 pb-5 text-center sm:px-6 sm:pb-6 ${current.imageUrl ? 'pt-3' : 'pt-8'}`}>
+          <DialogTitle className="text-balance text-lg font-bold leading-tight sm:text-2xl">
             {current.title}
           </DialogTitle>
           {current.body && (
             <p className="text-pretty text-sm leading-relaxed text-muted-foreground">{current.body}</p>
           )}
           {current.buttonText && (
-            <div className="mt-3">
+            <div className="mt-2">
               {current.buttonUrl ? (
-                <Button asChild className="w-full font-semibold" size="lg" style={buttonStyle}>
+                <Button asChild className="h-11 w-full font-semibold" size="lg" style={buttonStyle}>
                   <Link href={localizeHref(current.buttonUrl, locale)} onClick={clickLink}>
                     {current.buttonText}
                   </Link>
                 </Button>
               ) : (
-                <Button className="w-full font-semibold" size="lg" style={buttonStyle} onClick={clickButton}>
+                <Button className="h-11 w-full font-semibold" size="lg" style={buttonStyle} onClick={clickButton}>
                   {current.buttonText}
                 </Button>
               )}
@@ -213,7 +212,7 @@ export function ModalAdHost({ ads }: { ads: PublicModalAd[] }) {
           <button
             type="button"
             onClick={close}
-            className="mx-auto mt-1 text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            className="mx-auto mt-1 min-h-10 px-3 text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
           >
             {dict.common.notNowThanks}
           </button>

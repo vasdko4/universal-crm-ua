@@ -11,7 +11,7 @@ describe('storefrontMediaUrl', () => {
       ),
     ).toBe(
       'https://magazine-test-ten.vercel.app/api/media?src=' +
-        encodeURIComponent('https://images.prom.ua/7009554340_w2000_h2000_paverbank.jpg'),
+        encodeURIComponent('https://images.prom.ua/7009554340_w1000_h1000_paverbank.jpg'),
     )
   })
 
@@ -26,9 +26,9 @@ describe('storefrontMediaUrl', () => {
 })
 
 describe('promMediaPath', () => {
-  it('rewrites Prom CDN onto a same-origin /api/media path', () => {
-    expect(promMediaPath('https://images.prom.ua/1_w700_h500_x.jpg')).toBe(
-      '/api/media?src=' + encodeURIComponent('https://images.prom.ua/1_w2000_h2000_x.jpg'),
+  it('keeps Prom CDN on Prom at listing size for Next/Image', () => {
+    expect(promMediaPath('https://images.prom.ua/1_w2000_h2000_x.jpg')).toBe(
+      'https://images.prom.ua/1_w700_h500_x.jpg',
     )
   })
 
@@ -41,13 +41,13 @@ describe('promMediaPath', () => {
 })
 
 describe('rewritePromHtmlImages', () => {
-  it('rewrites Prom img src onto /api/media and leaves other hosts', () => {
+  it('resizes Prom img src and leaves other hosts', () => {
     const html =
-      '<p>x</p><img src="https://images.prom.ua/7366176545_7366176545.jpg?PIMAGE_ID=7366176545" alt="">' +
+      '<p>x</p><img src="https://images.prom.ua/7366176545_w700_h500_x.jpg" alt="">' +
       '<img src="https://cdn.example.com/a.jpg">'
     const out = rewritePromHtmlImages(html, 'https://shop.ua')
-    expect(out).toContain('https://shop.ua/api/media?src=')
-    expect(out).not.toContain('src="https://images.prom.ua/')
+    expect(out).toContain('https://images.prom.ua/7366176545_w1000_h1000_x.jpg')
+    expect(out).not.toContain('/api/media')
     expect(out).toContain('https://cdn.example.com/a.jpg')
   })
 })

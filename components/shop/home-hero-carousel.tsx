@@ -59,7 +59,10 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
           }}
         >
           <div className="relative aspect-[4/5] w-full sm:aspect-[16/10] lg:aspect-[21/9]">
-            {slides.map((slide, i) => (
+            {slides.map((slide, i) => {
+              const nearby = i === index || i === (index + 1) % n || i === (index - 1 + n) % n
+              if (!nearby) return null
+              return (
               <div
                 key={slide.title}
                 className={cn(
@@ -73,7 +76,8 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   alt=""
                   fill
                   priority={i === 0}
-                  sizes="(max-width: 1280px) 100vw, 1280px"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1280px) 100vw, 1280px"
+                  quality={75}
                   className="object-cover object-center"
                   draggable={false}
                 />
@@ -97,7 +101,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   ) : null}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           {n > 1 ? (

@@ -141,7 +141,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               alt={alt}
               fill
               priority
-              quality={90}
+              quality={85}
               sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-contain"
             />
@@ -338,7 +338,7 @@ function Lightbox({
             src={gallery[index] || '/placeholder.svg'}
             alt={alt}
             fill
-            quality={95}
+            quality={85}
             sizes="100vw"
             className={cn(
               'select-none object-contain transition-transform duration-200',
