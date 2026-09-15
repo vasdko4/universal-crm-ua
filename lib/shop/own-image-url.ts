@@ -1,4 +1,4 @@
-import { upgradePromImageUrl } from '@/lib/shop/prom-image'
+import { listingPromImageUrl, upgradePromImageUrl } from '@/lib/shop/prom-image'
 import { stripTrailingSlashes } from '@/lib/text'
 
 function isPromCdn(hostname: string): boolean {
@@ -27,39 +27,44 @@ export function storefrontMediaUrl(siteOrigin: string, src: string | null | unde
 }
 
 /**
- * Same-origin proxy path for listing/gallery `<Image>` tags. Relative so Next
- * does not fetch images.prom.ua from the browser.
+ * Listing/gallery `<Image>` src. Prom CDN URLs stay on Prom so Next's
+ * optimizer fetches them in one hop (remotePatterns). /api/media is only
+ * for JSON-LD / OG / Merchant, where we must not advertise the marketplace.
  */
 export function promMediaPath(src: string | null | undefined): string | null {
   if (!src) return src ?? null
   if (src.startsWith('/api/media?')) return src
-  const upgraded = upgradePromImageUrl(src) ?? src
-  if (!/^https?:\/\//i.test(upgraded)) return upgraded
-  try {
-    if (!isPromCdn(new URL(upgraded).hostname)) return upgraded
-  } catch {
-    return upgraded
-  }
-  return `/api/media?src=${encodeURIComponent(upgraded)}`
+  return listingPromImageUrl(src) ?? src
 }
 
 export function promMediaPathList(urls: string[]): string[] {
   return urls.map((u) => promMediaPath(u) ?? u)
 }
 
+/** Product page gallery — 1000px Prom derivative, still one hop to the CDN. */
+export function galleryMediaPath(src: string | null | undefined): string | null {
+  if (!src) return src ?? null
+  if (src.startsWith('/api/media?')) return src
+  return upgradePromImageUrl(src) ?? src
+}
+
+export function galleryMediaPathList(urls: string[]): string[] {
+  return urls.map((u) => galleryMediaPath(u) ?? u)
+}
+
 const ABSOLUTE_URL = /https?:\/\/[^\s"'<>]+/gi
 
 /**
  * Prom import leaves raw `<img src="https://images.prom.ua/...">` in product
- * HTML. Rewrite those onto /api/media so the storefront does not hotlink the
- * marketplace CDN from descriptions.
+ * HTML. Keep those on Prom (resized) so description images are not proxied
+ * twice through /api/media + /_next/image.
  */
-export function rewritePromHtmlImages(html: string, siteOrigin: string): string {
+export function rewritePromHtmlImages(html: string, _siteOrigin: string): string {
   if (!html) return html
   return html.replace(ABSOLUTE_URL, (url) => {
     try {
       if (!isPromCdn(new URL(url).hostname)) return url
-      return storefrontMediaUrl(siteOrigin, url)
+      return upgradePromImageUrl(url) ?? url
     } catch {
       return url
     }

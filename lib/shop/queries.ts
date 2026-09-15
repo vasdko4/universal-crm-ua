@@ -24,7 +24,7 @@ import {
   orderItems,
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
-import { promMediaPath, promMediaPathList } from '@/lib/shop/own-image-url'
+import { galleryMediaPath, galleryMediaPathList, promMediaPath, promMediaPathList } from '@/lib/shop/own-image-url'
 import { decodeHtmlEntities } from '@/lib/html-entities'
 
 export type { ProductOption, VariantOptions } from '@/lib/db/schema'
@@ -718,7 +718,7 @@ function mapVariantRow(v: typeof productVariants.$inferSelect): ProductVariant {
     oldPrice: vop && vop > vp ? vop : null,
     quantity: vq,
     inStock: Boolean(v.isInStock) && vq > 0,
-    image: promMediaPath(v.image ?? null),
+    image: galleryMediaPath(v.image ?? null),
   }
 }
 
@@ -872,6 +872,8 @@ async function _getProductByWhere(whereClause: SQL | undefined, locale: Locale =
   ])
   const mappedVariants = variantRows.map(mapVariantRow)
   const product = applySizeFallbacks(toShopProduct(row as Record<string, unknown>), chars, mappedVariants)
+  product.image = galleryMediaPath(product.image)
+  product.images = galleryMediaPathList(product.images ?? [])
   product.variants = product.variantsEnabled ? mappedVariants : []
   return {
     product,

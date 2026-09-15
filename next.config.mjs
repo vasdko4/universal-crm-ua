@@ -1,5 +1,3 @@
-import { withSentryConfig } from '@sentry/nextjs'
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Standalone output copies only the pruned production node_modules + server
@@ -14,14 +12,10 @@ const nextConfig = {
   // Serve modern formats and let Next resize/compress images for faster LCP.
   images: {
     formats: ['image/avif', 'image/webp'],
-    // Default Next quality is 75 — too soft on Prom photos already downscaled
-    // to 700×500. 90 keeps detail after WebP/AVIF.
-    qualities: [75, 85, 90, 95],
+    qualities: [70, 75, 85, 90, 95],
     // Next 16 blocks local <Image src> with a query string unless listed
-    // here. Prom photos are rewritten to `/api/media?src=…`; without this
-    // the optimizer throws and the storefront 500s / shows broken images.
-    // Omit `search` so any query is allowed. Public Blob URLs stay
-    // unscoped (no 1-day signed tokens).
+    // here. Prom photos used to go through `/api/media?src=…`; listing/gallery
+    // now hit Prom via remotePatterns so the optimizer is one hop, not two.
     localPatterns: [
       { pathname: '/api/media' },
       { pathname: '/api/email-image' },
@@ -43,26 +37,13 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
-  // Smaller client bundles: only pull the icons/components actually used.
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
   async rewrites() {
-    // Browsers still request /favicon.ico; App Router only ships app/icon.png.
     return [{ source: '/favicon.ico', destination: '/icon.png' }]
   },
 
-  // Next's file tracing copies sharp's JS into the standalone output but
-  // misses the native libvips shared library (lib/libvips-cpp.so.*), so image
-  // compression in /api/admin/upload silently fell back to "store original"
-  // on Docker/self-hosted builds. Force-include the whole libvips lib dir for
-  // every platform variant (glibc and musl).
-  //
-  // ONLY off-Vercel: these globs point into pnpm's symlinked .pnpm store, and
-  // Vercel's packager rejects symlinked dirs in a Serverless Function
-  // ("The framework produced an invalid deployment package", patch_build_4xx
-  // on every deploy). On Vercel uploads go to Blob storage, so sharp's
-  // native libs are resolved by Vercel's own tracing there anyway.
   ...(process.env.VERCEL
     ? {}
     : {
@@ -74,16 +55,10 @@ const nextConfig = {
           ],
         },
       }),
-  // The runtime-uploads route reads public/uploads with fs at request time.
-  // Turbopack's tracing saw the dynamic path and traced the WHOLE project
-  // into that route's output ("Encountered unexpected file in NFT list"),
-  // which blew up the Vercel deployment (patch_build_4xx). Those files are
-  // runtime data on a Docker volume — nothing needs to be traced for them.
   outputFileTracingExcludes: {
     '/uploads/[...path]': ['./app/uploads/[...path]/serve-local.ts', './public/uploads/**'],
   },
 
-  // Long-lived caching for hashed static assets + security headers.
   async headers() {
     return [
       {
@@ -91,10 +66,6 @@ const nextConfig = {
         headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
       },
       {
-        // Security headers for every page. frame-ancestors is intentionally
-        // NOT set here so the v0 preview iframe keeps working; on production
-        // hosting add Content-Security-Policy frame-ancestors 'none' at the
-        // proxy level if clickjacking protection for the admin is required.
         source: '/(.*)',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -105,9 +76,6 @@ const nextConfig = {
         ],
       },
       {
-        // Admin center + auth pages hold real credentials/actions and are
-        // never meant to be embedded anywhere — block clickjacking here
-        // regardless of the v0 preview exception above.
         source: '/(admin|sign-in|setup)/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
@@ -118,17 +86,4 @@ const nextConfig = {
   },
 }
 
-// withSentryConfig only uploads source maps / creates releases when
-// SENTRY_AUTH_TOKEN + SENTRY_ORG + SENTRY_PROJECT are set (e.g. in CI); it's
-// a harmless no-op wrapper otherwise, safe to build/run without any of them.
-export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG || 'hfdzah',
-  project: process.env.SENTRY_PROJECT || 'sentry-chestnut-leaf',
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  silent: !process.env.CI,
-  webpack: {
-    treeshake: { removeDebugLogging: true },
-    automaticVercelMonitors: true,
-  },
-  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
-})
+export default nextConfig
