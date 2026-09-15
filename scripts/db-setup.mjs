@@ -92,10 +92,23 @@ async function main() {
       // seed.sql predates columns like products.slug; migrate.sql's
       // `UPDATE ... WHERE slug IS NULL` only ran on the empty table above.
       await run('re-applying migrate.sql after seed', readFileSync(join(root, 'db/migrate.sql'), 'utf8'))
+      // Deactivate all seeded user accounts to prevent authentication with the
+      // repository-documented demo credentials (admin@magazine.store / Admin12345).
+      // Set KEEP_DEMO_ACCOUNTS=1 to preserve active accounts for local development.
+      if (process.env.KEEP_DEMO_ACCOUNTS !== '1') {
+        await run('deactivating seeded user accounts', 'UPDATE "user" SET is_active = false')
+      }
     }
     console.log('\n✓ Database ready.')
     if (withSeed) {
-      console.log('  Demo data loaded. Admin login: admin@magazine.store / Admin12345')
+      if (process.env.KEEP_DEMO_ACCOUNTS === '1') {
+        console.log('  Demo data loaded. Admin login: admin@magazine.store / Admin12345')
+        console.log('  ⚠️  Change the password immediately or set is_active=false in production!')
+      } else {
+        console.log('  Demo data loaded. Seeded user accounts are deactivated for security.')
+        console.log('  Create your admin account via the web wizard at http://localhost:3000')
+        console.log('  (or set KEEP_DEMO_ACCOUNTS=1 to keep demo accounts active for development)')
+      }
     } else {
       console.log('  Schema applied. Open http://localhost:3000 to run the setup wizard.')
     }
