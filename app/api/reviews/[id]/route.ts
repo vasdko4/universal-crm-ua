@@ -1,11 +1,11 @@
 import { setReviewStatus, replyToReview, deleteReview } from '@/app/actions/feedback'
 import { ok, fail, readJson, parsePositiveInt } from '@/lib/api/helpers'
-import { getAdminUserWithPermission } from '@/lib/session'
+import { getAdminUserWithWritePermission } from '@/lib/session'
 
 type PatchBody = { status?: 'pending' | 'approved' | 'rejected'; reply?: string }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await getAdminUserWithPermission('reviews'))) return fail('Не авторизовано', 403)
+  if (!(await getAdminUserWithWritePermission('reviews'))) return fail('Не авторизовано', 403)
   const { id } = await params
   const idNum = parsePositiveInt(id)
   if (idNum == null) return fail('Некорректный id', 400)
@@ -17,7 +17,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await getAdminUserWithPermission('reviews'))) return fail('Не авторизовано', 403)
+  if (!(await getAdminUserWithWritePermission('reviews'))) return fail('Не авторизовано', 403)
   const { id } = await params
   const idNum = parsePositiveInt(id)
   if (idNum == null) return fail('Некорректный id', 400)
