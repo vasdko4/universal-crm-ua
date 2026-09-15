@@ -8,11 +8,11 @@
 Каталог, заказы, клиенты, Новая Почта, Monobank / WayForPay — на вашей машине,
 без SaaS и без обязательного облака.
 
-**Version 2.5.1** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
+**Version 2.5.2** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
 
 **Демо:** https://magazine-test-ten.vercel.app — в `<title>` пока «Techno Store»: это `storeName` в БД демо, не код. Меняется в `/admin` → Налаштування.
-**Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/tag/v2.5.1
-**Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.5.1`
+**Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/tag/v2.5.2
+**Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.5.2`
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
@@ -83,7 +83,7 @@ DOMAIN=shop.example.com bash install.sh
 Другая версия образа:
 
 ```bash
-IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.5.1 bash install.sh
+IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.5.2 bash install.sh
 ```
 
 Пропустить подготовку ОС (Docker уже стоит):
@@ -275,4 +275,4 @@ GitHub App теги не создаёт. Обходной путь:
 1. Ветка `vX.Y.Z` с `main` — собирает Docker-образ (`next build --webpack`: Turbopack + sharp под pnpm падает).
 2. Ветка `release-page-X.Y.Z` — создаёт GitHub Release и тег `vX.Y.Z`.
 
-Для 2.5.1 оба шага уже сделаны. Docker-сборка на Vercel/e2e по-прежнему без `output: 'standalone'`.
+Для 2.5.2 оба шага — `git tag v2.5.2 && git push origin v2.5.2` (или ветка `v2.5.2`). Docker-сборка на Vercel/e2e по-прежнему без `output: 'standalone'`.

@@ -14,5 +14,11 @@ overrides:
   undici@>=6.0.0 <6.28.1: 6.28.1
   undici@>=7.0.0 <7.29.1: 7.29.1
   sanitize-html: '>=2.17.7'
-  # AIKIDO-2026-10707 — prototype pollution in zod catchall (< 4.4.0)
-  zod@<4.4.0: '>=4.4.3'
+  # AIKIDO-2026-10707 / AIKIDO-2026-500926 — prototype pollution in zod
+  zod@<4.5.0: '>=4.5.0'
+  # AIKIDO-2026-584205 — jose improper authentication (< 6.2.5)
+  jose@>=6.0.0 <6.2.5: '>=6.2.5'
+  # AIKIDO-2026-963596 — @noble/hashes prototype pollution (< 2.4.0)
+  '@noble/hashes@<2.4.0': '>=2.4.0'
+  # Aikido PR #112 — es-toolkit path-writing prototype pollution
+  es-toolkit@<1.51.0: '>=1.51.0'
