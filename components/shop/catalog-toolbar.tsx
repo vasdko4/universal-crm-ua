@@ -112,113 +112,132 @@ export function CatalogToolbar({
     : dict.catalog.price
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5 lg:gap-3 lg:p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 lg:gap-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <p className="text-sm text-muted-foreground">
           {dict.catalog.found}: <span className="font-semibold text-foreground">{total}</span>
         </p>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Price range */}
-          <Popover
-            open={priceOpen}
-            onOpenChange={(open) => {
-              setPriceOpen(open)
-              if (open) {
-                setDraftMin(minPrice)
-                setDraftMax(maxPrice)
-              }
-            }}
-          >
-            <PopoverTrigger asChild>
-              <Button
-                variant={priceActive ? 'default' : 'outline'}
-                size="sm"
-                className="gap-1.5"
-              >
-                <SlidersHorizontal className="size-3.5" />
-                {priceLabel}
+        <Select value={sort} onValueChange={(v) => update('sort', v)}>
+          <SelectTrigger className="w-44 shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Popover
+          open={priceOpen}
+          onOpenChange={(open) => {
+            setPriceOpen(open)
+            if (open) {
+              setDraftMin(minPrice)
+              setDraftMax(maxPrice)
+            }
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button
+              variant={priceActive ? 'default' : 'outline'}
+              size="sm"
+              className="h-8 shrink-0 gap-1.5"
+            >
+              <SlidersHorizontal className="size-3.5" />
+              {priceLabel}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64">
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(e) => {
+                e.preventDefault()
+                applyPrice()
+              }}
+            >
+              <p className="text-sm font-medium text-foreground">
+                {dict.catalog.price}, ₴
+                {priceBounds && priceBounds.max > priceBounds.min && (
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    ({priceBounds.min} – {priceBounds.max})
+                  </span>
+                )}
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={priceBounds?.min ?? 0}
+                  max={priceBounds?.max}
+                  placeholder={priceBounds ? String(priceBounds.min) : dict.catalog.priceFrom}
+                  value={draftMin}
+                  onChange={(e) => setDraftMin(e.target.value)}
+                  aria-label={dict.catalog.priceFrom}
+                />
+                <span className="text-muted-foreground">—</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={priceBounds?.min ?? 0}
+                  max={priceBounds?.max}
+                  placeholder={priceBounds ? String(priceBounds.max) : dict.catalog.priceTo}
+                  value={draftMax}
+                  onChange={(e) => setDraftMax(e.target.value)}
+                  aria-label={dict.catalog.priceTo}
+                />
+              </div>
+              <Button type="submit" size="sm">
+                {dict.catalog.apply}
               </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64">
-              <form
-                className="flex flex-col gap-3"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  applyPrice()
-                }}
-              >
-                <p className="text-sm font-medium text-foreground">
-                  {dict.catalog.price}, ₴
-                  {priceBounds && priceBounds.max > priceBounds.min && (
-                    <span className="ml-1 font-normal text-muted-foreground">
-                      ({priceBounds.min} – {priceBounds.max})
-                    </span>
-                  )}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min={priceBounds?.min ?? 0}
-                    max={priceBounds?.max}
-                    placeholder={priceBounds ? String(priceBounds.min) : dict.catalog.priceFrom}
-                    value={draftMin}
-                    onChange={(e) => setDraftMin(e.target.value)}
-                    aria-label={dict.catalog.priceFrom}
-                  />
-                  <span className="text-muted-foreground">—</span>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min={priceBounds?.min ?? 0}
-                    max={priceBounds?.max}
-                    placeholder={priceBounds ? String(priceBounds.max) : dict.catalog.priceTo}
-                    value={draftMax}
-                    onChange={(e) => setDraftMax(e.target.value)}
-                    aria-label={dict.catalog.priceTo}
-                  />
-                </div>
-                <Button type="submit" size="sm">
-                  {dict.catalog.apply}
-                </Button>
-              </form>
-            </PopoverContent>
-          </Popover>
+            </form>
+          </PopoverContent>
+        </Popover>
 
-          {/* Toggles */}
-          <div className="flex items-center gap-2">
-            <Switch
-              id="in-stock"
-              checked={inStock}
-              onCheckedChange={(v) => update('inStock', v ? '1' : null)}
-            />
-            <Label htmlFor="in-stock" className="text-sm">
-              {dict.catalog.inStockOnly}
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id="discount-only"
-              checked={discount}
-              onCheckedChange={(v) => update('discount', v ? '1' : null)}
-            />
-            <Label htmlFor="discount-only" className="text-sm">
-              {dict.catalog.discountOnly}
-            </Label>
-          </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="in-stock"
+            checked={inStock}
+            onCheckedChange={(v) => update('inStock', v ? '1' : null)}
+          />
+          <Label htmlFor="in-stock" className="whitespace-nowrap text-sm">
+            {dict.catalog.inStockOnly}
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="discount-only"
+            checked={discount}
+            onCheckedChange={(v) => update('discount', v ? '1' : null)}
+          />
+          <Label htmlFor="discount-only" className="whitespace-nowrap text-sm">
+            {dict.catalog.discountOnly}
+          </Label>
+        </div>
+      </div>
 
+      {facets.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
           {facets.map((facet) => {
             const selected = charFilters.filter((f) => f.name === facet.name)
             const label = facetLabel(facet.name, locale === 'ru' ? 'ru' : 'uk')
             return (
               <Popover key={facet.name}>
                 <PopoverTrigger asChild>
-                  <Button variant={selected.length > 0 ? 'default' : 'outline'} size="sm" className="gap-1.5">
-                    {label}
+                  <Button
+                    variant={selected.length > 0 ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-8 max-w-full shrink-0 gap-1.5"
+                  >
+                    <span className="truncate">{label}</span>
                     {selected.length > 0 ? ` (${selected.length})` : ''}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-56 p-2">
+                <PopoverContent align="start" className="w-56 p-2">
                   <p className="px-1 pb-2 text-sm font-medium text-foreground">{label}</p>
                   <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
                     {facet.values.map((v) => {
@@ -241,24 +260,9 @@ export function CatalogToolbar({
               </Popover>
             )
           })}
-
-          {/* Sort */}
-          <Select value={sort} onValueChange={(v) => update('sort', v)}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
-      </div>
+      )}
 
-      {/* Active filter chips + reset */}
       {activeCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
           {priceActive && (

@@ -25,9 +25,16 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteUrl = await getCanonicalSiteUrl()
   const locale = await getLocale()
   const sd = getDictionary(locale).seoDefaults
-  const name = s?.storeName || sd.defaultStoreName
+  const name = (s?.storeName?.trim() || sd.defaultStoreName).trim()
   const seo = s?.seo
-  const title = seo?.metaTitle?.trim() || `${name} ${sd.onlineStoreSuffix}`
+  const suffix = sd.onlineStoreSuffix.trim()
+  const suffixBare = suffix.replace(/^[\s\u2014\u2013\-]+/, '').trim().toLowerCase()
+  const nameLc = name.toLowerCase()
+  const composed =
+    !suffix || nameLc === suffixBare || nameLc.includes(suffixBare)
+      ? name
+      : `${name} ${suffix}`
+  const title = seo?.metaTitle?.trim() || composed
   // Admin SEO is a single global string (usually Ukrainian). On /ru use the
   // Russian dictionary defaults so the <meta description> matches the page.
   const description =
