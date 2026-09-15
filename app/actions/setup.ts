@@ -130,6 +130,10 @@ export async function runSetup(input: SetupInput) {
       try {
         const seed = readFileSync(join(process.cwd(), 'db', 'seed.sql'), 'utf8')
         if (seed.trim()) await pool.query(seed)
+        // Immediately deactivate all seeded user accounts so the hardcoded demo
+        // credentials (admin@magazine.store / Admin12345) cannot authenticate.
+        // Only the operator-created administrator below will remain active.
+        await pool.query(`UPDATE "user" SET is_active = false`)
       } catch {
         // Demo data is optional; ignore if the file is missing in this deploy.
       }
