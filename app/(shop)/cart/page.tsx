@@ -18,11 +18,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CartPage() {
   const locale = await getLocale()
   const dict = getDictionary(locale)
-  const settings = await getPublicStoreSettings()
+  // Same as checkout: a missing/broken settings row must not 500 the cart.
+  const settings = await getPublicStoreSettings().catch(() => null)
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 md:py-12">
       <h1 className="mb-6 text-2xl font-bold text-foreground md:text-3xl">{dict.cart.title}</h1>
-      <CartView minOrder={settings.minOrder} />
+      <CartView minOrder={settings?.minOrder} />
     </div>
   )
 }
