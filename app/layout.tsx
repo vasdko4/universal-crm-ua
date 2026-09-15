@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getCanonicalSiteUrl } from '@/lib/seo'
+import { headers } from 'next/headers'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import './globals.css'
@@ -89,12 +90,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // selected/default locale, which misleads screen readers and can cause
   // search engines to classify Ukrainian-language pages as Russian.
   const locale = await getLocale()
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   return (
     <html lang={locale} className="bg-background">
       <body className="font-sans antialiased">
-        <script src="/dom-patch.js" />
+        <script src="/dom-patch.js" nonce={nonce} />
         {process.env.NODE_ENV === 'development' && (
-          <script src="/dev-perf-patch.js" />
+          <script src="/dev-perf-patch.js" nonce={nonce} />
         )}
         {children}
         {/* On mobile Sonner ignores `position` and always renders toasts

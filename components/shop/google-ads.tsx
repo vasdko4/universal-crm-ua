@@ -34,7 +34,7 @@ export type EcommPageType = 'home' | 'category' | 'product' | 'cart' | 'purchase
 // accepted on a previous visit (cookie read synchronously before the first
 // gtag call, so no consent-state flash). This keeps EU traffic measurable
 // without violating GDPR — see CookieConsentBanner for the actual prompt.
-export function GoogleTag({ adsId, gaId }: { adsId?: string; gaId?: string }) {
+export function GoogleTag({ adsId, gaId, nonce }: { adsId?: string; gaId?: string; nonce?: string | null }) {
   const validAds = adsId && isValidAdsId(adsId) ? adsId : null
   const validGa = gaId && isValidGaId(gaId) ? gaId : null
   if (!validAds && !validGa) return null
@@ -52,8 +52,9 @@ export function GoogleTag({ adsId, gaId }: { adsId?: string; gaId?: string }) {
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${loaderId}`}
         strategy="afterInteractive"
+        nonce={nonce ?? undefined}
       />
-      <Script id="google-gtag-init" strategy="afterInteractive">
+      <Script id="google-gtag-init" strategy="afterInteractive" nonce={nonce ?? undefined}>
         {`window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());

@@ -36,6 +36,25 @@ function isLocaleExempt(pathname: string) {
   return LOCALE_EXEMPT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
 }
 
+function contentSecurityPolicy(nonce: string) {
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    // Per-request nonce + strict-dynamic: Next.js boot scripts and gtag.js
+    // get the nonce; they may load further scripts. No unsafe-eval / unsafe-inline.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://region1.google-analytics.com https://images.prom.ua https://*.prom.ua https://*.prom.st https://*.vercel-storage.com https://*.blob.vercel-storage.com https://vitals.vercel-insights.com",
+    "frame-src https://www.google.com https://www.googletagmanager.com https://td.doubleclick.net",
+    'upgrade-insecure-requests',
+  ].join('; ')
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -73,17 +92,24 @@ export function proxy(request: NextRequest) {
   // checks, and lib/i18n/server.ts's getLocale() treats x-locale (derived from
   // the URL, not a cookie) as authoritative so the same URL always renders the
   // same language for every visitor, including crawlers with no cookies.
+  const nonce = crypto.randomUUID().replace(/-/g, '')
+  const csp = contentSecurityPolicy(nonce)
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-pathname', innerPathname)
   requestHeaders.set('x-locale', locale)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', csp)
 
+  let response: NextResponse
   if (innerPathname !== pathname) {
     const url = request.nextUrl.clone()
     url.pathname = innerPathname
-    return NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+    response = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+  } else {
+    response = NextResponse.next({ request: { headers: requestHeaders } })
   }
-
-  return NextResponse.next({ request: { headers: requestHeaders } })
+  response.headers.set('Content-Security-Policy', csp)
+  return response
 }
 
 export const config = {

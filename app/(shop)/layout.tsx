@@ -20,6 +20,7 @@ import { getActiveModalAds } from '@/app/actions/modal-ads'
 import { isSetupNeeded } from '@/app/actions/setup'
 import { getShopCategories } from '@/lib/shop/queries'
 import { getPublishedLegalPages } from '@/lib/shop/pages'
+import { headers } from 'next/headers'
 import { getLocale, hasLocaleCookie, getDictionary } from '@/lib/i18n/server'
 import { ensureProductSizesBackfill } from '@/lib/shop/backfill-product-sizes'
 
@@ -43,6 +44,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     getActiveModalAds().catch(() => []),
   ])
 
+  const nonce = (await headers()).get('x-nonce')
   const storeName = settings?.storeName?.trim() || 'Мій магазин'
   const template = settings?.activeTemplate ?? 'classic'
   const categories: HeaderCategory[] = categoriesRaw.map((c) => ({
@@ -78,6 +80,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             <GoogleTag
               adsId={settings?.googleAds.enabled ? settings.googleAds.conversionId : undefined}
               gaId={settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined}
+              nonce={nonce}
             />
             <GoogleAnalyticsPageview
               gaId={settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined}
