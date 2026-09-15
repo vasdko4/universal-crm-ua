@@ -40,6 +40,7 @@ async function claimOrdersByPhone(userId: string, normPhone: string) {
       `UPDATE orders SET user_id = $1
        WHERE user_id IS NULL
          AND customer_phone IS NOT NULL
+         AND created_at > NOW() - INTERVAL '30 days'
          AND right(regexp_replace(customer_phone, '[^0-9]', '', 'g'), 9) = right($2, 9)`,
       [userId, digits],
     )

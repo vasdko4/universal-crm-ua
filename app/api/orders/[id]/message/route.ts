@@ -3,7 +3,7 @@ import { sendMail } from '@/lib/mailer'
 import { getOrder } from '@/app/actions/orders'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { buildOrderMessage, type OrderMessageKind } from '@/lib/order-messages'
-import { getAdminUserWithPermission } from '@/lib/session'
+import { getAdminUserWithWritePermission } from '@/lib/session'
 import { db } from '@/lib/db'
 import { orderHistory } from '@/lib/db/schema'
 import { getProductSlugMap } from '@/lib/shop/queries'
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // permission — like every other order mutation in app/actions/orders.ts.
   // That let a staff account with e.g. only the 'articles'/'pages' role
   // trigger arbitrary order emails/messenger links for any order.
-  const me = await getAdminUserWithPermission('orders')
+  const me = await getAdminUserWithWritePermission('orders')
   if (!me) return NextResponse.json({ error: 'Не авторизован' }, { status: 403 })
 
   const { id } = await params

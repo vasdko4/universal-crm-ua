@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { listOrders, createOrder } from '@/app/actions/orders'
 import { ok, fail, parsePositiveInt, sanitizeSearch, readJson } from '@/lib/api/helpers'
-import { getAdminUserWithPermission } from '@/lib/session'
+import { getAdminUserWithPermission, getAdminUserWithWritePermission } from '@/lib/session'
 import { ORDER_STATUSES } from '@/lib/order-status'
 
 const ALLOWED_STATUSES = new Set<string>(['all', ...ORDER_STATUSES.map((s) => s.value)])
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const me = await getAdminUserWithPermission('orders')
+  const me = await getAdminUserWithWritePermission('orders')
   if (!me) return fail('Не авторизован', 401)
   const body = await readJson<{ items?: unknown[] }>(req)
   if (!body) return fail('Некорректный JSON', 400)

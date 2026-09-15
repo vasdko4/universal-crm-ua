@@ -1,6 +1,6 @@
 import { getPublicPublishedArticles, createArticle, type ArticleInput } from '@/app/actions/articles'
 import { ok, fail, parseListParams, readJson, parsePositiveInt } from '@/lib/api/helpers'
-import { getAdminUserWithPermission } from '@/lib/session'
+import { getAdminUserWithWritePermission } from '@/lib/session'
 import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { pickLocalized } from '@/lib/i18n/config'
 import { getDictionary } from '@/lib/i18n/dictionaries'
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!(await getAdminUserWithPermission('articles'))) return fail('Не авторизовано', 403)
+  if (!(await getAdminUserWithWritePermission('articles'))) return fail('Не авторизовано', 403)
   const body = await readJson<ArticleInput>(req)
   if (!body) return fail('Некорректный JSON')
   const result = await createArticle(body)

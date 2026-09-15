@@ -1,6 +1,6 @@
 import { getPublicPublishedPageById, updatePage, deletePage, type PageInput } from '@/app/actions/pages'
 import { ok, fail, readJson, parsePositiveInt } from '@/lib/api/helpers'
-import { getAdminUserWithPermission } from '@/lib/session'
+import { getAdminUserWithWritePermission } from '@/lib/session'
 import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { pickLocalized } from '@/lib/i18n/config'
 
@@ -21,7 +21,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await getAdminUserWithPermission('pages'))) return fail('Не авторизовано', 403)
+  if (!(await getAdminUserWithWritePermission('pages'))) return fail('Не авторизовано', 403)
   const { id } = await params
   const idNum = parsePositiveInt(id)
   if (idNum == null) return fail('Некорректный id', 400)
@@ -33,7 +33,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await getAdminUserWithPermission('pages'))) return fail('Не авторизовано', 403)
+  if (!(await getAdminUserWithWritePermission('pages'))) return fail('Не авторизовано', 403)
   const { id } = await params
   const idNum = parsePositiveInt(id)
   if (idNum == null) return fail('Некорректный id', 400)

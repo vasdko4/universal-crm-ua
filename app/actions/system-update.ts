@@ -1,6 +1,6 @@
 'use server'
 
-import { assertPermission } from '@/lib/session'
+import { assertWritePermission } from '@/lib/session'
 import { stripTrailingSlashes } from '@/lib/text'
 
 /**
@@ -14,7 +14,7 @@ import { stripTrailingSlashes } from '@/lib/text'
  * (e.g. Vercel, or a Docker install that hasn't opted in yet).
  */
 export async function triggerSelfUpdate(): Promise<{ ok: boolean; error?: string }> {
-  await assertPermission('system_updates')
+  await assertWritePermission('system_updates')
 
   const url = process.env.UPDATER_URL
   const secret = process.env.UPDATER_SECRET

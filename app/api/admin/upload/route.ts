@@ -4,7 +4,7 @@ import { writeFile, unlink, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
-import { hasPermission } from '@/lib/permissions'
+import { canWrite } from '@/lib/permissions'
 import { readJson } from '@/lib/api/helpers'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8 MB
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   if (
     !admin ||
     !(await staffTwoFactorSatisfied(admin.id)) ||
-    !(hasPermission(admin.permissions, 'products') || hasPermission(admin.permissions, 'settings'))
+    !(canWrite(admin.permissions, 'products') || canWrite(admin.permissions, 'settings'))
   ) {
     return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
   }
@@ -150,7 +150,7 @@ export async function DELETE(request: NextRequest) {
   if (
     !admin ||
     !(await staffTwoFactorSatisfied(admin.id)) ||
-    !(hasPermission(admin.permissions, 'products') || hasPermission(admin.permissions, 'settings'))
+    !(canWrite(admin.permissions, 'products') || canWrite(admin.permissions, 'settings'))
   ) {
     return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
   }

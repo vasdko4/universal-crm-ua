@@ -582,6 +582,20 @@ export async function markOrderPaid(orderNumber: string) {
   if (!order) return { success: false, error: t.orderNotFound }
   if (order.paymentStatus === 'paid') return { success: true }
 
+  // Demo pay must not be callable with a guessed order number. The checkout
+  // flow sets pf_last_order; logged-in shoppers may also own the order.
+  const shopper = await getShopUser()
+  let cookieOrder: string | undefined
+  try {
+    cookieOrder = (await cookies()).get('pf_last_order')?.value
+  } catch {
+    cookieOrder = undefined
+  }
+  const ownsOrder = Boolean(shopper && order.userId && shopper.id === order.userId)
+  if (!ownsOrder && cookieOrder !== orderNumber) {
+    return { success: false, error: t.orderNotFound }
+  }
+
   const [realGatewayPayment] = await db
     .select({ gatewayCode: payments.gatewayCode })
     .from(payments)
