@@ -1055,7 +1055,7 @@ async function _getShopCategories(locale: Locale = 'uk') {
     locale === 'ru'
       ? sql<string>`COALESCE(NULLIF(${categories.nameRu}, ''), ${categories.nameUk})`
       : sql<string>`COALESCE(NULLIF(${categories.nameUk}, ''), ${categories.nameRu})`
-  return db
+  const rows = await db
     .select({
       id: categories.id,
       name,
@@ -1068,6 +1068,7 @@ async function _getShopCategories(locale: Locale = 'uk') {
     .from(categories)
     .where(eq(categories.isVisible, true))
     .orderBy(asc(categories.sortOrder), asc(name))
+  return rows.map((row) => ({ ...row, image: promMediaPath(row.image) }))
 }
 
 /**

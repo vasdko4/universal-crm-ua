@@ -17,10 +17,28 @@ const nextConfig = {
     // Default Next quality is 75 — too soft on Prom photos already downscaled
     // to 700×500. 90 keeps detail after WebP/AVIF.
     qualities: [75, 85, 90, 95],
+    // Next 16 blocks local <Image src> with a query string unless listed
+    // here. Prom photos are rewritten to `/api/media?src=…`; without this
+    // the optimizer throws and the storefront 500s / shows broken images.
+    // Omit `search` so any query is allowed. Public Blob URLs stay
+    // unscoped (no 1-day signed tokens).
+    localPatterns: [
+      { pathname: '/api/media' },
+      { pathname: '/api/email-image' },
+      { pathname: '/uploads/**' },
+      { pathname: '/images/**' },
+      { pathname: '/products/**' },
+      { pathname: '/placeholder.svg' },
+      { pathname: '/hero-electronics.png' },
+      { pathname: '/promotions-empty.png' },
+      { pathname: '/icon.png' },
+    ],
     remotePatterns: [
       { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
       { protocol: 'https', hostname: '*.blob.vercel-storage.com' },
       { protocol: 'https', hostname: 'images.prom.ua' },
+      { protocol: 'https', hostname: '*.prom.ua' },
+      { protocol: 'https', hostname: 'cdn.prom.st' },
       { protocol: 'https', hostname: '*.prom.st' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
