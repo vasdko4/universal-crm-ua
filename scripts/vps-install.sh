@@ -24,14 +24,14 @@ say() { printf '\n\033[1;36m── %s\033[0m\n' "$1"; }
 ok()  { printf '\033[1;32m✓ %s\033[0m\n' "$1"; }
 err() { printf '\033[1;31m✗ %s\033[0m\n' "$1" >&2; }
 
-[ "$(id -u)" = "0" ] || { err "Run as root: sudo bash scripts/vps-install.sh"; exit 1; }
+[[ "$(id -u)" = "0" ]] || { err "Run as root: sudo bash scripts/vps-install.sh"; exit 1; }
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$APP_DIR"
-[ -f package.json ] || { err "package.json not found — run from the project directory"; exit 1; }
+[[ -f package.json ]] || { err "package.json not found — run from the project directory"; exit 1; }
 
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-if [ -n "${DOMAIN:-}" ]; then
+if [[ -n "${DOMAIN:-}" ]]; then
   PUBLIC_URL="https://${DOMAIN}"
 else
   PUBLIC_URL="http://${SERVER_IP}"
@@ -45,9 +45,9 @@ DB_USER="magazine"
 # clue. A modest swapfile prevents that at the cost of a bit of disk I/O.
 say "Checking swap"
 TOTAL_MEM_MB="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
-if [ "$(swapon --show=NAME --noheadings | wc -l)" -eq 0 ] && [ "${TOTAL_MEM_MB:-0}" -lt 4000 ]; then
+if [[ "$(swapon --show=NAME --noheadings | wc -l)" -eq 0 ]] && [[ "${TOTAL_MEM_MB:-0}" -lt 4000 ]]; then
   SWAP_FILE=/swapfile
-  if [ ! -f "$SWAP_FILE" ]; then
+  if [[ ! -f "$SWAP_FILE" ]]; then
     fallocate -l 2G "$SWAP_FILE" 2>/dev/null || dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048 status=none
     chmod 600 "$SWAP_FILE"
     mkswap "$SWAP_FILE" >/dev/null
@@ -68,7 +68,7 @@ apt-get update -qq
 apt-get install -y -qq curl ca-certificates gnupg ufw nginx postgresql postgresql-contrib unattended-upgrades >/dev/null
 dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
 
-if ! command -v node >/dev/null || [ "$(node -v | cut -c2-3)" -lt 20 ]; then
+if ! command -v node >/dev/null || [[ "$(node -v | cut -c2-3)" -lt 20 ]]; then
   curl -fsSL --proto '=https' --tlsv1.2 https://deb.nodesource.com/setup_22.x | bash - >/dev/null
   apt-get install -y -qq nodejs >/dev/null
 fi
@@ -82,7 +82,7 @@ say "Configuring PostgreSQL"
 systemctl enable --now postgresql >/dev/null 2>&1
 
 DB_PASS_FILE="/root/.magazine_db_pass"
-if [ ! -f "$DB_PASS_FILE" ]; then
+if [[ ! -f "$DB_PASS_FILE" ]]; then
   openssl rand -hex 24 > "$DB_PASS_FILE"
   chmod 600 "$DB_PASS_FILE"
 fi
@@ -97,7 +97,7 @@ if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NA
   ok "Database ${DB_NAME} created"
   say "Applying database schema (db/schema.sql)"
   sudo -u postgres psql -d "$DB_NAME" -q -f db/schema.sql >/dev/null
-  [ -f db/migrate.sql ] && sudo -u postgres psql -d "$DB_NAME" -q -f db/migrate.sql >/dev/null
+  [[ -f db/migrate.sql ]] && sudo -u postgres psql -d "$DB_NAME" -q -f db/migrate.sql >/dev/null
   sudo -u postgres psql -d "$DB_NAME" -q -c "
     GRANT ALL ON ALL TABLES IN SCHEMA public TO ${DB_USER};
     GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};
@@ -106,12 +106,12 @@ if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${DB_NA
   ok "Schema applied — the store is configured via the web setup wizard on first visit"
 else
   ok "Database ${DB_NAME} already exists — keeping data"
-  [ -f db/migrate.sql ] && sudo -u postgres psql -d "$DB_NAME" -q -f db/migrate.sql >/dev/null || true
+  [[ -f db/migrate.sql ]] && sudo -u postgres psql -d "$DB_NAME" -q -f db/migrate.sql >/dev/null || true
 fi
 
 # ── 3. Environment ──────────────────────────────────────────────────
 say "Writing .env.production"
-if [ ! -f .env.production ]; then
+if [[ ! -f .env.production ]]; then
   AUTH_SECRET="$(openssl rand -base64 32)"
   # Protects /api/cron/delivery-sync: without it that endpoint answers any
   # unauthenticated caller (hits the Nova Poshta API, writes to the DB, can
@@ -171,7 +171,7 @@ for i in $(seq 1 60); do
   printf '.'
   sleep 2
 done
-if [ "$READY" != "1" ]; then
+if [[ "$READY" != "1" ]]; then
   printf '\n'; err "App did not become healthy. journalctl -u magazine -n 80"
   journalctl -u magazine -n 40 --no-pager || true
   exit 1
@@ -268,7 +268,7 @@ echo ""
 echo "  Service:      systemctl status magazine"
 echo "  Logs:         journalctl -u magazine -f"
 echo "  DB password:  ${DB_PASS_FILE}"
-if [ -n "${DOMAIN:-}" ]; then
+if [[ -n "${DOMAIN:-}" ]]; then
   echo ""
   echo "  HTTPS: apt install certbot python3-certbot-nginx && certbot --nginx -d ${DOMAIN}"
 fi

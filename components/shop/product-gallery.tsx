@@ -120,14 +120,13 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         role="region"
         aria-label={alt}
         aria-roledescription="carousel"
-        tabIndex={0}
-        onKeyDown={onKeyDown}
         className="group relative min-w-0 flex-1 aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-white outline-none focus-visible:ring-2 focus-visible:ring-primary/50 dark:bg-card"
       >
         {current ? (
           <button
             type="button"
             onClick={() => setLightboxOpen(true)}
+            onKeyDown={onKeyDown}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
             className="relative block h-full w-full cursor-zoom-in touch-pan-y"
@@ -219,7 +218,7 @@ function Lightbox({
 }) {
   const [zoomed, setZoomed] = useState(false)
   const [origin, setOrigin] = useState('50% 50%')
-  const frameRef = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLButtonElement>(null)
   const touchStartX = useRef<number | null>(null)
 
   const count = gallery.length
@@ -250,7 +249,7 @@ function Lightbox({
     }
   }, [])
 
-  function toggleZoom(e: React.MouseEvent<HTMLDivElement>) {
+  function toggleZoom(e: React.MouseEvent<HTMLButtonElement>) {
     const rect = frameRef.current?.getBoundingClientRect()
     if (!rect) return
     if (!zoomed) {
@@ -263,7 +262,7 @@ function Lightbox({
     }
   }
 
-  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+  function onMouseMove(e: React.MouseEvent<HTMLButtonElement>) {
     if (!zoomed) return
     const rect = frameRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -291,7 +290,7 @@ function Lightbox({
       className="fixed inset-0 z-[100] flex flex-col bg-black/92"
       onClick={onClose}
     >
-      <div className="flex items-center justify-between p-3 text-white" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between p-3 text-white" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <span className="rounded-full bg-white/10 px-3 py-1 text-sm tabular-nums">
           {index + 1} / {count}
         </span>
@@ -305,7 +304,7 @@ function Lightbox({
         </button>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 sm:px-12" onClick={(e) => e.stopPropagation()}>
+      <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 sm:px-12" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         {count > 1 && (
           <button
             type="button"
@@ -317,14 +316,16 @@ function Lightbox({
           </button>
         )}
 
-        <div
+        <button
+          type="button"
           ref={frameRef}
           onClick={toggleZoom}
           onMouseMove={onMouseMove}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
+          aria-label={zoomed ? labels.close : alt}
           className={cn(
-            'relative h-full w-full max-w-5xl overflow-hidden',
+            'relative h-full w-full max-w-5xl overflow-hidden border-0 bg-transparent p-0',
             zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in',
           )}
         >
@@ -341,7 +342,7 @@ function Lightbox({
             style={{ transformOrigin: origin }}
             draggable={false}
           />
-        </div>
+        </button>
 
         {count > 1 && (
           <button
@@ -356,7 +357,7 @@ function Lightbox({
       </div>
 
       {count > 1 && (
-        <div className="flex justify-center gap-2 overflow-x-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-center gap-2 overflow-x-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           {gallery.map((src, i) => (
             <button
               key={src + i}

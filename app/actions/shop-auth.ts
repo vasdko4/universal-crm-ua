@@ -6,6 +6,7 @@ import { getShopUser } from '@/lib/session'
 import { sendMail } from '@/lib/mailer'
 import { normalizeUaPhone } from '@/lib/shop/phone'
 import { isRateLimited } from '@/lib/api/rate-limit'
+import { looksLikeEmail } from '@/lib/text'
 import { hashPassword } from 'better-auth/crypto'
 import { getLocale } from '@/lib/i18n/server'
 import {
@@ -210,7 +211,6 @@ export async function getEmailChangeAvailability() {
   return { allowed: true as const }
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODE_TTL_MINUTES = 15
 
 // Step 1: user requests a change — we email a 6-digit code to the NEW address.
@@ -229,7 +229,7 @@ export async function requestEmailChange(newEmailRaw: string) {
   }
 
   const newEmail = newEmailRaw.trim().toLowerCase()
-  if (!EMAIL_RE.test(newEmail)) return { success: false, error: 'Введите корректный email' }
+  if (!looksLikeEmail(newEmail)) return { success: false, error: 'Введите корректный email' }
   if (newEmail === user.email.toLowerCase()) {
     return { success: false, error: 'Это ваш текущий email' }
   }

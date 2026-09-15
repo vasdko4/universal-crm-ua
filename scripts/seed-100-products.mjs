@@ -3,7 +3,13 @@
 // sizes[], characteristics, discounts, out-of-stock, popular flags, groups.
 import { Pool } from 'pg'
 
-const cs = process.env.DATABASE_URL.replace(/([?&])(sslmode|channel_binding)=[^&]*/gi, '$1').replace(/[?&]+$/g, '')
+function trimQueryJunk(url) {
+  let end = url.length
+  while (end > 0 && (url[end - 1] === '?' || url[end - 1] === '&')) end -= 1
+  return url.slice(0, end)
+}
+
+const cs = trimQueryJunk(process.env.DATABASE_URL.replace(/([?&])(sslmode|channel_binding)=[^&]*/gi, '$1'))
 const pool = new Pool({ connectionString: cs, ssl: { rejectUnauthorized: false } })
 
 // Deterministic PRNG so reruns produce the same data.

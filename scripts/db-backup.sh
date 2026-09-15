@@ -35,8 +35,8 @@ echo "✓ Backup written: $DEST ($(du -h "$DEST" | cut -f1))"
 
 find "$BACKUP_DIR" -name 'magazine_*.dump' -mtime "+${RETENTION_DAYS}" -print -delete
 
-if [ -n "${RCLONE_REMOTE:-}" ] && command -v rclone >/dev/null 2>&1; then
+if [[ -n "${RCLONE_REMOTE:-}" ]] && command -v rclone >/dev/null 2>&1; then
   rclone copy "$DEST" "$RCLONE_REMOTE" && echo "✓ Uploaded to $RCLONE_REMOTE"
-elif [ -n "${RCLONE_REMOTE:-}" ]; then
+elif [[ -n "${RCLONE_REMOTE:-}" ]]; then
   echo "✗ RCLONE_REMOTE is set but rclone is not installed — backup stayed local only" >&2
 fi

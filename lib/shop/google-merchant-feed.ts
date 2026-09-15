@@ -1,6 +1,7 @@
 import { localizedPath, type Locale } from '@/lib/i18n/config'
 import { decodeHtmlEntities } from '@/lib/html-entities'
 import { storefrontMediaUrl } from '@/lib/shop/own-image-url'
+import { stripScriptAndStyle, stripTags } from '@/lib/text'
 
 function toAbsolute(base: string, path = '/'): string {
   if (!path) return base
@@ -63,9 +64,7 @@ export function escapeXml(input: string): string {
  * `<` → `<` resurrected markup.
  */
 export function htmlToPlainText(html: string): string {
-  return decodeHtmlEntities(html)
-    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
+  return stripTags(stripScriptAndStyle(decodeHtmlEntities(html)))
     .replace(/[<>]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

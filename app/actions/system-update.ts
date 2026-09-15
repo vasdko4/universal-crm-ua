@@ -1,6 +1,7 @@
 'use server'
 
 import { assertPermission } from '@/lib/session'
+import { stripTrailingSlashes } from '@/lib/text'
 
 /**
  * Triggers a self-update: asks the `updater` sidecar container (see
@@ -22,7 +23,7 @@ export async function triggerSelfUpdate(): Promise<{ ok: boolean; error?: string
   }
 
   try {
-    const res = await fetch(`${url.replace(/\/+$/, '')}/update`, {
+    const res = await fetch(`${stripTrailingSlashes(url)}/update`, {
       method: 'POST',
       headers: { 'X-Updater-Secret': secret },
       signal: AbortSignal.timeout(10_000),

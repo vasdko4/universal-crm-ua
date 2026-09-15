@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { looksLikeEmail } from '@/lib/text'
 import Image from 'next/image'
 import {
   User,
@@ -431,14 +432,14 @@ export function CheckoutFlow({
   }, [])
   useEffect(() => {
     const normalizedPhone = normalizeUaPhone(phone)
-    const hasContact = !!normalizedPhone || /\S+@\S+\.\S+/.test(email)
+    const hasContact = !!normalizedPhone || looksLikeEmail(email)
     if (!hasContact || items.length === 0 || !cartTokenRef.current) return
     const timer = setTimeout(() => {
       void saveAbandonedCart({
         token: cartTokenRef.current,
         name: `${firstName.trim()} ${lastName.trim()}`.trim() || undefined,
         phone: normalizedPhone ?? undefined,
-        email: /\S+@\S+\.\S+/.test(email) ? email.trim() : undefined,
+        email: looksLikeEmail(email) ? email.trim() : undefined,
         items: items.map((i) => ({
           productId: i.id,
           name: i.variantLabel ? `${i.name} (${i.variantLabel})` : i.name,

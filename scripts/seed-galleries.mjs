@@ -3,7 +3,13 @@
 // small themed set based on their main image. Idempotent: overwrites images.
 import { Pool } from 'pg'
 
-const cs = process.env.DATABASE_URL.replace(/([?&])(sslmode|channel_binding)=[^&]*/gi, '$1').replace(/[?&]+$/g, '')
+function trimQueryJunk(url) {
+  let end = url.length
+  while (end > 0 && (url[end - 1] === '?' || url[end - 1] === '&')) end -= 1
+  return url.slice(0, end)
+}
+
+const cs = trimQueryJunk(process.env.DATABASE_URL.replace(/([?&])(sslmode|channel_binding)=[^&]*/gi, '$1'))
 const pool = new Pool({ connectionString: cs, ssl: { rejectUnauthorized: false } })
 
 // Alternate-angle sets for specific base images (main photo first).

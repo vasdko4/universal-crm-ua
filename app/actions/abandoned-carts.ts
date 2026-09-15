@@ -143,7 +143,7 @@ export async function sendCartReminder(id: number): Promise<{ success: boolean; 
   const items = (cart.items as AbandonedCartItem[]) ?? []
   const loc = settings.defaultLocale === 'ru' ? 'ru' : 'uk'
   const tag = loc === 'ru' ? 'ru-RU' : 'uk-UA'
-  const lines = items.map((i) => `• ${i.name} — ${i.quantity} ${loc === 'ru' ? 'шт.' : 'шт.'}`).join('\n')
+  const lines = items.map((i) => `• ${i.name} — ${i.quantity} шт.`).join('\n')
   const total = Number(cart.itemsTotal).toLocaleString(tag).replace(/\u00a0/g, ' ')
   const copy = loc === 'ru'
     ? {

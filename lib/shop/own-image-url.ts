@@ -1,4 +1,5 @@
 import { upgradePromImageUrl } from '@/lib/shop/prom-image'
+import { stripTrailingSlashes } from '@/lib/text'
 
 function isPromCdn(hostname: string): boolean {
   const h = hostname.replace(/\.$/, '').toLowerCase()
@@ -10,7 +11,7 @@ function isPromCdn(hostname: string): boolean {
  * don't advertise a marketplace CDN. Local and Blob URLs stay as-is.
  */
 export function storefrontMediaUrl(siteOrigin: string, src: string | null | undefined): string {
-  const origin = siteOrigin.replace(/\/+$/, '')
+  const origin = stripTrailingSlashes(siteOrigin)
   if (!src) return origin
   const abs = /^https?:\/\//i.test(src)
     ? src

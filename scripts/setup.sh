@@ -33,7 +33,7 @@ if ! command -v pnpm >/dev/null; then
 fi
 
 # ── 2. Environment file ─────────────────────────────────────────────
-if [ ! -f .env.local ]; then
+if [[ ! -f .env.local ]]; then
   say "Creating .env.local"
   cp .env.example .env.local
   if command -v openssl >/dev/null; then
@@ -59,7 +59,7 @@ pnpm install
 # ── 4. Database ─────────────────────────────────────────────────────
 # docker-compose.yml maps host port 5433 -> container 5432. Password lives in
 # .env (compose) and is copied into DATABASE_URL in .env.local — never hardcoded.
-if [ ! -f .env ] || ! grep -q '^POSTGRES_PASSWORD=' .env 2>/dev/null; then
+if [[ ! -f .env ]] || ! grep -q '^POSTGRES_PASSWORD=' .env 2>/dev/null; then
   DB_PASS="$(openssl rand -hex 24 2>/dev/null || head -c 24 /dev/urandom | xxd -p)"
   printf 'POSTGRES_PASSWORD=%s\n' "$DB_PASS" >> .env
   chmod 600 .env 2>/dev/null || true
@@ -95,14 +95,14 @@ fi
 SCHEMA_ONLY=""
 SEED_FLAG=""
 for arg in "$@"; do
-  [ "$arg" = "--schema" ] && SCHEMA_ONLY="1"
-  [ "$arg" = "--seed" ] && SEED_FLAG="--seed"
+  [[ "$arg" = "--schema" ]] && SCHEMA_ONLY="1"
+  [[ "$arg" = "--seed" ]] && SEED_FLAG="--seed"
 done
 
-if [ -n "$SEED_FLAG" ]; then
+if [[ -n "$SEED_FLAG" ]]; then
   say "Applying schema + demo seed"
   node --env-file=.env.local scripts/db-setup.mjs --seed
-elif [ -f db/dump.sql ]; then
+elif [[ -f db/dump.sql ]]; then
   # A local snapshot exists (created with `pnpm db:dump`) — restore it.
   # Note: db/dump.sql is gitignored, it never ships with the repo.
   say "Restoring local snapshot (db/dump.sql)"
@@ -116,7 +116,7 @@ fi
 say "Setup complete!"
 echo "  Start the app with:  pnpm dev"
 echo "  Storefront:          http://localhost:3000"
-if [ -n "$SEED_FLAG" ]; then
+if [[ -n "$SEED_FLAG" ]]; then
   echo "  Admin panel:         http://localhost:3000/admin"
   echo "  Admin login:         admin@magazine.store  /  Admin12345  (demo — change it!)"
 else

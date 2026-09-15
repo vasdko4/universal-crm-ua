@@ -11,8 +11,8 @@ export function decodeHtmlEntities(s: string): string {
     .replace(/&apos;/gi, "'")
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => fromCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => fromCode(parseInt(dec, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => fromCode(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => fromCode(Number.parseInt(dec, 10)))
     .replace(/&amp;/gi, '&')
 }
 

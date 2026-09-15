@@ -25,10 +25,16 @@
 import { writeFileSync, mkdirSync } from 'node:fs'
 import pg from 'pg'
 
+function trimQueryJunk(url) {
+  let end = url.length
+  while (end > 0 && (url[end - 1] === '?' || url[end - 1] === '&')) end -= 1
+  return url.slice(0, end)
+}
+
 function cleanConnString(raw) {
   // Neon pooled URLs carry sslmode/channel_binding params that the `pg` driver
   // does not understand; strip them and rely on explicit ssl options instead.
-  return raw.replace(/[?&](sslmode|channel_binding)=[^&]*/gi, '').replace(/[?&]+$/, '')
+  return trimQueryJunk(raw.replace(/[?&](sslmode|channel_binding)=[^&]*/gi, ''))
 }
 
 const q = (id) => '"' + id.replace(/"/g, '""') + '"'

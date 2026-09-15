@@ -53,7 +53,7 @@ export function buildOrderMessage(
   // build this with getProductSlugMap() before invoking buildOrderMessage.
   productSlugs: Record<number, string> = {},
 ): { subject: string; text: string; html: string } {
-  const storeName = store.storeName || (store.locale === 'ru' ? 'Наш магазин' : 'Наш магазин')
+  const storeName = store.storeName || 'Наш магазин'
   const siteUrl = (store.siteUrl || '').replace(/\/$/, '')
   const loc: 'uk' | 'ru' = store.locale === 'ru' ? 'ru' : 'uk'
   const L = loc === 'ru'

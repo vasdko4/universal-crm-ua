@@ -32,7 +32,7 @@ info() { printf "  %s\n" "$1"; }
 cd "$(dirname "$0")"
 
 as_root() {
-  if [ "$(id -u)" = "0" ]; then
+  if [[ "$(id -u)" = "0" ]]; then
     "$@"
   elif command -v sudo >/dev/null 2>&1; then
     sudo "$@"
@@ -52,7 +52,7 @@ docker_bin() {
 }
 
 # ── 0. Подготовка Linux-ВМ ──────────────────────────────────────────
-if [ "$(uname -s)" = "Linux" ] && [ "${SKIP_VM_SETUP:-0}" != "1" ] && as_root true >/dev/null 2>&1; then
+if [[ "$(uname -s)" = "Linux" ]] && [[ "${SKIP_VM_SETUP:-0}" != "1" ]] && as_root true >/dev/null 2>&1; then
   say "Подготовка виртуальной машины"
   export DEBIAN_FRONTEND=noninteractive
   if command -v apt-get >/dev/null 2>&1; then
@@ -60,19 +60,19 @@ if [ "$(uname -s)" = "Linux" ] && [ "${SKIP_VM_SETUP:-0}" != "1" ] && as_root tr
     as_root apt-get install -y -qq curl ca-certificates openssl ufw >/dev/null || true
   fi
   command -v timedatectl >/dev/null 2>&1 && as_root timedatectl set-timezone Europe/Kyiv >/dev/null 2>&1 || true
-  if [ -r /proc/meminfo ]; then
+  if [[ -r /proc/meminfo ]]; then
     TOTAL_MEM_MB="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
     SWAP_COUNT="$(swapon --show=NAME --noheadings 2>/dev/null | wc -l | tr -d ' ')"
-    if [ "${SWAP_COUNT:-0}" -eq 0 ] && [ "${TOTAL_MEM_MB:-0}" -lt 4000 ]; then
+    if [[ "${SWAP_COUNT:-0}" -eq 0 ]] && [[ "${TOTAL_MEM_MB:-0}" -lt 4000 ]]; then
       SWAP_FILE=/swapfile
-      if [ ! -f "$SWAP_FILE" ]; then
+      if [[ ! -f "$SWAP_FILE" ]]; then
         as_root fallocate -l 2G "$SWAP_FILE" 2>/dev/null \
           || as_root dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048 status=none
         as_root chmod 600 "$SWAP_FILE"
         as_root mkswap "$SWAP_FILE" >/dev/null
       fi
       as_root swapon "$SWAP_FILE" 2>/dev/null || true
-      if [ -f /etc/fstab ] && ! grep -q "$SWAP_FILE" /etc/fstab; then
+      if [[ -f /etc/fstab ]] && ! grep -q "$SWAP_FILE" /etc/fstab; then
         echo "$SWAP_FILE none swap sw 0 0" | as_root tee -a /etc/fstab >/dev/null
       fi
       ok "Swap 2G — RAM было ${TOTAL_MEM_MB}MB"
@@ -85,7 +85,7 @@ say "Проверка Docker"
 
 if ! command -v docker &>/dev/null; then
   err "Docker не найден!"
-  if [ "$(uname -s)" = "Linux" ]; then
+  if [[ "$(uname -s)" = "Linux" ]]; then
     say "Установка Docker (get.docker.com)"
     if ! as_root true >/dev/null 2>&1; then
       echo "  Нужен root/sudo. Установите Docker: curl -fsSL https://get.docker.com | sh"
@@ -93,7 +93,7 @@ if ! command -v docker &>/dev/null; then
     fi
     curl -fsSL --proto '=https' --tlsv1.2 https://get.docker.com | as_root sh
     command -v systemctl &>/dev/null && as_root systemctl enable --now docker || true
-    [ "$(id -u)" != "0" ] && as_root usermod -aG docker "$USER" || true
+    [[ "$(id -u)" != "0" ]] && as_root usermod -aG docker "$USER" || true
     ok "Docker установлен"
   else
     echo ""
@@ -108,7 +108,7 @@ fi
 
 for i in $(seq 1 30); do
   docker_bin info >/dev/null 2>&1 && break
-  if [ "$i" -eq 30 ]; then
+  if [[ "$i" -eq 30 ]]; then
     err "Docker-демон не запущен. Запустите Docker Desktop или службу docker."
     exit 1
   fi
@@ -125,8 +125,8 @@ ok "Docker готов"
 # ── 2. Environment file ─────────────────────────────────────────────
 say "Настройка окружения"
 
-if [ ! -f .env ]; then
-  if [ -z "${DOMAIN:-}" ] && [ -t 0 ]; then
+if [[ ! -f .env ]]; then
+  if [[ -z "${DOMAIN:-}" ]] && [[ -t 0 ]]; then
     echo ""
     echo "  Укажите домен, на котором будет работать магазин"
     echo "  (например: shop.example.com). Оставьте пустым для localhost."
@@ -137,15 +137,15 @@ if [ ! -f .env ]; then
   DOMAIN="${DOMAIN%%/*}"
 
   PUBLIC_IP="$(curl -fsS4 --max-time 5 https://api.ipify.org 2>/dev/null || true)"
-  if [ -z "$PUBLIC_IP" ]; then
+  if [[ -z "$PUBLIC_IP" ]]; then
     PUBLIC_IP="$(curl -fsS4 --max-time 5 https://ifconfig.me 2>/dev/null || true)"
   fi
-  if [ -z "$PUBLIC_IP" ]; then
+  if [[ -z "$PUBLIC_IP" ]]; then
     PUBLIC_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
   fi
-  if [ -n "$DOMAIN" ]; then
+  if [[ -n "$DOMAIN" ]]; then
     PUBLIC_URL="https://${DOMAIN}"
-  elif [ -n "$PUBLIC_IP" ]; then
+  elif [[ -n "$PUBLIC_IP" ]]; then
     PUBLIC_URL="http://${PUBLIC_IP}:3000"
   else
     PUBLIC_URL="http://localhost:3000"
@@ -203,7 +203,7 @@ else
 fi
 
 # ── 2b. Firewall ────────────────────────────────────────────────────
-if [ "$(uname -s)" = "Linux" ] && command -v ufw >/dev/null 2>&1 && as_root true >/dev/null 2>&1; then
+if [[ "$(uname -s)" = "Linux" ]] && command -v ufw >/dev/null 2>&1 && as_root true >/dev/null 2>&1; then
   as_root ufw allow OpenSSH >/dev/null 2>&1 || as_root ufw allow 22/tcp >/dev/null 2>&1 || true
   as_root ufw allow 80/tcp >/dev/null 2>&1 || true
   as_root ufw allow 443/tcp >/dev/null 2>&1 || true
@@ -241,7 +241,7 @@ for i in $(seq 1 90); do
   printf '.'
   sleep 3
 done
-if [ "$READY" != "1" ]; then
+if [[ "$READY" != "1" ]]; then
   printf '\n'
   err "Превышено время ожидания. Логи:"
   docker_bin compose logs --tail=80 app db || true
@@ -265,14 +265,14 @@ echo "  Откройте:  ${SITE_URL}"
 echo ""
 echo "  При первом заходе вас автоматически перенаправит на мастер"
 echo "  установки — там вы создадите магазин и admin-логин/пароль."
-if [ -n "${DOMAIN_SHOW}" ]; then
+if [[ -n "${DOMAIN_SHOW}" ]]; then
   echo ""
   echo "  HTTPS: встроенный прокси Caddy сам получит SSL-сертификат"
   echo "  Let's Encrypt для ${DOMAIN_SHOW} (nginx настраивать не нужно)."
   echo "  Убедитесь, что A-запись домена указывает на IP этого сервера"
   echo "  и порты 80/443 открыты — сертификат выпустится за ~1 минуту."
 fi
-if [ -n "${FTP_PASS_SHOW}" ]; then
+if [[ -n "${FTP_PASS_SHOW}" ]]; then
   echo ""
   echo "  FTP-доступ к загрузкам (фото товаров):"
   echo "    Хост:         порт 21 этого сервера (пассивные 21000-21010)"

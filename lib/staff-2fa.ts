@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { stripTrailingChars } from '@/lib/text'
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 
@@ -19,7 +20,7 @@ function toBase32(buf: Buffer): string {
 }
 
 function fromBase32(input: string): Buffer {
-  const clean = input.toUpperCase().replace(/=+$/g, '').replace(/[\s-]/g, '')
+  const clean = stripTrailingChars(input.toUpperCase(), '=').replace(/[\s-]/g, '')
   let bits = 0
   let value = 0
   const bytes: number[] = []

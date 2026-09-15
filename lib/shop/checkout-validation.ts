@@ -14,6 +14,7 @@
 import type { CheckoutItem, CheckoutInput } from '@/app/actions/shop'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import type { Locale } from '@/lib/i18n/config'
+import { looksLikeEmail } from '@/lib/text'
 
 export const CHECKOUT_LIMITS = {
   maxItems: 50,
@@ -33,8 +34,6 @@ export const CHECKOUT_LIMITS = {
   promoCode: 64,
   cartToken: 64,
 } as const
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export type SanitizedCheckout = {
   firstName: string
@@ -110,7 +109,7 @@ export function validateCheckoutInput(input: CheckoutInput, locale: Locale = 'ru
   }
 
   const email = cap(input.email, L.email)
-  if (email && !EMAIL_RE.test(email)) {
+  if (email && !looksLikeEmail(email)) {
     return { ok: false, error: t.invalidEmail }
   }
 

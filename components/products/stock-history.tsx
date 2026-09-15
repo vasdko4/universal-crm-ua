@@ -37,7 +37,7 @@ export async function StockHistory({ productId, locale }: { productId: number; l
               <tr className="text-left text-xs text-muted-foreground">
                 <th className="py-1 pr-3">Δ</th>
                 <th className="py-1 pr-3">{locale === 'uk' ? 'Після' : 'После'}</th>
-                <th className="py-1 pr-3">{locale === 'uk' ? 'Причина' : 'Причина'}</th>
+                <th className="py-1 pr-3">Причина</th>
                 <th className="py-1 pr-3">{locale === 'uk' ? 'Хто' : 'Кто'}</th>
                 <th className="py-1">{locale === 'uk' ? 'Коли' : 'Когда'}</th>
               </tr>

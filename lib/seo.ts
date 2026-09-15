@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { stripTrailingSlashes } from '@/lib/text'
 
 /**
  * Resolves the canonical public origin of the store from environment only.
@@ -17,7 +18,7 @@ export function getSiteUrl(): string {
     process.env.BETTER_AUTH_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
     'http://localhost:3000'
-  return raw.replace(/\/+$/, '')
+  return stripTrailingSlashes(raw)
 }
 
 /**
@@ -39,7 +40,7 @@ export async function getCanonicalSiteUrl(): Promise<string> {
 
 /** Normalizes user input like "mystore.com/" into "https://mystore.com". */
 export function normalizeOrigin(input: string): string {
-  let v = input.trim().replace(/\/+$/, '')
+  let v = stripTrailingSlashes(input.trim())
   if (!/^https?:\/\//i.test(v)) v = `https://${v}`
   try {
     return new URL(v).origin

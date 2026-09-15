@@ -15,6 +15,7 @@
 //    (characteristics) — the listing summary doesn't include these.
 
 import { decodeHtmlEntities } from '@/lib/html-entities'
+import { stripEdgeDashes, stripTrailingChars } from '@/lib/text'
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
@@ -278,19 +279,49 @@ export function honestOldPrice(price: number | null, oldPrice: number | null): n
 }
 
 /** Drop Prom.ua marketplace leftovers from <title> / meta description. */
+function cutPromCta(s: string): string {
+  const lower = s.toLowerCase()
+  for (const needle of ['купити на prom.ua', 'купить на prom.ua']) {
+    const i = lower.lastIndexOf(needle)
+    if (i >= 0) return s.slice(0, i)
+  }
+  return s
+}
+
+function splitTitleParts(s: string): string[] {
+  const seps = new Set('|·•')
+  const parts: string[] = []
+  let cur = ''
+  for (const ch of s) {
+    if (seps.has(ch)) {
+      const t = cur.trim()
+      if (t) parts.push(t)
+      cur = ''
+    } else {
+      cur += ch
+    }
+  }
+  const t = cur.trim()
+  if (t) parts.push(t)
+  return parts
+}
+
 export function stripPromMarketplaceCopy(text: string): string {
-  let s = text
-  // Prom titles often use a colon, not a pipe: "…, ціна 2125 ₴: купити на Prom.ua | Україна, Київ"
-  s = s.replace(/[:—–-]\s*(купити|купить)\s+на\s+prom\.ua\b.*$/gi, '')
-  s = s.replace(/\s*(купити|купить)\s+на\s+prom\.ua\b.*$/gi, '')
+  let s = cutPromCta(text)
   const junk = /prom\.ua|купити на|купить на|україна|украина|київ|киев/i
-  const parts = s
-    .split(/\s*[|·•]\s*/)
-    .map((p) => p.replace(/\s*(купити|купить)\s+на\s+prom\.ua\b/gi, '').trim())
+  const parts = splitTitleParts(s)
+    .map((p) => cutPromCta(p).trim())
     .filter((p) => p.length > 0 && !junk.test(p))
   s = parts.join(' ').replace(/\s{2,}/g, ' ').trim()
-  s = s.replace(/[,:]?\s*(ціна|цена)\s+[\d\s.,]+[₴грн.]*\s*$/i, '').trim()
-  return s.replace(/[|:·•,\s]+$/g, '').trim()
+  const lower = s.toLowerCase()
+  for (const label of ['ціна', 'цена']) {
+    const i = lower.lastIndexOf(label)
+    if (i >= 0 && i >= s.length - 40) {
+      s = s.slice(0, i)
+      break
+    }
+  }
+  return stripTrailingChars(s, '|:·•, \t').trim()
 }
 
 /** Pulls the rendered `<title>` and `<meta name="description">` out of a fetched product page. */
@@ -357,12 +388,12 @@ export function slugify(s: string): string {
     р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh',
     щ: 'shch', ь: '', ю: 'iu', я: 'ia', ы: 'y', э: 'e', ё: 'e', ъ: '',
   }
-  return s
-    .toLowerCase()
-    .split('')
-    .map((c) => map[c] ?? c)
-    .join('')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 200)
+  return stripEdgeDashes(
+    s
+      .toLowerCase()
+      .split('')
+      .map((c) => map[c] ?? c)
+      .join('')
+      .replace(/[^a-z0-9]+/g, '-'),
+  ).slice(0, 200)
 }

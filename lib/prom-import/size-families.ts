@@ -4,6 +4,8 @@
  * These helpers pull a size suffix off the title so the importer can merge
  * those listings into one product with a size axis.
  */
+import { stripEdgeDashes, stripTrailingChars } from '@/lib/text'
+
 
 const RANGE = /(\d{2})\s*[-–—]\s*(\d{2})/
 const LETTER = /\b(XXXL|XXL|XL|XS|S|M|L)\b/i
@@ -16,21 +18,21 @@ export function extractSizeFromName(name: string): { base: string; size: string 
   const rangeAtEnd = trimmed.match(new RegExp(`(?:[\\s(]+(?:${SIZE_WORD.source})?)(${RANGE.source})\\s*\\)?\\s*$`, 'i'))
   if (rangeAtEnd) {
     const size = `${rangeAtEnd[2]}-${rangeAtEnd[3]}`
-    const base = trimmed.slice(0, rangeAtEnd.index).trim().replace(/[(\-–,]+$/, '').trim()
+    const base = stripTrailingChars(trimmed.slice(0, rangeAtEnd.index).trim(), '(-–,').trim()
     if (base.length >= 3) return { base, size }
   }
 
   const letterAtEnd = trimmed.match(new RegExp(`(?:[\\s(]+(?:${SIZE_WORD.source})?)(${LETTER.source})\\s*\\)?\\s*$`, 'i'))
   if (letterAtEnd) {
     const size = letterAtEnd[1].toUpperCase().replace('Х', 'X')
-    const base = trimmed.slice(0, letterAtEnd.index).trim().replace(/[(\-–,]+$/, '').trim()
+    const base = stripTrailingChars(trimmed.slice(0, letterAtEnd.index).trim(), '(-–,').trim()
     if (base.length >= 3) return { base, size }
   }
 
   const numbered = trimmed.match(new RegExp(`(?:[\\s(]+${SIZE_WORD.source})(\\d{2})\\s*\\)?\\s*$`, 'i'))
   if (numbered) {
     const size = numbered[1]
-    const base = trimmed.slice(0, numbered.index).trim().replace(/[(\-–,]+$/, '').trim()
+    const base = stripTrailingChars(trimmed.slice(0, numbered.index).trim(), '(-–,').trim()
     if (base.length >= 3) return { base, size }
   }
 
@@ -51,11 +53,12 @@ export function extractSizeFromUrlText(urlText: string): { base: string; size: s
 }
 
 export function familyKeyFromParts(base: string): string {
-  return base
-    .toLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-zа-яёіїєґ0-9]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
+  return stripEdgeDashes(
+    base
+      .toLowerCase()
+      .replace(/['’]/g, '')
+      .replace(/[^a-zа-яёіїєґ0-9]+/gi, '-'),
+  )
 }
 
 export const SIZE_OPTION_NAME_UK = 'Розмір'

@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
+import { stripTrailingSlashes } from '@/lib/text'
 import { toast } from 'sonner'
 import {
   Store,
@@ -171,7 +172,7 @@ function MerchantFeedFields({ data, setData, t }: SectionProps) {
 function MerchantFeedUrl({ siteUrl, t }: { siteUrl: string; t: AdminDictionary['settings'] }) {
   const origin = useClientOrigin()
   const base = siteUrl?.trim() || origin
-  const url = base ? `${base.replace(/\/+$/, '')}/feed/google-merchant.xml` : ''
+  const url = base ? `${stripTrailingSlashes(base)}/feed/google-merchant.xml` : ''
 
   return (
     <div className="mt-2 flex items-center gap-2">

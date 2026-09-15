@@ -13,7 +13,7 @@ function parseParts(v: string): number[] {
   return normalizeVersion(v)
     .split('.')
     .map((p) => {
-      const n = parseInt(p, 10)
+      const n = Number.parseInt(p, 10)
       return Number.isFinite(n) ? n : 0
     })
 }

@@ -38,7 +38,7 @@ err()  { printf "${RED}✗ %s${NC}\n" "$1" >&2; }
 warn() { printf "  ⚠ %s\n" "$1"; }
 
 as_root() {
-  if [ "$(id -u)" = "0" ]; then
+  if [[ "$(id -u)" = "0" ]]; then
     "$@"
   elif command -v sudo >/dev/null 2>&1; then
     sudo "$@"
@@ -59,8 +59,8 @@ docker_bin() {
 
 # ── 0. Подготовка виртуальной машины ────────────────────────────────
 harden_vm() {
-  [ "$(uname -s)" = "Linux" ] || return 0
-  [ "$SKIP_VM_SETUP" = "1" ] && { ok "SKIP_VM_SETUP=1 — подготовка ОС пропущена"; return 0; }
+  [[ "$(uname -s)" = "Linux" ]] || return 0
+  [[ "$SKIP_VM_SETUP" = "1" ]] && { ok "SKIP_VM_SETUP=1 — подготовка ОС пропущена"; return 0; }
 
   say "Подготовка виртуальной машины"
 
@@ -80,19 +80,19 @@ harden_vm() {
     ok "Часовой пояс: $(cat /etc/timezone 2>/dev/null || echo Europe/Kyiv)"
   fi
 
-  if [ -r /proc/meminfo ]; then
+  if [[ -r /proc/meminfo ]]; then
     TOTAL_MEM_MB="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
     SWAP_COUNT="$(swapon --show=NAME --noheadings 2>/dev/null | wc -l | tr -d ' ')"
-    if [ "${SWAP_COUNT:-0}" -eq 0 ] && [ "${TOTAL_MEM_MB:-0}" -lt 4000 ]; then
+    if [[ "${SWAP_COUNT:-0}" -eq 0 ]] && [[ "${TOTAL_MEM_MB:-0}" -lt 4000 ]]; then
       SWAP_FILE=/swapfile
-      if [ ! -f "$SWAP_FILE" ]; then
+      if [[ ! -f "$SWAP_FILE" ]]; then
         as_root fallocate -l 2G "$SWAP_FILE" 2>/dev/null \
           || as_root dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048 status=none
         as_root chmod 600 "$SWAP_FILE"
         as_root mkswap "$SWAP_FILE" >/dev/null
       fi
       as_root swapon "$SWAP_FILE" 2>/dev/null || true
-      if [ -f /etc/fstab ] && ! grep -q "$SWAP_FILE" /etc/fstab; then
+      if [[ -f /etc/fstab ]] && ! grep -q "$SWAP_FILE" /etc/fstab; then
         echo "$SWAP_FILE none swap sw 0 0" | as_root tee -a /etc/fstab >/dev/null
       fi
       ok "Swap 2G ($SWAP_FILE) — RAM было ${TOTAL_MEM_MB}MB"
@@ -101,7 +101,7 @@ harden_vm() {
     fi
   fi
 
-  if [ -d /etc/sysctl.d ]; then
+  if [[ -d /etc/sysctl.d ]]; then
     printf 'vm.swappiness=10\n' | as_root tee /etc/sysctl.d/99-magazine.conf >/dev/null
     as_root sysctl -p /etc/sysctl.d/99-magazine.conf >/dev/null 2>&1 || true
   fi
@@ -111,9 +111,9 @@ harden_vm() {
     as_root dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
   fi
 
-  if [ -d /etc/systemd/journald.conf.d ] || mkdir -p /tmp; then
+  if [[ -d /etc/systemd/journald.conf.d ]] || mkdir -p /tmp; then
     as_root mkdir -p /etc/systemd/journald.conf.d 2>/dev/null || true
-    if [ -d /etc/systemd/journald.conf.d ]; then
+    if [[ -d /etc/systemd/journald.conf.d ]]; then
       printf '[Journal]\nSystemMaxUse=200M\n' | as_root tee /etc/systemd/journald.conf.d/99-magazine.conf >/dev/null
     fi
   fi
@@ -122,7 +122,7 @@ harden_vm() {
 }
 
 open_firewall() {
-  [ "$(uname -s)" = "Linux" ] || return 0
+  [[ "$(uname -s)" = "Linux" ]] || return 0
   command -v ufw >/dev/null 2>&1 || return 0
   as_root true >/dev/null 2>&1 || return 0
 
@@ -132,14 +132,14 @@ open_firewall() {
   as_root ufw allow 443/tcp >/dev/null 2>&1 || true
   # Без домена магазин слушает :3000 на хосте.
   local domain_val=""
-  if [ -f .env ]; then
+  if [[ -f .env ]]; then
     domain_val="$(grep -E '^DOMAIN=' .env | cut -d= -f2- || true)"
   fi
   domain_val="${domain_val:-${DOMAIN:-}}"
-  if [ -z "$domain_val" ]; then
+  if [[ -z "$domain_val" ]]; then
     as_root ufw allow 3000/tcp >/dev/null 2>&1 || true
   fi
-  if [ -f .env ] && grep -qE '^FTP_PASSWORD=.+' .env; then
+  if [[ -f .env ]] && grep -qE '^FTP_PASSWORD=.+' .env; then
     as_root ufw allow 21/tcp >/dev/null 2>&1 || true
     as_root ufw allow 21000:21010/tcp >/dev/null 2>&1 || true
   fi
@@ -151,7 +151,7 @@ install_docker() {
   say "Проверка Docker"
 
   if ! command -v docker &>/dev/null; then
-    if [ "$(uname -s)" != "Linux" ]; then
+    if [[ "$(uname -s)" != "Linux" ]]; then
       err "Docker не найден!"
       echo "  Установите Docker: curl -fsSL https://get.docker.com | sh"
       exit 1
@@ -166,7 +166,7 @@ install_docker() {
     if command -v systemctl &>/dev/null; then
       as_root systemctl enable --now docker || true
     fi
-    if [ "$(id -u)" != "0" ] && command -v usermod >/dev/null 2>&1; then
+    if [[ "$(id -u)" != "0" ]] && command -v usermod >/dev/null 2>&1; then
       as_root usermod -aG docker "$USER" || true
     fi
     ok "Docker установлен"
@@ -177,7 +177,7 @@ install_docker() {
     if docker_bin info >/dev/null 2>&1; then
       break
     fi
-    if [ "$i" -eq 30 ]; then
+    if [[ "$i" -eq 30 ]]; then
       err "Docker-демон не запущен (или нужен sudo / повторный вход в группу docker)."
       echo "  Попробуйте: sudo systemctl start docker"
       echo "  Если ставили Docker только что — выйдите из SSH и зайдите снова."
@@ -204,9 +204,9 @@ cd "$INSTALL_DIR"
 # ── 3. .env с доменом и секретами ───────────────────────────────────
 say "Настройка окружения"
 
-if [ ! -f .env ]; then
+if [[ ! -f .env ]]; then
   # При `curl | bash` stdin занят пайпом — читаем ответ с терминала.
-  if [ -z "${DOMAIN:-}" ] && [ -r /dev/tty ]; then
+  if [[ -z "${DOMAIN:-}" ]] && [[ -r /dev/tty ]]; then
     echo ""
     echo "  Укажите домен, на котором будет работать магазин"
     echo "  (например: shop.example.com). Enter — пропустить (доступ по IP:3000)."
@@ -217,16 +217,16 @@ if [ ! -f .env ]; then
   DOMAIN="${DOMAIN%%/*}"
 
   PUBLIC_IP="$(curl -fsS4 --max-time 5 https://api.ipify.org 2>/dev/null || true)"
-  if [ -z "$PUBLIC_IP" ]; then
+  if [[ -z "$PUBLIC_IP" ]]; then
     PUBLIC_IP="$(curl -fsS4 --max-time 5 https://ifconfig.me 2>/dev/null || true)"
   fi
-  if [ -z "$PUBLIC_IP" ]; then
+  if [[ -z "$PUBLIC_IP" ]]; then
     PUBLIC_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
   fi
 
-  if [ -n "$DOMAIN" ]; then
+  if [[ -n "$DOMAIN" ]]; then
     PUBLIC_URL="https://${DOMAIN}"
-  elif [ -n "$PUBLIC_IP" ]; then
+  elif [[ -n "$PUBLIC_IP" ]]; then
     PUBLIC_URL="http://${PUBLIC_IP}:3000"
   else
     PUBLIC_URL="http://localhost:3000"
@@ -239,9 +239,9 @@ if [ ! -f .env ]; then
   # domains are proxied (Cloudflare etc.), and FTP data connections can't
   # traverse an HTTP(S) reverse proxy the way the app's own traffic does.
   FTP_ADDRESS="$PUBLIC_IP"
-  if [ -z "$FTP_ADDRESS" ]; then
+  if [[ -z "$FTP_ADDRESS" ]]; then
     FTP_ADDRESS="$DOMAIN"
-    [ -n "$DOMAIN" ] && warn "Не удалось определить публичный IP сервера — FTP_ADDRESS временно указывает на домен ${DOMAIN}. Если домен проксируется (например, через Cloudflare), FTP не будет работать: замените FTP_ADDRESS в .env на реальный IP сервера и перезапустите контейнер ftp."
+    [[ -n "$DOMAIN" ]] && warn "Не удалось определить публичный IP сервера — FTP_ADDRESS временно указывает на домен ${DOMAIN}. Если домен проксируется (например, через Cloudflare), FTP не будет работать: замените FTP_ADDRESS в .env на реальный IP сервера и перезапустите контейнер ftp."
   fi
 
   cat > .env <<ENVEOF
@@ -443,7 +443,7 @@ PULL_RC=$?
 COMPOSE_PROFILES="$PROFILES" docker_bin compose up -d
 UP_RC=$?
 set -e
-if [ "$PULL_RC" -ne 0 ] || [ "$UP_RC" -ne 0 ]; then
+if [[ "$PULL_RC" -ne 0 ]] || [[ "$UP_RC" -ne 0 ]]; then
   err "Не удалось скачать образ или запустить контейнеры (pull=$PULL_RC up=$UP_RC)."
   docker_bin compose logs --tail=80 app db || true
   exit 1
@@ -458,7 +458,7 @@ for i in $(seq 1 90); do
   printf '.'
   sleep 3
 done
-if [ "$READY" != "1" ]; then
+if [[ "$READY" != "1" ]]; then
   printf '\n'
   err "Превышено время ожидания. Логи:"
   docker_bin compose logs --tail=80 app db || true
@@ -482,14 +482,14 @@ echo "  Откройте:  ${SITE_URL}"
 echo ""
 echo "  При первом заходе вас автоматически перенаправит на мастер"
 echo "  установки — там вы создадите магазин и admin-логин/пароль."
-if [ -n "${DOMAIN_SHOW}" ]; then
+if [[ -n "${DOMAIN_SHOW}" ]]; then
   echo ""
   echo "  HTTPS: встроенный прокси Caddy сам получит SSL-сертификат"
   echo "  Let's Encrypt для ${DOMAIN_SHOW} (nginx настраивать не нужно)."
   echo "  Убедитесь, что A-запись домена указывает на IP этого сервера"
   echo "  и порты 80/443 открыты."
 fi
-if [ -n "${FTP_PASS_SHOW}" ]; then
+if [[ -n "${FTP_PASS_SHOW}" ]]; then
   echo ""
   echo "  FTP-доступ к загрузкам (фото товаров):"
   echo "    Пользователь: ${FTP_USER_SHOW:-techno}"

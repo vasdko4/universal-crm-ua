@@ -32,6 +32,12 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
+function trimQueryJunk(url) {
+  let end = url.length
+  while (end > 0 && (url[end - 1] === '?' || url[end - 1] === '&')) end -= 1
+  return url.slice(0, end)
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
 
@@ -55,12 +61,13 @@ const requiresSsl =
 
 // Strip libpq SSL params so pg does not emit its `sslmode` deprecation warning;
 // SSL is passed explicitly via the `ssl` option instead.
-const connectionString = rawConnectionString
-  .replace(/([?&])sslmode=[^&]*/gi, '$1')
-  .replace(/([?&])channel_binding=[^&]*/gi, '$1')
-  .replace(/[?&]+$/g, '')
-  .replace(/\?&/g, '?')
-  .replace(/&&+/g, '&')
+const connectionString = trimQueryJunk(
+  rawConnectionString
+    .replace(/([?&])sslmode=[^&]*/gi, '$1')
+    .replace(/([?&])channel_binding=[^&]*/gi, '$1')
+    .replace(/\?&/g, '?')
+    .replace(/&&+/g, '&'),
+)
 
 const pool = new Pool({
   connectionString,

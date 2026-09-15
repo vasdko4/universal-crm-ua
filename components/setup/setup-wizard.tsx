@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { useSetupLocale } from '@/lib/i18n/setup-locale'
+import { looksLikeEmail } from '@/lib/text'
 import { fillTemplate } from '@/lib/i18n/dictionaries'
 import type { SetupDictionary } from '@/lib/i18n/setup'
 import { SetupLangSwitch } from '@/components/setup/setup-lang-switch'
@@ -99,7 +100,7 @@ export function SetupWizard() {
     }
     if (step === 'admin') {
       if (!name.trim()) return setError(t.admin.nameRequired)
-      if (!/^\S+@\S+\.\S+$/.test(email)) return setError(t.admin.emailInvalid)
+      if (!looksLikeEmail(email)) return setError(t.admin.emailInvalid)
       if (password.length < 8) return setError(t.admin.passwordShort)
       if (password !== confirm) return setError(t.admin.passwordMismatch)
     }

@@ -9,6 +9,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const products = JSON.parse(fs.readFileSync(path.join(__dirname, 'prom-products-v2.json'), 'utf8'))
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 
+function stripEdgeDashes(s) {
+  let start = 0
+  let end = s.length
+  while (start < end && s[start] === '-') start += 1
+  while (end > start && s[end - 1] === '-') end -= 1
+  return s.slice(start, end)
+}
+
 function slugify(s) {
   const map = {
     а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ie', ж: 'zh', з: 'z',
@@ -16,14 +24,14 @@ function slugify(s) {
     р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh',
     щ: 'shch', ь: '', ю: 'iu', я: 'ia', ы: 'y', э: 'e', ё: 'e', ъ: '',
   }
-  return s
-    .toLowerCase()
-    .split('')
-    .map((c) => map[c] ?? c)
-    .join('')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 200)
+  return stripEdgeDashes(
+    s
+      .toLowerCase()
+      .split('')
+      .map((c) => map[c] ?? c)
+      .join('')
+      .replace(/[^a-z0-9]+/g, '-'),
+  ).slice(0, 200)
 }
 
 const client = await pool.connect()

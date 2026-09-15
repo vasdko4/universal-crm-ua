@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { trimQueryJunk } from '@/lib/text'
 
 const ENV_PATH = join(process.cwd(), '.env.local')
 
@@ -74,12 +75,13 @@ export function sslForConnectionString(url: string): false | { rejectUnauthorize
  * are stripped to keep output clean and behavior stable across pg versions.
  */
 export function stripSslParams(url: string): string {
-  return url
-    .replace(/([?&])sslmode=[^&]*/gi, '$1')
-    .replace(/([?&])channel_binding=[^&]*/gi, '$1')
-    .replace(/[?&]+$/g, '')
-    .replace(/\?&/g, '?')
-    .replace(/&&+/g, '&')
+  return trimQueryJunk(
+    url
+      .replace(/([?&])sslmode=[^&]*/gi, '$1')
+      .replace(/([?&])channel_binding=[^&]*/gi, '$1')
+      .replace(/\?&/g, '?')
+      .replace(/&&+/g, '&'),
+  )
 }
 
 /** Build a Postgres connection string from individual fields (setup wizard). */

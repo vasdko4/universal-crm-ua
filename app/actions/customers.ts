@@ -6,6 +6,7 @@ import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm
 import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
 import { parsePage, sanitizeSearch } from '@/lib/api/helpers'
+import { looksLikeEmail } from '@/lib/text'
 
 export type ContactInput = {
   type: string
@@ -117,7 +118,7 @@ export async function getCustomers(opts?: { search?: string; page?: number; minS
 function validate(input: CustomerInput): string | null {
   if (!input.firstName?.trim()) return 'Имя обязательно'
   if (!input.phone?.trim()) return 'Основной телефон обязателен'
-  if (input.email && input.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
+  if (input.email && input.email.trim() && !looksLikeEmail(input.email.trim())) {
     return 'Некорректный email'
   }
   return null

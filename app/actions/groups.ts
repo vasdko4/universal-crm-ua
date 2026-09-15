@@ -10,6 +10,7 @@ import {
 import { asc, eq, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission } from '@/lib/session'
+import { stripEdgeDashes } from '@/lib/text'
 
 function slugify(text: string) {
   const map: Record<string, string> = {
@@ -19,14 +20,16 @@ function slugify(text: string) {
     ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ы: 'y', э: 'e', ю: 'iu', я: 'ia',
     ь: '', ъ: '',
   }
-  return text
-    .toLowerCase()
-    .split('')
-    .map((ch) => map[ch] ?? ch)
-    .join('')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 100) || 'group'
+  return (
+    stripEdgeDashes(
+      text
+        .toLowerCase()
+        .split('')
+        .map((ch) => map[ch] ?? ch)
+        .join('')
+        .replace(/[^a-z0-9]+/g, '-'),
+    ).slice(0, 100) || 'group'
+  )
 }
 
 // SECURITY: these three reads had no permission check — reachable directly

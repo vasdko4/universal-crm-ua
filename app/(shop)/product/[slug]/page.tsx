@@ -29,6 +29,7 @@ import { formatShippingPrice, normalizeGtin } from '@/lib/shop/google-merchant-f
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { stripPromMarketplaceCopy } from '@/lib/prom-import/scraper'
 import { storefrontMediaUrl, rewritePromHtmlImages } from '@/lib/shop/own-image-url'
+import { stripTags } from '@/lib/text'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,7 @@ const loadSummary = cache((id: number) => getReviewSummary(id))
 
 function plainText(html: string | null, max = 160): string {
   if (!html) return ''
-  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  const text = stripTags(html).replace(/\s+/g, ' ').trim()
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 

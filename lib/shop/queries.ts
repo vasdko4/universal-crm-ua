@@ -1255,8 +1255,9 @@ export async function getProductPromotionDeadline(
   const matches = [...allCandidates, ...productCandidates, ...groupCandidates]
   if (matches.length === 0) return null
 
-  const soonest = matches.reduce((best, p) =>
-    !best || new Date(p.endsAt as Date) < new Date(best.endsAt as Date) ? p : best,
+  const soonest = matches.reduce(
+    (best, p) => (new Date(p.endsAt as Date) < new Date(best.endsAt as Date) ? p : best),
+    matches[0],
   )
   return { name: soonest.name, endsAt: new Date(soonest.endsAt as Date).toISOString() }
 }
