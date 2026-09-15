@@ -6,7 +6,10 @@
 # docker-compose.yml / README), this image only serves the app.
 
 FROM node:22-alpine AS base
-RUN corepack enable
+# Alpine's node image can lag OpenSSL CVEs (libcrypto3/libssl3 3.5.7-r0).
+# Upgrade those packages so self-hosted Docker builds pick up 3.5.8-r0+.
+RUN apk upgrade --no-cache libcrypto3 libssl3 \
+ && corepack enable
 
 # ── deps: install with pnpm, cached separately from source changes ────────
 FROM base AS deps
