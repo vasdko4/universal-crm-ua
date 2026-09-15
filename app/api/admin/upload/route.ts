@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (USE_BLOB) {
-      // Public, permanent Blob URL — never a 1-day client token (`vcp_…`).
+      // Public, permanent Blob URL — no short-lived client upload credentials.
       // cacheControlMaxAge is 1 year so CDN/browser keep the file.
       const blob = await put(`products/${fileName}`, body, {
         access: 'public',
