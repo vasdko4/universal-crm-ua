@@ -14,3 +14,5 @@ overrides:
   undici@>=6.0.0 <6.28.1: 6.28.1
   undici@>=7.0.0 <7.29.1: 7.29.1
   sanitize-html: '>=2.17.7'
+  # AIKIDO-2026-10707 — prototype pollution in zod catchall (< 4.4.0)
+  zod@<4.4.0: '>=4.4.3'

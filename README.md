@@ -109,7 +109,7 @@ SKIP_VM_SETUP=1 bash install.sh
 cd ~/magazine && docker compose exec app node scripts/db-setup.mjs --seed
 ```
 
-Демо-админ: `admin@magazine.store` / `Admin12345` — смените пароль сразу.
+Демо-seed — только каталог и заказы. Админа создаёт мастер установки в браузере.
 
 ### Домен и HTTPS
 
@@ -180,7 +180,7 @@ HTTPS: `certbot --nginx -d shop.example.com`.
 ```bash
 pnpm setup          # .env.local, зависимости, Postgres, пустая схема
 pnpm dev            # http://localhost:3000 — мастер установки
-pnpm setup --seed   # то же + демо-каталог (admin@magazine.store / Admin12345)
+pnpm setup --seed   # то же + демо-каталог (админ — через мастер в браузере)
 pnpm test
 ```
 

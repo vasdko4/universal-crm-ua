@@ -37,6 +37,7 @@ import {
 } from '@/app/actions/orders'
 import { createTtnForOrder, printTtnForOrder } from '@/app/actions/ttn'
 import { novaPoshtaTrackingUrl } from '@/lib/delivery/ttn'
+import { safeOpenUrl } from '@/lib/safe-url'
 import {
   getOrderStatusOptions,
   getPaymentStatusOptions,
@@ -115,7 +116,8 @@ export function OrderDetail({
       }
       if (res.ttn) setTracking(res.ttn)
       toast.success(t.toastTtnCreated)
-      if (res.printUrl) window.open(res.printUrl, '_blank')
+      const printUrl = safeOpenUrl(res.printUrl)
+      if (printUrl) window.open(printUrl, '_blank', 'noopener,noreferrer')
       router.refresh()
     })
   }
@@ -142,7 +144,8 @@ export function OrderDetail({
         toast.error(res.error ?? t.toastError)
         return
       }
-      window.open(res.printUrl, '_blank')
+      const printUrl = safeOpenUrl(res.printUrl)
+      if (printUrl) window.open(printUrl, '_blank', 'noopener,noreferrer')
     })
   }
 
@@ -178,7 +181,8 @@ export function OrderDetail({
       if (!res.ok) {
         toast.error(data.error ?? t.toastSendError)
       } else if (data.link) {
-        window.open(data.link, '_blank')
+        const link = safeOpenUrl(data.link, ['viber:', 'sms:'])
+        if (link) window.open(link, '_blank', 'noopener,noreferrer')
         toast.success(t.toastOpeningMessenger)
         router.refresh()
       } else {
