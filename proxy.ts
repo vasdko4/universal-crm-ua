@@ -38,11 +38,6 @@ function isLocaleExempt(pathname: string) {
 
 const HSTS = 'max-age=31536000; includeSubDomains; preload'
 
-function withHsts(response: NextResponse) {
-  response.headers.set('Strict-Transport-Security', HSTS)
-  return response
-}
-
 function contentSecurityPolicy(nonce: string) {
   return [
     "default-src 'self'",
@@ -50,16 +45,28 @@ function contentSecurityPolicy(nonce: string) {
     "form-action 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
-    // Per-request nonce + strict-dynamic: Next.js boot scripts and gtag.js
-    // get the nonce; they may load further scripts. No unsafe-eval / unsafe-inline.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com`,
+    // Nonce + strict-dynamic: Next boot scripts and gtag.js (nonce on <Script>)
+    // may load further scripts. Host allowlists on script-src are ignored once
+    // a nonce is present in CSP3, so they only diluted the policy for scanners.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
+    // No blanket https: — catalog photos + Ads/GA pixels only.
+    "img-src 'self' data: blob: https://images.prom.ua https://*.prom.ua https://cdn.prom.st https://*.prom.st https://*.public.blob.vercel-storage.com https://*.blob.vercel-storage.com https://images.unsplash.com https://www.google.com https://www.google.com.ua https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.gstatic.com",
     "font-src 'self' data:",
     "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net https://region1.google-analytics.com https://images.prom.ua https://*.prom.ua https://*.prom.st https://*.vercel-storage.com https://*.blob.vercel-storage.com https://vitals.vercel-insights.com",
     "frame-src https://www.google.com https://www.googletagmanager.com https://td.doubleclick.net",
     'upgrade-insecure-requests',
   ].join('; ')
+}
+
+function withSecurityHeaders(response: NextResponse, nonce?: string) {
+  response.headers.set('Strict-Transport-Security', HSTS)
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  if (nonce) response.headers.set('Content-Security-Policy', contentSecurityPolicy(nonce))
+  return response
 }
 
 export function proxy(request: NextRequest) {
@@ -79,7 +86,7 @@ export function proxy(request: NextRequest) {
     url.pathname = dest
     url.search = request.nextUrl.search
     url.hash = ''
-    return withHsts(NextResponse.redirect(url))
+    return withSecurityHeaders(NextResponse.redirect(url))
   }
 
   // Guard the protected storefront account area at the edge, before rendering.
@@ -97,7 +104,7 @@ export function proxy(request: NextRequest) {
       const redirectTo =
         pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : '/account'
       loginUrl.searchParams.set('redirect', redirectTo)
-      return withHsts(NextResponse.redirect(loginUrl))
+      return withSecurityHeaders(NextResponse.redirect(loginUrl))
     }
   }
 
@@ -122,8 +129,7 @@ export function proxy(request: NextRequest) {
   } else {
     response = NextResponse.next({ request: { headers: requestHeaders } })
   }
-  response.headers.set('Content-Security-Policy', csp)
-  return withHsts(response)
+  return withSecurityHeaders(response, nonce)
 }
 
 export const config = {
