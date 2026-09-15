@@ -103,7 +103,7 @@ export default async function CatalogPage({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">
+    <div className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
       <JsonLd data={[breadcrumbLd, itemListLd]} />
       <nav className="mb-3 hidden text-sm text-muted-foreground lg:block">
         <Link href={lp('/')} className="hover:text-primary">{dict.common.home}</Link>
@@ -119,7 +119,7 @@ export default async function CatalogPage({
       </h1>
 
       {topCategories.length > 0 && (
-        <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
+        <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-4 sm:px-4 lg:hidden [&::-webkit-scrollbar]:hidden">
           {topCategories.map((cat) => (
             <Link
               key={cat.id}

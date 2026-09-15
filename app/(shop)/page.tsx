@@ -186,7 +186,7 @@ export default async function HomePage() {
 
       {/* Popular */}
       {popular.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">
+        <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
           <div className="mb-4 flex items-center justify-between lg:mb-5">
             <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">
               <Link href={lp('/catalog?popular=1')} className="hover:text-primary">
@@ -207,7 +207,7 @@ export default async function HomePage() {
 
       {/* Discounts */}
       {discounted.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">
+        <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
           <div className="mb-4 flex items-center justify-between lg:mb-5">
             <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">{c.discounts}</h2>
             <Link href={lp('/catalog')} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
@@ -224,7 +224,7 @@ export default async function HomePage() {
 
       {/* All products — infinite scroll */}
       {allProducts.items.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-5 lg:px-8 lg:py-8">
+        <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
           <h2 className="mb-4 text-lg font-bold tracking-tight text-foreground lg:mb-5 lg:text-2xl">{c.allProducts}</h2>
           <InfiniteProducts
             initialItems={allProducts.items}

@@ -212,7 +212,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4 lg:px-8 lg:py-8">
+    <div className="mx-auto max-w-7xl px-3 py-3 sm:px-4 lg:px-8 lg:py-8">
       <JsonLd data={[
         productLd,
         breadcrumbLd,
@@ -241,7 +241,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         sku={product.sku}
         currency={product.currency}
       />
-      <nav className="mb-6 flex flex-wrap items-center text-sm text-muted-foreground">
+      <nav className="mb-3 flex flex-wrap items-center gap-y-1 text-xs text-muted-foreground sm:mb-6 sm:text-sm">
         <Link href={lp('/')} className="hover:text-primary">{dict.common.home}</Link>
         <span className="mx-2">/</span>
         <Link href={lp('/catalog')} className="hover:text-primary">{dict.common.catalog}</Link>

@@ -79,8 +79,8 @@ export function ProductCard({ product }: { product: ShopProduct }) {
   const canBuy = product.inStock
 
   return (
-    <article className="group relative flex h-full flex-col overflow-visible rounded-2xl border border-border/60 bg-card shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.28)]">
-      <div className="relative overflow-hidden rounded-t-2xl">
+    <article className="group relative flex h-full flex-col overflow-visible rounded-xl border border-border/60 bg-card shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-300 sm:rounded-2xl sm:hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.28)]">
+      <div className="relative overflow-hidden rounded-t-xl sm:rounded-t-2xl">
         <Link href={href} className="relative block aspect-square overflow-hidden bg-muted/60">
           {primary ? (
             <>
@@ -179,7 +179,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
           </span>
         ) : null}
 
-        <div className="mt-auto flex items-end justify-between gap-1.5 pt-1">
+        <div className="mt-auto flex flex-col gap-1.5 pt-1.5">
           <div className="min-w-0">
             {product.oldPrice && product.oldPrice > product.price ? (
               <span className="block truncate text-[10px] leading-none text-muted-foreground line-through sm:text-[11px]">
@@ -197,7 +197,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             aria-label={addLabel}
             data-testid={needsSize ? 'choose-size' : 'add-to-cart'}
             className={cn(
-              'h-7 shrink-0 rounded-md px-2.5 text-[11px] font-semibold sm:h-8 sm:px-3 sm:text-[12px]',
+              'h-8 w-full rounded-lg px-2 text-[12px] font-semibold sm:h-8',
               added && 'bg-success text-primary-foreground hover:bg-success',
             )}
           >

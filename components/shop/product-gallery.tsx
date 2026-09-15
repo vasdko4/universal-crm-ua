@@ -20,6 +20,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   const [active, setActive] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const thumbStripRef = useRef<HTMLDivElement>(null)
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
 
@@ -49,11 +50,11 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   }
 
   useEffect(() => {
-    thumbRefs.current[safeActive]?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'nearest',
-      inline: 'nearest',
-    })
+    const el = thumbRefs.current[safeActive]
+    const strip = thumbStripRef.current
+    if (!el || !strip) return
+    const left = el.offsetLeft - strip.clientWidth / 2 + el.clientWidth / 2
+    strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' })
   }, [safeActive])
 
   function onTouchStart(e: React.TouchEvent) {
@@ -83,9 +84,12 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   }
 
   return (
-    <div className="flex w-full flex-row items-start gap-2 sm:gap-3">
+    <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
       {hasThumbs && (
-        <div className="flex max-h-[min(100%,280px)] w-12 shrink-0 flex-col gap-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] sm:max-h-[min(100%,360px)] sm:w-14 lg:max-h-[min(100%,560px)] lg:w-[72px] lg:gap-2">
+        <div
+          ref={thumbStripRef}
+          className="order-2 flex gap-1.5 overflow-x-auto overflow-y-hidden px-0.5 pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden lg:order-1 lg:max-h-[min(100%,560px)] lg:w-[72px] lg:shrink-0 lg:flex-col lg:gap-2 lg:overflow-y-auto lg:overflow-x-hidden lg:[scrollbar-width:thin] lg:[&::-webkit-scrollbar]:block"
+        >
           {gallery.map((src, i) => (
             <button
               key={src + i}
@@ -97,10 +101,10 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               aria-label={`${alt} — ${i + 1}`}
               aria-current={i === safeActive}
               className={cn(
-                'relative size-12 shrink-0 overflow-hidden rounded-lg border bg-muted/40 transition sm:size-14 lg:size-[68px]',
+                'relative size-14 shrink-0 overflow-hidden rounded-lg border bg-muted/40 transition sm:size-16 lg:size-[68px]',
                 i === safeActive
                   ? 'border-primary ring-2 ring-primary/25'
-                  : 'border-transparent hover:border-border',
+                  : 'border-transparent opacity-70 hover:border-border hover:opacity-100',
               )}
             >
               <Image
@@ -120,7 +124,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         role="region"
         aria-label={alt}
         aria-roledescription="carousel"
-        className="group relative min-w-0 flex-1 aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-white outline-none focus-visible:ring-2 focus-visible:ring-primary/50 dark:bg-card"
+        className="group relative order-1 min-w-0 flex-1 aspect-square overflow-hidden rounded-2xl border border-border bg-white outline-none focus-visible:ring-2 focus-visible:ring-primary/50 dark:bg-card sm:aspect-[4/3] lg:order-2"
       >
         {current ? (
           <button
@@ -155,7 +159,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               type="button"
               onClick={prev}
               aria-label={dict.common.previousPhoto}
-              className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 text-foreground shadow-sm transition hover:bg-background lg:flex lg:opacity-0 lg:group-hover:opacity-100"
+              className="absolute left-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm transition hover:bg-background lg:size-auto lg:p-2 lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronLeft className="size-5" />
             </button>
@@ -163,7 +167,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               type="button"
               onClick={next}
               aria-label={dict.common.nextPhoto}
-              className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 text-foreground shadow-sm transition hover:bg-background lg:flex lg:opacity-0 lg:group-hover:opacity-100"
+              className="absolute right-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm transition hover:bg-background lg:size-auto lg:p-2 lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronRight className="size-5" />
             </button>
@@ -171,7 +175,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         )}
 
         {count > 1 && current && (
-          <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium tabular-nums text-foreground shadow-sm lg:hidden">
+          <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium tabular-nums text-foreground shadow-sm">
             {safeActive + 1} / {count}
           </span>
         )}
