@@ -41,6 +41,8 @@ function hotp(secret: Buffer, counter: number, digits = 6): string {
   const buf = Buffer.alloc(8)
   buf.writeUInt32BE(Math.floor(counter / 0x100000000), 0)
   buf.writeUInt32BE(counter >>> 0, 4)
+  // RFC 6238 default TOTP (Google Authenticator) is HMAC-SHA1.
+  // nosemgrep: javascript.node-stdlib.cryptography.crypto-weak-algorithm.crypto-weak-algorithm
   const hmac = createHmac('sha1', secret).update(buf).digest()
   const offset = hmac[hmac.length - 1] & 0x0f
   const code =

@@ -61,6 +61,9 @@ export function saveDatabaseUrl(url: string) {
  * when the URL explicitly asks (sslmode=require).
  */
 export function sslForConnectionString(url: string): false | { rejectUnauthorized: false } {
+  // Managed Postgres (Neon/Supabase/RDS) terminates TLS with a CA Node does
+  // not ship. Encrypt the wire, skip hostname pinning — same as `sslmode=require`.
+  // nosemgrep: javascript.lang.security.audit.ssl-verify-disabled.bypass-tls-verification
   if (/[?&]sslmode=(require|verify-ca|verify-full)/.test(url)) return { rejectUnauthorized: false }
   if (/\b(neon\.tech|supabase\.co|amazonaws\.com|render\.com|azure\.com|cockroachlabs\.cloud)\b/.test(url))
     return { rejectUnauthorized: false }

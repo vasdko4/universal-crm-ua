@@ -69,7 +69,9 @@ apt-get install -y -qq curl ca-certificates gnupg ufw nginx postgresql postgresq
 dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
 
 if ! command -v node >/dev/null || [[ "$(node -v | cut -c2-3)" -lt 20 ]]; then
-  curl -fsSL --proto '=https' --tlsv1.2 https://deb.nodesource.com/setup_22.x | bash - >/dev/null
+  curl -fsSL --proto '=https' --tlsv1.2 -o /tmp/nodesource-setup.sh https://deb.nodesource.com/setup_22.x
+  bash /tmp/nodesource-setup.sh >/dev/null
+  rm -f /tmp/nodesource-setup.sh
   apt-get install -y -qq nodejs >/dev/null
 fi
 ok "Node $(node -v)"

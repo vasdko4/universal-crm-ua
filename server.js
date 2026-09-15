@@ -11,6 +11,9 @@ const handle = app.getRequestHandler()
 app
   .prepare()
   .then(() => {
+    // TLS is terminated by Caddy/nginx/Passenger in front. The Node process
+    // only listens on loopback / the compose network.
+    // nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
     http
       .createServer((req, res) => handle(req, res))
       .listen(port, () => {

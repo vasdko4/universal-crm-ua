@@ -56,6 +56,8 @@ const WFP_STATUS_MAP: Record<string, string> = {
 const WFP_API = 'https://api.wayforpay.com/api'
 
 function wfpSignature(secret: string, fields: (string | number)[]): string {
+  // WayForPay merchant API requires HMAC-MD5; SHA-256 is not accepted.
+  // nosemgrep: javascript.node-stdlib.cryptography.crypto-weak-algorithm.crypto-weak-algorithm
   return crypto
     .createHmac('md5', secret)
     .update(fields.join(';'), 'utf8')
