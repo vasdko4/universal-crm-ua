@@ -83,7 +83,7 @@ export function MobileBottomNav({
   return (
     <>
       {/* Spacer so page content is never hidden behind the fixed bar */}
-      <div className="h-16 lg:hidden" aria-hidden="true" />
+      <div className="h-[calc(4rem+env(safe-area-inset-bottom))] lg:hidden" aria-hidden="true" />
 
       {categoriesOpen ? (
         <div
