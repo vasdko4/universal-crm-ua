@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { CatalogToolbar } from '@/components/shop/catalog-toolbar'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
 import { JsonLd } from '@/components/shop/json-ld'
-import { getCatalogProducts, getCatalogFacets, getCategoryById, getPriceBounds, type CatalogParams } from '@/lib/shop/queries'
+import { getCatalogProducts, getCatalogFacets, getCategoryById, getPriceBounds, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
 import { parseCharFilters } from '@/lib/shop/catalog-search'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const category = await loadCategory(categoryId, locale).catch(() => null)
   if (!category) notFound()
   const description =
-    category.description || `${category.name} — большой выбор с доставкой по всей Украине и гарантией.`
+    category.description || `${category.name} — більший вибір з доставкою по всій Україні і гарантією.`
   const path = `/category/${category.id}`
   const canonical = localizedPath(path, locale)
   return {
@@ -83,11 +83,13 @@ export default async function CategoryPage({
     perPage: 24,
     locale,
   }
-  const [{ items, total, page, perPage }, priceBounds, facets] = await Promise.all([
+  const [{ items, total, page, perPage }, priceBounds, facets, categories] = await Promise.all([
     getCatalogProducts(catalogParams),
     getPriceBounds({ categoryId, charFilters: catalogParams.charFilters }),
     getCatalogFacets({ categoryId, charFilters: catalogParams.charFilters }),
+    getShopCategories(locale),
   ])
+  const childCategories = categories.filter((c) => c.parentId === categoryId)
 
   // Product listing structured data helps this category surface in search.
   const itemListLd = {
@@ -104,18 +106,32 @@ export default async function CategoryPage({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
+    <div className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
       <JsonLd data={[breadcrumbLd, itemListLd]} />
-      <nav className="mb-4 text-sm text-muted-foreground">
+      <nav className="mb-3 hidden text-sm text-muted-foreground lg:block">
         <Link href={lp('/')} className="hover:text-primary">{dict.common.home}</Link>
         <span className="mx-2">/</span>
         <Link href={lp('/catalog')} className="hover:text-primary">{dict.common.catalog}</Link>
         <span className="mx-2">/</span>
         <span className="text-foreground">{category.name}</span>
       </nav>
-      <h1 className="mb-2 text-3xl font-bold tracking-tight text-foreground">{category.name}</h1>
+      <h1 className="mb-2 text-xl font-bold tracking-tight text-foreground lg:text-3xl">{category.name}</h1>
       {category.description && (
-        <p className="mb-6 max-w-2xl text-muted-foreground">{category.description}</p>
+        <p className="mb-4 max-w-2xl text-sm text-muted-foreground lg:mb-6">{category.description}</p>
+      )}
+
+      {childCategories.length > 0 && (
+        <div className="-mx-3 mb-4 flex flex-nowrap gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-4 sm:px-4 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden">
+          {childCategories.map((cat) => (
+            <Link
+              key={cat.id}
+              href={lp(`/category/${cat.id}`)}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
+            >
+              {cat.name}
+            </Link>
+          ))}
+        </div>
       )}
 
       <div className="space-y-6">

@@ -50,11 +50,11 @@ export function HomeHero({
   return <HomeHeroCarousel slides={slides ?? defaultHeroSlides(locale, content.toCatalog)} />
 }
 
-/* Editorial full-width hero with overlaid text. */
+/* Editorial full-width hero with overlay text. */
 function BoutiqueHero({ content: c, locale, image }: { content: HeroContent; locale: Locale; image: string }) {
   return (
     <section className="relative border-b border-border">
-      <div className="relative min-h-[420px] w-full overflow-hidden lg:min-h-[520px]">
+      <div className="relative min-h-[220px] w-full overflow-hidden sm:min-h-[360px] lg:min-h-[520px]">
         <Image
           src={image}
           alt={c.heroAlt}
@@ -70,11 +70,11 @@ function BoutiqueHero({ content: c, locale, image }: { content: HeroContent; loc
               <span className="inline-block border-b-2 border-accent pb-1 text-sm font-medium uppercase tracking-widest">
                 {c.badge}
               </span>
-              <h1 className="mt-4 text-balance text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+              <h1 className="mt-3 text-balance text-2xl font-bold leading-tight sm:mt-4 sm:text-5xl lg:text-6xl">
                 {c.heroTitle}
               </h1>
-              <p className="mt-4 max-w-md text-pretty text-lg text-white/85">{c.heroText}</p>
-              <Button asChild size="lg" className="mt-7">
+              <p className="mt-2 max-w-md text-pretty text-sm text-white/85 sm:mt-4 sm:text-lg">{c.heroText}</p>
+              <Button asChild size="lg" className="mt-4 sm:mt-7">
                 <Link href={localizedPath('/catalog', locale)}>
                   {c.toCatalog} <ArrowRight className="ml-1 size-5" />
                 </Link>
@@ -91,9 +91,9 @@ function BoutiqueHero({ content: c, locale, image }: { content: HeroContent; loc
 function MinimalHero({ content: c, locale }: { content: HeroContent; locale: Locale }) {
   return (
     <section className="border-b border-border bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-7xl px-4 py-10 lg:px-8 lg:py-24">
         <p className="text-sm font-medium uppercase tracking-[0.25em] text-muted-foreground">{c.badge}</p>
-        <h1 className="mt-6 max-w-4xl text-balance text-5xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+        <h1 className="mt-4 max-w-4xl text-balance text-3xl font-bold leading-[1.05] tracking-tight text-foreground sm:mt-6 sm:text-6xl lg:text-7xl">
           {c.heroTitle}
         </h1>
         <div className="mt-8 flex flex-col gap-6 border-t border-border pt-8 sm:flex-row sm:items-center sm:justify-between">

@@ -163,21 +163,21 @@ export default async function HomePage() {
         locale={locale}
       />
 
-      {/* Benefits */}
-      <section className="mx-auto hidden max-w-7xl px-4 py-10 lg:block lg:px-8">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Benefits — one compact row on mobile, 4-col grid on desktop */}
+      <section className="mx-auto max-w-7xl px-3 py-3 sm:px-4 lg:px-8 lg:py-10">
+        <div className="-mx-3 flex flex-nowrap gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
           {benefits.map((b) => (
-            <div key={b.title} className="flex items-start gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]">
-              <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+            <div key={b.title} className="flex min-w-[210px] shrink-0 items-center gap-2.5 rounded-2xl border border-border/70 bg-card/80 p-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] sm:min-w-0 sm:items-start sm:gap-3 sm:p-4">
+              <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary sm:size-10">
                 {b.iconUrl ? (
                   <Image src={b.iconUrl} alt={b.title} width={40} height={40} className="size-full object-cover" />
                 ) : (
-                  <b.icon className="size-5" />
+                  <b.icon className="size-4 sm:size-5" />
                 )}
               </div>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">{b.title}</h3>
-                <p className="text-xs text-muted-foreground">{b.text}</p>
+              <div className="min-w-0">
+                <h3 className="truncate text-xs font-semibold text-foreground sm:text-sm">{b.title}</h3>
+                <p className="line-clamp-1 text-[11px] text-muted-foreground sm:line-clamp-none sm:text-xs">{b.text}</p>
               </div>
             </div>
           ))}

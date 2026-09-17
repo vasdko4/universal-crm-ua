@@ -82,7 +82,7 @@ export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
   if (!widget.enabled || channels.length === 0) return null
 
   return (
-    <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-5 z-50 flex flex-col items-end gap-3 lg:bottom-5">
+    <div className="fixed bottom-[calc(9.25rem+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-3 lg:bottom-5 lg:right-5">
       {/* Channel list */}
       <div
         className={cn(

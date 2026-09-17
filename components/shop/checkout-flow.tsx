@@ -1156,7 +1156,7 @@ export function CheckoutFlow({
 
           <Button
             size="lg"
-            className="mt-5 w-full gap-2"
+            className="mt-5 hidden w-full gap-2 lg:inline-flex"
             onClick={handleSubmit}
             disabled={submitting || belowMinOrder}
           >
@@ -1189,6 +1189,34 @@ export function CheckoutFlow({
           </div>
         </div>
       </aside>
+
+      <div className="h-[4.5rem] lg:hidden" aria-hidden="true" />
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-card/95 p-2.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] leading-none text-muted-foreground">{t.toPay}</p>
+            <p className="mt-0.5 truncate text-base font-bold leading-tight text-foreground">
+              {formatPrice(total, 'UAH', locale)}
+            </p>
+          </div>
+          <Button
+            size="lg"
+            className="h-11 min-w-0 flex-1 gap-2"
+            onClick={handleSubmit}
+            disabled={submitting || belowMinOrder}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> {t.submitting}
+              </>
+            ) : (
+              <>
+                <Lock className="size-4" /> {t.placeOrder}
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

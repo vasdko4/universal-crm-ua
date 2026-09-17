@@ -48,7 +48,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="mx-auto max-w-7xl px-3 py-3 lg:px-8 lg:py-6">
+      <div className="mx-auto max-w-7xl px-3 py-2 lg:px-8 lg:py-6">
         <div
           className="relative overflow-hidden rounded-2xl bg-neutral-900 text-white lg:rounded-3xl"
           onPointerDown={onPointerDown}
@@ -58,7 +58,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
             startY.current = null
           }}
         >
-          <div className="relative aspect-[4/5] w-full sm:aspect-[16/10] lg:aspect-[21/9]">
+          <div className="relative aspect-[2/1] w-full sm:aspect-[16/10] lg:aspect-[21/9]">
             {slides.map((slide, i) => {
               const nearby = i === index || i === (index + 1) % n || i === (index - 1 + n) % n
               if (!nearby) return null
@@ -82,11 +82,11 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   draggable={false}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20 lg:bg-gradient-to-r lg:from-black/80 lg:via-black/50 lg:to-black/15" />
-                <div className="relative z-10 flex h-full flex-col justify-end gap-2 p-4 pb-10 sm:gap-3 sm:p-10 sm:pb-12 lg:p-12 lg:pb-14">
+                <div className="relative z-10 flex h-full flex-col justify-end gap-1.5 p-4 pb-8 sm:gap-3 sm:p-10 sm:pb-12 lg:p-12 lg:pb-14">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75 sm:text-xs">
                     {slide.badge}
                   </p>
-                  <h1 className="max-w-2xl text-balance text-[1.35rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
+                  <h1 className="max-w-2xl text-balance text-[1.2rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
                     {slide.title}
                   </h1>
                   <p className="max-w-xl text-pretty text-xs leading-snug text-white/90 sm:text-base">

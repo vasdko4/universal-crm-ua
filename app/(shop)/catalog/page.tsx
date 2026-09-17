@@ -119,7 +119,7 @@ export default async function CatalogPage({
       </h1>
 
       {topCategories.length > 0 && (
-        <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-4 sm:px-4 lg:hidden [&::-webkit-scrollbar]:hidden">
+        <div className="-mx-3 mb-4 flex flex-nowrap gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-4 sm:px-4 lg:hidden [&::-webkit-scrollbar]:hidden">
           {topCategories.map((cat) => (
             <Link
               key={cat.id}

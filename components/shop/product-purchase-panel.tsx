@@ -298,6 +298,36 @@ export function ProductPurchasePanel({
 
         <PaymentDeliveryBadges delivery={deliveryMethods} payment={paymentMethods} />
       </div>
+
+      {available ? (
+        <>
+          <div className="h-16 lg:hidden" aria-hidden="true" />
+          <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-card/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+            <div className="flex items-center gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold leading-tight text-foreground">
+                  {formatPrice(displayPrice, product.currency, locale)}
+                </p>
+              </div>
+              <Button
+                size="lg"
+                className="h-11 min-w-0 flex-1 rounded-full"
+                data-testid="add-to-cart-sticky"
+                onClick={addToCart}
+              >
+                <ShoppingCart className="mr-1 size-4" /> {product.isPreorder ? tp.preorderCta : tp.addToCart}
+              </Button>
+              <button
+                type="button"
+                onClick={buyNow}
+                className="shrink-0 px-1.5 text-xs font-semibold text-primary"
+              >
+                {tp.buyNow}
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }
