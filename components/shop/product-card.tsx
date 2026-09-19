@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Check } from 'lucide-react'
+import { Check, ShoppingCart } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -150,7 +150,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             ref={nameRef}
             href={href}
             title={product.name}
-            className="peer line-clamp-2 text-[12px] font-medium leading-snug text-foreground hover:text-primary sm:text-[13px]"
+            className="peer line-clamp-2 text-[13px] font-medium leading-snug text-foreground hover:text-primary sm:text-[13px]"
           >
             {product.name}
           </Link>
@@ -180,14 +180,14 @@ export function ProductCard({ product }: { product: ShopProduct }) {
           </span>
         ) : null}
 
-        <div className="mt-auto flex flex-col gap-1.5 pt-1.5">
-          <div className="min-w-0">
+        <div className="mt-auto flex items-end gap-1.5 pt-1">
+          <div className="min-w-0 flex-1">
             {product.oldPrice && product.oldPrice > product.price ? (
               <span className="block truncate text-[10px] leading-none text-muted-foreground line-through sm:text-[11px]">
                 {formatPrice(product.oldPrice, product.currency, locale)}
               </span>
             ) : null}
-            <span className="block truncate text-sm font-bold leading-tight tracking-tight text-foreground sm:text-[15px]">
+            <span className="block truncate text-[13px] font-bold leading-tight tracking-tight text-foreground sm:text-[15px]">
               {formatPrice(product.price, product.currency, locale)}
             </span>
           </div>
@@ -198,17 +198,20 @@ export function ProductCard({ product }: { product: ShopProduct }) {
             aria-label={addLabel}
             data-testid={needsSize ? 'choose-size' : 'add-to-cart'}
             className={cn(
-              'h-8 w-full rounded-lg px-2 text-[12px] font-semibold sm:h-8',
+              'h-8 w-8 shrink-0 rounded-lg p-0 sm:h-8 sm:w-auto sm:px-2 sm:text-[12px]',
               added && 'bg-success text-primary-foreground hover:bg-success',
             )}
           >
             {added && !needsSize ? (
               <>
                 <Check className="size-3.5" />
-                {addLabel}
+                <span className="hidden sm:inline">{addLabel}</span>
               </>
             ) : (
-              addLabel
+              <>
+                <ShoppingCart className="size-3.5 sm:hidden" />
+                <span className="hidden sm:inline">{addLabel}</span>
+              </>
             )}
           </Button>
         </div>

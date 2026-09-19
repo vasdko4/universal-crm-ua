@@ -19,7 +19,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card px-6 py-20 text-center">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card px-6 py-10 text-center lg:py-20">
         <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted">
           <ShoppingBag className="size-8 text-muted-foreground" />
         </div>
@@ -38,11 +38,11 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
         {items.map((item) => (
           <li
             key={item.key}
-            className="flex gap-4 rounded-2xl border border-border bg-card p-3 md:p-4"
+            className="flex gap-3 rounded-2xl border border-border bg-card p-2.5 md:gap-4 md:p-4"
           >
             <Link
               href={lp(`/product/${item.slug || item.id}`)}
-              className="relative size-20 shrink-0 overflow-hidden rounded-xl bg-muted md:size-24"
+              className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-muted md:size-24"
             >
               {item.image ? (
                 <Image

@@ -88,7 +88,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
       {hasThumbs && (
         <div
           ref={thumbStripRef}
-          className="order-2 flex gap-1.5 overflow-x-auto overflow-y-hidden px-0.5 pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden lg:order-1 lg:max-h-[min(100%,560px)] lg:w-[72px] lg:shrink-0 lg:flex-col lg:gap-2 lg:overflow-y-auto lg:overflow-x-hidden lg:[scrollbar-width:thin] lg:[&::-webkit-scrollbar]:block"
+          className="order-2 hidden gap-1.5 overflow-x-auto overflow-y-hidden px-0.5 pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden lg:order-1 lg:flex lg:max-h-[min(100%,560px)] lg:w-[72px] lg:shrink-0 lg:flex-col lg:gap-2 lg:overflow-y-auto lg:overflow-x-hidden lg:[scrollbar-width:thin] lg:[&::-webkit-scrollbar]:block"
         >
           {gallery.map((src, i) => (
             <button
@@ -159,7 +159,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               type="button"
               onClick={prev}
               aria-label={dict.common.previousPhoto}
-              className="absolute left-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm transition hover:bg-background lg:size-auto lg:p-2 lg:opacity-0 lg:group-hover:opacity-100"
+              className="absolute left-2 top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm transition hover:bg-background lg:flex lg:size-auto lg:p-2 lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronLeft className="size-5" />
             </button>
@@ -167,7 +167,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               type="button"
               onClick={next}
               aria-label={dict.common.nextPhoto}
-              className="absolute right-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm transition hover:bg-background lg:size-auto lg:p-2 lg:opacity-0 lg:group-hover:opacity-100"
+              className="absolute right-2 top-1/2 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-sm transition hover:bg-background lg:flex lg:size-auto lg:p-2 lg:opacity-0 lg:group-hover:opacity-100"
             >
               <ChevronRight className="size-5" />
             </button>

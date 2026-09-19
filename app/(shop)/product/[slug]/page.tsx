@@ -241,7 +241,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         sku={product.sku}
         currency={product.currency}
       />
-      <nav className="mb-3 flex flex-wrap items-center gap-y-1 text-xs text-muted-foreground sm:mb-6 sm:text-sm">
+      <nav className="mb-3 hidden flex-wrap items-center gap-y-1 text-xs text-muted-foreground lg:mb-6 lg:flex lg:text-sm">
         <Link href={lp('/')} className="hover:text-primary">{dict.common.home}</Link>
         <span className="mx-2">/</span>
         <Link href={lp('/catalog')} className="hover:text-primary">{dict.common.catalog}</Link>
@@ -272,7 +272,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       />
 
       {/* Tabs */}
-      <div className="mt-12">
+      <div className="mt-6 lg:mt-12">
         <ProductTabs
           productId={product.id}
           description={product.description ? rewritePromHtmlImages(product.description, siteUrl) : product.description}
@@ -299,8 +299,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       {/* Frequently bought together — real co-purchase counts from order history */}
       {boughtTogether.length > 0 && (
-        <section className="mt-14">
-          <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">
+        <section className="mt-8 lg:mt-14">
+          <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground lg:mb-5 lg:text-2xl">
             {dict.product.frequentlyBoughtTogether}
           </h2>
           <div className="product-grid">
@@ -313,8 +313,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       {/* Related */}
       {related.length > 0 && (
-        <section className="mt-14">
-          <h2 className="mb-5 text-2xl font-bold tracking-tight text-foreground">{dict.product.relatedProducts}</h2>
+        <section className="mt-8 lg:mt-14">
+          <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground lg:mb-5 lg:text-2xl">{dict.product.relatedProducts}</h2>
           <div className="product-grid">
             {related.map((p) => (
               <ProductCard key={p.id} product={p} />
