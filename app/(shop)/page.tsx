@@ -198,8 +198,8 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="product-grid">
-            {popular.map((p) => (
-              <ProductCard key={p.id} product={p} />
+            {popular.map((p, i) => (
+              <ProductCard key={p.id} product={p} priority={i < 4} />
             ))}
           </div>
         </section>

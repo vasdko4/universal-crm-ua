@@ -25,9 +25,9 @@ describe('upgradePromImageUrl', () => {
 })
 
 describe('listingPromImageUrl', () => {
-  it('keeps catalog photos at 700×500', () => {
+  it('keeps catalog photos at 400×400', () => {
     expect(listingPromImageUrl('https://images.prom.ua/1_w2000_h2000_x.jpg')).toBe(
-      'https://images.prom.ua/1_w700_h500_x.jpg',
+      'https://images.prom.ua/1_w400_h400_x.jpg',
     )
   })
-})
+}

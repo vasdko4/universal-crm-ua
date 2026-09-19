@@ -19,10 +19,10 @@ function resizePromUrl(url: string, token: string): string {
   }
 }
 
-/** Listing / card thumbnail — Prom already has a 700×500 derivative. */
+/** Listing / card thumbnail — 400px is enough for a 2-col phone grid. */
 export function listingPromImageUrl(url: string | null | undefined): string | null {
   if (!url) return url ?? null
-  return resizePromUrl(url, '_w700_h500_')
+  return resizePromUrl(url, '_w400_h400_')
 }
 
 /** Product gallery / OG / Merchant — large enough, not the 4MP original. */

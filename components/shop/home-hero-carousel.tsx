@@ -76,8 +76,8 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   alt=""
                   fill
                   priority={i === 0}
-                  sizes="(max-width: 640px) 100vw, (max-width: 1280px) 100vw, 1280px"
-                  quality={75}
+                  sizes="(max-width: 640px) 100vw, 1280px"
+                  quality={70}
                   className="object-cover object-center"
                   draggable={false}
                 />

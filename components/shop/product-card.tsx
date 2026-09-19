@@ -16,9 +16,9 @@ import { pluralize } from '@/lib/i18n/plural'
 import { FavoriteButton } from '@/components/shop/favorite-button'
 import { cn } from '@/lib/utils'
 
-const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw'
+const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw'
 
-export function ProductCard({ product }: { product: ShopProduct }) {
+export function ProductCard({ product, priority = false }: { product: ShopProduct; priority?: boolean }) {
   const { add } = useCart()
   const router = useRouter()
   const { dict, locale } = useI18n()
@@ -89,7 +89,8 @@ export function ProductCard({ product }: { product: ShopProduct }) {
                 alt={product.name}
                 fill
                 sizes={IMAGE_SIZES}
-                quality={75}
+                quality={70}
+                priority={priority}
                 unoptimized={Boolean(primary?.startsWith('/api/media'))}
                 className={cn(
                   'object-cover transition duration-500 group-hover:scale-[1.03]',
