@@ -90,6 +90,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
                 fill
                 sizes={IMAGE_SIZES}
                 quality={75}
+                unoptimized={Boolean(primary?.startsWith('/api/media'))}
                 className={cn(
                   'object-cover transition duration-500 group-hover:scale-[1.03]',
                   hoverImage && 'sm:group-hover:opacity-0',
@@ -102,6 +103,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
                   fill
                   sizes={IMAGE_SIZES}
                   quality={70}
+                  unoptimized={hoverImage.startsWith('/api/media')}
                   className="hidden object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:block"
                 />
               )}
