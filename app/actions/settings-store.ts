@@ -43,7 +43,7 @@ export type {
 // (lib/store-settings.ts) instead, neither of which needs this permission.
 export async function getStoreSettings(): Promise<StoreSettingsData> {
   await assertPermission('settings')
-  return getStoreSettingsInternal()
+  return stripSecrets(await getStoreSettingsInternal())
 }
 
 // Public, unauthenticated projection for storefront pages (layout, homepage,
@@ -57,9 +57,37 @@ export async function getPublicStoreSettings(): Promise<StoreSettingsData> {
 // Shared writer. Not exported directly — the public entrypoint below adds the
 // admin permission check. The setup wizard writes settings via direct SQL in
 // app/actions/setup.ts, guarded by the fresh-install check there.
+function keepSecret(next: string | undefined, prev: string): string {
+  return next && next.trim() ? next : prev
+}
+
 async function writeStoreSettings(data: Partial<StoreSettingsData>) {
   const current = await getStoreSettingsInternal()
   const merged = { ...current, ...data }
+  if (data.emailSettings) {
+    merged.emailSettings = {
+      ...current.emailSettings,
+      ...data.emailSettings,
+      smtpUser: keepSecret(data.emailSettings.smtpUser, current.emailSettings.smtpUser),
+      smtpPassword: keepSecret(data.emailSettings.smtpPassword, current.emailSettings.smtpPassword),
+      dkimPrivateKey: keepSecret(data.emailSettings.dkimPrivateKey, current.emailSettings.dkimPrivateKey),
+    }
+  }
+  if (data.notifications) {
+    merged.notifications = {
+      ...current.notifications,
+      ...data.notifications,
+      telegramBotToken: keepSecret(data.notifications.telegramBotToken, current.notifications.telegramBotToken),
+      telegramChatId: keepSecret(data.notifications.telegramChatId, current.notifications.telegramChatId),
+    }
+  }
+  if (data.googleAuth) {
+    merged.googleAuth = {
+      ...current.googleAuth,
+      ...data.googleAuth,
+      clientSecret: keepSecret(data.googleAuth.clientSecret, current.googleAuth.clientSecret),
+    }
+  }
   const values = {
     storeName: merged.storeName,
     storeDescription: merged.storeDescription,

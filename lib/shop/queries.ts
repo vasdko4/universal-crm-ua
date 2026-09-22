@@ -1218,7 +1218,7 @@ export function getActiveGateways() {
         .from(paymentGateways)
         .where(eq(paymentGateways.isActive, true))
         .orderBy(asc(paymentGateways.sortOrder))
-      return rows.filter((g) => isGatewayConfigured(g.code, g.config))
+      return rows.filter((g) => !g.isTestMode && isGatewayConfigured(g.code, g.config))
     },
     ['payment-gateways'],
     { tags: [CACHE_TAGS.checkout], revalidate: 300 },

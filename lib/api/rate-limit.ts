@@ -19,13 +19,17 @@ import { pool } from '@/lib/db'
 type Bucket = { count: number; resetAt: number }
 const memory = new Map<string, Bucket>()
 
-export function clientIp(req: Request): string {
-  const vercel = req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
+export function clientIpFromHeaders(h: { get(name: string): string | null }): string {
+  const vercel = h.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
   if (vercel) return vercel
-  const real = req.headers.get('x-real-ip')?.trim()
+  const real = h.get('x-real-ip')?.trim()
   if (real) return real
-  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  const forwarded = h.get('x-forwarded-for')?.split(',')[0]?.trim()
   return forwarded || 'unknown'
+}
+
+export function clientIp(req: Request): string {
+  return clientIpFromHeaders(req.headers)
 }
 
 export async function isRateLimited(

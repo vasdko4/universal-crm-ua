@@ -31,9 +31,18 @@ type ActionResult = { ok: boolean; message: string; paymentUrl?: string }
 // login required) could previously call this and read those secrets, which
 // would let them forge valid WayForPay webhook signatures (mark any order
 // "paid" for free) or call Monobank's API as the merchant.
+const GATEWAY_SECRET_KEYS = ['merchantSecretKey', 'merchantPassword', 'token'] as const
+
 export async function getGateways() {
   await assertPermission('payments')
-  return db.select().from(paymentGateways).orderBy(paymentGateways.sortOrder)
+  const rows = await db.select().from(paymentGateways).orderBy(paymentGateways.sortOrder)
+  return rows.map((g) => {
+    const cfg = { ...((g.config ?? {}) as Record<string, string>) }
+    for (const key of GATEWAY_SECRET_KEYS) {
+      if (cfg[key]) cfg[key] = ''
+    }
+    return { ...g, config: cfg }
+  })
 }
 
 async function getGateway(code: string) {
@@ -70,12 +79,23 @@ export async function updateGateway(
       }
     }
 
+    const [existing] = await db
+      .select({ config: paymentGateways.config })
+      .from(paymentGateways)
+      .where(eq(paymentGateways.code, code))
+      .limit(1)
+    const prev = (existing?.config ?? {}) as Record<string, string>
+    const next = { ...data.config }
+    for (const key of GATEWAY_SECRET_KEYS) {
+      if (!String(next[key] ?? '').trim()) next[key] = prev[key] ?? ''
+    }
+
     await db
       .update(paymentGateways)
       .set({
         isActive: data.isActive,
         isTestMode: data.isTestMode,
-        config: data.config,
+        config: next,
         updatedAt: new Date(),
       })
       .where(eq(paymentGateways.code, code))

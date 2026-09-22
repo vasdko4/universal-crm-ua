@@ -7,7 +7,7 @@ import { promotions, promotionUsages, productGroups, productGroupItems, products
 import { and, asc, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-import { isRateLimited } from '@/lib/api/rate-limit'
+import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { sanitizeSearch } from '@/lib/api/helpers'
@@ -276,8 +276,7 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
   // no auth) — rate-limit per IP so promo codes cannot be brute-forced by
   // scripting this action directly.
   const t = getDictionary(await getLocale()).serverErrors
-  const h = await headers()
-  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  const ip = clientIpFromHeaders(await headers())
   if (await isRateLimited('promo-eval', ip, 15)) {
     return { ok: false, error: t.rateLimitGeneric }
   }

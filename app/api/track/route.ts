@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { trackEvent } from '@/app/actions/analytics'
 import { readJson } from '@/lib/api/helpers'
+import { clientIp } from '@/lib/api/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,10 +27,7 @@ function rateLimited(ip: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    req.headers.get('x-real-ip') ||
-    'unknown'
+  const ip = clientIp(req)
   if (rateLimited(ip)) {
     return NextResponse.json({ success: false, error: 'Too many events' }, { status: 429 })
   }

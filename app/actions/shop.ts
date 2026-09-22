@@ -29,7 +29,7 @@ import { evaluatePromoCode, findBestAutomaticDiscount } from '@/app/actions/prom
 import { applyOrderFulfillment, finalizePaidOrder } from '@/lib/shop/order-fulfillment'
 import { notifyNewOrder } from '@/lib/notifications'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
-import { isRateLimited } from '@/lib/api/rate-limit'
+import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { validateCheckoutInput } from '@/lib/shop/checkout-validation'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
@@ -73,8 +73,7 @@ async function canAccessGuestOrder(order: { orderNumber: string; userId: string 
 
 /** Client IP for server actions (no Request object available — use headers). */
 async function actionClientIp(): Promise<string> {
-  const h = await headers()
-  return h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  return clientIpFromHeaders(await headers())
 }
 
 // Reads the utm_attribution cookie written by lib/shop/utm.ts on landing, so
@@ -564,28 +563,14 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     }
 
     if (!paymentUrl) {
-      // Fallback: no live gateway (unconfigured/test mode) -> built-in demo page.
-      try {
-        await db.insert(payments).values({
-          gatewayCode: 'online',
-          orderReference: orderNumber,
-          amount: total.toFixed(2),
-          currency: 'UAH',
-          status: 'created',
-          description: `Оплата заказа №${orderNumber}`,
-          customerName,
-          customerEmail: input.email?.trim() || null,
-          customerPhone: input.phone.trim(),
-        })
-      } catch (e) {
-        console.error('[checkout] demo payment row failed:', (e as Error).message)
-        await pool.query(
-          `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\\n', '') || $1 WHERE id = $2`,
-          ['Не удалось сохранить демо-платёж', order.id],
-        )
-        return { success: false, error: t.paymentInvoiceFailed }
-      }
-      paymentUrl = `/checkout/pay/${orderNumber}`
+      // No live gateway (unconfigured / test mode). Do not fall through to the
+      // built-in demo page — that lets the shopper mark the order paid with no
+      // real charge. Cancel and ask them to pick another method.
+      await pool.query(
+        `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\\n', '') || $1 WHERE id = $2`,
+        ['Онлайн-оплата недоступна: нет живого шлюза', order.id],
+      )
+      return { success: false, error: t.paymentInvoiceFailed }
     }
   }
 
@@ -677,8 +662,7 @@ const ORDER_LOOKUP_MAX_PER_WINDOW = 20
 const orderLookupHits = new Map<string, { count: number; resetAt: number }>()
 
 async function isOrderLookupRateLimited(): Promise<boolean> {
-  const h = await headers()
-  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  const ip = clientIpFromHeaders(await headers())
   const now = Date.now()
   const entry = orderLookupHits.get(ip)
   if (!entry || now > entry.resetAt) {
@@ -939,7 +923,5 @@ export async function submitQuestion(input: {
 // Shared per-IP limiter for the storefront review/question forms (server
 // actions can't read the IP from a Request object, so resolve it via headers).
 async function isFeedbackRateLimited(scope: string): Promise<boolean> {
-  const h = await headers()
-  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
-  return await isRateLimited(scope, ip, 5)
+  return await isRateLimited(scope, clientIpFromHeaders(await headers()), 5)
 }
