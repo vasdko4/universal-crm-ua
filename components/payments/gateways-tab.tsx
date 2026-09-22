@@ -115,12 +115,15 @@ function GatewayUrls({ code }: { code: string }) {
   )
 }
 
-function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
+type GatewayView = PaymentGateway & { hasSecret?: Record<string, boolean> }
+
+function GatewayCard({ gateway }: { gateway: GatewayView }) {
   const { dict: t } = useAdminI18n()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const fields = gatewayFields(t)[gateway.code] ?? []
   const initialConfig = (gateway.config ?? {}) as Record<string, string>
+  const storedSecret = gateway.hasSecret ?? {}
 
   const [isActive, setIsActive] = useState(gateway.isActive ?? false)
   const [isTestMode, setIsTestMode] = useState(gateway.isTestMode ?? true)
@@ -132,7 +135,7 @@ function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
 
   const isConfigured = fields
     .filter((f) => !f.optional)
-    .every((f) => (config[f.key] ?? '').trim().length > 0)
+    .every((f) => (config[f.key] ?? '').trim().length > 0 || (f.secret && storedSecret[f.key]))
 
   function handleSave() {
     if (isActive && !isConfigured) {
@@ -195,6 +198,9 @@ function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
                 placeholder={f.secret ? '••••••••' : ''}
                 onChange={(e) => setConfig((c) => ({ ...c, [f.key]: e.target.value }))}
               />
+              {f.secret && storedSecret[f.key] && !(config[f.key] ?? '').trim() && (
+                <p className="text-xs text-muted-foreground">Секрет збережено. Залиште порожнім, щоб не змінювати, або введіть __CLEAR__ щоб стерти.</p>
+              )}
               {f.hint && <p className="text-xs text-muted-foreground">{f.hint}</p>}
             </div>
           ))}
@@ -231,7 +237,7 @@ function GatewayCard({ gateway }: { gateway: PaymentGateway }) {
   )
 }
 
-export function GatewaysTab({ gateways }: { gateways: PaymentGateway[] }) {
+export function GatewaysTab({ gateways }: { gateways: GatewayView[] }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {gateways.map((g) => (

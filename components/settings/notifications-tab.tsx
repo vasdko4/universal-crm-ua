@@ -157,7 +157,7 @@ export function NotificationsSection({ data, setData, t }: SectionProps) {
               size="sm"
               className="self-start"
               onClick={testTelegram}
-              disabled={testing || !n.telegramBotToken || !n.telegramChatId}
+              disabled={testing}
             >
               {testing ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
               {t.testButton}

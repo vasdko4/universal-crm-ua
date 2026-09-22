@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { deliveryMethods } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { isRateLimited } from '@/lib/api/rate-limit'
+import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 
 const NP_URL = 'https://api.novaposhta.ua/v2.0/json/'
 
@@ -13,9 +13,7 @@ const NP_URL = 'https://api.novaposhta.ua/v2.0/json/'
 // with the store's key. Rate-limit per IP so a script cannot burn the API
 // quota (NP throttles/blocks keys that flood requests).
 async function isNpSearchRateLimited(): Promise<boolean> {
-  const h = await headers()
-  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
-  return await isRateLimited('np-search', ip, 30)
+  return await isRateLimited('np-search', clientIpFromHeaders(await headers()), 30)
 }
 
 async function getApiKey(): Promise<string | null> {

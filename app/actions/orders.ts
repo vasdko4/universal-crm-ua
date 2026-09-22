@@ -257,6 +257,7 @@ export async function bulkUpdateOrderStatus(ids: number[], status: string) {
 
 export async function refundOrder(orderId: number, amount?: number) {
   await assertWritePermission('orders')
+  await assertWritePermission('payments')
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1)
   if (!order) return { ok: false, message: 'Замовлення не знайдено' }
   const { payments } = await import('@/lib/db/schema')

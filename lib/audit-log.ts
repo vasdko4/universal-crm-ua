@@ -2,6 +2,7 @@ import 'server-only'
 
 import { headers } from 'next/headers'
 import { pool } from '@/lib/db'
+import { clientIpFromHeaders } from '@/lib/api/rate-limit'
 
 export type AuditAction = 'login' | 'create' | 'update' | 'delete' | 'toggle' | 'settings' | 'security'
 
@@ -33,8 +34,8 @@ export async function auditLog(entry: AuditEntry): Promise<void> {
   try {
     let ip: string | null = null
     try {
-      const h = await headers()
-      ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || null
+      const extracted = clientIpFromHeaders(await headers())
+      ip = extracted === 'unknown' ? null : extracted
     } catch {
       // Not in a request scope (e.g. background job) — keep ip = null.
     }

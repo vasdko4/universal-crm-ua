@@ -1,6 +1,7 @@
 'use server'
 
 import { cookies, headers } from 'next/headers'
+import { clientIpFromHeaders } from '@/lib/api/rate-limit'
 import { revalidatePath } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
@@ -9,8 +10,8 @@ import { LOCALE_COOKIE, isLocale, normalizeLocale, type Locale } from '@/lib/i18
 
 /** Client IP for server actions (no Request object available — use headers). */
 async function actionClientIp(): Promise<string | null> {
-  const h = await headers()
-  return h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || null
+  const ip = clientIpFromHeaders(await headers())
+  return ip === 'unknown' ? null : ip
 }
 
 export async function setLocale(value: string) {

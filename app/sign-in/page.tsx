@@ -34,7 +34,6 @@ export default async function SignInPage() {
   const dict = getAdminDictionary(locale)
   return (
     <SignInForm
-      needsBootstrap={false}
       storeName={settings?.storeName ?? dict.sidebar.adminCenter}
       copy={dict.signIn}
       initialNeedsOtp={Boolean(user && !twoFaOk)}

@@ -10,51 +10,6 @@ import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { getLocale } from '@/lib/i18n/server'
 
-async function countUsers(): Promise<number> {
-  const res = await pool.query('SELECT COUNT(*)::int AS c FROM "user"')
-  return res.rows[0]?.c ?? 0
-}
-
-// Bootstrap: allowed only when there are zero users. Creates the first admin.
-export async function bootstrapAdmin(input: {
-  name: string
-  email: string
-  password: string
-}) {
-  // Serialize first-admin creation. Two parallel calls used to both see
-  // count=0, both sign up, and both get role=admin.
-  const LOCK = 884_201_117
-  const client = await pool.connect()
-  try {
-    await client.query('SELECT pg_advisory_lock($1)', [LOCK])
-    const counted = await client.query('SELECT COUNT(*)::int AS c FROM "user"')
-    if ((counted.rows[0]?.c ?? 0) > 0) {
-      const e = getAdminDictionary(await getLocale()).users
-      return { success: false, error: e.adminAlreadyExists }
-    }
-
-    try {
-      const auth = await getAuth()
-      await auth.api.signUpEmail({
-        body: { name: input.name, email: input.email, password: input.password },
-      })
-    } catch (e) {
-      const dict = getAdminDictionary(await getLocale()).users
-      return { success: false, error: e instanceof Error ? e.message : dict.createFailed }
-    }
-    await client.query(`UPDATE "user" SET role = 'admin' WHERE email = $1`, [input.email])
-    revalidatePath('/admin/users')
-    return { success: true }
-  } finally {
-    try {
-      await client.query('SELECT pg_advisory_unlock($1)', [LOCK])
-    } catch {
-      /* ignore */
-    }
-    client.release()
-  }
-}
-
 export type AdminUserRow = {
   id: string
   name: string
