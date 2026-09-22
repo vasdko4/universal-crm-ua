@@ -399,7 +399,6 @@ export async function continuePromImport(taskId: number) {
   let successBase = 0
   let failedBase = 0
   let totalItems = 0
-  let errorLog: string | null = null
   try {
     await client.query('BEGIN')
     const claimed = await client.query<{
@@ -407,10 +406,9 @@ export async function continuePromImport(taskId: number) {
       success_items: number | null
       failed_items: number | null
       total_items: number | null
-      error_log: string | null
       state: PromImportState | null
     }>(
-      `SELECT processed_items, success_items, failed_items, total_items, error_log, state
+      `SELECT processed_items, success_items, failed_items, total_items, state
          FROM import_tasks
         WHERE id = $1
           AND source_type = 'prom'
@@ -441,7 +439,6 @@ export async function continuePromImport(taskId: number) {
     successBase = row.success_items ?? 0
     failedBase = row.failed_items ?? 0
     totalItems = row.total_items ?? 0
-    errorLog = row.error_log
     await client.query(
       `UPDATE import_tasks SET state = $2, updated_at = NOW() WHERE id = $1`,
       [taskId, { ...state, pending: rest }],
@@ -663,25 +660,56 @@ export async function continuePromImport(taskId: number) {
     }
   }
 
-  const processedItems = processedBase + batch.length
-  const successItems = successBase + success
-  const failedItems = failedBase + failed
-  const done = rest.length === 0
-  const combinedErrors = [...(errorLog ? errorLog.split('\n') : []), ...errors].slice(-50)
-
-  await db
-    .update(importTasks)
-    .set({
-      processedItems,
-      successItems,
-      failedItems,
-      errorLog: combinedErrors.length > 0 ? combinedErrors.join('\n') : null,
-      status: done ? 'completed' : 'processing',
-      completedAt: done ? new Date() : null,
-      state: { ...state, pending: rest },
-      updatedAt: new Date(),
-    })
-    .where(eq(importTasks.id, taskId))
+  // The claim transaction already removed this batch from `state.pending`.
+  // Never write `{...state, pending: rest}` here: another worker may have
+  // claimed the next batch while this one was scraping, and that stale
+  // snapshot would put the other batch back into `pending`.
+  //
+  // Increment counters in SQL and merge size-family additions into the live
+  // JSON state. The UPDATE is atomic, so parallel polls cannot lose counters
+  // or resurrect already-claimed products.
+  const newErrors = errors.length > 0 ? errors.join('\n') : null
+  const updated = await pool.query<{
+    status: 'processing' | 'completed'
+    processed_items: number
+    success_items: number
+    failed_items: number
+  }>(
+    `UPDATE import_tasks
+        SET processed_items = COALESCE(processed_items, 0) + $2,
+            success_items = COALESCE(success_items, 0) + $3,
+            failed_items = COALESCE(failed_items, 0) + $4,
+            error_log = CASE
+              WHEN $5::text IS NULL THEN error_log
+              WHEN COALESCE(error_log, '') = '' THEN right($5::text, 10000)
+              ELSE right(error_log || E'\\n' || $5::text, 10000)
+            END,
+            state = jsonb_set(
+              COALESCE(state, '{}'::jsonb),
+              '{sizeFamilies}',
+              COALESCE(state->'sizeFamilies', '{}'::jsonb) || $6::jsonb,
+              true
+            ),
+            status = CASE
+              WHEN jsonb_array_length(COALESCE(state->'pending', '[]'::jsonb)) = 0
+                THEN 'completed'
+              ELSE 'processing'
+            END,
+            completed_at = CASE
+              WHEN jsonb_array_length(COALESCE(state->'pending', '[]'::jsonb)) = 0
+                THEN NOW()
+              ELSE NULL
+            END,
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING status, processed_items, success_items, failed_items`,
+    [taskId, batch.length, success, failed, newErrors, JSON.stringify(state.sizeFamilies ?? {})],
+  )
+  const result = updated.rows[0]
+  const done = result?.status === 'completed'
+  const processedItems = result?.processed_items ?? processedBase + batch.length
+  const successItems = result?.success_items ?? successBase + success
+  const failedItems = result?.failed_items ?? failedBase + failed
 
   if (done) {
     revalidatePath('/admin/products')
