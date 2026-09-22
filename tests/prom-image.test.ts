@@ -30,4 +30,4 @@ describe('listingPromImageUrl', () => {
       'https://images.prom.ua/1_w400_h400_x.jpg',
     )
   })
-}
+})
