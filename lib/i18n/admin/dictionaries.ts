@@ -1515,6 +1515,7 @@ export type AdminDictionary = {
     delaySecondsLabel: string
     scrollPercentLabel: string
     sectionFrequency: string
+    frequencyHint: string
     freqEvery: string
     freqSession: string
     freqDays: string
@@ -3270,6 +3271,8 @@ const uk: AdminDictionary = {
     delaySecondsLabel: 'Затримка, сек',
     scrollPercentLabel: 'Прокрутка, %',
     sectionFrequency: 'Частота показу',
+    frequencyHint:
+      'Вітрина все одно показує не більше одного вікна на день і ніколи на оформленні замовлення.',
     freqEvery: 'Кожен візит',
     freqSession: 'Раз за сесію',
     freqDays: 'Раз на N днів',
@@ -5030,6 +5033,8 @@ const ru: AdminDictionary = {
     delaySecondsLabel: 'Задержка, сек',
     scrollPercentLabel: 'Прокрутка, %',
     sectionFrequency: 'Частота показа',
+    frequencyHint:
+      'Витрина всё равно показывает не больше одного окна в день и никогда на оформлении заказа.',
     freqEvery: 'Каждый визит',
     freqSession: 'Раз за сессию',
     freqDays: 'Раз в N дней',
