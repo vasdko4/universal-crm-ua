@@ -358,7 +358,7 @@ services:
       DATABASE_URL: postgres://techno:\${POSTGRES_PASSWORD}@db:5432/magazine
       BETTER_AUTH_SECRET: \${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
       BETTER_AUTH_URL: \${BETTER_AUTH_URL:-http://localhost:3000}
-      CRON_SECRET: \${CRON_SECRET:-}
+      CRON_SECRET: \${CRON_SECRET:?set CRON_SECRET in .env (openssl rand -base64 32)}
       NEXT_PUBLIC_SITE_URL: \${NEXT_PUBLIC_SITE_URL:-}
       UPDATER_URL: \${UPDATER_URL:-http://updater:8787}
       UPDATER_SECRET: \${UPDATER_SECRET:-}

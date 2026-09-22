@@ -380,3 +380,17 @@ WHERE p.id = sub.product_id
 -- First-visit language: modal picker vs browser language. Default browser so
 -- returning shops stop forcing the language dialog on every new device.
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "locale_prompt_mode" varchar(20) NOT NULL DEFAULT 'browser';
+
+-- Prom.ua import job extras (used to be added at request time — that raced
+-- under load). Applied once here instead.
+ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "source_url" text;
+ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "state" jsonb;
+
+-- Shared rate-limit buckets so checkout / OTP / reviews stay limited across
+-- Vercel instances (in-memory Maps are per-isolate and do not count).
+CREATE TABLE IF NOT EXISTS "rate_limits" (
+  "key" varchar(200) NOT NULL,
+  "count" integer DEFAULT 0 NOT NULL,
+  "reset_at" timestamptz NOT NULL,
+  PRIMARY KEY ("key")
+);

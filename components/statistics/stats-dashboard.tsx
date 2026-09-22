@@ -213,14 +213,27 @@ export function StatsDashboard({
   const maxProductRevenue = Math.max(...topProducts.map((p) => p.revenue), 1)
   const totalStatusCount = Math.max(orderStatuses.reduce((s, r) => s + r.count, 0), 1)
 
-  // Sales funnel steps derived from the summary counters.
-  const funnel = [
-    { label: t.statistics.funnelVisitors, value: summary.visitors, icon: Users },
-    { label: t.statistics.funnelProductViews, value: summary.productViews, icon: Package },
-    { label: t.statistics.funnelAddToCart, value: summary.addToCarts, icon: ShoppingCart },
-    { label: t.statistics.funnelOrders, value: summary.orders, icon: Receipt },
-  ]
-  const maxFunnel = Math.max(...funnel.map((f) => f.value), 1)
+  // Sales funnel. Values and conversions come from the server
+  // (lib/analytics/funnel.ts) so the denominators are comparable units:
+  // unique sessions for traffic stages, orders for order stages. Product
+  // views per visitor is shown separately as a depth ratio — dividing raw
+  // product views by visitors here is what produced "778.8% conversion".
+  const FUNNEL_LABELS: Record<string, { label: string; icon: typeof Users }> = {
+    visitors: { label: t.statistics.funnelVisitors, icon: Users },
+    productViewers: { label: t.statistics.funnelProductViews, icon: Package },
+    carts: { label: t.statistics.funnelAddToCart, icon: ShoppingCart },
+    orders: { label: t.statistics.funnelOrders, icon: Receipt },
+    paidOrders: { label: t.statistics.funnelPaid, icon: CreditCard },
+    fulfilledOrders: { label: t.statistics.funnelFulfilled, icon: Truck },
+  }
+  const funnel = summary.funnel.stages.map((stage) => ({
+    ...stage,
+    label: FUNNEL_LABELS[stage.key]?.label ?? stage.key,
+    icon: FUNNEL_LABELS[stage.key]?.icon ?? Users,
+  }))
+  // Bars are relative to the funnel entry point, so each step reads as a
+  // share of all visitors instead of being rescaled to the largest step.
+  const funnelBase = Math.max(funnel[0]?.value ?? 0, 1)
 
   const weekdayData = weekdays.map((w) => ({
     name: WEEKDAY_LABELS[w.weekday - 1],
@@ -359,10 +372,8 @@ export function StatsDashboard({
           <div className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.funnelTitle}</h2>
             <div className="flex flex-col gap-4">
-              {funnel.map((step, i) => {
-                const prevValue = i > 0 ? funnel[i - 1].value : null
-                const convFromPrev =
-                  prevValue && prevValue > 0 ? (step.value / prevValue) * 100 : null
+              {funnel.map((step) => {
+                const convFromPrev = step.conversionFromPrev
                 return (
                   <div key={step.label} className="flex flex-col gap-1">
                     <div className="flex items-center justify-between text-sm">
@@ -375,7 +386,10 @@ export function StatsDashboard({
                           {formatCount(step.value, locale)}
                         </span>
                         {convFromPrev !== null && (
-                          <span className="text-xs text-muted-foreground">
+                          <span
+                            className="text-xs text-muted-foreground"
+                            title={`${convFromPrev.toFixed(1)}% ${t.statistics.funnelOfPrevSuffix}`}
+                          >
                             {convFromPrev.toFixed(1)}%
                           </span>
                         )}
@@ -384,16 +398,24 @@ export function StatsDashboard({
                     <div className="h-3 overflow-hidden rounded-full bg-muted">
                       <div
                         className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${(step.value / maxFunnel) * 100}%` }}
+                        style={{ width: `${Math.min(100, (step.value / funnelBase) * 100)}%` }}
                       />
                     </div>
                   </div>
                 )
               })}
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t.statistics.conversionOverallPrefix}: {summary.conversionRate.toFixed(2)}% ·{' '}
-                {t.statistics.conversionCartPrefix}: {summary.cartConversion.toFixed(1)}%
-              </p>
+              <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground">
+                <p>
+                  {t.statistics.conversionOverallPrefix}: {summary.conversionRate.toFixed(2)}% ·{' '}
+                  {t.statistics.conversionCartPrefix}: {summary.cartConversion.toFixed(1)}%
+                </p>
+                {/* Depth, not conversion: product views ÷ visitors is a
+                    "per visitor" ratio and is labelled as such. */}
+                <p>
+                  {t.statistics.funnelDepthLabel}: {summary.productViewsPerVisitor.toFixed(1)} ·{' '}
+                  <span className="opacity-80">{t.statistics.funnelDepthHint}</span>
+                </p>
+              </div>
             </div>
           </div>
 

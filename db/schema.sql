@@ -693,7 +693,16 @@ CREATE TABLE IF NOT EXISTS "import_tasks" (
   "completed_at" timestamptz,
   "created_at" timestamptz DEFAULT now(),
   "updated_at" timestamptz DEFAULT now(),
+  "source_url" text,
+  "state" jsonb,
   PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "rate_limits" (
+  "key" varchar(200) NOT NULL,
+  "count" integer DEFAULT 0 NOT NULL,
+  "reset_at" timestamptz NOT NULL,
+  PRIMARY KEY ("key")
 );
 
 
