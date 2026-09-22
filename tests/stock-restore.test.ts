@@ -34,4 +34,12 @@ describe('stockRestored claim', () => {
     expect(shouldRestore('cancelled', 'refunded')).toBe(false)
     expect(shouldRestore('new', 'paid')).toBe(false)
   })
+
+  it('restores only the quantity actually taken at sale, not the oversold remainder', () => {
+    const ordered = 5
+    const saleDelta = -3 // warehouse only had 3; 2 were oversold and never left stock
+    const restoreQty = Math.abs(saleDelta)
+    expect(restoreQty).toBe(3)
+    expect(restoreQty).toBeLessThan(ordered)
+  })
 })

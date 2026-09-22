@@ -472,8 +472,8 @@ export function getCatalogProducts(params: CatalogParams = {}) {
 }
 
 async function _getCatalogProducts(params: CatalogParams = {}) {
-  const page = Math.max(1, params.page ?? 1)
-  const perPage = params.perPage ?? 12
+  const page = Math.min(50, Math.max(1, params.page ?? 1))
+  const perPage = Math.min(48, Math.max(1, params.perPage ?? 12))
   const productSelect = buildProductSelect(params.locale ?? 'uk')
   const conditions = [params.hideOutOfStock ? homeWhere : baseWhere]
 
@@ -1256,14 +1256,20 @@ export async function getProductPromotionDeadline(
         isNotNull(promotions.endsAt),
         gt(promotions.endsAt, now),
         lte(promotions.startsAt, now),
+        or(
+          eq(promotions.targetType, 'all'),
+          and(
+            eq(promotions.targetType, 'products'),
+            sql`${promotions.targetProductIds} @> ${JSON.stringify([productId])}::jsonb`,
+          ),
+          eq(promotions.targetType, 'groups'),
+        ),
       ),
     )
   if (candidates.length === 0) return null
 
   const allCandidates = candidates.filter((p) => p.targetType === 'all')
-  const productCandidates = candidates.filter(
-    (p) => p.targetType === 'products' && ((p.targetProductIds as number[]) ?? []).includes(productId),
-  )
+  const productCandidates = candidates.filter((p) => p.targetType === 'products')
   const groupTargeted = candidates.filter((p) => p.targetType === 'groups')
   let groupCandidates: typeof candidates = []
   if (groupTargeted.length > 0) {

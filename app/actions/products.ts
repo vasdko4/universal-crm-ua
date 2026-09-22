@@ -510,12 +510,13 @@ export async function restoreProducts(ids: number[]) {
 export async function permanentlyDeleteProducts(ids: number[]) {
   await assertWritePermission('trash')
   if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
-  await db.delete(productCategory).where(inArray(productCategory.productId, ids))
-  await db.delete(productGroupItems).where(inArray(productGroupItems.productId, ids))
-  await db.delete(productCharacteristics).where(inArray(productCharacteristics.productId, ids))
-  await db
-    .delete(products)
-    .where(and(inArray(products.id, ids), isNotNull(products.deletedAt)))
+  await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    await tx.delete(productCategory).where(inArray(productCategory.productId, ids))
+    await tx.delete(productGroupItems).where(inArray(productGroupItems.productId, ids))
+    await tx.delete(productCharacteristics).where(inArray(productCharacteristics.productId, ids))
+    await tx.delete(products).where(and(inArray(products.id, ids), isNotNull(products.deletedAt)))
+  })
   revalidatePath('/admin/trash')
   revalidateStorefront()
   return { success: true }
@@ -590,20 +591,26 @@ export async function bulkAdjustProductStock(ids: number[], delta: number) {
   const d = Math.trunc(delta)
   if (!d) return { success: false, error: 'Дельта не може бути 0' }
   const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
-  const { pool } = await import('@/lib/db')
-  for (const id of unique) {
-    const res = await pool.query(
-      `UPDATE products SET quantity = GREATEST(0, quantity + $1), is_in_stock = GREATEST(0, quantity + $1) > 0, updated_at = NOW() WHERE id = $2 RETURNING quantity`,
-      [d, id],
+  const { withDbClient } = await import('@/lib/db')
+  await withDbClient(async (client) => {
+    const res = await client.query<{ id: number; quantity: number }>(
+      `UPDATE products SET quantity = GREATEST(0, quantity + $1), is_in_stock = GREATEST(0, quantity + $1) > 0, updated_at = NOW()
+        WHERE id = ANY($2::int[]) RETURNING id, quantity`,
+      [d, unique],
     )
-    await recordStockMovement({
-      productId: id,
-      delta: d,
-      quantityAfter: Number(res.rows[0]?.quantity),
-      reason: 'bulk',
-      actor: user.name,
-    })
-  }
+    for (const row of res.rows) {
+      await recordStockMovement(
+        {
+          productId: Number(row.id),
+          delta: d,
+          quantityAfter: Number(row.quantity),
+          reason: 'bulk',
+          actor: user.name,
+        },
+        client,
+      )
+    }
+  })
   revalidatePath('/admin/products')
   revalidateStorefront()
   return { success: true }

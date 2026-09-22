@@ -210,6 +210,22 @@ export type PromoEvaluation =
 
 type PromotionRow = typeof promotions.$inferSelect
 
+
+async function loadGroupMemberships(productIds: number[], groupIds: number[]): Promise<Set<string>> {
+  if (!groupIds.length || !productIds.length) return new Set()
+  const memberRows = await db
+    .select({ productId: productGroupItems.productId, groupId: productGroupItems.groupId })
+    .from(productGroupItems)
+    .where(and(inArray(productGroupItems.groupId, groupIds), inArray(productGroupItems.productId, productIds)))
+  return new Set(memberRows.map((r) => `${r.productId}:${r.groupId}`))
+}
+
+function groupEligibleBase(lines: PromoCartLine[], groupIds: number[], memberships: Set<string>): number {
+  return lines
+    .filter((l) => groupIds.some((g) => memberships.has(`${l.productId}:${g}`)))
+    .reduce((s, l) => s + l.price * l.quantity, 0)
+}
+
 // Shared eligibility + discount-amount calculation for a single promotion
 // row, used by both the promo-code path (evaluatePromoCode) and the
 // automatic-discount path (findBestAutomaticDiscount) so the two can never
@@ -217,6 +233,7 @@ type PromotionRow = typeof promotions.$inferSelect
 async function computePromoDiscount(
   promo: PromotionRow,
   lines: PromoCartLine[],
+  groupMemberships?: Set<string>,
 ): Promise<{ discount: number } | { error: 'inactive' | 'not_yet_active' | 'expired' | 'usage_limit' | 'min_order' | 'not_applicable' | 'no_discount'; minOrderAmount?: number }> {
   if (!promo.isActive) return { error: 'inactive' }
   const now = new Date()
@@ -237,15 +254,8 @@ async function computePromoDiscount(
   } else if (promo.targetType === 'groups') {
     const groupIds = (promo.targetGroupIds as number[]) ?? []
     const productIds = lines.map((l) => l.productId)
-    const memberRows =
-      groupIds.length && productIds.length
-        ? await db
-            .select({ productId: productGroupItems.productId })
-            .from(productGroupItems)
-            .where(and(inArray(productGroupItems.groupId, groupIds), inArray(productGroupItems.productId, productIds)))
-        : []
-    const memberSet = new Set(memberRows.map((r) => r.productId))
-    eligibleBase = lines.filter((l) => memberSet.has(l.productId)).reduce((s, l) => s + l.price * l.quantity, 0)
+    const memberships = groupMemberships ?? (await loadGroupMemberships(productIds, groupIds))
+    eligibleBase = groupEligibleBase(lines, groupIds, memberships)
   }
 
   if (eligibleBase <= 0) return { error: 'not_applicable' }
@@ -340,9 +350,19 @@ export async function findBestAutomaticDiscount(lines: PromoCartLine[]): Promise
     .from(promotions)
     .where(and(eq(promotions.type, 'discount'), eq(promotions.isActive, true)))
 
+  const allGroupIds = [
+    ...new Set(
+      candidates.flatMap((p) => (p.targetType === 'groups' ? ((p.targetGroupIds as number[]) ?? []) : [])),
+    ),
+  ]
+  const memberships = await loadGroupMemberships(
+    lines.map((l) => l.productId),
+    allGroupIds,
+  )
+
   let best: (PromoEvaluation & { ok: true }) | null = null
   for (const promo of candidates) {
-    const result = await computePromoDiscount(promo, lines)
+    const result = await computePromoDiscount(promo, lines, memberships)
     if ('error' in result) continue
     if (!best || result.discount > best.discount) {
       best = {

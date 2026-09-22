@@ -2,7 +2,7 @@
 
 import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { db, pool } from '@/lib/db'
+import { db, pool, withDbClient, dbForClient } from '@/lib/db'
 import {
   orders,
   orderItems,
@@ -300,69 +300,75 @@ export async function createOrder(input: {
   const itemsCount = input.items.reduce((sum, i) => sum + i.quantity, 0)
   const orderNumber = await generateUniqueOrderNumber()
 
-  const [order] = await db
-    .insert(orders)
-    .values({
-      orderNumber,
-      status: 'new',
-      customerId: input.customerId,
-      customerName: input.customerName,
-      customerPhone: input.customerPhone,
-      customerEmail: input.customerEmail,
-      deliveryMethod: input.deliveryMethod,
-      deliveryCity: input.deliveryCity,
-      deliveryBranch: input.deliveryBranch,
-      deliveryAddress: input.deliveryAddress,
-      paymentMethod: input.paymentMethod,
-      paymentStatus: input.paymentStatus ?? 'unpaid',
-      itemsTotal: itemsTotal.toFixed(2),
-      deliveryCost: deliveryCost.toFixed(2),
-      total: total.toFixed(2),
-      itemsCount,
-      tags: input.tags ?? [],
-      note: input.note,
-      createdBy: me?.id,
+  const order = await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    const [created] = await tx
+      .insert(orders)
+      .values({
+        orderNumber,
+        status: 'new',
+        customerId: input.customerId,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        customerEmail: input.customerEmail,
+        deliveryMethod: input.deliveryMethod,
+        deliveryCity: input.deliveryCity,
+        deliveryBranch: input.deliveryBranch,
+        deliveryAddress: input.deliveryAddress,
+        paymentMethod: input.paymentMethod,
+        paymentStatus: input.paymentStatus ?? 'unpaid',
+        itemsTotal: itemsTotal.toFixed(2),
+        deliveryCost: deliveryCost.toFixed(2),
+        total: total.toFixed(2),
+        itemsCount,
+        tags: input.tags ?? [],
+        note: input.note,
+        createdBy: me?.id,
+      })
+      .returning()
+
+    if (input.items.length) {
+      // Snapshot the current purchase cost of each product so profit reports
+      // remain accurate even if cost prices change later.
+      const costIds = input.items.map((i) => i.productId).filter((id): id is number => typeof id === 'number')
+      const costRows = costIds.length
+        ? await tx
+            .select({ id: products.id, costPrice: products.costPrice })
+            .from(products)
+            .where(inArray(products.id, costIds))
+        : []
+      const costById = new Map(costRows.map((r) => [r.id, r.costPrice]))
+
+      await tx.insert(orderItems).values(
+        input.items.map((i) => {
+          const cost = i.productId != null ? costById.get(i.productId) : null
+          return {
+            orderId: created.id,
+            productId: i.productId,
+            name: i.name,
+            sku: i.sku,
+            image: i.image,
+            price: i.price.toFixed(2),
+            costPrice: cost != null ? Number(cost).toFixed(2) : null,
+            quantity: i.quantity,
+            total: (i.price * i.quantity).toFixed(2),
+          }
+        }),
+      )
+      // Same stock/variant/analytics path as the storefront so admin-created
+      // orders cannot silently skip variant quantities or is_in_stock.
+      await applyOrderFulfillment(created.id, client)
+    }
+
+    await tx.insert(orderHistory).values({
+      orderId: created.id,
+      type: 'status',
+      message: fillAuditTemplate(getAdminDictionary(me.locale).auditLog.orderCreated, { number: orderNumber }),
+      actor: me.name,
     })
-    .returning()
 
-  if (input.items.length) {
-    // Snapshot the current purchase cost of each product so profit reports
-    // remain accurate even if cost prices change later.
-    const costIds = input.items.map((i) => i.productId).filter((id): id is number => typeof id === 'number')
-    const costRows = costIds.length
-      ? await db
-          .select({ id: products.id, costPrice: products.costPrice })
-          .from(products)
-          .where(inArray(products.id, costIds))
-      : []
-    const costById = new Map(costRows.map((r) => [r.id, r.costPrice]))
-
-    await db.insert(orderItems).values(
-      input.items.map((i) => {
-        const cost = i.productId != null ? costById.get(i.productId) : null
-        return {
-          orderId: order.id,
-          productId: i.productId,
-          name: i.name,
-          sku: i.sku,
-          image: i.image,
-          price: i.price.toFixed(2),
-          costPrice: cost != null ? Number(cost).toFixed(2) : null,
-          quantity: i.quantity,
-          total: (i.price * i.quantity).toFixed(2),
-        }
-      }),
-    )
-    // Same stock/variant/analytics path as the storefront so admin-created
-    // orders cannot silently skip variant quantities or is_in_stock.
-    await applyOrderFulfillment(order.id)
-  }
-
-  await addHistory(
-    order.id,
-    'status',
-    fillAuditTemplate(getAdminDictionary(me.locale).auditLog.orderCreated, { number: orderNumber }),
-  )
+    return created
+  })
 
   revalidatePath('/admin/orders')
   return { success: true, id: order.id, orderNumber }

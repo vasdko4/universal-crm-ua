@@ -15,32 +15,112 @@ function exec(client?: PoolClient): QueryExecutor {
  */
 export async function adjustStockForOrder(orderId: number, sign: 1 | -1, client?: PoolClient) {
   const q = exec(client)
-  const items = client
-    ? (await client.query(`SELECT * FROM order_items WHERE order_id = $1`, [orderId])).rows
-    : await db.select().from(orderItems).where(eq(orderItems.orderId, orderId))
-  for (const item of items) {
-    const productId = Number(item.productId ?? item.product_id)
-    const variantId = item.variantId ?? item.variant_id
-    const quantity = Number(item.quantity)
-    if (productId) {
-      const res = await q.query(
-        `UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int) WHERE id = $3 RETURNING quantity`,
-        [sign, quantity, productId],
-      )
-      await recordStockMovement(
-        {
-          productId,
-          variantId: variantId != null ? Number(variantId) : null,
-          delta: sign * quantity,
-          quantityAfter: Number(res.rows[0]?.quantity),
-          reason: sign === 1 ? 'cancel' : 'sale',
-          orderId,
-          actor: 'System',
-        },
-        q,
-      )
+  // Restore/re-deduct from the *net* ledger of this order (M5). Oversold
+  // lines never wrote a `sale` movement, so they must not be added back as
+  // if the full ordered qty had left the warehouse. Netting sale+cancel also
+  // keeps a restore→reopen→restore cycle from double-counting historical
+  // sale rows.
+  const ledger = await q.query<{
+    product_id: number
+    variant_id: number | null
+    qty: string
+  }>(
+    `SELECT product_id, variant_id,
+            CASE WHEN $2::int = 1
+                 THEN GREATEST(0, -SUM(delta))::int
+                 ELSE GREATEST(0,  SUM(delta))::int
+            END AS qty
+       FROM stock_movements
+      WHERE order_id = $1 AND reason IN ('sale', 'cancel')
+      GROUP BY product_id, variant_id
+     HAVING (CASE WHEN $2::int = 1
+                  THEN GREATEST(0, -SUM(delta))
+                  ELSE GREATEST(0,  SUM(delta))
+             END) > 0`,
+    [orderId, sign],
+  )
+  const rows = ledger.rows
+  if (rows.length === 0) {
+    // Legacy orders placed before the ledger existed: fall back to order_items.
+    const items = await q.query<{ product_id: number | null; variant_id: number | null; quantity: number }>(
+      `SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = $1`,
+      [orderId],
+    )
+    for (const item of items.rows) {
+      const productId = Number(item.product_id)
+      if (!productId) continue
+      await bumpProductStock(q, {
+        productId,
+        variantId: item.variant_id != null ? Number(item.variant_id) : null,
+        qty: Number(item.quantity),
+        sign,
+        orderId,
+      })
     }
+    return
   }
+  for (const row of rows) {
+    await bumpProductStock(q, {
+      productId: Number(row.product_id),
+      variantId: row.variant_id != null ? Number(row.variant_id) : null,
+      qty: Number(row.qty),
+      sign,
+      orderId,
+    })
+  }
+}
+
+async function bumpProductStock(
+  q: QueryExecutor,
+  input: { productId: number; variantId: number | null; qty: number; sign: 1 | -1; orderId: number },
+) {
+  const { productId, variantId, qty, sign, orderId } = input
+  if (variantId != null) {
+    await q.query(
+      `UPDATE product_variants
+          SET quantity = GREATEST(0, quantity + $1::int * $2::int),
+              is_in_stock = GREATEST(0, quantity + $1::int * $2::int) > 0
+        WHERE id = $3`,
+      [sign, qty, variantId],
+    )
+    const res = await q.query(
+      `UPDATE products SET
+          quantity = COALESCE((SELECT SUM(quantity) FROM product_variants WHERE product_id = $1), 0),
+          is_in_stock = COALESCE((SELECT SUM(quantity) FROM product_variants WHERE product_id = $1), 0) > 0
+        WHERE id = $1 RETURNING quantity`,
+      [productId],
+    )
+    await recordStockMovement(
+      {
+        productId,
+        variantId,
+        delta: sign * qty,
+        quantityAfter: Number(res.rows[0]?.quantity),
+        reason: sign === 1 ? 'cancel' : 'sale',
+        orderId,
+        actor: 'System',
+      },
+      q,
+    )
+    return
+  }
+  const res = await q.query(
+    `UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int),
+        is_in_stock = GREATEST(0, quantity + $1::int * $2::int) > 0 WHERE id = $3 RETURNING quantity`,
+    [sign, qty, productId],
+  )
+  await recordStockMovement(
+    {
+      productId,
+      variantId: null,
+      delta: sign * qty,
+      quantityAfter: Number(res.rows[0]?.quantity),
+      reason: sign === 1 ? 'cancel' : 'sale',
+      orderId,
+      actor: 'System',
+    },
+    q,
+  )
 }
 
 /**
@@ -116,6 +196,9 @@ export async function applyOrderFulfillment(orderId: number, client?: PoolClient
   // order, we flag it clearly for the admin to reconcile manually instead of
   // silently shipping/promising stock that doesn't exist.
   const oversold: { name: string; variantLabel: string | null; requested: number }[] = []
+  const variantProductIds = new Set<number>()
+  const productOrderBumps = new Map<number, number>()
+
   for (const i of items) {
     if (i.variantId != null) {
       const variantRes = await q.query(
@@ -139,17 +222,10 @@ export async function applyOrderFulfillment(orderId: number, client?: PoolClient
           q,
         )
       }
-      // products.quantity is the maintained aggregate of all variant
-      // quantities (see aggQty in app/actions/products.ts) — the admin
-      // products list, low-stock dashboard widget and "in stock" filters all
-      // read this column directly, so it must stay in lockstep with the
-      // variant decrement above, not just the is_in_stock flag.
-      await q.query(
-        `UPDATE products SET orders_count = COALESCE(orders_count,0) + 1,
-           quantity = COALESCE((SELECT SUM(quantity) FROM product_variants WHERE product_id = $1), 0),
-           is_in_stock = COALESCE((SELECT SUM(quantity) FROM product_variants WHERE product_id = $1), 0) > 0 WHERE id = $1`,
-        [i.productId],
-      )
+      if (i.productId != null) {
+        variantProductIds.add(i.productId)
+        productOrderBumps.set(i.productId, (productOrderBumps.get(i.productId) ?? 0) + 1)
+      }
     } else if (i.productId != null) {
       const productRes = await q.query(
         `UPDATE products SET quantity = quantity - $1, orders_count = COALESCE(orders_count,0) + 1,
@@ -171,14 +247,28 @@ export async function applyOrderFulfillment(orderId: number, client?: PoolClient
         )
       }
       if (productRes.rowCount === 0) {
-        // Still count the order towards orders_count even when oversold —
-        // only the stock/is_in_stock columns are conditional on availability.
-        await q
-          .query(`UPDATE products SET orders_count = COALESCE(orders_count,0) + 1 WHERE id = $1`, [i.productId])
-          .catch(() => {})
+        productOrderBumps.set(i.productId, (productOrderBumps.get(i.productId) ?? 0) + 1)
         oversold.push({ name: i.name, variantLabel: i.variantLabel, requested: i.quantity })
       }
     }
+  }
+
+  // One aggregate recompute per parent product, not per variant line (M4).
+  for (const productId of variantProductIds) {
+    const bumps = productOrderBumps.get(productId) ?? 0
+    await q.query(
+      `UPDATE products SET orders_count = COALESCE(orders_count,0) + $2,
+         quantity = COALESCE((SELECT SUM(quantity) FROM product_variants WHERE product_id = $1), 0),
+         is_in_stock = COALESCE((SELECT SUM(quantity) FROM product_variants WHERE product_id = $1), 0) > 0 WHERE id = $1`,
+      [productId, bumps],
+    )
+  }
+  for (const [productId, bumps] of productOrderBumps) {
+    if (variantProductIds.has(productId)) continue
+    await q.query(
+      `UPDATE products SET orders_count = COALESCE(orders_count,0) + $2 WHERE id = $1`,
+      [productId, bumps],
+    )
   }
 
   if (oversold.length > 0) {
