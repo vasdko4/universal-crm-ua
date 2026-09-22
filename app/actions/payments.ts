@@ -228,12 +228,17 @@ export async function refreshPaymentStatus(paymentId: number): Promise<ActionRes
   await logEvent(payment.id, 'status', result)
 
   if (result.ok && result.status) {
-    await settlePayment(payment.orderReference, result.status, {
-      eventType: 'status',
-      amount: result.amount,
-      raw: result.raw,
-      message: result.message,
-    })
+    // Non-terminal gateway answers (Pending, RefundInProcessing, hold) must
+    // not run settlePayment — that maps everything else to unpaid and would
+    // wipe a paid/refunded order. logEvent above already recorded the probe.
+    if (result.status === 'paid' || result.status === 'refunded') {
+      await settlePayment(payment.orderReference, result.status, {
+        eventType: 'status',
+        amount: result.amount,
+        raw: result.raw,
+        message: result.message,
+      })
+    }
     revalidatePath('/admin/payments')
     revalidatePath('/admin/orders')
     return { ok: true, message: `Статус обновлён: ${result.status}` }
