@@ -159,6 +159,7 @@ if [[ ! -f .env ]]; then
   }
   AUTH_SECRET=$(gen_secret)
   CRON_SECRET_VAL=$(gen_secret)
+  SETUP_TOKEN_VAL=$(gen_secret)
   UPDATER_SECRET_VAL=$(gen_secret)
   DB_PASSWORD=$(gen_password)
   FTP_USER_VAL="magazine"
@@ -176,6 +177,7 @@ NEXT_PUBLIC_SITE_URL=${PUBLIC_URL}
 # Секреты (сгенерированы автоматически).
 BETTER_AUTH_SECRET=${AUTH_SECRET}
 CRON_SECRET=${CRON_SECRET_VAL}
+SETUP_TOKEN=${SETUP_TOKEN_VAL}
 UPDATER_SECRET=${UPDATER_SECRET_VAL}
 
 # Имя проекта docker-compose (= эта папка) — нужно для сайдкара автообновления

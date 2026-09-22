@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import { getCatalogProducts } from '@/lib/shop/queries'
 import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { sanitizeSearch } from '@/lib/api/helpers'
+import { isRateLimited, clientIp } from '@/lib/api/rate-limit'
 
 export async function GET(request: Request) {
+  if (await isRateLimited('search', clientIp(request), 30)) {
+    return NextResponse.json({ items: [], total: 0, error: 'rate_limited' }, { status: 429 })
+  }
   const { searchParams } = new URL(request.url)
   const q = sanitizeSearch(searchParams.get('q') ?? '').trim().slice(0, 100)
 

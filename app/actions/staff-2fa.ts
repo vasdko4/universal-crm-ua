@@ -10,6 +10,7 @@ import {
   verifyTotp,
 } from '@/lib/staff-2fa'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { isRateLimited } from '@/lib/api/rate-limit'
 
 const COOKIE = 'staff_2fa'
 const MAX_AGE = 60 * 60 * 24 * 14
@@ -88,6 +89,9 @@ export async function beginStaffTwoFactor(): Promise<
 export async function confirmStaffTwoFactor(code: string): Promise<{ ok: boolean; error?: string }> {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
+  if (await isRateLimited('staff-2fa', me.id, 5)) {
+    return { ok: false, error: 'Забагато спроб. Зачекайте хвилину.' }
+  }
   try {
     const { rows } = await pool.query<{ two_factor_pending_secret: string | null }>(
       `SELECT two_factor_pending_secret FROM "user" WHERE id = $1`,
@@ -111,6 +115,9 @@ export async function confirmStaffTwoFactor(code: string): Promise<{ ok: boolean
 export async function disableStaffTwoFactor(code: string): Promise<{ ok: boolean; error?: string }> {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
+  if (await isRateLimited('staff-2fa', me.id, 5)) {
+    return { ok: false, error: 'Забагато спроб. Зачекайте хвилину.' }
+  }
   const { rows } = await pool.query<{ two_factor_secret: string | null }>(
     `SELECT two_factor_secret FROM "user" WHERE id = $1`,
     [me.id],
@@ -129,6 +136,9 @@ export async function disableStaffTwoFactor(code: string): Promise<{ ok: boolean
 export async function verifyStaffTwoFactorLogin(code: string): Promise<{ ok: boolean; error?: string }> {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
+  if (await isRateLimited('staff-2fa', me.id, 5)) {
+    return { ok: false, error: 'Забагато спроб. Зачекайте хвилину.' }
+  }
   const { rows } = await pool.query<{ two_factor_secret: string | null; two_factor_enabled: boolean }>(
     `SELECT two_factor_secret, two_factor_enabled FROM "user" WHERE id = $1`,
     [me.id],

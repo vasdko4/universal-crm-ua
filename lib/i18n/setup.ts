@@ -115,6 +115,7 @@ export type SetupDictionary = {
     alreadyConfigured: string
     emailRequired: string
     alreadyInstalled: string
+    setupTokenRequired: string
     invalidPostgres: string
     dbNameRequired: string
     connectFailed: string
@@ -271,11 +272,13 @@ const uk: SetupDictionary = {
     emailRequired: 'Вкажіть email',
     alreadyInstalled:
       'Встановлення вже виконано. Підключення до БД змінюється через .env.local на сервері.',
+    setupTokenRequired:
+      'Потрібен токен встановлення. Відкрийте /setup?token=… зі значенням SETUP_TOKEN (або .setup-token у логах сервера).',
     invalidPostgres: 'Вкажіть коректні дані підключення до PostgreSQL',
     dbNameRequired: 'Вкажіть назву бази даних',
-    connectFailed: 'Не вдалося підключитися: {{message}}',
-    schemaApplyFailed: 'Підключення успішне, але не вдалося застосувати схему: {{message}}',
-    envSaveFailed: 'Не вдалося зберегти .env.local: {{message}}',
+    connectFailed: 'Не вдалося підключитися до бази. Перевірте хост, порт і пароль.',
+    schemaApplyFailed: 'Підключення успішне, але не вдалося застосувати схему.',
+    envSaveFailed: 'Не вдалося зберегти .env.local.',
   },
   templates: {
     classic: 'Класичний',
@@ -441,11 +444,13 @@ const ru: SetupDictionary = {
     emailRequired: 'Укажите email',
     alreadyInstalled:
       'Установка уже выполнена. Подключение к БД меняется через .env.local на сервере.',
+    setupTokenRequired:
+      'Нужен токен установки. Откройте /setup?token=… со значением SETUP_TOKEN (или .setup-token в логах сервера).',
     invalidPostgres: 'Укажите корректные данные подключения к PostgreSQL',
     dbNameRequired: 'Укажите имя базы данных',
-    connectFailed: 'Не удалось подключиться: {{message}}',
-    schemaApplyFailed: 'Подключение успешно, но не удалось применить схему: {{message}}',
-    envSaveFailed: 'Не удалось сохранить .env.local: {{message}}',
+    connectFailed: 'Не удалось подключиться к базе. Проверьте хост, порт и пароль.',
+    schemaApplyFailed: 'Подключение успешно, но не удалось применить схему.',
+    envSaveFailed: 'Не удалось сохранить .env.local.',
   },
   templates: {
     classic: 'Классический',

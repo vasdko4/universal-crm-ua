@@ -192,6 +192,7 @@ CREATE TABLE IF NOT EXISTS "order_items" (
   PRIMARY KEY ("id")
 );
 
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items (order_id);
 
 CREATE TABLE IF NOT EXISTS "orders" (
   "id" serial NOT NULL,
@@ -447,7 +448,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   "sales_type" varchar(20) DEFAULT 'retail'::character varying,
   "sku" varchar(100),
   "barcode" varchar(100),
-  "prom_id" integer,
+  "prom_id" bigint,
   "price" numeric(10,2) DEFAULT 0 NOT NULL,
   "price_from" boolean DEFAULT false,
   "currency" varchar(10) DEFAULT 'UAH'::character varying,
@@ -485,6 +486,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   PRIMARY KEY ("id")
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON public.products ("slug");
 
 CREATE TABLE IF NOT EXISTS "product_variants" (
   "id" serial NOT NULL,
@@ -632,6 +634,7 @@ CREATE TABLE IF NOT EXISTS "store_settings" (
   "favicon_url" varchar(500),
   "open_cart_after_add" boolean DEFAULT true NOT NULL,
   "default_locale" varchar(5) DEFAULT 'uk'::character varying NOT NULL,
+  "locale_prompt_mode" varchar(20) DEFAULT 'browser'::character varying NOT NULL,
   "active_template" varchar(30) DEFAULT 'classic'::character varying NOT NULL,
   "social" jsonb DEFAULT '{"viber": {"url": "", "enabled": false}, "tiktok": {"url": "", "enabled": false}, "telegram": {"url": "", "enabled": false}, "instagram": {"url": "", "enabled": false}}'::jsonb NOT NULL,
   "google_ads" jsonb DEFAULT '{"enabled": false, "conversionId": "", "conversionLabel": ""}'::jsonb NOT NULL,
@@ -752,6 +755,7 @@ CREATE INDEX IF NOT EXISTS idx_ae_type_created ON public.analytics_events (type,
 CREATE INDEX IF NOT EXISTS idx_order_items_product ON public.order_items (product_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created ON public.orders (created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON public.orders (payment_status);
 CREATE INDEX IF NOT EXISTS idx_products_visible ON public.products (is_visible) WHERE deleted_at IS NULL;
 
 -- Hot storefront paths that were missing an index, causing full table/index
