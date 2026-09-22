@@ -17,6 +17,16 @@ export function DatabaseSetup() {
   const { locale, t, setLocale } = useSetupLocale()
   const d = t.database
 
+  const [mode, setMode] = useState<'fields' | 'url'>('fields')
+  const [host, setHost] = useState('localhost')
+  const [port, setPort] = useState('5432')
+  const [database, setDatabase] = useState('')
+  const [user, setUser] = useState('postgres')
+  const [password, setPassword] = useState('')
+  const [ssl, setSsl] = useState(false)
+  const [url, setUrl] = useState('')
+  const [setupToken, setSetupToken] = useState('')
+
   useEffect(() => {
     document.title = t.pageTitle
   }, [t.pageTitle])
@@ -35,16 +45,6 @@ export function DatabaseSetup() {
       /* ignore */
     }
   }, [])
-
-  const [mode, setMode] = useState<'fields' | 'url'>('fields')
-  const [host, setHost] = useState('localhost')
-  const [port, setPort] = useState('5432')
-  const [database, setDatabase] = useState('')
-  const [user, setUser] = useState('postgres')
-  const [password, setPassword] = useState('')
-  const [ssl, setSsl] = useState(false)
-  const [url, setUrl] = useState('')
-  const [setupToken, setSetupToken] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
