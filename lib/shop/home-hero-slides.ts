@@ -9,6 +9,12 @@ export type HeroSlide = {
   cta: string
   tone: 'delivery' | 'pay' | 'warranty' | 'catalog'
   image: string
+  /**
+   * Alt text for the slide image. Optional: the carousel falls back to the
+   * slide headline, so a promo image is never announced as an unlabeled
+   * decoration.
+   */
+  imageAlt?: string
 }
 
 export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide[] {

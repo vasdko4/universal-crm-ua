@@ -42,7 +42,11 @@ const q = (id) => '"' + id.replace(/"/g, '""') + '"'
 async function main() {
   const url = process.env.DATABASE_URL
   if (!url) throw new Error('DATABASE_URL is not set')
-  const pool = new pg.Pool({ connectionString: cleanConnString(url), ssl: { rejectUnauthorized: false } // nosemgrep: javascript.lang.security.audit.ssl-verify-disabled.bypass-tls-verification })
+  const pool = new pg.Pool({
+    connectionString: cleanConnString(url),
+    // Managed Postgres (Neon etc.) requires TLS; local Docker does not verify a CA.
+    ssl: { rejectUnauthorized: false }, // nosemgrep: javascript.lang.security.audit.ssl-verify-disabled.bypass-tls-verification
+  })
   // Pooled connections (e.g. Neon pgbouncer) can arrive with a stale
   // search_path from a previous session — pin it so unqualified table
   // names always resolve to the public schema.

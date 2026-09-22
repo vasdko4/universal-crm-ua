@@ -368,6 +368,28 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
   }
 }
 
+/**
+ * Slims a product down to what a listing card actually renders.
+ *
+ * Homepage/catalog grids are client components, so every field we keep is
+ * serialized into the response twice (server markup + RSC flight data).
+ * Descriptions, full galleries, option axes and variant rows are only needed
+ * on the product page — keeping them in listings is what made the homepage
+ * ship hundreds of kilobytes of HTML before the first scroll.
+ */
+export function toListingCard(p: ShopProduct): ShopProduct {
+  const hover = p.images.find((url) => url && url !== p.image)
+  return {
+    ...p,
+    description: null,
+    metaDescription: null,
+    // One extra photo is enough: the card only ever shows a single hover image.
+    images: hover ? [hover] : [],
+    options: [],
+    variants: [],
+  }
+}
+
 function buildProductSelect(locale: Locale = 'uk') {
   const name =
     locale === 'ru'
