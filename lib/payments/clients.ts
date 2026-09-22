@@ -248,7 +248,10 @@ export function wayforpayVerifyCallback(
     s('transactionStatus'),
     s('reasonCode'),
   ])
-  const valid = expected === s('merchantSignature')
+  const received = s('merchantSignature')
+  const left = Buffer.from(expected)
+  const right = Buffer.from(received)
+  const valid = left.length === right.length && crypto.timingSafeEqual(left, right)
   return {
     valid,
     orderReference: s('orderReference') || undefined,

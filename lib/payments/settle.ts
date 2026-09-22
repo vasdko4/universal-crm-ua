@@ -29,6 +29,29 @@ export async function settlePayment(
     .where(eq(orders.orderNumber, orderReference))
     .limit(1)
 
+  // A late Approved after the merchant already refunded must not flip the
+  // order back to paid or run fulfillment (WayForPay retries Service URL).
+  const alreadyRefunded =
+    payment?.status === 'refunded' ||
+    payment?.status === 'partially_refunded' ||
+    order?.paymentStatus === 'refunded'
+  if (alreadyRefunded && status === 'paid') {
+    if (payment) {
+      await db
+        .insert(paymentEvents)
+        .values({
+          paymentId: payment.id,
+          type: opts.eventType ?? 'webhook',
+          status: 'ignored_paid_after_refund',
+          amount: opts.amount != null ? opts.amount.toFixed(2) : null,
+          message: 'Поздний paid после возврата — заказ и платёж не тронуты',
+          payload: (opts.raw as object) ?? null,
+        })
+        .catch(() => {})
+    }
+    return { ok: true, matchedPayment: Boolean(payment), matchedOrder: Boolean(order) }
+  }
+
   // A signed/authoritative `paid` with a short amount must not mark the
   // payment or the order paid, and must not decrement stock (invoice
   // tampering, currency rounding, partial capture). Skip the check when
@@ -62,10 +85,40 @@ export async function settlePayment(
     }
   }
 
+  const incomingTerminal = status === 'paid' || status === 'refunded'
+  const paymentTerminal =
+    payment != null &&
+    (payment.status === 'paid' ||
+      payment.status === 'refunded' ||
+      payment.status === 'partially_refunded')
+  const orderTerminal =
+    order != null && (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded')
+  // A late Pending / Declined / RefundInProcessing must not pull a paid or
+  // refunded payment/order back to unpaid. Webhooks and admin refresh both
+  // land here.
+  if (!incomingTerminal && (paymentTerminal || orderTerminal)) {
+    if (payment) {
+      await db
+        .insert(paymentEvents)
+        .values({
+          paymentId: payment.id,
+          type: opts.eventType ?? 'webhook',
+          status: `ignored_${status}`,
+          amount: opts.amount != null ? opts.amount.toFixed(2) : null,
+          message: `Пропущен нетерминальный статус «${status}» — платёж уже ${payment.status}`,
+          payload: (opts.raw as object) ?? null,
+        })
+        .catch(() => {})
+    }
+    return { ok: true, matchedPayment: Boolean(payment), matchedOrder: Boolean(order) }
+  }
+
   let matchedPayment = false
   if (payment) {
     matchedPayment = true
-    // Do not downgrade a refunded payment back to paid/pending on late callbacks.
+    // Do not downgrade a fully refunded payment back to paid/pending.
+    // Partial refunds are covered by the non-terminal guard above; a later
+    // `refunded` webhook is allowed through so the cabinet can complete it.
     const keepRefunded = payment.status === 'refunded' && status !== 'refunded'
     // If the gateway's status/webhook payload happens to include a real
     // fiscal receipt URL (only WayForPay/Monobank accounts with
