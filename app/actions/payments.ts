@@ -37,11 +37,14 @@ export async function getGateways() {
   await assertPermission('payments')
   const rows = await db.select().from(paymentGateways).orderBy(paymentGateways.sortOrder)
   return rows.map((g) => {
-    const cfg = { ...((g.config ?? {}) as Record<string, string>) }
+    const raw = (g.config ?? {}) as Record<string, string>
+    const cfg: Record<string, string> = { ...raw }
+    const hasSecret: Record<string, boolean> = {}
     for (const key of GATEWAY_SECRET_KEYS) {
+      hasSecret[key] = Boolean(raw[key])
       if (cfg[key]) cfg[key] = ''
     }
-    return { ...g, config: cfg }
+    return { ...g, config: cfg, hasSecret }
   })
 }
 
@@ -59,11 +62,25 @@ export async function updateGateway(
 
     // Validate the Monobank acquiring token against the live API before
     // activating: a personal-API or mistyped token silently breaks checkout.
+    const [existing] = await db
+      .select({ config: paymentGateways.config })
+      .from(paymentGateways)
+      .where(eq(paymentGateways.code, code))
+      .limit(1)
+    const prev = (existing?.config ?? {}) as Record<string, string>
+    const next = { ...data.config }
+    for (const key of GATEWAY_SECRET_KEYS) {
+      const incoming = String(next[key] ?? '').trim()
+      if (incoming === '__CLEAR__') next[key] = ''
+      else if (!incoming) next[key] = prev[key] ?? ''
+    }
+
     let warning = ''
-    if (code === 'monobank' && data.isActive && !data.isTestMode && data.config.token) {
+    const effectiveToken = next.token
+    if (code === 'monobank' && data.isActive && !data.isTestMode && effectiveToken) {
       try {
         const res = await fetch('https://api.monobank.ua/api/merchant/details', {
-          headers: { 'X-Token': data.config.token },
+          headers: { 'X-Token': effectiveToken },
           signal: AbortSignal.timeout(10_000),
         })
         if (res.status === 403 || res.status === 401) {
@@ -79,17 +96,6 @@ export async function updateGateway(
       }
     }
 
-    const [existing] = await db
-      .select({ config: paymentGateways.config })
-      .from(paymentGateways)
-      .where(eq(paymentGateways.code, code))
-      .limit(1)
-    const prev = (existing?.config ?? {}) as Record<string, string>
-    const next = { ...data.config }
-    for (const key of GATEWAY_SECRET_KEYS) {
-      if (!String(next[key] ?? '').trim()) next[key] = prev[key] ?? ''
-    }
-
     await db
       .update(paymentGateways)
       .set({
@@ -101,7 +107,12 @@ export async function updateGateway(
       .where(eq(paymentGateways.code, code))
     revalidatePath('/admin/payments')
     revalidateTag(CACHE_TAGS.checkout, 'max')
-    return { ok: true, message: `Настройки шлюза сохранены. Токен проверен${warning || ' — действителен'}` }
+    const tokenChecked = code === 'monobank' && data.isActive && !data.isTestMode && Boolean(next.token)
+    const saved =
+      tokenChecked
+        ? `Настройки шлюза сохранены. Токен проверен${warning || ' — действителен'}`
+        : 'Настройки шлюза сохранены'
+    return { ok: true, message: saved }
   } catch (e) {
     return { ok: false, message: (e as Error).message }
   }

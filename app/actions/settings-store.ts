@@ -57,7 +57,10 @@ export async function getPublicStoreSettings(): Promise<StoreSettingsData> {
 // Shared writer. Not exported directly — the public entrypoint below adds the
 // admin permission check. The setup wizard writes settings via direct SQL in
 // app/actions/setup.ts, guarded by the fresh-install check there.
+const CLEAR_SECRET = '__CLEAR__'
+
 function keepSecret(next: string | undefined, prev: string): string {
+  if (next === CLEAR_SECRET) return ''
   return next && next.trim() ? next : prev
 }
 
@@ -136,9 +139,10 @@ export async function updateStoreSettings(data: Partial<StoreSettingsData>) {
   // what the admin actually touched. Diff against the current row first so
   // the audit log only names fields whose value really changed.
   const before = await getStoreSettingsInternal()
+  const beforePublic = stripSecrets(before)
   const changedKeys = Object.keys(data).filter((key) => {
     const k = key as keyof StoreSettingsData
-    return JSON.stringify(before[k]) !== JSON.stringify(data[k])
+    return JSON.stringify(beforePublic[k]) !== JSON.stringify(data[k])
   })
   const result = await writeStoreSettings(data)
   const { auditLog, fillAuditTemplate } = await import('@/lib/audit-log')

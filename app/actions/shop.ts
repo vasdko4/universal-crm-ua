@@ -610,46 +610,12 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
 // by that gateway's webhook/status check (settlePayment) instead, so refuse.
 const REAL_GATEWAY_CODES = ['wayforpay', 'monobank']
 
-export async function markOrderPaid(orderNumber: string) {
-  const locale = await getLocale()
-  const t = getDictionary(locale).serverErrors
-  const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1)
-  if (!order) return { success: false, error: t.orderNotFound }
-  if (order.paymentStatus === 'paid') return { success: true }
-
-  // Demo pay must not be callable with a guessed order number. Checkout
-  // sets pf_last_order; logged-in shoppers may also own the order.
-  if (!(await canAccessGuestOrder(order))) {
-    return { success: false, error: t.orderNotFound }
-  }
-
-  const [realGatewayPayment] = await db
-    .select({ gatewayCode: payments.gatewayCode })
-    .from(payments)
-    .where(and(eq(payments.orderReference, orderNumber), inArray(payments.gatewayCode, REAL_GATEWAY_CODES)))
-    .limit(1)
-  if (realGatewayPayment) {
-    return { success: false, error: t.orderPaidViaGateway }
-  }
-
-  await db
-    .update(orders)
-    .set({ paymentStatus: 'paid', updatedAt: new Date() })
-    .where(eq(orders.id, order.id))
-  await pool
-    .query(`UPDATE payments SET status='paid', updated_at=NOW() WHERE order_reference=$1`, [
-      orderNumber,
-    ])
-    .catch(() => {})
-  await db.insert(orderHistory).values({
-    orderId: order.id,
-    type: 'payment',
-    message: locale === 'ru' ? 'Оплата получена (онлайн)' : 'Оплату отримано (онлайн)',
-    actor: 'System',
-  })
-  // Promote the pending order to a real, finalized order (stock, promo, stats).
-  await finalizePaidOrder(orderNumber)
-  return { success: true }
+export async function markOrderPaid(_orderNumber: string) {
+  const t = getDictionary(await getLocale()).serverErrors
+  // Demo payments are disabled; orders are settled only via gateway
+  // webhooks / status checks. Kept as a stub so old /checkout/pay pages
+  // fail closed instead of fulfilling for free.
+  return { success: false, error: t.orderPaidViaGateway }
 }
 
 // Guest order-confirmation / pay-page lookup. The 12-digit order number is
