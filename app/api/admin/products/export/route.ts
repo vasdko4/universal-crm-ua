@@ -53,6 +53,7 @@ export async function GET() {
     FROM products p
     WHERE p.deleted_at IS NULL
     ORDER BY p.id
+    LIMIT 5001
   `)
 
   const header = [
@@ -79,8 +80,10 @@ export async function GET() {
     'Создан',
   ]
 
+  const truncated = rows.length > 5000
+  const exportRows = truncated ? rows.slice(0, 5000) : rows
   const lines = [header.map(csvCell).join(';')]
-  for (const r of rows) {
+  for (const r of exportRows) {
     let images = ''
     try {
       const arr = typeof r.images === 'string' ? JSON.parse(r.images) : r.images
@@ -115,6 +118,10 @@ export async function GET() {
         .map(csvCell)
         .join(';'),
     )
+  }
+
+  if (truncated) {
+    lines.push(csvCell('EXPORT TRUNCATED AT 5000 ROWS'))
   }
 
   // BOM so Excel opens the file with correct Cyrillic encoding.
