@@ -384,6 +384,8 @@ export async function updateOrderStatus(id: number, status: string) {
   // single UPDATE … RETURNING so a concurrent refund webhook cannot inflate
   // inventory (and a reopen cannot double-deduct).
   if (status === 'cancelled' && current.status !== 'cancelled') {
+    // Ledger decides the qty. Unfulfilled / pending_payment orders have no
+    // sale rows, so this is a no-op rather than inventing stock.
     await restoreStockOnce(id)
   } else if (status !== 'cancelled' && current.status === 'cancelled') {
     if (await claimStockRededuct(id)) {
