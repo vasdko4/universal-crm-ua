@@ -4,7 +4,7 @@ import { createAuthMiddleware, APIError } from 'better-auth/api'
 import { pool } from '@/lib/db'
 import { sendMail } from '@/lib/mailer'
 import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR } from '@/lib/shop/email-domains'
-import { isRateLimited } from '@/lib/api/rate-limit'
+import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { authRateLimitStorage } from '@/lib/auth-rate-limit-storage'
 
 function trustedAuthProxies(): string[] {
@@ -133,14 +133,16 @@ function buildAuth(google: GoogleCreds) {
             throw new APIError('BAD_REQUEST', { message: EMAIL_DOMAIN_ERROR })
           }
         }
-        // Per-account budget so rotating IPs cannot brute-force one mailbox
-        // past the per-IP window (FIX-29).
+        // Extra budget on top of the per-IP Better Auth rule. Keyed on
+        // email+IP so a stranger cannot lock an account from another address
+        // (a global per-email counter would be a lockout oracle).
         if (ctx.path === '/sign-in/email' && ctx.request) {
           const email = String((ctx.body as { email?: string })?.email ?? '')
             .trim()
             .toLowerCase()
-            .slice(0, 120)
-          if (email && (await isRateLimited('signin-fail', email, 10, 15 * 60_000))) {
+            .slice(0, 80)
+          const ip = clientIpFromHeaders(ctx.request.headers).slice(0, 45)
+          if (email && (await isRateLimited('signin-fail', `${email}|${ip}`, 10, 15 * 60_000))) {
             throw new APIError('TOO_MANY_REQUESTS', {
               message: 'Too many sign-in attempts. Try again later.',
             })

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req)
-  if (await isRateLimited('track', ip, 60, 60_000)) {
+  if (await isRateLimited('track', ip, 60, 60_000, { relaxUnknown: true })) {
     return NextResponse.json({ success: false, error: 'Too many events' }, { status: 429 })
   }
 

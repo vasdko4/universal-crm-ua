@@ -13,7 +13,7 @@ import { pool } from '@/lib/db'
  *      no limit, but not multi-instance safe
  *
  * `x-forwarded-for` is trivially spoofable. Prefer the platform-provided
- * client IP (Vercel) and only then the first XFF hop.
+ * client IP (Vercel), then X-Real-IP, then the last XFF hop.
  */
 
 type Bucket = { count: number; resetAt: number }
@@ -54,9 +54,11 @@ export async function isRateLimited(
   ip: string,
   max: number,
   windowMs = 60_000,
+  opts: { relaxUnknown?: boolean } = {},
 ): Promise<boolean> {
   const resolved = ip || 'unknown'
-  const ceiling = resolved === 'unknown' ? unknownIpCeiling(max) : max
+  const ceiling =
+    resolved === 'unknown' && opts.relaxUnknown ? unknownIpCeiling(max) : max
   const key = `${scope}:${resolved}`
   const upstash = await upstashLimited(key, ceiling, windowMs)
   if (upstash !== null) return upstash
