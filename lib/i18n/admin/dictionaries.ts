@@ -954,6 +954,11 @@ export type AdminDictionary = {
     funnelProductViews: string
     funnelAddToCart: string
     funnelOrders: string
+    funnelPaid: string
+    funnelFulfilled: string
+    funnelOfPrevSuffix: string
+    funnelDepthLabel: string
+    funnelDepthHint: string
     conversionOverallPrefix: string
     conversionCartPrefix: string
     orderStatusesTitle: string
@@ -2695,8 +2700,13 @@ const uk: AdminDictionary = {
     funnelProductViews: 'Перегляди товарів',
     funnelAddToCart: 'Додали в кошик',
     funnelOrders: 'Оформили замовлення',
-    conversionOverallPrefix: 'Загальна конверсія відвідувача в замовлення',
-    conversionCartPrefix: 'Конверсія кошика',
+    funnelPaid: 'Сплачені замовлення',
+    funnelFulfilled: 'Відправлені / виконані',
+    funnelOfPrevSuffix: 'від попереднього кроку',
+    funnelDepthLabel: 'Переглядів товару на відвідувача',
+    funnelDepthHint: 'Глибина перегляду, а не конверсія',
+    conversionOverallPrefix: 'Загальна конверсія відвідувача в сплачене замовлення',
+    conversionCartPrefix: 'Конверсія кошика в замовлення',
     orderStatusesTitle: 'Статуси замовлень',
     noOrdersPeriod: 'Немає замовлень за період',
     topProductsTitle: 'Топ товарів за період',
@@ -4442,8 +4452,13 @@ const ru: AdminDictionary = {
     funnelProductViews: 'Просмотры товаров',
     funnelAddToCart: 'Добавили в корзину',
     funnelOrders: 'Оформили заказ',
-    conversionOverallPrefix: 'Общая конверсия посетителя в заказ',
-    conversionCartPrefix: 'Конверсия корзины',
+    funnelPaid: 'Оплаченные заказы',
+    funnelFulfilled: 'Отправленные / выполненные',
+    funnelOfPrevSuffix: 'от предыдущего шага',
+    funnelDepthLabel: 'Просмотров товара на посетителя',
+    funnelDepthHint: 'Глубина просмотра, а не конверсия',
+    conversionOverallPrefix: 'Общая конверсия посетителя в оплаченный заказ',
+    conversionCartPrefix: 'Конверсия корзины в заказ',
     orderStatusesTitle: 'Статусы заказов',
     noOrdersPeriod: 'Нет заказов за период',
     topProductsTitle: 'Топ товаров за период',

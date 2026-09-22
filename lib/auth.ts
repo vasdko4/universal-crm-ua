@@ -157,11 +157,14 @@ function buildAuth(google: GoogleCreds) {
         : []),
       ...(process.env.VERCEL
         ? [
-            'https://*.vercel.app',
+            // Only this project's production + current preview host — never
+            // every *.vercel.app site (that would accept CSRF from any Vercel
+            // deployment, including an attacker's).
             ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
             ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
               ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
               : []),
+            ...(process.env.VERCEL_BRANCH_URL ? [`https://${process.env.VERCEL_BRANCH_URL}`] : []),
           ]
         : []),
       // Self-hosted deployments: trust the configured public URL(s). APP_URL
