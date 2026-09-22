@@ -31,6 +31,10 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
     const extras = (product.images ?? []).filter((url) => url && url !== primary)
     return extras[0] ?? null
   }, [product.images, primary])
+  // The hover photo is only ever visible after a pointer enters the card, so
+  // it is mounted on demand. Rendering it upfront doubled the number of
+  // <img> tags (and srcset strings) in every listing page's HTML.
+  const [showHover, setShowHover] = useState(false)
 
   const nameRef = useRef<HTMLAnchorElement>(null)
   const [truncated, setTruncated] = useState(false)
@@ -79,7 +83,11 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
   const canBuy = product.inStock
 
   return (
-    <article className="group relative flex h-full flex-col overflow-visible rounded-xl border border-border/60 bg-card shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-300 sm:rounded-2xl sm:hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.28)]">
+    <article
+      onPointerEnter={() => setShowHover(true)}
+      onFocusCapture={() => setShowHover(true)}
+      className="group relative flex h-full flex-col overflow-visible rounded-xl border border-border/60 bg-card shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-300 sm:rounded-2xl sm:hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.28)]"
+    >
       <div className="relative overflow-hidden rounded-t-xl sm:rounded-t-2xl">
         <Link href={href} className="relative block aspect-square overflow-hidden bg-muted/60">
           {primary ? (
@@ -92,12 +100,13 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
                 quality={70}
                 priority={priority}
                 unoptimized={Boolean(primary?.startsWith('/api/media'))}
+                loading={priority ? 'eager' : 'lazy'}
                 className={cn(
                   'object-cover transition duration-500 group-hover:scale-[1.03]',
-                  hoverImage && 'sm:group-hover:opacity-0',
+                  hoverImage && showHover && 'sm:group-hover:opacity-0',
                 )}
               />
-              {hoverImage && (
+              {hoverImage && showHover && (
                 <Image
                   src={hoverImage}
                   alt=""

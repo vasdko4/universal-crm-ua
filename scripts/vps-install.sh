@@ -115,9 +115,10 @@ fi
 say "Writing .env.production"
 if [[ ! -f .env.production ]]; then
   AUTH_SECRET="$(openssl rand -base64 32)"
-  # Protects /api/cron/delivery-sync: without it that endpoint answers any
-  # unauthenticated caller (hits the Nova Poshta API, writes to the DB, can
-  # email customers). Since this VPS install doesn't wire up a systemd timer
+  # Protects /api/cron/delivery-sync. That endpoint fails closed: without a
+  # usable secret it answers 503 and never runs, so the sync only works once
+  # this generated value is sent by the scheduler. Since this VPS install
+  # doesn't wire up a systemd timer
   # for it, set one up yourself (crontab/systemd) sending this same secret
   # as "Authorization: Bearer <CRON_SECRET>" if you want the sync to run.
   DELIVERY_CRON_SECRET="$(openssl rand -base64 32)"

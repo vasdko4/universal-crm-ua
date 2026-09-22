@@ -123,29 +123,6 @@ export async function getShopUser(): Promise<ShopUser | null> {
 // Use in every protected page/layout. Redirects unauthenticated users to login.
 // Users whose role has no admin permissions at all are not allowed into the
 // admin center — they are sent back to the storefront.
-let twoFaColumnsReady: Promise<void> | null = null
-
-/** Production DBs that never ran migrate.sql are missing these columns. */
-export async function ensureStaffTwoFactorColumns(): Promise<void> {
-  if (!twoFaColumnsReady) {
-    // node-pg uses the extended protocol — one statement per query.
-    twoFaColumnsReady = (async () => {
-      try {
-        await pool.query(`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(64)`)
-        await pool.query(
-          `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_enabled" boolean NOT NULL DEFAULT false`,
-        )
-        await pool.query(
-          `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_pending_secret" varchar(64)`,
-        )
-      } catch (e) {
-        console.error('[staff-2fa] ensure columns failed:', (e as Error).message)
-        twoFaColumnsReady = null
-      }
-    })()
-  }
-  await twoFaColumnsReady
-}
 
 export async function getStaffSessionId(): Promise<string | null> {
   try {
@@ -161,15 +138,16 @@ export async function getStaffSessionId(): Promise<string | null> {
 export async function staffTwoFactorSatisfied(userId: string): Promise<boolean> {
   let enabled = false
   try {
-    await ensureStaffTwoFactorColumns()
     const { rows } = await pool.query<{ two_factor_enabled: boolean }>(
       `SELECT two_factor_enabled FROM "user" WHERE id = $1`,
       [userId],
     )
     enabled = Boolean(rows[0]?.two_factor_enabled)
-  } catch {
-    // Can't read the flag (un-migrated DB) — don't lock staff out of admin.
-    return true
+  } catch (e) {
+    // Fail CLOSED: a DB error must not skip 2FA and let staff into admin.
+    // Run db/migrate.sql (or scripts/db-setup.mjs) if the column is missing.
+    console.error('[staff-2fa] could not read two_factor_enabled:', (e as Error).message)
+    return false
   }
   if (!enabled) return true
   const sessionId = await getStaffSessionId()

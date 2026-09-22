@@ -73,7 +73,11 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
               >
                 <Image
                   src={slide.image}
-                  alt=""
+                  // Promo slides carry meaning (delivery / payment / warranty),
+                  // so they get a real description instead of an empty alt.
+                  // Admins can override it per slide; the headline is the
+                  // sensible default.
+                  alt={slide.imageAlt?.trim() || slide.title}
                   fill
                   priority={i === 0}
                   sizes="(max-width: 640px) 100vw, 1280px"
@@ -86,9 +90,12 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75 sm:text-xs">
                     {slide.badge}
                   </p>
-                  <h1 className="max-w-2xl text-balance text-[1.2rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
+                  {/* h2, not h1: the page keeps a single h1 about the store
+                      itself (see app/(shop)/page.tsx). A carousel used to emit
+                      one h1 per slide, so the homepage shipped 3-4 of them. */}
+                  <h2 className="max-w-2xl text-balance text-[1.2rem] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
                     {slide.title}
-                  </h1>
+                  </h2>
                   <p className="max-w-xl text-pretty text-xs leading-snug text-white/90 sm:text-base">
                     {slide.text}
                   </p>

@@ -42,40 +42,49 @@ export default async function DashboardPage() {
   }
   const emptyQueue = { newOrders: 0, unpaid: 0, missingTtn: 0, overdueShipped: 0, pendingReviews: 0 }
 
-  let statsFailed = false
-  let analyticsFailed = false
-  let recentFailed = false
-  let lowStockFailed = false
-  let queueFailed = false
-
-  const [stats, analytics, recent, lowStock, queue, twoFa] = await Promise.all([
-    getOrderStats().catch((e) => {
-      statsFailed = true
-      console.error('[admin] getOrderStats failed:', e)
-      return emptyStats
-    }),
-    getStatsSummary(30).catch((e) => {
-      analyticsFailed = true
-      console.error('[admin] getStatsSummary failed:', e)
-      return emptyAnalytics as Awaited<ReturnType<typeof getStatsSummary>>
-    }),
-    listOrders({ perPage: 5 }).catch((e) => {
-      recentFailed = true
-      console.error('[admin] listOrders failed:', e)
-      return { items: [], total: 0, page: 1, perPage: 5 }
-    }),
-    getLowStockProducts(3, 6).catch((e) => {
-      lowStockFailed = true
-      console.error('[admin] getLowStockProducts failed:', e)
-      return []
-    }),
-    getOpsQueue().catch((e) => {
-      queueFailed = true
-      console.error('[admin] getOpsQueue failed:', e)
-      return emptyQueue
-    }),
+  const [statsRes, analyticsRes, recentRes, lowStockRes, queueRes, twoFa] = await Promise.all([
+    getOrderStats()
+      .then((data) => ({ data, failed: false as const }))
+      .catch((e) => {
+        console.error('[admin] getOrderStats failed:', e)
+        return { data: emptyStats, failed: true as const }
+      }),
+    getStatsSummary(30)
+      .then((data) => ({ data, failed: false as const }))
+      .catch((e) => {
+        console.error('[admin] getStatsSummary failed:', e)
+        return { data: emptyAnalytics as Awaited<ReturnType<typeof getStatsSummary>>, failed: true as const }
+      }),
+    listOrders({ perPage: 5 })
+      .then((data) => ({ data, failed: false as const }))
+      .catch((e) => {
+        console.error('[admin] listOrders failed:', e)
+        return { data: { items: [], total: 0, page: 1, perPage: 5 }, failed: true as const }
+      }),
+    getLowStockProducts(3, 6)
+      .then((data) => ({ data, failed: false as const }))
+      .catch((e) => {
+        console.error('[admin] getLowStockProducts failed:', e)
+        return { data: [] as Awaited<ReturnType<typeof getLowStockProducts>>, failed: true as const }
+      }),
+    getOpsQueue()
+      .then((data) => ({ data, failed: false as const }))
+      .catch((e) => {
+        console.error('[admin] getOpsQueue failed:', e)
+        return { data: emptyQueue, failed: true as const }
+      }),
     getStaffTwoFactorState().catch(() => ({ enabled: false, pending: false })),
   ])
+  const stats = statsRes.data
+  const analytics = analyticsRes.data
+  const recent = recentRes.data
+  const lowStock = lowStockRes.data
+  const queue = queueRes.data
+  const statsFailed = statsRes.failed
+  const analyticsFailed = analyticsRes.failed
+  const recentFailed = recentRes.failed
+  const lowStockFailed = lowStockRes.failed
+  const queueFailed = queueRes.failed
 
   const loadFailed = statsFailed || analyticsFailed || recentFailed || queueFailed || lowStockFailed
 

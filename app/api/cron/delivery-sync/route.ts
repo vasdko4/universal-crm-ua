@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { syncNovaPoshtaTracking } from '@/lib/delivery/sync-tracking'
+import { authorizeCronRequest } from '@/lib/cron-auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -12,25 +13,22 @@ export const maxDuration = 60
  * adds it automatically once CRON_SECRET is set in the project's environment
  * variables.
  *
- * SECURITY: this used to fail OPEN — if CRON_SECRET was left unset, the
- * endpoint ran for anyone who requested the URL, no auth required. That
- * silently burned Nova Poshta API quota and could spam customers with
- * delivery-status emails on every hit. It now fails CLOSED instead: without a
- * configured secret the endpoint refuses all requests (matching the warning
- * already documented in .env.example) instead of quietly running unprotected.
+ * SECURITY: this fails CLOSED (see lib/cron-auth.ts). Without a usable secret
+ * the endpoint refuses every request with 503 instead of running
+ * unauthenticated; a wrong or missing header gets 401. An unprotected run
+ * would burn the Nova Poshta API quota, write to the database and email
+ * customers on every hit. Well-known placeholders (a copied .env.example)
+ * count as "not configured" on purpose.
  */
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    console.error('[cron] CRON_SECRET is not set — refusing to run delivery-sync unauthenticated.')
-    return NextResponse.json(
-      { ok: false, error: 'CRON_SECRET is not configured' },
-      { status: 503 },
-    )
-  }
-  const auth = req.headers.get('authorization')
-  if (auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  const auth = authorizeCronRequest(process.env.CRON_SECRET, req.headers.get('authorization'))
+  if (!auth.ok) {
+    if (auth.status === 503) {
+      console.error(
+        '[cron] CRON_SECRET is not set (or is still a placeholder) — refusing to run delivery-sync unauthenticated.',
+      )
+    }
+    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status })
   }
 
   try {

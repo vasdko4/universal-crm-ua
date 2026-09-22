@@ -1,46 +1,10 @@
 'use server'
 
-import { db, pool } from '@/lib/db'
+import { db } from '@/lib/db'
 import { importTasks, products } from '@/lib/db/schema'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-
-// Self-heals installs whose database was created before the import_tasks table
-// was added to the schema, so /admin/import never crashes with a missing table.
-let importTableReady = false
-async function ensureImportTable() {
-  if (importTableReady) return
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS "import_tasks" (
-      "id" serial PRIMARY KEY,
-      "file_name" varchar(255) NOT NULL,
-      "source_type" varchar(20) DEFAULT 'local' NOT NULL,
-      "status" varchar(20) DEFAULT 'pending',
-      "total_items" integer DEFAULT 0,
-      "processed_items" integer DEFAULT 0,
-      "success_items" integer DEFAULT 0,
-      "failed_items" integer DEFAULT 0,
-      "error_log" text,
-      "started_at" timestamptz,
-      "completed_at" timestamptz,
-      "created_at" timestamptz DEFAULT now(),
-      "updated_at" timestamptz DEFAULT now()
-    )
-  `)
-  // schema.sql (used on first container boot) predates the Prom.ua import
-  // feature and doesn't create these two columns; ensurePromImportColumns()
-  // in prom-import.ts adds them via ALTER TABLE IF NOT EXISTS, but that only
-  // ran from that file's own functions. On a fresh container start,
-  // /admin/import calls getImportTasks() and getUnfinishedPromImports() in
-  // parallel (Promise.all) — if this file's select ran before the other
-  // file's ALTER committed, it crashed with "column source_url does not
-  // exist" (a one-time startup race, confirmed in production logs). Self-heal
-  // the columns here too so this function no longer depends on that race.
-  await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "source_url" text`)
-  await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "state" jsonb`)
-  importTableReady = true
-}
 
 export type ImportRow = {
   name_uk?: string
@@ -60,7 +24,6 @@ export async function getImportTasks() {
   // read the import history (file names, error logs) without the import
   // permission.
   await assertPermission('import')
-  await ensureImportTable()
   return db.select().from(importTasks).orderBy(desc(importTasks.createdAt)).limit(20)
 }
 
@@ -68,8 +31,6 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
   await assertWritePermission('import')
   if (rows.length === 0) return { success: false, error: 'Файл не содержит товаров' }
   if (rows.length > 1000) return { success: false, error: 'Максимум 1000 товаров за один импорт' }
-
-  await ensureImportTable()
 
   const [task] = await db
     .insert(importTasks)

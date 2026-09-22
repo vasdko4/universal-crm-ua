@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { pool } from '@/lib/db'
-import { getAdminUser, ensureStaffTwoFactorColumns, getStaffSessionId, staffTwoFactorSatisfied } from '@/lib/session'
+import { getAdminUser, getStaffSessionId, staffTwoFactorSatisfied } from '@/lib/session'
 import {
   generateTotpSecret,
   otpauthUrl,
@@ -30,7 +30,6 @@ export async function getStaffTwoFactorState(): Promise<{
   const me = await getAdminUser()
   if (!me) return { enabled: false, pending: false }
   try {
-    await ensureStaffTwoFactorColumns()
     const { rows } = await pool.query<{ two_factor_enabled: boolean; two_factor_pending_secret: string | null }>(
       `SELECT two_factor_enabled, two_factor_pending_secret FROM "user" WHERE id = $1`,
       [me.id],
@@ -64,7 +63,6 @@ export async function beginStaffTwoFactor(): Promise<
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
   try {
-    await ensureStaffTwoFactorColumns()
     const { rows } = await pool.query<{ two_factor_enabled: boolean }>(
       `SELECT two_factor_enabled FROM "user" WHERE id = $1`,
       [me.id],
@@ -91,7 +89,6 @@ export async function confirmStaffTwoFactor(code: string): Promise<{ ok: boolean
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
   try {
-    await ensureStaffTwoFactorColumns()
     const { rows } = await pool.query<{ two_factor_pending_secret: string | null }>(
       `SELECT two_factor_pending_secret FROM "user" WHERE id = $1`,
       [me.id],
@@ -114,7 +111,6 @@ export async function confirmStaffTwoFactor(code: string): Promise<{ ok: boolean
 export async function disableStaffTwoFactor(code: string): Promise<{ ok: boolean; error?: string }> {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
-  await ensureStaffTwoFactorColumns()
   const { rows } = await pool.query<{ two_factor_secret: string | null }>(
     `SELECT two_factor_secret FROM "user" WHERE id = $1`,
     [me.id],
@@ -133,7 +129,6 @@ export async function disableStaffTwoFactor(code: string): Promise<{ ok: boolean
 export async function verifyStaffTwoFactorLogin(code: string): Promise<{ ok: boolean; error?: string }> {
   const me = await getAdminUser()
   if (!me) return { ok: false, error: 'Не авторизовано' }
-  await ensureStaffTwoFactorColumns()
   const { rows } = await pool.query<{ two_factor_secret: string | null; two_factor_enabled: boolean }>(
     `SELECT two_factor_secret, two_factor_enabled FROM "user" WHERE id = $1`,
     [me.id],

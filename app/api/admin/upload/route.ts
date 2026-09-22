@@ -6,30 +6,17 @@ import { randomBytes } from 'node:crypto'
 import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { canWrite } from '@/lib/permissions'
 import { readJson } from '@/lib/api/helpers'
+import { detectImageKind, extForImageKind, mimeForImageKind } from '@/lib/api/image-kind'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8 MB
-const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
-// Product photos never need more than this on any screen/zoom.
 const MAX_DIMENSION = 1600
 const WEBP_QUALITY = 82
 
-// Self-hosted (Docker) deployments don't have a Vercel Blob store configured,
-// so uploads fall back to local disk under public/uploads — served directly
-// by Next's static file handler and persisted via the docker-compose volume
-// mounted at that path. Vercel deployments keep using Blob automatically
-// once BLOB_READ_WRITE_TOKEN is set in the project's environment variables.
 const USE_BLOB = Boolean(process.env.BLOB_READ_WRITE_TOKEN)
-// On Vercel the function filesystem is read-only and ephemeral, so the local
-// fallback can never work there — Blob is the only real storage option.
 const ON_VERCEL = Boolean(process.env.VERCEL)
 const LOCAL_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const LOCAL_URL_PREFIX = '/uploads/products/'
 
-// sharp is a native module; importing it at module scope crashed the whole
-// route on Vercel (every request — even unauthenticated ones — returned a
-// bare 500 before any handler code ran). Load it lazily and treat it as an
-// optional optimization instead: if it can't be loaded, store the original
-// image untouched rather than failing the upload.
 async function loadSharp(): Promise<(typeof import('sharp'))['default'] | null> {
   try {
     return (await import('sharp')).default
@@ -39,21 +26,17 @@ async function loadSharp(): Promise<(typeof import('sharp'))['default'] | null> 
   }
 }
 
-function safeFileName(originalName: string, contentType: string): string {
-  const ext = contentType === 'image/webp' ? 'webp' : contentType === 'image/gif' ? 'gif' : originalName.match(/\.[a-zA-Z0-9]+$/)?.[0] || '.jpg'
-  return `${Date.now()}-${randomBytes(6).toString('hex')}${ext.startsWith('.') ? ext : `.${ext}`}`
+function generatedFileName(ext: string): string {
+  return `${Date.now()}-${randomBytes(6).toString('hex')}${ext}`
 }
 
-async function storeLocally(body: Buffer, contentType: string, originalName: string): Promise<string> {
+async function storeLocally(body: Buffer, ext: string): Promise<string> {
   await mkdir(LOCAL_UPLOAD_DIR, { recursive: true })
-  const fileName = safeFileName(originalName, contentType)
+  const fileName = generatedFileName(ext)
   await writeFile(join(LOCAL_UPLOAD_DIR, fileName), body)
   return `${LOCAL_URL_PREFIX}${fileName}`
 }
 
-// Upload a product/variant image or a settings asset (logo/favicon) to the
-// public Blob store. Used by both the product editor and the settings page,
-// so allow either permission rather than hard-coding one.
 export async function POST(request: NextRequest) {
   const admin = await getAdminUser()
   if (
@@ -71,18 +54,10 @@ export async function POST(request: NextRequest) {
     if (!file || !(file instanceof File)) {
       return NextResponse.json({ error: 'Файл не передан' }, { status: 400 })
     }
-    if (!ALLOWED.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Недопустимый формат. Разрешены JPG, PNG, WEBP, GIF, AVIF' },
-        { status: 400 },
-      )
-    }
     if (file.size > MAX_BYTES) {
       return NextResponse.json({ error: 'Файл больше 8 МБ' }, { status: 400 })
     }
 
-    // Fail early with an actionable message instead of throwing on a
-    // read-only filesystem write further down.
     if (ON_VERCEL && !USE_BLOB) {
       return NextResponse.json(
         {
@@ -95,38 +70,48 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Compress to WebP before storing: strips metadata, caps dimensions and
-    // typically shrinks a phone photo 5-10x. Animated GIFs are kept as-is so
-    // the animation survives.
     let body: Buffer = Buffer.from(await file.arrayBuffer())
-    let fileName = file.name
-    let contentType = file.type
-    if (file.type !== 'image/gif') {
+    const kind = detectImageKind(body)
+    if (!kind) {
+      return NextResponse.json(
+        { error: 'Недопустимый формат. Разрешены JPG, PNG, WEBP, GIF, AVIF' },
+        { status: 400 },
+      )
+    }
+
+    let ext = extForImageKind(kind)
+    let contentType = mimeForImageKind(kind)
+
+    // GIF stays as-is (animation). Everything else is re-encoded to WebP so
+    // the stored bytes come from sharp, not the attacker-supplied payload.
+    if (kind !== 'gif') {
       const sharp = await loadSharp()
-      if (sharp) {
-        try {
-          const original = body
-          const compressed = await sharp(original)
-            .rotate() // apply EXIF orientation before stripping metadata
-            .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true })
-            .webp({ quality: WEBP_QUALITY })
-            .toBuffer()
-          // Fall back to the original when WebP somehow ends up bigger (rare, tiny files).
-          if (compressed.length < original.length) {
-            body = compressed
-            fileName = file.name.replace(/\.[^.]+$/, '') + '.webp'
-            contentType = 'image/webp'
-          }
-        } catch (error) {
-          // Corrupt/unsupported image data for sharp — keep the original bytes.
-          console.error('[upload] compression failed, storing original image:', error)
-        }
+      if (!sharp) {
+        return NextResponse.json(
+          { error: 'Не удалось проверить изображение. Попробуйте другой файл.' },
+          { status: 422 },
+        )
+      }
+      try {
+        const compressed = await sharp(body)
+          .rotate()
+          .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: WEBP_QUALITY })
+          .toBuffer()
+        body = compressed
+        ext = '.webp'
+        contentType = 'image/webp'
+      } catch (error) {
+        console.error('[upload] compression failed:', error)
+        return NextResponse.json(
+          { error: 'Файл не является корректным изображением' },
+          { status: 400 },
+        )
       }
     }
 
+    const fileName = generatedFileName(ext)
     if (USE_BLOB) {
-      // Public, permanent Blob URL — no short-lived client upload credentials.
-      // cacheControlMaxAge is 1 year so CDN/browser keep the file.
       const blob = await put(`products/${fileName}`, body, {
         access: 'public',
         addRandomSuffix: true,
@@ -136,7 +121,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ url: blob.url })
     }
 
-    const url = await storeLocally(body, contentType, fileName)
+    const url = await storeLocally(body, ext)
     return NextResponse.json({ url })
   } catch (error) {
     console.error('[v0] upload error:', error)
@@ -144,7 +129,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Remove an image from storage (admin only).
 export async function DELETE(request: NextRequest) {
   const admin = await getAdminUser()
   if (
@@ -164,11 +148,9 @@ export async function DELETE(request: NextRequest) {
     if (!url) {
       return NextResponse.json({ error: 'URL не передан' }, { status: 400 })
     }
-    // Only delete blobs we actually own; ignore external/local URLs.
     if (url.includes('.public.blob.vercel-storage.com')) {
       await del(url)
     } else if (url.startsWith(LOCAL_URL_PREFIX)) {
-      // Guard against path traversal: only allow a bare filename, no slashes/"..".
       const fileName = url.slice(LOCAL_URL_PREFIX.length)
       if (fileName && !fileName.includes('/') && !fileName.includes('..')) {
         await unlink(join(LOCAL_UPLOAD_DIR, fileName)).catch(() => {})

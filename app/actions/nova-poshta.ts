@@ -15,7 +15,7 @@ const NP_URL = 'https://api.novaposhta.ua/v2.0/json/'
 async function isNpSearchRateLimited(): Promise<boolean> {
   const h = await headers()
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
-  return isRateLimited('np-search', ip, 30)
+  return await isRateLimited('np-search', ip, 30)
 }
 
 async function getApiKey(): Promise<string | null> {

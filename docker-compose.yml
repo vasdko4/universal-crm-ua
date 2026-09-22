@@ -43,8 +43,11 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
       # Public URL the app is served from (used by Better Auth callbacks).
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-      # Protects /api/cron/delivery-sync from anonymous access.
-      CRON_SECRET: ${CRON_SECRET:-}
+      # Protects /api/cron/delivery-sync from anonymous access. Required, no
+      # default: the endpoint fails closed (503) without it, so a stack that
+      # starts with an empty value would just have a dead delivery sync.
+      # Generate your own: `openssl rand -base64 32`.
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env (openssl rand -base64 32)}
       # Optional: public URL for SEO (sitemap, canonical links, OG tags).
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
       # Lets the admin panel's "Updates" page (/admin/updates) trigger a

@@ -1,5 +1,8 @@
 # Universal CRM UA
 
+[![CI](https://github.com/vasdko4/universal-crm-ua/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vasdko4/universal-crm-ua/actions/workflows/ci.yml)
+[![Playwright e2e](https://github.com/vasdko4/universal-crm-ua/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/vasdko4/universal-crm-ua/actions/workflows/e2e.yml)
+[![release](https://github.com/vasdko4/universal-crm-ua/actions/workflows/release.yml/badge.svg)](https://github.com/vasdko4/universal-crm-ua/actions/workflows/release.yml)
 [![Release](https://img.shields.io/github/v/release/vasdko4/universal-crm-ua)](https://github.com/vasdko4/universal-crm-ua/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GHCR](https://img.shields.io/badge/GHCR-universal--crm--ua-blue)](https://github.com/vasdko4/universal-crm-ua/pkgs/container/universal-crm-ua)
@@ -259,7 +262,12 @@ docker compose exec db pg_dump -U magazine magazine > backup.sql
 Healthcheck контейнера бьёт в `/api/health` (приложение + БД).
 
 Cron доставки: `GET /api/cron/delivery-sync` с `Authorization: Bearer $CRON_SECRET`.
-Без секрета эндпоинт открыт — не оставляйте так в проде.
+Эндпоинт работает **fail closed**: без заданного секрета он отвечает `503`
+(`CRON_SECRET is not configured`), с неверным заголовком — `401`. Плейсхолдер из
+`.env.example` считается незаданным секретом, поэтому скопированный без правки
+env не открывает эндпоинт. Установщики (`install.sh`, `start.sh`,
+`scripts/setup.sh`, `scripts/vps-install.sh`) всегда генерируют `CRON_SECRET`
+через `openssl rand -base64 32`, а `docker-compose.yml` не стартует без него.
 
 ---
 

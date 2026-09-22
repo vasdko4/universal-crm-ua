@@ -9,6 +9,8 @@
     "start": "next start",
     "setup": "bash scripts/setup.sh",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test",
     "db:setup": "node --env-file=.env.local scripts/db-setup.mjs",
     "db:seed": "node --env-file=.env.local scripts/db-setup.mjs --seed",
     "db:reset": "node --env-file=.env.local scripts/db-setup.mjs --reset",

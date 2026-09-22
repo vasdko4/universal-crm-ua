@@ -14,7 +14,7 @@ import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
  * fetch does not follow redirects.
  */
 export async function GET(req: NextRequest) {
-  if (isRateLimited('email-image', clientIp(req), 60, 60_000)) {
+  if (await isRateLimited('email-image', clientIp(req), 60, 60_000)) {
     return new NextResponse('Too many requests', { status: 429 })
   }
   const src = req.nextUrl.searchParams.get('src')

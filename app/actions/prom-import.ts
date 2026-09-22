@@ -51,76 +51,7 @@ type PromImportState = {
   sizeFamilies?: Record<string, SizeFamilyState>
 }
 
-// Same self-heal pattern as ensureImportTable() in app/actions/import.ts:
-// adds the two extra columns this feature needs so installs whose DB
-// predates this feature don't crash — no separate migration step required.
-let columnsReady = false
-async function ensurePromImportColumns() {
-  if (columnsReady) return
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS "import_tasks" (
-      "id" serial PRIMARY KEY,
-      "file_name" varchar(255) NOT NULL,
-      "source_type" varchar(20) DEFAULT 'local' NOT NULL,
-      "status" varchar(20) DEFAULT 'pending',
-      "total_items" integer DEFAULT 0,
-      "processed_items" integer DEFAULT 0,
-      "success_items" integer DEFAULT 0,
-      "failed_items" integer DEFAULT 0,
-      "error_log" text,
-      "started_at" timestamptz,
-      "completed_at" timestamptz,
-      "created_at" timestamptz DEFAULT now(),
-      "updated_at" timestamptz DEFAULT now()
-    )
-  `)
-  await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "source_url" text`)
-  await pool.query(`ALTER TABLE "import_tasks" ADD COLUMN IF NOT EXISTS "state" jsonb`)
-  // Stable Prom.ua listing id used to match products on re-import even when
-  // the source page has no SKU (see the promId comment in lib/db/schema.ts).
-  // bigint: Prom.ua ids (~10 digits) overflow a 32-bit integer. The column
-  // was originally created as integer, so widen it too on installs that
-  // already have the old, too-small column (ALTER ... TYPE is a no-op once
-  // it's already bigint).
-  await pool.query(`ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "prom_id" bigint`)
-  await pool.query(`ALTER TABLE "products" ALTER COLUMN "prom_id" TYPE bigint`)
-  // Older Prom imports wrote product_variants / options but left
-  // variants_enabled at its default false, so the storefront hid every
-  // size/color selector. Flip the flag for rows that already have variants.
-  await pool.query(`ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "variants_enabled" boolean DEFAULT false NOT NULL`)
-  await pool.query(`
-    UPDATE products
-    SET variants_enabled = true
-    WHERE COALESCE(variants_enabled, false) = false
-      AND deleted_at IS NULL
-      AND id IN (SELECT DISTINCT product_id FROM product_variants)
-  `)
-  // Listing cards read `sizes`, not `options`. Fill it from the size axis
-  // already stored on imported products so «Обрати розмір» shows without
-  // a full re-import.
-  await pool.query(`
-    UPDATE products p
-    SET sizes = sub.sizes
-    FROM (
-      SELECT
-        id,
-        COALESCE((
-          SELECT jsonb_agg(val)
-          FROM jsonb_array_elements(COALESCE(options, '[]'::jsonb)) AS opt,
-               jsonb_array_elements_text(COALESCE(opt->'values', '[]'::jsonb)) AS val
-          WHERE lower(opt->>'name') ~ 'розмір|размер|size'
-            AND val <> ''
-            AND val !~* 'маломір'
-        ), '[]'::jsonb) AS sizes
-      FROM products
-      WHERE deleted_at IS NULL
-    ) sub
-    WHERE p.id = sub.id
-      AND jsonb_array_length(sub.sizes) > 0
-      AND (p.sizes IS NULL OR p.sizes = '[]'::jsonb)
-  `)
-  columnsReady = true
-}
+
 
 
 /** Starts a new Prom.ua shop import: discovers every product link, then returns a task id to poll. */
@@ -130,8 +61,6 @@ export async function startPromImport(shopUrl: string) {
   if (!isAllowedPromUrl(trimmed)) {
     return { success: false as const, error: 'Ссылка должна вести на prom.ua (страницу магазина)' }
   }
-  await ensurePromImportColumns()
-
   const first = await fetchListingPage(trimmed)
   if (!first || first.items.length === 0) {
     return { success: false as const, error: 'Не удалось загрузить товары по этой ссылке. Проверьте, что это страница магазина на Prom.ua' }
@@ -457,23 +386,70 @@ async function mergeSizeIntoProduct(opts: {
 /** Processes the next small batch of a Prom.ua import job. Call repeatedly until `done: true`. */
 export async function continuePromImport(taskId: number) {
   await assertWritePermission('import')
-  await ensurePromImportColumns()
 
-  const [task] = await db.select().from(importTasks).where(eq(importTasks.id, taskId)).limit(1)
-  if (!task || task.sourceType !== 'prom') {
-    return { success: false as const, error: 'Задача импорта не найдена' }
+  // Atomic claim: two parallel polls used to read the same pending slice,
+  // import the same products twice, then overwrite each other's state.
+  // Lock the row, peel off this batch, write the remainder, then release —
+  // FOR UPDATE only holds for the duration of this transaction.
+  const client = await pool.connect()
+  let batch: PromListItem[] = []
+  let rest: PromListItem[] = []
+  let state: PromImportState
+  let processedBase = 0
+  let successBase = 0
+  let failedBase = 0
+  let totalItems = 0
+  try {
+    await client.query('BEGIN')
+    const claimed = await client.query<{
+      processed_items: number | null
+      success_items: number | null
+      failed_items: number | null
+      total_items: number | null
+      state: PromImportState | null
+    }>(
+      `SELECT processed_items, success_items, failed_items, total_items, state
+         FROM import_tasks
+        WHERE id = $1
+          AND source_type = 'prom'
+          AND status = 'processing'
+        FOR UPDATE SKIP LOCKED`,
+      [taskId],
+    )
+    const row = claimed.rows[0]
+    if (!row) {
+      await client.query('ROLLBACK')
+      const [existing] = await db.select().from(importTasks).where(eq(importTasks.id, taskId)).limit(1)
+      if (!existing || existing.sourceType !== 'prom') {
+        return { success: false as const, error: 'Задача импорта не найдена' }
+      }
+      if (existing.status !== 'processing') {
+        return { success: true as const, done: true, processed: existing.processedItems ?? 0, total: existing.totalItems ?? 0 }
+      }
+      return { success: true as const, done: false, processed: existing.processedItems ?? 0, total: existing.totalItems ?? 0 }
+    }
+    if (!row.state || !Array.isArray(row.state.pending)) {
+      await client.query('ROLLBACK')
+      return { success: false as const, error: 'Повреждённое состояние задачи импорта' }
+    }
+    state = row.state
+    batch = state.pending.slice(0, BATCH_SIZE)
+    rest = state.pending.slice(BATCH_SIZE)
+    processedBase = row.processed_items ?? 0
+    successBase = row.success_items ?? 0
+    failedBase = row.failed_items ?? 0
+    totalItems = row.total_items ?? 0
+    await client.query(
+      `UPDATE import_tasks SET state = $2, updated_at = NOW() WHERE id = $1`,
+      [taskId, { ...state, pending: rest }],
+    )
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw e
+  } finally {
+    client.release()
   }
-  if (task.status !== 'processing') {
-    return { success: true as const, done: true, processed: task.processedItems ?? 0, total: task.totalItems ?? 0 }
-  }
-
-  const state = task.state as PromImportState | null
-  if (!state || !Array.isArray(state.pending)) {
-    return { success: false as const, error: 'Повреждённое состояние задачи импорта' }
-  }
-
-  const batch = state.pending.slice(0, BATCH_SIZE)
-  const rest = state.pending.slice(BATCH_SIZE)
   let success = 0
   let failed = 0
   const errors: string[] = []
@@ -684,25 +660,56 @@ export async function continuePromImport(taskId: number) {
     }
   }
 
-  const processedItems = (task.processedItems ?? 0) + batch.length
-  const successItems = (task.successItems ?? 0) + success
-  const failedItems = (task.failedItems ?? 0) + failed
-  const done = rest.length === 0
-  const combinedErrors = [...(task.errorLog ? task.errorLog.split('\n') : []), ...errors].slice(-50)
-
-  await db
-    .update(importTasks)
-    .set({
-      processedItems,
-      successItems,
-      failedItems,
-      errorLog: combinedErrors.length > 0 ? combinedErrors.join('\n') : null,
-      status: done ? 'completed' : 'processing',
-      completedAt: done ? new Date() : null,
-      state: { ...state, pending: rest },
-      updatedAt: new Date(),
-    })
-    .where(eq(importTasks.id, taskId))
+  // The claim transaction already removed this batch from `state.pending`.
+  // Never write `{...state, pending: rest}` here: another worker may have
+  // claimed the next batch while this one was scraping, and that stale
+  // snapshot would put the other batch back into `pending`.
+  //
+  // Increment counters in SQL and merge size-family additions into the live
+  // JSON state. The UPDATE is atomic, so parallel polls cannot lose counters
+  // or resurrect already-claimed products.
+  const newErrors = errors.length > 0 ? errors.join('\n') : null
+  const updated = await pool.query<{
+    status: 'processing' | 'completed'
+    processed_items: number
+    success_items: number
+    failed_items: number
+  }>(
+    `UPDATE import_tasks
+        SET processed_items = COALESCE(processed_items, 0) + $2,
+            success_items = COALESCE(success_items, 0) + $3,
+            failed_items = COALESCE(failed_items, 0) + $4,
+            error_log = CASE
+              WHEN $5::text IS NULL THEN error_log
+              WHEN COALESCE(error_log, '') = '' THEN right($5::text, 10000)
+              ELSE right(error_log || E'\\n' || $5::text, 10000)
+            END,
+            state = jsonb_set(
+              COALESCE(state, '{}'::jsonb),
+              '{sizeFamilies}',
+              COALESCE(state->'sizeFamilies', '{}'::jsonb) || $6::jsonb,
+              true
+            ),
+            status = CASE
+              WHEN jsonb_array_length(COALESCE(state->'pending', '[]'::jsonb)) = 0
+                THEN 'completed'
+              ELSE 'processing'
+            END,
+            completed_at = CASE
+              WHEN jsonb_array_length(COALESCE(state->'pending', '[]'::jsonb)) = 0
+                THEN NOW()
+              ELSE NULL
+            END,
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING status, processed_items, success_items, failed_items`,
+    [taskId, batch.length, success, failed, newErrors, JSON.stringify(state.sizeFamilies ?? {})],
+  )
+  const result = updated.rows[0]
+  const done = result?.status === 'completed'
+  const processedItems = result?.processed_items ?? processedBase + batch.length
+  const successItems = result?.success_items ?? successBase + success
+  const failedItems = result?.failed_items ?? failedBase + failed
 
   if (done) {
     revalidatePath('/admin/products')
@@ -710,13 +717,12 @@ export async function continuePromImport(taskId: number) {
     revalidatePath('/', 'layout')
   }
 
-  return { success: true as const, done, processed: processedItems, total: task.totalItems ?? 0, success_count: successItems, failed_count: failedItems }
+  return { success: true as const, done, processed: processedItems, total: totalItems, success_count: successItems, failed_count: failedItems }
 }
 
 /** Prom.ua import jobs left mid-way (e.g. tab closed) so the UI can offer a "Продолжить" button. */
 export async function getUnfinishedPromImports() {
   await assertPermission('import')
-  await ensurePromImportColumns()
   return db
     .select()
     .from(importTasks)

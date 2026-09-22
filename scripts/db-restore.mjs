@@ -61,7 +61,7 @@ const connectionString = trimQueryJunk(
 
 const pool = new Pool({
   connectionString,
-  ssl: requiresSsl ? { rejectUnauthorized: false } : false // nosemgrep: javascript.lang.security.audit.ssl-verify-disabled.bypass-tls-verification,
+  ssl: requiresSsl ? { rejectUnauthorized: false } : false, // nosemgrep: javascript.lang.security.audit.ssl-verify-disabled.bypass-tls-verification
 })
 
 async function run(label, sql) {

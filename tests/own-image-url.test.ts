@@ -28,7 +28,7 @@ describe('storefrontMediaUrl', () => {
 describe('promMediaPath', () => {
   it('proxies Prom CDN through /api/media at listing size', () => {
     expect(promMediaPath('https://images.prom.ua/1_w2000_h2000_x.jpg')).toBe(
-      '/api/media?src=' + encodeURIComponent('https://images.prom.ua/1_w700_h500_x.jpg'),
+      '/api/media?src=' + encodeURIComponent('https://images.prom.ua/1_w400_h400_x.jpg'),
     )
   })
 

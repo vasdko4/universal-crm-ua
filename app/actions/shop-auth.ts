@@ -106,7 +106,7 @@ export async function sendEmailVerification() {
   )
   if (rows[0]?.emailVerified) return { success: true as const, alreadyVerified: true as const }
 
-  if (isRateLimited('email-verify-req', user.id, 3, 900_000)) {
+  if (await isRateLimited('email-verify-req', user.id, 3, 900_000)) {
     return { success: false as const, error: 'Забагато запитів. Спробуйте через 15 хвилин.' }
   }
 
@@ -132,7 +132,7 @@ export async function confirmEmailVerification(codeRaw: string) {
   const user = await getShopUser()
   if (!user) return { success: false as const, error: 'Не авторизован' }
 
-  if (isRateLimited('email-verify-confirm', user.id, 10, 900_000)) {
+  if (await isRateLimited('email-verify-confirm', user.id, 10, 900_000)) {
     return { success: false as const, error: 'Забагато спроб. Запросіть новий код.' }
   }
 
@@ -221,7 +221,7 @@ export async function requestEmailChange(newEmailRaw: string) {
 
   // SECURITY: each request emails a code to an arbitrary address — without a
   // limit a logged-in account could be scripted into an email-bombing tool.
-  if (isRateLimited('email-change-req', user.id, 3, 900_000)) {
+  if (await isRateLimited('email-change-req', user.id, 3, 900_000)) {
     return { success: false, error: 'Слишком много запросов. Попробуйте через 15 минут.' }
   }
 
@@ -265,7 +265,7 @@ export async function confirmEmailChange(codeRaw: string) {
 
   // SECURITY: the code is 6 digits with a 15-minute TTL — cap verification
   // attempts so it cannot be brute-forced (10 tries per 15 minutes).
-  if (isRateLimited('email-change-confirm', user.id, 10, 900_000)) {
+  if (await isRateLimited('email-change-confirm', user.id, 10, 900_000)) {
     return { success: false, error: 'Слишком много попыток. Запросите новый код.' }
   }
 
@@ -340,7 +340,7 @@ export async function requestPasswordChange() {
   const user = await getShopUser()
   if (!user) return { success: false as const, error: 'Не авторизован' }
 
-  if (isRateLimited('password-change-req', user.id, 3, 900_000)) {
+  if (await isRateLimited('password-change-req', user.id, 3, 900_000)) {
     return { success: false as const, error: 'Забагато запитів. Спробуйте через 15 хвилин.' }
   }
 
@@ -380,7 +380,7 @@ export async function confirmPasswordChange(codeRaw: string, newPasswordRaw: str
   const user = await getShopUser()
   if (!user) return { success: false as const, error: 'Не авторизован' }
 
-  if (isRateLimited('password-change-confirm', user.id, 10, 900_000)) {
+  if (await isRateLimited('password-change-confirm', user.id, 10, 900_000)) {
     return { success: false as const, error: 'Забагато спроб. Запросіть новий код.' }
   }
 
