@@ -7,7 +7,8 @@ const ok = []
 
 async function fetchRes(path, opts = {}) {
   const url = path.startsWith('http') ? path : BASE + path
-  const res = await fetch(url, { redirect: opts.redirect || 'manual', headers: { 'user-agent': 'gitlab-live-engine/1.0' } })
+  const redirect = opts.redirect ?? 'follow'
+  const res = await fetch(url, { redirect, headers: { 'user-agent': 'gitlab-live-engine/1.0' } })
   const buf = Buffer.from(await res.arrayBuffer())
   const headers = Object.fromEntries([...res.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]))
   return { url, status: res.status, headers, body: buf, text: buf.toString('utf8') }

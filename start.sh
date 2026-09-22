@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# Universal Magazine 2.0 — запуск в одну команду через Docker
+# Universal Magazine 3.0 — запуск в одну команду через Docker
 #
 # Использование:
 #   chmod +x start.sh
@@ -159,7 +159,9 @@ if [[ ! -f .env ]]; then
   }
   AUTH_SECRET=$(gen_secret)
   CRON_SECRET_VAL=$(gen_secret)
-  SETUP_TOKEN_VAL=$(gen_secret)
+  # Hex, not base64: the token is interpolated into /setup?token=… and + / =
+  # in standard base64 would be decoded as spaces or path segments.
+  SETUP_TOKEN_VAL=$(if command -v openssl &>/dev/null; then openssl rand -hex 32; else head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi)
   UPDATER_SECRET_VAL=$(gen_secret)
   DB_PASSWORD=$(gen_password)
   FTP_USER_VAL="magazine"
@@ -167,7 +169,7 @@ if [[ ! -f .env ]]; then
   PROJECT_NAME_VAL="$(basename "$PWD")"
 
   cat > .env <<ENVEOF
-# Сгенерировано автоматически скриптом start.sh (Magazine 2.0)
+# Сгенерировано автоматически скриптом start.sh (Magazine 3.0)
 # Не редактируйте вручную, если не знаете что делаете.
 
 # Публичный адрес магазина (авторизация + SEO: canonical, sitemap, robots).
@@ -254,19 +256,20 @@ fi
 SITE_URL="$(grep -E '^BETTER_AUTH_URL=' .env | cut -d= -f2- || true)"
 SITE_URL="${SITE_URL:-http://localhost:3000}"
 SETUP_TOKEN_SHOW="$(grep -E '^SETUP_TOKEN=' .env | cut -d= -f2- || true)"
+SETUP_TOKEN_URL="$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "${SETUP_TOKEN_SHOW}" 2>/dev/null || printf '%s' "${SETUP_TOKEN_SHOW}")"
 FTP_USER_SHOW="$(grep -E '^FTP_USER=' .env | cut -d= -f2- || true)"
 FTP_PASS_SHOW="$(grep -E '^FTP_PASSWORD=' .env | cut -d= -f2- || true)"
 DOMAIN_SHOW="$(grep -E '^DOMAIN=' .env | cut -d= -f2- || true)"
 echo ""
 printf "${GREEN}${BOLD}"
 echo "  ╔═══════════════════════════════════════════════╗"
-echo "  ║       🎉 МАГАЗИН 2.0 УСПЕШНО ЗАПУЩЕН! 🎉        ║"
+echo "  ║       🎉 МАГАЗИН 3.0 УСПЕШНО ЗАПУЩЕН! 🎉        ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 printf "${NC}"
 echo ""
 echo "  Магазин:   ${SITE_URL}"
 if [[ -n "${SETUP_TOKEN_SHOW}" ]]; then
-  echo "  Мастер:    ${SITE_URL%/}/setup?token=${SETUP_TOKEN_SHOW}"
+  echo "  Мастер:    ${SITE_URL%/}/setup?token=${SETUP_TOKEN_URL}"
   echo ""
   echo "  Откройте ссылку мастера — токен уже в ней, поле заполнять не нужно."
 else

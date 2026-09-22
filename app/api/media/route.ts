@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { fetchAllowedImage } from '@/lib/api/proxy-image'
-import { clientIp, isRateLimitedMemory } from '@/lib/api/rate-limit'
+import { clientIp, isRateLimitedHot } from '@/lib/api/rate-limit'
 
 /**
  * Same-origin image proxy for Prom.ua photos used in JSON-LD, Open Graph
@@ -10,7 +10,7 @@ import { clientIp, isRateLimitedMemory } from '@/lib/api/rate-limit'
  * the raw `src` query never reaches fetch.
  */
 export async function GET(req: NextRequest) {
-  if (isRateLimitedMemory('media-image', clientIp(req), 6000, 60_000)) {
+  if (await isRateLimitedHot('media-image', clientIp(req), 2400, 60_000)) {
     return new NextResponse('Too many requests', { status: 429 })
   }
   const src = req.nextUrl.searchParams.get('src')

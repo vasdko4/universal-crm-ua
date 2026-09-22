@@ -82,14 +82,9 @@ async function ensureStorefrontCacheColumn() {
 
 export const readSettingsRow = unstable_cache(
   async (): Promise<Record<string, unknown> | null> => {
-    try {
-      await ensureStorefrontCacheColumn()
-      const { rows } = await pool.query('SELECT * FROM store_settings WHERE id = 1 LIMIT 1')
-      return (rows[0] as Record<string, unknown> | undefined) ?? null
-    } catch (err) {
-      console.error('[store-settings] readSettingsRow failed:', (err as Error).message)
-      return null
-    }
+    await ensureStorefrontCacheColumn()
+    const { rows } = await pool.query('SELECT * FROM store_settings WHERE id = 1 LIMIT 1')
+    return (rows[0] as Record<string, unknown> | undefined) ?? null
   },
   ['store-settings-row'],
   { tags: [STORE_SETTINGS_TAG], revalidate: 3600 },

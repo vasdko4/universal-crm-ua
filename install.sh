@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# Magazine 2.5 — установка готового образа с GHCR в одну команду.
+# Magazine 3.0 — установка готового образа с GHCR в одну команду.
 # Исходный код и сборка НЕ нужны: скрипт сам скачивает образ и всё настроит.
 #
 #   curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
@@ -14,7 +14,7 @@
 #   4. При указанном домене поднимает Caddy с автоматическим HTTPS
 #
 # Неинтерактивно: DOMAIN=shop.example.com bash install.sh
-# Другая версия:  IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.5.0 bash install.sh
+# Другая версия:  IMAGE=ghcr.io/vasdko4/universal-crm-ua:3.0.0 bash install.sh
 # Пропустить hardening ОС: SKIP_VM_SETUP=1 bash install.sh
 #
 # ПОЧЕМУ ghcr.io, А НЕ Docker Hub: release.yml (CI) публикует каждый
@@ -245,12 +245,12 @@ if [[ ! -f .env ]]; then
   fi
 
   cat > .env <<ENVEOF
-# Сгенерировано автоматически скриптом install.sh (Magazine 2.0)
+# Сгенерировано автоматически скриптом install.sh (Magazine 3.0)
 BETTER_AUTH_URL=${PUBLIC_URL}
 NEXT_PUBLIC_SITE_URL=${PUBLIC_URL}
 BETTER_AUTH_SECRET=$(gen_secret)
 CRON_SECRET=$(gen_secret)
-SETUP_TOKEN=$(gen_secret)
+SETUP_TOKEN=$(if command -v openssl &>/dev/null; then openssl rand -hex 32; else head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi)
 POSTGRES_PASSWORD=$(gen_password)
 FTP_USER=techno
 FTP_PASSWORD=$(gen_password)
@@ -470,19 +470,20 @@ fi
 SITE_URL="$(grep -E '^BETTER_AUTH_URL=' .env | cut -d= -f2- || true)"
 SITE_URL="${SITE_URL:-http://localhost:3000}"
 SETUP_TOKEN_SHOW="$(grep -E '^SETUP_TOKEN=' .env | cut -d= -f2- || true)"
+SETUP_TOKEN_URL="$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "${SETUP_TOKEN_SHOW}" 2>/dev/null || printf '%s' "${SETUP_TOKEN_SHOW}")"
 FTP_USER_SHOW="$(grep -E '^FTP_USER=' .env | cut -d= -f2- || true)"
 FTP_PASS_SHOW="$(grep -E '^FTP_PASSWORD=' .env | cut -d= -f2- || true)"
 DOMAIN_SHOW="$(grep -E '^DOMAIN=' .env | cut -d= -f2- || true)"
 echo ""
 printf "${GREEN}${BOLD}"
 echo "  ╔═══════════════════════════════════════════════╗"
-echo "  ║       🎉 МАГАЗИН 2.0 УСПЕШНО УСТАНОВЛЕН! 🎉      ║"
+echo "  ║       🎉 МАГАЗИН 3.0 УСПЕШНО УСТАНОВЛЕН! 🎉      ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 printf "${NC}"
 echo ""
 echo "  Магазин:   ${SITE_URL}"
 if [[ -n "${SETUP_TOKEN_SHOW}" ]]; then
-  echo "  Мастер:    ${SITE_URL%/}/setup?token=${SETUP_TOKEN_SHOW}"
+  echo "  Мастер:    ${SITE_URL%/}/setup?token=${SETUP_TOKEN_URL}"
   echo ""
   echo "  Откройте ссылку мастера — токен уже в ней, поле заполнять не нужно."
 else

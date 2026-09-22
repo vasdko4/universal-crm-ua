@@ -4,7 +4,7 @@ export async function register() {
       const { ensureSetupToken } = await import('./lib/setup-token')
       const { token, generated } = ensureSetupToken()
       if (generated) {
-        console.log(`[setup] one-time install token (open /setup?token=…): ${token}`)
+        console.log(`[setup] one-time install token (open /setup?token=${encodeURIComponent(token)}): ${token}`)
       }
     } catch (e) {
       console.error('[setup-token]', (e as Error).message)
