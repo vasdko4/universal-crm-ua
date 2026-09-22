@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission, getAdminUser } from '@/lib/session'
 import { hasPermission } from '@/lib/permissions'
 import type { Locale } from '@/lib/i18n/config'
+import { buildFunnel, type SalesFunnel } from '@/lib/analytics/funnel'
 
 async function adminLocale(): Promise<Locale> {
   const user = await getAdminUser()
@@ -104,8 +105,21 @@ export type StatsSummary = {
   /** Profit margin as a percentage of revenue. */
   profitMargin: number
   visitors: number
+  /**
+   * visitor → paid order over the period. Previously this was
+   * orders / pageviews, which mixed sessions with raw events.
+   */
   conversionRate: number
+  /** cart → order: orders divided by sessions that added something to the cart. */
   cartConversion: number
+  /**
+   * Stage-by-stage funnel with comparable units and honest denominators
+   * (see lib/analytics/funnel.ts). Use this instead of dividing any two
+   * summary counters by hand.
+   */
+  funnel: SalesFunnel
+  /** Product views per visitor — browsing depth, deliberately not a percentage. */
+  productViewsPerVisitor: number
   /** Percentage change vs the previous period of the same length (null = no data). */
   trends: {
     pageViews: number | null
@@ -148,6 +162,11 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
         COUNT(*) FILTER (WHERE type = 'product_view' AND created_at >= NOW() - ($1 || ' days')::interval)::int AS product_views,
         COUNT(*) FILTER (WHERE type = 'add_to_cart' AND created_at >= NOW() - ($1 || ' days')::interval)::int AS add_to_carts,
         COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL AND created_at >= NOW() - ($1 || ' days')::interval)::int AS visitors,
+        -- Funnel stages are counted in unique sessions, not raw events, so
+        -- "visitor -> product view" and "product view -> cart" compare like
+        -- with like (see lib/analytics/funnel.ts).
+        COUNT(DISTINCT session_id) FILTER (WHERE type = 'product_view' AND session_id IS NOT NULL AND created_at >= NOW() - ($1 || ' days')::interval)::int AS product_view_sessions,
+        COUNT(DISTINCT session_id) FILTER (WHERE type = 'add_to_cart' AND session_id IS NOT NULL AND created_at >= NOW() - ($1 || ' days')::interval)::int AS cart_sessions,
         COUNT(*) FILTER (WHERE type = 'pageview' AND created_at >= NOW() - ($1::int * 2 || ' days')::interval AND created_at < NOW() - ($1 || ' days')::interval)::int AS prev_page_views,
         COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL AND created_at >= NOW() - ($1::int * 2 || ' days')::interval AND created_at < NOW() - ($1 || ' days')::interval)::int AS prev_visitors
        FROM analytics_events
@@ -167,6 +186,21 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
     ),
   ])
   const r = { ...trafficRes.rows[0], ...ordersRes.rows[0] }
+
+  // Order-side funnel stages. Kept separate from the revenue query above on
+  // purpose: revenue excludes not-yet-paid orders, but the funnel must still
+  // count them as *placed* orders (that is exactly where checkout drop-off
+  // becomes visible). Cancelled orders are excluded from both.
+  const funnelOrdersRes = await pool.query(
+    `SELECT
+      COUNT(*) FILTER (WHERE status <> 'cancelled')::int AS placed,
+      COUNT(*) FILTER (WHERE status <> 'cancelled' AND payment_status = 'paid')::int AS paid,
+      COUNT(*) FILTER (WHERE status <> 'cancelled' AND payment_status = 'paid' AND status IN ('shipped', 'done'))::int AS fulfilled
+     FROM orders
+     WHERE created_at >= NOW() - ($1 || ' days')::interval`,
+    [days],
+  )
+  const fo = funnelOrdersRes.rows[0] ?? { placed: 0, paid: 0, fulfilled: 0 }
 
   // Net profit from real order items: sale price minus the purchase-cost
   // snapshot (falls back to the product's current cost for older orders).
@@ -193,9 +227,20 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
   const addToCarts = r.add_to_carts ?? 0
   const revenue = r.revenue ?? 0
   const visitors = r.visitors ?? 0
+  const productViews = r.product_views ?? 0
+  const funnel = buildFunnel({
+    visitors,
+    productViewers: r.product_view_sessions ?? 0,
+    cartSessions: r.cart_sessions ?? 0,
+    orders: fo.placed ?? 0,
+    paidOrders: fo.paid ?? 0,
+    fulfilledOrders: fo.fulfilled ?? 0,
+    productViews,
+  })
+  const orderStage = funnel.stages.find((s) => s.key === 'orders')
   return {
     pageViews,
-    productViews: r.product_views ?? 0,
+    productViews,
     addToCarts,
     orders,
     revenue,
@@ -203,8 +248,13 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
     profit,
     profitMargin: itemsRevenue > 0 ? (profit / itemsRevenue) * 100 : 0,
     visitors,
-    conversionRate: pageViews > 0 ? (orders / pageViews) * 100 : 0,
-    cartConversion: addToCarts > 0 ? (orders / addToCarts) * 100 : 0,
+    // visitor -> paid order (was: orders / pageviews).
+    conversionRate: funnel.overallConversion ?? 0,
+    // cart -> order, measured against sessions that actually had a cart
+    // (was: orders / add_to_cart events).
+    cartConversion: orderStage?.conversionFromPrev ?? 0,
+    funnel,
+    productViewsPerVisitor: funnel.productViewsPerVisitor,
     trends: {
       pageViews: trend(pageViews, r.prev_page_views ?? 0),
       visitors: trend(visitors, r.prev_visitors ?? 0),

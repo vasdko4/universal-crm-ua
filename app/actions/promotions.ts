@@ -265,7 +265,7 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
   const t = getDictionary(await getLocale()).serverErrors
   const h = await headers()
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
-  if (isRateLimited('promo-eval', ip, 15)) {
+  if (await isRateLimited('promo-eval', ip, 15)) {
     return { ok: false, error: t.rateLimitGeneric }
   }
   const code = rawCode.trim().toUpperCase().slice(0, 64)
