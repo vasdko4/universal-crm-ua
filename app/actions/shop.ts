@@ -189,7 +189,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   // stop order-spam floods (every order writes DB rows, upserts a customer and
   // fires admin/customer notifications). Two buckets: burst + sustained.
   const ip = await actionClientIp()
-  if (isRateLimited('checkout', ip, 5) || isRateLimited('checkout-hourly', ip, 30, 3_600_000)) {
+  if (await isRateLimited('checkout', ip, 5) || await isRateLimited('checkout-hourly', ip, 30, 3_600_000)) {
     return { success: false, error: t.rateLimitOrders }
   }
 
@@ -684,7 +684,7 @@ export async function checkOrderPaymentStatus(
 ): Promise<{ ok: boolean; status: string; message?: string }> {
   // Public action that triggers outbound gateway API calls — rate-limit so it
   // cannot be scripted to hammer WayForPay/Monobank with our credentials.
-  if (isRateLimited('payment-status', await actionClientIp(), 10)) {
+  if (await isRateLimited('payment-status', await actionClientIp(), 10)) {
     return { ok: false, status: 'unknown', message: 'Слишком много запросов, попробуйте позже' }
   }
   const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1)
@@ -898,5 +898,5 @@ export async function submitQuestion(input: {
 async function isFeedbackRateLimited(scope: string): Promise<boolean> {
   const h = await headers()
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
-  return isRateLimited(scope, ip, 5)
+  return await isRateLimited(scope, ip, 5)
 }
