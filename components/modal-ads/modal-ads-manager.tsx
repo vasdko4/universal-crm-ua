@@ -132,7 +132,7 @@ const emptyForm = (): FormState => ({
   buttonColor: '',
   targetPages: ['all'],
   triggerType: 'delay',
-  triggerValue: '5',
+  triggerValue: '12',
   frequency: 'session',
   frequencyDays: '7',
   size: 'medium',
@@ -699,6 +699,7 @@ export function ModalAdsManager({
 
             <section className="flex flex-col gap-3">
               <h3 className="text-sm font-semibold text-foreground">{t.sectionFrequency}</h3>
+              <p className="text-xs text-muted-foreground">{t.frequencyHint}</p>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex rounded-lg border border-border p-0.5">
                   {FREQUENCIES.map((f) => (
