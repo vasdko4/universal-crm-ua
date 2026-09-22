@@ -394,3 +394,11 @@ CREATE TABLE IF NOT EXISTS "rate_limits" (
   "reset_at" timestamptz NOT NULL,
   PRIMARY KEY ("key")
 );
+
+-- Prom.ua product ids are ~10 digits and overflow int4 (2_147_483_647).
+ALTER TABLE products ALTER COLUMN prom_id TYPE bigint;
+
+-- Hot paths: every order card / notification joins order_items by order_id;
+-- product pages look up by slug. schema.sql used to omit both.
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items (order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON public.products ("slug");

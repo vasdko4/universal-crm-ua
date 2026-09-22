@@ -19,6 +19,7 @@ export type GatewayResult = {
   status?: string
   invoiceId?: string
   paymentUrl?: string
+  amount?: number
   refundedAmount?: number
   message?: string
   raw?: unknown
@@ -171,6 +172,7 @@ export async function wayforpayCheckStatus(
       status: WFP_STATUS_MAP[data?.transactionStatus] || 'pending',
       message: data?.transactionStatus,
       raw: data,
+      amount: data?.amount != null ? Number(data.amount) : undefined,
     }
   } catch (e) {
     return { ok: false, message: (e as Error).message }
@@ -359,6 +361,7 @@ export async function monobankCheckStatus(
       status: map[data?.status] || 'pending',
       message: data?.status,
       raw: data,
+      amount: data?.amount != null ? Number(data.amount) / 100 : undefined,
     }
   } catch (e) {
     return { ok: false, message: (e as Error).message }

@@ -11,6 +11,7 @@ import { normalizeOrigin } from '@/lib/seo'
 import { TEMPLATES } from '@/lib/shop/templates'
 import { getLocale } from '@/lib/i18n/server'
 import { getSetupDictionary } from '@/lib/i18n/setup'
+import { authorizeSetupToken } from '@/lib/setup-token'
 
 // Essential operational data every fresh install needs to function: admin/staff
 // roles (permissions live here), plus the default delivery and payment methods.
@@ -84,6 +85,7 @@ export type SetupInput = {
     indexingEnabled: boolean
   }
   installDemo: boolean
+  setupToken?: string
 }
 
 /**
@@ -109,6 +111,10 @@ async function detectSiteUrl(): Promise<string> {
 export async function runSetup(input: SetupInput) {
   const t = getSetupDictionary(await getLocale())
 
+  if (!authorizeSetupToken(input.setupToken)) {
+    return { success: false as const, error: t.errors.setupTokenRequired }
+  }
+
   // Hard guard: setup can only run on a fresh install with no users.
   const needed = await isSetupNeeded()
   if (!needed) {
@@ -132,6 +138,10 @@ export async function runSetup(input: SetupInput) {
         if (seed.trim()) await pool.query(seed)
         // seed.sql is catalog/orders only — no login accounts. The operator
         // admin created below is the first (and only) user.
+        // Re-apply migrate.sql so seeded products get slugs / indexes that
+        // the empty-table pass could not backfill.
+        const migrate = readFileSync(join(process.cwd(), 'db', 'migrate.sql'), 'utf8')
+        if (migrate.trim()) await pool.query(migrate)
       } catch {
         // Demo data is optional; ignore if the file is missing in this deploy.
       }

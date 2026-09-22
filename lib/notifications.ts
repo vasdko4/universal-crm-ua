@@ -159,8 +159,10 @@ export function buildAdminOrderTelegramHtml(
   parts.push(`💰 <b>Итого: ${money(order.total, order.currency, 'uk')}</b>`)
   parts.push(`💳 ${escHtml(payLabel)} — ${paidBadge}`)
   if (delivery) parts.push(`🚚 ${escHtml(delivery)}`)
-  if (order.note && !order.note.startsWith('Реквизиты для оплаты:'))
-    parts.push(`💬 ${escHtml(order.note)}`)
+  const noteIsRequisites =
+    Boolean(order.note?.startsWith('Реквизиты для оплаты:')) ||
+    Boolean(order.note?.startsWith('Реквізити для оплати:'))
+  if (order.note && !noteIsRequisites) parts.push(`💬 ${escHtml(order.note)}`)
   if (siteUrl) parts.push('', `🔗 <a href="${siteUrl}/admin/orders/${order.id}">Открыть заказ в админке</a>`)
   return parts.join('\n')
 }

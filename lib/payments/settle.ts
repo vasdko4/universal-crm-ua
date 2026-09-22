@@ -1,7 +1,7 @@
 import { db, pool } from '@/lib/db'
 import { payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { finalizePaidOrder } from '@/lib/shop/order-fulfillment'
+import { finalizePaidOrder, restoreStockOnce } from '@/lib/shop/order-fulfillment'
 import { extractGatewayReceiptUrl } from '@/lib/payments/receipt'
 
 /**
@@ -22,6 +22,45 @@ export async function settlePayment(
     .from(payments)
     .where(eq(payments.orderReference, orderReference))
     .limit(1)
+
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.orderNumber, orderReference))
+    .limit(1)
+
+  // A signed/authoritative `paid` with a short amount must not mark the
+  // payment or the order paid, and must not decrement stock (invoice
+  // tampering, currency rounding, partial capture). Skip the check when
+  // the gateway did not report an amount.
+  if (status === 'paid' && order && opts.amount != null && Number.isFinite(opts.amount)) {
+    const expected = Number(order.total)
+    if (!(opts.amount + 0.01 >= expected)) {
+      if (payment) {
+        await db
+          .insert(paymentEvents)
+          .values({
+            paymentId: payment.id,
+            type: opts.eventType ?? 'webhook',
+            status: 'amount_mismatch',
+            amount: opts.amount.toFixed(2),
+            message: `Сумма шлюза ${opts.amount.toFixed(2)} меньше итога заказа ${expected.toFixed(2)} — заказ не отмечен оплаченным`,
+            payload: (opts.raw as object) ?? null,
+          })
+          .catch(() => {})
+      }
+      await db
+        .insert(orderHistory)
+        .values({
+          orderId: order.id,
+          type: 'payment',
+          message: `Оплата отклонена: сумма шлюза ${opts.amount.toFixed(2)} < ${expected.toFixed(2)}`,
+          actor: 'Платёжный шлюз',
+        })
+        .catch(() => {})
+      return { ok: true, matchedPayment: Boolean(payment), matchedOrder: true }
+    }
+  }
 
   let matchedPayment = false
   if (payment) {
@@ -51,13 +90,6 @@ export async function settlePayment(
     })
   }
 
-  // Sync the storefront order (orderReference mirrors orderNumber for shop orders).
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.orderNumber, orderReference))
-    .limit(1)
-
   let matchedOrder = false
   if (order) {
     matchedOrder = true
@@ -83,6 +115,21 @@ export async function settlePayment(
     // (decrement stock, record promo usage, analytics). Idempotent.
     if (status === 'paid') {
       await finalizePaidOrder(orderReference)
+    }
+    // A refund initiated in the gateway cabinet (or a chargeback) never
+    // goes through refundPayment — restore stock here, once.
+    if (status === 'refunded' && order.status !== 'cancelled') {
+      if (payment) {
+        await pool.query(
+          `UPDATE payments
+              SET refunded_amount = amount,
+                  status = 'refunded',
+                  updated_at = NOW()
+            WHERE id = $1 AND refunded_amount < amount`,
+          [payment.id],
+        )
+      }
+      await restoreStockOnce(order.id)
     }
   }
 

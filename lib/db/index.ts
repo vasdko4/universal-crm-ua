@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Pool, Client } from 'pg'
+import { Pool, Client, type PoolClient } from 'pg'
 import * as schema from './schema'
 import { getConnectionString, sslForConnectionString, stripSslParams } from './config'
 
@@ -103,3 +103,32 @@ const originalConnect = pool.connect.bind(pool) as () => Promise<import('pg').Po
 }) as Pool['connect']
 
 export const db = drizzle(pool, { schema })
+
+/** Drizzle bound to a borrowed pool client — use inside withDbClient(). */
+export function dbForClient(client: PoolClient) {
+  return drizzle(client, { schema })
+}
+
+/**
+ * Run `fn` in a single Postgres transaction on one connection.
+ * Nested helpers must use this same client (not `pool`/`db`) or they
+ * will not see uncommitted rows and will not roll back together.
+ */
+export async function withDbClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const result = await fn(client)
+    await client.query('COMMIT')
+    return result
+  } catch (e) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    throw e
+  } finally {
+    client.release()
+  }
+}

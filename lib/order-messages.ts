@@ -27,7 +27,7 @@ function money(v: string | number, currency = 'UAH', locale: string = 'uk') {
 }
 
 function esc(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 export type OrderMessageKind = 'confirmation' | 'shipped' | 'status' | 'instruction'
@@ -267,7 +267,7 @@ ${L.footer}`
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a">
   <tr><td style="padding:24px 28px;border-bottom:1px solid #ececea">
-    ${siteUrl ? `<a href="${siteUrl}" style="text-decoration:none">${logoHtml}</a>` : logoHtml}
+    ${siteUrl ? `<a href="${esc(siteUrl)}" style="text-decoration:none">${logoHtml}</a>` : logoHtml}
   </td></tr>
   <tr><td style="padding:28px 28px 8px">
     <h1 style="margin:0 0 8px;font-size:22px;line-height:1.3;color:#1a1a1a">${esc(heading)}</h1>
@@ -290,13 +290,13 @@ ${L.footer}`
       ${esc(L.statusOrder)}: <strong style="color:#1a1a1a">${esc(statusLabel)}</strong>
       ${deliveryLine ? `<br/>${esc(deliveryLine)}` : ''}
     </div>
-    ${siteUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr><td style="border-radius:8px;background:#1a1a1a"><a href="${siteUrl}/account/orders" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">${esc(L.myOrders)}</a></td></tr></table>` : ''}
+    ${siteUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr><td style="border-radius:8px;background:#1a1a1a"><a href="${esc(siteUrl)}/account/orders" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">${esc(L.myOrders)}</a></td></tr></table>` : ''}
   </td></tr>
   <tr><td style="padding:20px 28px;background:#fafaf8;border-top:1px solid #ececea">
     <p style="margin:0 0 4px;font-size:13px;color:#6b6b68">${esc(L.regards)}, ${esc(L.team)} <strong style="color:#1a1a1a">${esc(storeName)}</strong></p>
     ${store.phone ? `<p style="margin:0 0 2px;font-size:13px;color:#6b6b68">${esc(L.phone)}: <a href="tel:${store.phone.replace(/[^+\d]/g, '')}" style="color:#6b6b68">${esc(store.phone)}</a></p>` : ''}
     ${store.supportEmail ? `<p style="margin:0 0 2px;font-size:13px;color:#6b6b68">Email: <a href="mailto:${store.supportEmail}" style="color:#6b6b68">${esc(store.supportEmail)}</a></p>` : ''}
-    ${siteUrl ? `<p style="margin:0 0 8px;font-size:13px;color:#6b6b68"><a href="${siteUrl}" style="color:#6b6b68">${esc(siteUrl.replace(/^https?:\/\//, ''))}</a></p>` : ''}
+    ${siteUrl ? `<p style="margin:0 0 8px;font-size:13px;color:#6b6b68"><a href="${esc(siteUrl)}" style="color:#6b6b68">${esc(siteUrl.replace(/^https?:\/\//, ''))}</a></p>` : ''}
     <p style="margin:8px 0 0;font-size:12px;color:#9a9a97">${esc(L.footerHtml)} ${esc(storeName)}. ${esc(L.service)}</p>
   </td></tr>
 </table>
