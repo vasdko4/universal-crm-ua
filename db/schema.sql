@@ -633,6 +633,7 @@ CREATE TABLE IF NOT EXISTS "store_settings" (
   "logo_url" varchar(500),
   "favicon_url" varchar(500),
   "open_cart_after_add" boolean DEFAULT true NOT NULL,
+  "storefront_cache_enabled" boolean DEFAULT false NOT NULL,
   "default_locale" varchar(5) DEFAULT 'uk'::character varying NOT NULL,
   "locale_prompt_mode" varchar(20) DEFAULT 'browser'::character varying NOT NULL,
   "active_template" varchar(30) DEFAULT 'classic'::character varying NOT NULL,
@@ -803,6 +804,7 @@ CREATE INDEX IF NOT EXISTS abandoned_carts_status_idx ON public.abandoned_carts 
 
 -- Минимальная сумма заказа: включение/выключение + порог (Настройки → Общие)
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS min_order jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS storefront_cache_enabled boolean NOT NULL DEFAULT false;
 
 -- Реальный URL фискального чека от эквайринга (WayForPay/Monobank), если API
 -- шлюза его вернул. NULL — чек заказа показывает нефискальный QR на магазин.

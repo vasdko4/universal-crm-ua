@@ -36,6 +36,7 @@ describe('normalizeStoreSettingsRow', () => {
     const s = normalizeStoreSettingsRow(row)
     expect(s.storeName).toBe('Techno')
     expect(s.localePromptMode).toBe('browser')
+    expect(s.storefrontCacheEnabled).toBe(false)
     expect(s.minOrder).toEqual({ enabled: false, amount: 0 })
     expect(s.merchantFeed.shippingCountry).toBe('UA')
     expect(s.contact.widget.channels.telegram).toEqual({ value: '', enabled: false })
@@ -84,6 +85,11 @@ describe('normalizeStoreSettingsRow', () => {
   it('accepts locale_prompt_mode modal from snake_case', () => {
     const s = normalizeStoreSettingsRow({ locale_prompt_mode: 'modal' })
     expect(s.localePromptMode).toBe('modal')
+  })
+
+  it('accepts storefront_cache_enabled from snake_case', () => {
+    const s = normalizeStoreSettingsRow({ storefront_cache_enabled: true })
+    expect(s.storefrontCacheEnabled).toBe(true)
   })
 })
 

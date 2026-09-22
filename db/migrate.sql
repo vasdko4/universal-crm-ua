@@ -410,3 +410,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON public.payments (invoice_i
 CREATE INDEX IF NOT EXISTS idx_promotion_usages_promotion_id ON public.promotion_usages (promotion_id);
 CREATE INDEX IF NOT EXISTS idx_product_characteristics_product_id ON public.product_characteristics (product_id);
 CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON public.categories (parent_id);
+
+-- Optional longer storefront query cache for weak VPS (Settings → General).
+ALTER TABLE public.store_settings
+  ADD COLUMN IF NOT EXISTS storefront_cache_enabled boolean NOT NULL DEFAULT false;

@@ -90,6 +90,17 @@ export function GeneralSection({ data, setData, t }: SectionProps) {
         />
       </div>
 
+      <div className="flex items-center justify-between rounded-lg border border-border p-4">
+        <div>
+          <p className="text-sm font-medium text-foreground">{t.storefrontCacheTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.storefrontCacheDesc}</p>
+        </div>
+        <Switch
+          checked={data.storefrontCacheEnabled}
+          onCheckedChange={(v) => setData((d) => ({ ...d, storefrontCacheEnabled: v }))}
+        />
+      </div>
+
       <div className="rounded-lg border border-border p-4">
         <div className="flex items-center justify-between">
           <div>

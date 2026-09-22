@@ -26,15 +26,15 @@ import {
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { galleryMediaPath, galleryMediaPathList, promMediaPath, promMediaPathList } from '@/lib/shop/own-image-url'
 import { decodeHtmlEntities } from '@/lib/html-entities'
+import { getStorefrontQueryTtl } from '@/lib/shop/storefront-ttl'
 
 export type { ProductOption, VariantOptions } from '@/lib/db/schema'
 
 /**
  * Cache tags for storefront reads. Admin mutations call `revalidateStorefront()`
  * (see lib/shop/cache.ts) to bust these instantly; otherwise cached entries
- * self-refresh after `STOREFRONT_TTL` seconds. This keeps the read-heavy
- * storefront serving from cache under load instead of hitting Postgres on every
- * request, while still reflecting admin edits quickly.
+ * self-refresh after the storefront TTL (60s, or 1h when the admin enables
+ * weak-VPS cache). Admin mutations still bust tags immediately.
  */
 export const CACHE_TAGS = {
   catalog: 'shop:catalog',
@@ -43,8 +43,10 @@ export const CACHE_TAGS = {
   reviews: 'shop:reviews',
   checkout: 'shop:checkout',
 }
-// Seconds a cached storefront query stays fresh before a background refresh.
-const STOREFRONT_TTL = 60
+async function cachedQuery<T>(key: string[], tags: string[], fn: () => Promise<T> | T): Promise<T> {
+  const ttl = await getStorefrontQueryTtl()
+  return unstable_cache(async () => fn(), [...key, `ttl:${ttl}`], { tags, revalidate: ttl })()
+}
 
 /** LIKE pattern; `%`/`_` in the query are treated as literals. */
 function likePattern(token: string): string {
@@ -465,10 +467,7 @@ export type CatalogParams = {
 }
 
 export function getCatalogProducts(params: CatalogParams = {}) {
-  return unstable_cache(() => _getCatalogProducts(params), ['catalog', JSON.stringify(params)], {
-    tags: [CACHE_TAGS.catalog],
-    revalidate: STOREFRONT_TTL,
-  })()
+  return cachedQuery(['catalog', JSON.stringify(params)], [CACHE_TAGS.catalog], () => _getCatalogProducts(params))
 }
 
 async function _getCatalogProducts(params: CatalogParams = {}) {
@@ -579,10 +578,11 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
  * available bounds instead of empty placeholders.
  */
 export function getPriceBounds(params: { categoryId?: number; search?: string; charFilters?: CharFilter[] } = {}) {
-  return unstable_cache(() => _getPriceBounds(params), ['catalog-price-bounds', JSON.stringify(params)], {
-    tags: [CACHE_TAGS.catalog],
-    revalidate: STOREFRONT_TTL,
-  })()
+  return cachedQuery(
+    ['catalog-price-bounds', JSON.stringify(params)],
+    [CACHE_TAGS.catalog],
+    () => _getPriceBounds(params),
+  )
 }
 
 export type { CatalogFacet, CatalogFacetValue }
@@ -592,10 +592,11 @@ export function getCatalogFacets(params: {
   search?: string
   charFilters?: CharFilter[]
 } = {}) {
-  return unstable_cache(() => _getCatalogFacets(params), ['catalog-facets', JSON.stringify(params)], {
-    tags: [CACHE_TAGS.catalog],
-    revalidate: STOREFRONT_TTL,
-  })()
+  return cachedQuery(
+    ['catalog-facets', JSON.stringify(params)],
+    [CACHE_TAGS.catalog],
+    () => _getCatalogFacets(params),
+  )
 }
 
 async function _getCatalogFacets(params: {
@@ -686,10 +687,7 @@ async function _getPriceBounds(params: { categoryId?: number; search?: string; c
 }
 
 export function getPopularProducts(limit = 8, locale: Locale = 'uk') {
-  return unstable_cache(() => _getPopularProducts(limit, locale), ['popular', String(limit), locale], {
-    tags: [CACHE_TAGS.catalog],
-    revalidate: STOREFRONT_TTL,
-  })()
+  return cachedQuery(['popular', String(limit), locale], [CACHE_TAGS.catalog], () => _getPopularProducts(limit, locale))
 }
 
 async function _getPopularProducts(limit = 8, locale: Locale = 'uk') {
@@ -803,10 +801,11 @@ export async function getFeedProducts(locale: Locale = 'uk', limit = 5000): Prom
 }
 
 export function getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
-  return unstable_cache(() => _getDiscountedProducts(limit, locale), ['discounted', String(limit), locale], {
-    tags: [CACHE_TAGS.catalog],
-    revalidate: STOREFRONT_TTL,
-  })()
+  return cachedQuery(
+    ['discounted', String(limit), locale],
+    [CACHE_TAGS.catalog],
+    () => _getDiscountedProducts(limit, locale),
+  )
 }
 
 async function _getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
@@ -821,19 +820,21 @@ async function _getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
 }
 
 export function getProductById(id: number, locale: Locale = 'uk') {
-  return unstable_cache(() => _getProductByWhere(eq(products.id, id), locale), ['product', String(id), locale], {
-    tags: [CACHE_TAGS.catalog, CACHE_TAGS.product(id)],
-    revalidate: STOREFRONT_TTL,
-  })()
+  return cachedQuery(
+    ['product', String(id), locale],
+    [CACHE_TAGS.catalog, CACHE_TAGS.product(id)],
+    () => _getProductByWhere(eq(products.id, id), locale),
+  )
 }
 
 // The product detail page (`/product/[slug]`) resolves by the human-readable
 // slug now — see db/migrate.sql for how existing products got one.
 export function getProductBySlug(slug: string, locale: Locale = 'uk') {
-  return unstable_cache(() => _getProductByWhere(eq(products.slug, slug), locale), ['product-slug', slug, locale], {
-    tags: [CACHE_TAGS.catalog],
-    revalidate: STOREFRONT_TTL,
-  })()
+  return cachedQuery(
+    ['product-slug', slug, locale],
+    [CACHE_TAGS.catalog],
+    () => _getProductByWhere(eq(products.slug, slug), locale),
+  )
 }
 
 // Resolves a legacy numeric `/product/<id>` link to its current slug, purely
@@ -915,11 +916,11 @@ export function getRelatedProducts(
   brand?: string | null,
 ) {
   const brandKey = brand?.trim() || ''
-  return unstable_cache(
-    () => _getRelatedProducts(id, categoryIds, limit, locale, brandKey),
+  return cachedQuery(
     ['related', String(id), categoryIds.join('-'), String(limit), locale, brandKey],
-    { tags: [CACHE_TAGS.catalog], revalidate: STOREFRONT_TTL },
-  )()
+    [CACHE_TAGS.catalog],
+    () => _getRelatedProducts(id, categoryIds, limit, locale, brandKey),
+  )
 }
 
 /**
@@ -930,11 +931,11 @@ export function getRelatedProducts(
  * there isn't enough order history yet.
  */
 export function getFrequentlyBoughtTogether(id: number, limit = 4, locale: Locale = 'uk') {
-  return unstable_cache(
-    () => _getFrequentlyBoughtTogether(id, limit, locale),
+  return cachedQuery(
     ['fbt', String(id), String(limit), locale],
-    { tags: [CACHE_TAGS.catalog], revalidate: STOREFRONT_TTL },
-  )()
+    [CACHE_TAGS.catalog],
+    () => _getFrequentlyBoughtTogether(id, limit, locale),
+  )
 }
 
 async function _getFrequentlyBoughtTogether(id: number, limit = 4, locale: Locale = 'uk') {
@@ -1028,53 +1029,46 @@ async function _getRelatedProducts(
 }
 
 export function getApprovedReviews(productId: number) {
-  return unstable_cache(
+  return cachedQuery(
+    ['reviews', String(productId)],
+    [CACHE_TAGS.reviews],
     () =>
       db
         .select()
         .from(productReviews)
         .where(and(eq(productReviews.productId, productId), eq(productReviews.status, 'approved')))
         .orderBy(desc(productReviews.createdAt)),
-    ['reviews', String(productId)],
-    { tags: [CACHE_TAGS.reviews], revalidate: STOREFRONT_TTL },
-  )()
+  )
 }
 
 export function getAnsweredQuestions(productId: number) {
-  return unstable_cache(
+  return cachedQuery(
+    ['questions', String(productId)],
+    [CACHE_TAGS.reviews],
     () =>
       db
         .select()
         .from(productQuestions)
         .where(and(eq(productQuestions.productId, productId), eq(productQuestions.status, 'approved')))
         .orderBy(desc(productQuestions.createdAt)),
-    ['questions', String(productId)],
-    { tags: [CACHE_TAGS.reviews], revalidate: STOREFRONT_TTL },
-  )()
+  )
 }
 
 export function getReviewSummary(productId: number) {
-  return unstable_cache(
-    async () => {
-      const res = await db
-        .select({
-          count: sql<number>`count(*)::int`,
-          avg: sql<number>`COALESCE(AVG(${productReviews.rating}), 0)::float`,
-        })
-        .from(productReviews)
-        .where(and(eq(productReviews.productId, productId), eq(productReviews.status, 'approved')))
-      return { count: res[0]?.count ?? 0, avg: res[0]?.avg ?? 0 }
-    },
-    ['review-summary', String(productId)],
-    { tags: [CACHE_TAGS.reviews], revalidate: STOREFRONT_TTL },
-  )()
+  return cachedQuery(['review-summary', String(productId)], [CACHE_TAGS.reviews], async () => {
+    const res = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+        avg: sql<number>`COALESCE(AVG(${productReviews.rating}), 0)::float`,
+      })
+      .from(productReviews)
+      .where(and(eq(productReviews.productId, productId), eq(productReviews.status, 'approved')))
+    return { count: res[0]?.count ?? 0, avg: res[0]?.avg ?? 0 }
+  })
 }
 
 export function getShopCategories(locale: Locale = 'uk') {
-  return unstable_cache(() => _getShopCategories(locale), ['shop-categories', locale], {
-    tags: [CACHE_TAGS.categories],
-    revalidate: 300,
-  })()
+  return cachedQuery(['shop-categories', locale], [CACHE_TAGS.categories], () => _getShopCategories(locale))
 }
 
 async function _getShopCategories(locale: Locale = 'uk') {
@@ -1104,11 +1098,11 @@ async function _getShopCategories(locale: Locale = 'uk') {
  * recursive SQL CTE, which is plenty fast for a shop-sized category count.
  */
 export function getCategoryAndDescendantIds(categoryId: number) {
-  return unstable_cache(
-    () => _getCategoryAndDescendantIds(categoryId),
+  return cachedQuery(
     ['category-descendants', String(categoryId)],
-    { tags: [CACHE_TAGS.categories], revalidate: 300 },
-  )()
+    [CACHE_TAGS.categories],
+    () => _getCategoryAndDescendantIds(categoryId),
+  )
 }
 
 async function _getCategoryAndDescendantIds(categoryId: number): Promise<number[]> {
@@ -1133,27 +1127,23 @@ async function _getCategoryAndDescendantIds(categoryId: number): Promise<number[
 }
 
 export function getCategoryById(id: number, locale: Locale = 'uk') {
-  return unstable_cache(
-    async () => {
-      const [row] = await db
-        .select()
-        .from(categories)
-        .where(and(eq(categories.id, id), eq(categories.isVisible, true)))
-        .limit(1)
-      if (!row) return null
-      const name =
-        locale === 'ru'
-          ? row.nameRu || row.nameUk
-          : row.nameUk || row.nameRu
-      const description =
-        locale === 'ru'
-          ? row.descriptionRu || row.descriptionUk
-          : row.descriptionUk || row.descriptionRu
-      return { ...row, name, description }
-    },
-    ['category', String(id), locale],
-    { tags: [CACHE_TAGS.categories], revalidate: 300 },
-  )()
+  return cachedQuery(['category', String(id), locale], [CACHE_TAGS.categories], async () => {
+    const [row] = await db
+      .select()
+      .from(categories)
+      .where(and(eq(categories.id, id), eq(categories.isVisible, true)))
+      .limit(1)
+    if (!row) return null
+    const name =
+      locale === 'ru'
+        ? row.nameRu || row.nameUk
+        : row.nameUk || row.nameRu
+    const description =
+      locale === 'ru'
+        ? row.descriptionRu || row.descriptionUk
+        : row.descriptionUk || row.descriptionRu
+    return { ...row, name, description }
+  })
 }
 
 /** Minimal product rows for building the sitemap (id + last modified). */
