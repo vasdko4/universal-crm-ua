@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Upload, X, Loader2, ImageIcon, Star, ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 
 async function uploadToBlob(file: File, fallbackError: string): Promise<string> {
   const fd = new FormData()
@@ -78,7 +79,7 @@ export function ImageUploader({
       />
       {value ? (
         <div className={cn('group relative overflow-hidden rounded-lg border border-border bg-muted', box)}>
-          <Image src={value || '/placeholder.svg'} alt={t.photoAlt} fill sizes="112px" className="object-cover" />
+          <Image src={value || '/placeholder.svg'} alt={t.photoAlt} fill sizes="112px" unoptimized={isProxiedMedia(value)} className="object-cover" />
           <button
             type="button"
             onClick={() => {
@@ -192,7 +193,7 @@ export function ImageGalleryUploader({
             key={url}
             className="group relative size-24 overflow-hidden rounded-lg border border-border bg-muted"
           >
-            <Image src={url || '/placeholder.svg'} alt={`${t.photoAlt} ${i + 1}`} fill sizes="96px" className="object-cover" />
+            <Image src={url || '/placeholder.svg'} alt={`${t.photoAlt} ${i + 1}`} fill sizes="96px" unoptimized={isProxiedMedia(url)} className="object-cover" />
             {i === 0 && (
               <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
                 <Star className="size-2.5 fill-current" />

@@ -8,6 +8,7 @@ import useSWR from 'swr'
 import { Search, ImageIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { formatPrice } from '@/lib/shop/format'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 
@@ -121,7 +122,7 @@ export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () =
                   >
                     <div className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {p.image ? (
-                        <Image src={p.image || '/placeholder.svg'} alt="" fill sizes="44px" className="object-cover" />
+                        <Image src={p.image || '/placeholder.svg'} alt="" fill sizes="44px" unoptimized={isProxiedMedia(p.image)} className="object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
                           <ImageIcon className="size-4 text-muted-foreground/50" />

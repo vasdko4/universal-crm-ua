@@ -9,6 +9,7 @@ import { localizedPath, type Locale } from '@/lib/i18n/config'
 import { useI18n } from '@/lib/i18n/client'
 import { pluralize } from '@/lib/i18n/plural'
 import { cn } from '@/lib/utils'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 
 /**
  * Mobile-only catalog view: a searchable, collapsible directory of top-level
@@ -136,6 +137,7 @@ export function CatalogCategoriesMobile({
                         alt=""
                         width={40}
                         height={40}
+                        unoptimized={isProxiedMedia(parent.image)}
                         className="size-full object-cover"
                       />
                     ) : (

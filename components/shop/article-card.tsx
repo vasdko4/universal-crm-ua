@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { Clock, ArrowRight, Newspaper } from 'lucide-react'
 import type { StorefrontArticleCard } from '@/lib/shop/articles'
 import { localizedPath, type Locale } from '@/lib/i18n/config'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 
 export function ArticleCard({
   article,
@@ -32,6 +33,7 @@ export function ArticleCard({
           alt={article.title}
           fill
           sizes={featured ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 100vw, 33vw'}
+          unoptimized={isProxiedMedia(article.coverImage)}
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
       ) : (

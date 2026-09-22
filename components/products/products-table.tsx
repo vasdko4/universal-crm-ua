@@ -15,6 +15,7 @@ import {
   type ProductFilters,
 } from '@/app/actions/products'
 import type { Product, Category } from '@/lib/db/schema'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -415,6 +416,7 @@ export function ProductsTable({
                               alt={pickLocalized(locale, product.nameUk, product.nameRu) || t.noName}
                               fill
                               sizes="44px"
+                              unoptimized={isProxiedMedia(product.image)}
                               className="object-cover"
                             />
                           ) : (

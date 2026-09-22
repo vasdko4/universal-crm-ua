@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { storefrontMediaUrl, rewritePromHtmlImages, promMediaPath } from '@/lib/shop/own-image-url'
+import { storefrontMediaUrl, rewritePromHtmlImages, promMediaPath, isProxiedMedia } from '@/lib/shop/own-image-url'
 import { parseAllowedImageUrl } from '@/lib/api/safe-image-url'
 
 describe('storefrontMediaUrl', () => {
@@ -37,6 +37,15 @@ describe('promMediaPath', () => {
     expect(promMediaPath('/api/media?src=https%3A%2F%2Fimages.prom.ua%2F1.jpg')).toBe(
       '/api/media?src=https%3A%2F%2Fimages.prom.ua%2F1.jpg',
     )
+  })
+})
+
+describe('isProxiedMedia', () => {
+  it('matches /api/media with or without a query', () => {
+    expect(isProxiedMedia('/api/media?src=https%3A%2F%2Fimages.prom.ua%2F1.jpg')).toBe(true)
+    expect(isProxiedMedia('/api/media')).toBe(true)
+    expect(isProxiedMedia('/products/a.jpg')).toBe(false)
+    expect(isProxiedMedia(null)).toBe(false)
   })
 })
 

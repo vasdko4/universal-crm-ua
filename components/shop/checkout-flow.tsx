@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { searchCities, searchWarehouses } from '@/app/actions/nova-poshta'
 import { createStorefrontOrder, type CheckoutResult } from '@/app/actions/shop'
 import { saveAbandonedCart } from '@/app/actions/abandoned-carts'
@@ -998,7 +999,7 @@ export function CheckoutFlow({
                 <li key={i.key} className="flex gap-3">
                   <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {i.image ? (
-                      <Image src={i.image || '/placeholder.svg'} alt={i.name} fill sizes="56px" className="object-cover" />
+                      <Image src={i.image || '/placeholder.svg'} alt={i.name} fill sizes="56px" unoptimized={isProxiedMedia(i.image)} className="object-cover" />
                     ) : (
                       <div className="flex h-full items-center justify-center">
                         <ShoppingBag className="size-5 text-muted-foreground" />
@@ -1349,7 +1350,7 @@ function OrderSuccess({
                 <li key={`${i.id}::${i.variantLabel ?? ''}`} className="flex items-center gap-3">
                   <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {i.image ? (
-                      <Image src={i.image || '/placeholder.svg'} alt={i.name} fill sizes="48px" className="object-cover" />
+                      <Image src={i.image || '/placeholder.svg'} alt={i.name} fill sizes="48px" unoptimized={isProxiedMedia(i.image)} className="object-cover" />
                     ) : (
                       <div className="flex h-full items-center justify-center">
                         <ShoppingBag className="size-4 text-muted-foreground" />

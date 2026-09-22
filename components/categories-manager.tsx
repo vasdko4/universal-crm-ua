@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { ImageUploader } from '@/components/products/image-uploader'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import {
   Dialog,
   DialogContent,
@@ -208,7 +209,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                   <TableCell>
                     {cat.image ? (
                       <div className="relative size-9 overflow-hidden rounded-md border bg-muted">
-                        <Image src={cat.image} alt="" fill sizes="36px" className="object-cover" />
+                        <Image src={cat.image} alt="" fill sizes="36px" unoptimized={isProxiedMedia(cat.image)} className="object-cover" />
                       </div>
                     ) : (
                       <div className="flex size-9 items-center justify-center rounded-md border border-dashed text-muted-foreground">

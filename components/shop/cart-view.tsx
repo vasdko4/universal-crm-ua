@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 
@@ -50,6 +51,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
                   alt={item.name}
                   fill
                   sizes="96px"
+                  unoptimized={isProxiedMedia(item.image)}
                   className="object-cover"
                 />
               ) : (

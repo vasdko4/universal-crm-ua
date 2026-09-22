@@ -18,6 +18,7 @@ import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getServerDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { getCanonicalSiteUrl, toAbsolute } from '@/lib/seo'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -201,7 +202,7 @@ export default async function HomePage() {
             <div key={b.title} className="flex min-w-[210px] shrink-0 items-center gap-2.5 rounded-2xl border border-border/70 bg-card/80 p-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] sm:min-w-0 sm:items-start sm:gap-3 sm:p-4">
               <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary sm:size-10">
                 {b.iconUrl ? (
-                  <Image src={b.iconUrl} alt={b.title} width={40} height={40} className="size-full object-cover" />
+                  <Image src={b.iconUrl} alt={b.title} width={40} height={40} unoptimized={isProxiedMedia(b.iconUrl)} className="size-full object-cover" />
                 ) : (
                   <b.icon className="size-4 sm:size-5" />
                 )}

@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/client'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 
 type Props = {
   images: string[]
@@ -113,7 +114,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
                 fill
                 sizes="68px"
                 quality={75}
-                unoptimized={Boolean(src?.startsWith('/api/media'))}
+                unoptimized={isProxiedMedia(src)}
                 className="object-cover"
               />
             </button>
@@ -144,7 +145,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               priority
               quality={85}
               sizes="(max-width: 1024px) 100vw, 50vw"
-              unoptimized={Boolean(current?.startsWith('/api/media'))}
+              unoptimized={isProxiedMedia(current)}
               className="object-contain"
             />
             <span className="pointer-events-none absolute bottom-3 right-3 hidden rounded-full bg-background/90 p-2 text-muted-foreground shadow-sm opacity-0 transition-opacity group-hover:opacity-100 lg:inline-flex">
@@ -342,7 +343,7 @@ function Lightbox({
             fill
             quality={85}
             sizes="100vw"
-            unoptimized={Boolean(gallery[index]?.startsWith('/api/media'))}
+            unoptimized={isProxiedMedia(gallery[index])}
             className={cn(
               'select-none object-contain transition-transform duration-200',
               zoomed ? 'scale-[2.2]' : 'scale-100',
@@ -381,7 +382,7 @@ function Lightbox({
                 i === index ? 'border-primary' : 'border-transparent opacity-55 hover:opacity-100',
               )}
             >
-              <Image src={src || '/placeholder.svg'} alt="" fill sizes="64px" unoptimized={Boolean(src?.startsWith('/api/media'))} className="object-cover" />
+              <Image src={src || '/placeholder.svg'} alt="" fill sizes="64px" unoptimized={isProxiedMedia(src)} className="object-cover" />
             </button>
           ))}
         </div>
