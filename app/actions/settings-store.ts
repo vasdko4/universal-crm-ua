@@ -66,6 +66,7 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
     logoUrl: merged.logoUrl,
     faviconUrl: merged.faviconUrl,
     openCartAfterAdd: merged.openCartAfterAdd,
+    storefrontCacheEnabled: merged.storefrontCacheEnabled,
     defaultLocale: merged.defaultLocale,
     localePromptMode: merged.localePromptMode === 'modal' ? 'modal' : 'browser',
     activeTemplate: merged.activeTemplate,
@@ -93,6 +94,10 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
   revalidateTag(STORE_SETTINGS_TAG, 'max')
   revalidatePath('/admin/settings')
   revalidatePath('/', 'layout')
+  if (current.storefrontCacheEnabled !== merged.storefrontCacheEnabled) {
+    const { revalidateStorefront } = await import('@/lib/shop/cache')
+    revalidateStorefront()
+  }
   return { success: true }
 }
 

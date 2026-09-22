@@ -66,9 +66,24 @@ export type {
 // later ALTER (locale_prompt_mode, min_order, …) still returns a row instead
 // of 500ing the admin settings page. Missing keys become DEFAULTS in
 // normalizeStoreSettingsRow().
+let storefrontCacheColumnEnsured = false
+async function ensureStorefrontCacheColumn() {
+  if (storefrontCacheColumnEnsured) return
+  try {
+    await pool.query(
+      `ALTER TABLE public.store_settings
+         ADD COLUMN IF NOT EXISTS storefront_cache_enabled boolean NOT NULL DEFAULT false`,
+    )
+    storefrontCacheColumnEnsured = true
+  } catch (err) {
+    console.error('[store-settings] ensure storefront_cache_enabled failed:', (err as Error).message)
+  }
+}
+
 export const readSettingsRow = unstable_cache(
   async (): Promise<Record<string, unknown> | null> => {
     try {
+      await ensureStorefrontCacheColumn()
       const { rows } = await pool.query('SELECT * FROM store_settings WHERE id = 1 LIMIT 1')
       return (rows[0] as Record<string, unknown> | undefined) ?? null
     } catch (err) {
