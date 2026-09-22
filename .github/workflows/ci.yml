@@ -15,9 +15,9 @@ concurrency:
 
 jobs:
   verify:
-    name: lint · typecheck · unit tests
+    name: lint · typecheck · unit tests · build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -33,3 +33,15 @@ jobs:
         run: pnpm typecheck
       - name: Unit tests
         run: pnpm test
+      - name: Production build
+        # Next 16 defaults to Turbopack, which panics tracing sharp under pnpm
+        # (same reason the Dockerfile uses --webpack).
+        run: pnpm exec next build --webpack
+        env:
+          # Build must not talk to a live DB; these are placeholders so
+          # next build can evaluate env-gated modules.
+          DATABASE_URL: postgres://placeholder:placeholder@localhost:5432/placeholder
+          BETTER_AUTH_SECRET: ci-build-placeholder-not-a-real-secret
+          BETTER_AUTH_URL: http://localhost:3000
+          CRON_SECRET: ci-build-placeholder-not-a-real-secret
+          NEXT_TELEMETRY_DISABLED: '1'
