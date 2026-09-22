@@ -1,0 +1,46 @@
+# Required checks before a release: lint, TypeScript and unit tests.
+#
+# ⚠️ HOW TO ENABLE: GitHub-приложения не могут создавать workflow-файлы,
+# поэтому файл лежит в .github/workflows-available/. Чтобы включить:
+#     git mv .github/workflows-available/ci.yml .github/workflows/ci.yml
+#     git commit -m "Enable CI workflow" && git push
+#
+# The release workflow (.github/workflows/release.yml) runs the same three
+# checks in its own `verify` job and refuses to build/push an image when any
+# of them fails, so a red pipeline can never become a tagged release even
+# before this file is enabled.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: lint · typecheck · unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test

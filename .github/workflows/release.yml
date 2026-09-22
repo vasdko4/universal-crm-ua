@@ -40,7 +40,32 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
+  # Release gate: a tag must be green before it can become an image.
+  # Same three checks as .github/workflows-available/ci.yml; `build` depends on
+  # this job, so a failing lint/typecheck/test run stops the release instead of
+  # publishing an untested image to GHCR / Docker Hub.
+  verify:
+    name: lint · typecheck · unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+
   build:
+    needs: [verify]
     runs-on: ubuntu-latest
     permissions:
       contents: read

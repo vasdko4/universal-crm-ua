@@ -46,7 +46,7 @@ export async function saveAbandonedCart(input: {
 }): Promise<{ ok: boolean }> {
   const h = await headers()
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
-  if (isRateLimited('abandoned-cart', ip, 20, 60_000)) return { ok: false }
+  if (await isRateLimited('abandoned-cart', ip, 20, 60_000)) return { ok: false }
 
   const token = input.token?.trim()
   // Token must look like our client-generated id — reject junk early.
