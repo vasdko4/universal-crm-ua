@@ -42,6 +42,20 @@ export async function isRateLimited(
   return memoryLimited(key, max, windowMs)
 }
 
+/**
+ * In-process limiter for hot read paths (image proxy). Catalog grids fire
+ * dozens of `/api/media` requests per page; hitting Postgres/Upstash on each
+ * one adds latency and turns a slow DB into broken thumbnails (`media:1`).
+ */
+export function isRateLimitedMemory(
+  scope: string,
+  ip: string,
+  max: number,
+  windowMs = 60_000,
+): boolean {
+  return memoryLimited(`${scope}:${ip || 'unknown'}`, max, windowMs)
+}
+
 async function upstashLimited(key: string, max: number, windowMs: number): Promise<boolean | null> {
   const url = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/$/, '')
   const token = process.env.UPSTASH_REDIS_REST_TOKEN

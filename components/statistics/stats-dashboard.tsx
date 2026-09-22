@@ -47,6 +47,7 @@ import type {
   AbandonedCartStats,
 } from '@/app/actions/analytics'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 function dayOptions(t: AdminDictionary) {
@@ -491,7 +492,7 @@ export function StatsDashboard({
                   </span>
                   <div className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
                     {p.image ? (
-                      <Image src={p.image || "/placeholder.svg"} alt="" fill sizes="40px" className="object-contain p-0.5" />
+                      <Image src={p.image || "/placeholder.svg"} alt="" fill sizes="40px" unoptimized={isProxiedMedia(p.image)} className="object-contain p-0.5" />
                     ) : (
                       <Package className="absolute inset-0 m-auto size-4 text-muted-foreground" />
                     )}

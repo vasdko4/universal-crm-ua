@@ -12,6 +12,7 @@ import { ArticleCard } from '@/components/shop/article-card'
 import { JsonLd } from '@/components/shop/json-ld'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { canonicalUrl, getCanonicalSiteUrl } from '@/lib/seo'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -143,6 +144,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
               sizes="(max-width: 768px) 100vw, 768px"
               className="object-cover"
               priority
+              unoptimized={isProxiedMedia(article.coverImage)}
             />
           </div>
         ) : null}

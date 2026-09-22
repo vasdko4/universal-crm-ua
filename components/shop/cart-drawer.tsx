@@ -14,6 +14,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 
@@ -49,7 +50,7 @@ export function CartDrawer({ children }: { children: ReactNode }) {
                 <div key={item.key} className="flex gap-3">
                   <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {item.image ? (
-                      <Image src={item.image || '/placeholder.svg'} alt={item.name} fill sizes="64px" className="object-cover" />
+                      <Image src={item.image || '/placeholder.svg'} alt={item.name} fill sizes="64px" unoptimized={isProxiedMedia(item.image)} className="object-cover" />
                     ) : null}
                   </div>
                   <div className="flex flex-1 flex-col gap-1">

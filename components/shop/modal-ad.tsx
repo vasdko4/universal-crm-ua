@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { trackModalAdEvent, type PublicModalAd } from '@/app/actions/modal-ads'
 import { useI18n } from '@/lib/i18n/client'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { localizedPath, type Locale } from '@/lib/i18n/config'
 import {
   classifyStorefrontPath,
@@ -203,6 +204,7 @@ export function ModalAdHost({ ads }: { ads: PublicModalAd[] }) {
               className="object-cover"
               sizes="(max-width: 640px) 92vw, 480px"
               quality={70}
+              unoptimized={isProxiedMedia(current.imageUrl)}
             />
           </div>
         )}

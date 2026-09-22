@@ -14,6 +14,7 @@ import { localizedPath } from '@/lib/i18n/config'
 import { fillTemplate } from '@/lib/i18n/dictionaries'
 import { pluralize } from '@/lib/i18n/plural'
 import { FavoriteButton } from '@/components/shop/favorite-button'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { cn } from '@/lib/utils'
 
 const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw'
@@ -99,7 +100,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
                 sizes={IMAGE_SIZES}
                 quality={70}
                 priority={priority}
-                unoptimized={Boolean(primary?.startsWith('/api/media'))}
+                unoptimized={isProxiedMedia(primary)}
                 loading={priority ? 'eager' : 'lazy'}
                 className={cn(
                   'object-cover transition duration-500 group-hover:scale-[1.03]',
@@ -113,7 +114,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
                   fill
                   sizes={IMAGE_SIZES}
                   quality={70}
-                  unoptimized={hoverImage.startsWith('/api/media')}
+                  unoptimized={isProxiedMedia(hoverImage)}
                   className="hidden object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:block"
                 />
               )}

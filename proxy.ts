@@ -134,7 +134,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run on all paths except static assets and API auth routes.
-    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
+    // Skip static assets, auth, and the image proxy — catalog grids hit
+    // /api/media dozens of times per page and don't need a CSP nonce.
+    '/((?!_next/static|_next/image|favicon.ico|api/auth|api/media|api/email-image).*)',
   ],
 }

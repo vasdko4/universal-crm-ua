@@ -15,6 +15,11 @@ function proxyPromPath(src: string): string {
   }
 }
 
+/** True when `<Image>` must skip the optimizer (query string on `/api/media`). */
+export function isProxiedMedia(src: string | null | undefined): boolean {
+  return typeof src === 'string' && src.startsWith('/api/media')
+}
+
 /**
  * Serve Prom.ua photos from our origin so JSON-LD / Merchant Center / OG
  * don't advertise a marketplace CDN. Local and Blob URLs stay as-is.

@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { ImageUploader } from '@/components/products/image-uploader'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import {
   Dialog,
   DialogContent,
@@ -399,6 +400,7 @@ export function ModalAdsManager({
                         alt=""
                         width={56}
                         height={56}
+                        unoptimized={isProxiedMedia(ad.imageUrl)}
                         className="size-14 shrink-0 rounded-lg border border-border object-cover"
                       />
                     ) : (
