@@ -29,7 +29,7 @@ describe('authorizeCronRequest', () => {
     expect(authorizeCronRequest(undefined, `Bearer ${GOOD}`)).toEqual({
       ok: false,
       status: 503,
-      error: 'CRON_SECRET is not configured',
+      error: 'Unauthorized',
     })
     // A placeholder secret must not open the endpoint either, even when the
     // caller happens to send exactly that placeholder.

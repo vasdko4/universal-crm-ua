@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   if (orderId == null) return new NextResponse('Bad orderId', { status: 400 })
 
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1)
-  const ttn = (order?.trackingNumber || '').trim()
+  const ttn = (order?.trackingNumber || '').trim().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)
   if (!ttn) return new NextResponse('No TTN', { status: 404 })
 
   const [row] = await db

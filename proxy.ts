@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSessionCookie } from 'better-auth/cookies'
 import { storefrontAuthShortcut } from '@/lib/shop/auth-shortcuts'
+import { safeInternalPath } from '@/lib/safe-url'
 
 // Public storefront account routes that must stay reachable while logged out.
 const PUBLIC_ACCOUNT_PATHS = ['/account/login', '/account/register', '/account/forgot-password']
@@ -108,8 +109,7 @@ export function proxy(request: NextRequest) {
       loginUrl.pathname = loginPath
       loginUrl.search = ''
       loginUrl.hash = ''
-      const redirectTo =
-        pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : '/account'
+      const redirectTo = safeInternalPath(pathname, '/account')
       loginUrl.searchParams.set('redirect', redirectTo)
       return withSecurityHeaders(NextResponse.redirect(loginUrl))
     }

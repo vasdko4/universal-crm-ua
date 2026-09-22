@@ -74,7 +74,7 @@ export function authorizeCronRequest(
   authorizationHeader: string | null | undefined,
 ): CronAuthResult {
   if (!isUsableCronSecret(configuredSecret)) {
-    return { ok: false, status: 503, error: 'CRON_SECRET is not configured' }
+    return { ok: false, status: 503, error: 'Unauthorized' }
   }
   const expected = `Bearer ${(configuredSecret as string).trim()}`
   const provided = (authorizationHeader ?? '').trim()
