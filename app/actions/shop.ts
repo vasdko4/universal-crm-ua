@@ -2,7 +2,7 @@
 
 import { cookies, headers } from 'next/headers'
 import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm'
-import { db, pool } from '@/lib/db'
+import { db, pool, withDbClient, dbForClient } from '@/lib/db'
 import {
   orders,
   orderItems,
@@ -349,124 +349,143 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   const customerName = `${input.firstName.trim()} ${input.lastName?.trim() ?? ''}`.trim()
   const customerEmail = input.email?.trim() || shopUser?.email?.trim() || null
 
-  // Upsert a customer record by phone.
-  let customerId: number | undefined
-  const [existingCustomer] = await db
-    .select()
-    .from(customers)
-    .where(eq(customers.phone, input.phone.trim()))
-    .limit(1)
-  if (existingCustomer) {
-    customerId = existingCustomer.id
-  } else {
-    const [c] = await db
-      .insert(customers)
-      .values({
-        firstName: input.firstName.trim(),
-        lastName: input.lastName?.trim() || null,
-        phone: input.phone.trim(),
-        email: customerEmail,
-      })
-      .returning()
-    customerId = c.id
-  }
-
   // Online-gateway orders start as "pending_payment": they are not finalized
   // (no stock/promo side effects, hidden from the customer's order list) until
   // the payment is confirmed. Cash/requisite orders are placed immediately.
   const isOnline = input.paymentMethod === 'online'
   const utm = await readUtmAttribution()
 
-  const [order] = await db
-    .insert(orders)
-    .values({
-      orderNumber,
-      status: isOnline ? 'pending_payment' : 'new',
-      ...utm,
-      customerId,
-      customerName,
-      customerPhone: input.phone.trim(),
-      customerEmail,
-      deliveryMethod: input.deliveryMethod,
-      deliveryCity: input.deliveryCity || null,
-      deliveryCityRef: input.deliveryCityRef || null,
-      deliveryBranch: input.deliveryBranch || null,
-      deliveryWarehouseRef: input.deliveryWarehouseRef || null,
-      deliveryAddress: input.deliveryAddress || null,
-      paymentMethod: input.paymentMethod,
-      paymentStatus: 'unpaid',
-      itemsTotal: itemsTotal.toFixed(2),
-      deliveryCost: '0',
-      discountTotal: discount.toFixed(2),
-      promoCode: appliedPromoCode,
-      autoDiscountId,
-      autoDiscountAmount: autoDiscountId ? autoDiscountAmount.toFixed(2) : null,
-      total: total.toFixed(2),
-      itemsCount,
-      note: input.note || null,
-      createdBy: shopUser ? shopUser.id : null,
-      userId: shopUser ? shopUser.id : null,
-    })
-    .returning()
-
-  await db.insert(orderItems).values(
-    lineItems.map((i) => ({
-      orderId: order.id,
-      productId: i.productId,
-      variantId: i.variantId,
-      variantLabel: i.variantLabel,
-      name: i.name,
-      sku: i.sku,
-      image: i.image,
-      price: i.price.toFixed(2),
-      costPrice: i.costPrice != null ? i.costPrice.toFixed(2) : null,
-      quantity: i.quantity,
-      total: (i.price * i.quantity).toFixed(2),
-    })),
-  )
-
-  await db.insert(orderHistory).values({
-    orderId: order.id,
-    type: 'status',
-    message: `Заказ оформлен через сайт (№${orderNumber})`,
-    actor: customerName,
-  })
-
-  // Bank-requisite orders: compute the requisites and persist them to the
-  // order note BEFORE sending notifications, so the confirmation email the
-  // customer receives already contains the payment details.
+  // Bank-requisite preview is computed before the write so a failed format
+  // cannot leave a committed order without payment details.
   let requisites: string | undefined
+  let requisitesNote: string | undefined
   if (input.paymentMethod === 'requisites') {
     const { rows } = await pool.query(`SELECT config FROM payment_methods WHERE code='requisites'`)
     const cfg = (rows[0]?.config as Record<string, string> | null) ?? {}
     const { formatRequisitesPreview } = await import('@/lib/payments/public-requisites')
     const loc = locale === 'ru' ? 'ru' as const : 'uk' as const
     requisites = formatRequisitesPreview(cfg, { amount: Number(total), locale: loc, orderNumber })
-    await pool
-      .query(`UPDATE orders SET note = $1 WHERE id = $2`, [
-        `${loc === 'ru' ? 'Реквизиты для оплаты' : 'Реквізити для оплати'}:\n${requisites}`,
-        order.id,
-      ])
-      .catch(() => {})
+    requisitesNote = `${loc === 'ru' ? 'Реквизиты для оплаты' : 'Реквізити для оплати'}:\n${requisites}`
   }
 
-  // Cash / requisite orders are finalized right away. Online orders defer their
-  // side effects (stock, promo, analytics) until payment is confirmed.
-  if (!isOnline) {
-    await applyOrderFulfillment(order.id)
-    // Notify customer + admin (email/Telegram). Online orders notify after payment.
-    void notifyNewOrder(order.id)
-  }
+  let order: { id: number }
+  try {
+    order = await withDbClient(async (client) => {
+      const tx = dbForClient(client)
 
-  // If this shopper had an abandoned-cart record, mark it as recovered.
-  if (input.cartToken) {
-    await pool
-      .query(
-        `UPDATE abandoned_carts SET status = 'recovered', recovered_order_number = $1, updated_at = NOW()
-         WHERE token = $2 AND status IN ('open', 'reminded')`,
-        [orderNumber, input.cartToken],
+      // Upsert a customer record by phone. Unique on phone is not guaranteed
+      // on every install, so a concurrent insert can still collide — retry
+      // by selecting the existing row.
+      let customerId: number | undefined
+      const [existingCustomer] = await tx
+        .select()
+        .from(customers)
+        .where(eq(customers.phone, input.phone.trim()))
+        .limit(1)
+      if (existingCustomer) {
+        customerId = existingCustomer.id
+      } else {
+        try {
+          const [c] = await tx
+            .insert(customers)
+            .values({
+              firstName: input.firstName.trim(),
+              lastName: input.lastName?.trim() || null,
+              phone: input.phone.trim(),
+              email: customerEmail,
+            })
+            .returning()
+          customerId = c.id
+        } catch {
+          const [again] = await tx
+            .select()
+            .from(customers)
+            .where(eq(customers.phone, input.phone.trim()))
+            .limit(1)
+          customerId = again?.id
+        }
+      }
+
+      const [created] = await tx
+        .insert(orders)
+        .values({
+          orderNumber,
+          status: isOnline ? 'pending_payment' : 'new',
+          ...utm,
+          customerId,
+          customerName,
+          customerPhone: input.phone.trim(),
+          customerEmail,
+          deliveryMethod: input.deliveryMethod,
+          deliveryCity: input.deliveryCity || null,
+          deliveryCityRef: input.deliveryCityRef || null,
+          deliveryBranch: input.deliveryBranch || null,
+          deliveryWarehouseRef: input.deliveryWarehouseRef || null,
+          deliveryAddress: input.deliveryAddress || null,
+          paymentMethod: input.paymentMethod,
+          paymentStatus: 'unpaid',
+          itemsTotal: itemsTotal.toFixed(2),
+          deliveryCost: '0',
+          discountTotal: discount.toFixed(2),
+          promoCode: appliedPromoCode,
+          autoDiscountId,
+          autoDiscountAmount: autoDiscountId ? autoDiscountAmount.toFixed(2) : null,
+          total: total.toFixed(2),
+          itemsCount,
+          note: requisitesNote ?? input.note ?? null,
+          createdBy: shopUser ? shopUser.id : null,
+          userId: shopUser ? shopUser.id : null,
+        })
+        .returning()
+
+      await tx.insert(orderItems).values(
+        lineItems.map((i) => ({
+          orderId: created.id,
+          productId: i.productId,
+          variantId: i.variantId,
+          variantLabel: i.variantLabel,
+          name: i.name,
+          sku: i.sku,
+          image: i.image,
+          price: i.price.toFixed(2),
+          costPrice: i.costPrice != null ? i.costPrice.toFixed(2) : null,
+          quantity: i.quantity,
+          total: (i.price * i.quantity).toFixed(2),
+        })),
       )
-      .catch(() => {})
+
+      await tx.insert(orderHistory).values({
+        orderId: created.id,
+        type: 'status',
+        message: `Заказ оформлен через сайт (№${orderNumber})`,
+        actor: customerName,
+      })
+
+      // Cash / requisite orders are finalized right away. Online orders defer
+      // their side effects (stock, promo, analytics) until payment is confirmed.
+      if (!isOnline) {
+        await applyOrderFulfillment(created.id, client)
+      }
+
+      if (input.cartToken) {
+        await client
+          .query(
+            `UPDATE abandoned_carts SET status = 'recovered', recovered_order_number = $1, updated_at = NOW()
+             WHERE token = $2 AND status IN ('open', 'reminded')`,
+            [orderNumber, input.cartToken],
+          )
+          .catch(() => {})
+      }
+
+      return { id: created.id }
+    })
+  } catch (e) {
+    console.error('[checkout] order write failed:', (e as Error).message)
+    return { success: false, error: t.paymentInvoiceFailed }
+  }
+
+  if (!isOnline) {
+    void notifyNewOrder(order.id)
   }
 
   // Payment handling.

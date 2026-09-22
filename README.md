@@ -40,7 +40,7 @@ curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/insta
 | | |
 |---|---|
 | Витрина | `/` украинский, `/ru` русский |
-| Админка | `/admin` |
+| Админка | `/admin` (вход: `/sign-in` — гости с `/admin` попадают на витрину, форма входа не рекламируется) |
 | Мастер первой установки | `/setup` (после завершения закрывается) |
 | Health | `GET /api/health` → `{ status, db }` |
 

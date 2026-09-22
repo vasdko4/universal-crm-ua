@@ -1,7 +1,7 @@
 import { db, pool } from '@/lib/db'
 import { payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { finalizePaidOrder } from '@/lib/shop/order-fulfillment'
+import { finalizePaidOrder, restoreStockOnce } from '@/lib/shop/order-fulfillment'
 import { extractGatewayReceiptUrl } from '@/lib/payments/receipt'
 
 /**
@@ -83,6 +83,21 @@ export async function settlePayment(
     // (decrement stock, record promo usage, analytics). Idempotent.
     if (status === 'paid') {
       await finalizePaidOrder(orderReference)
+    }
+    // A refund initiated in the gateway cabinet (or a chargeback) never
+    // goes through refundPayment — restore stock here, once.
+    if (status === 'refunded' && order.status !== 'cancelled') {
+      if (payment) {
+        await pool.query(
+          `UPDATE payments
+              SET refunded_amount = amount,
+                  status = 'refunded',
+                  updated_at = NOW()
+            WHERE id = $1 AND refunded_amount < amount`,
+          [payment.id],
+        )
+      }
+      await restoreStockOnce(order.id)
     }
   }
 

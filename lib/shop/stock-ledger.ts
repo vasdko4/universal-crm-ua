@@ -1,19 +1,25 @@
 import { pool } from '@/lib/db'
+import type { PoolClient } from 'pg'
 
 export type StockReason = 'sale' | 'cancel' | 'adjust' | 'bulk' | 'import' | 'restore'
 
-export async function recordStockMovement(input: {
-  productId: number
-  variantId?: number | null
-  delta: number
-  quantityAfter?: number | null
-  reason: StockReason
-  orderId?: number | null
-  actor?: string | null
-  note?: string | null
-}): Promise<void> {
-  await pool
-    .query(
+export type QueryExecutor = Pick<PoolClient, 'query'>
+
+export async function recordStockMovement(
+  input: {
+    productId: number
+    variantId?: number | null
+    delta: number
+    quantityAfter?: number | null
+    reason: StockReason
+    orderId?: number | null
+    actor?: string | null
+    note?: string | null
+  },
+  executor: QueryExecutor = pool,
+): Promise<void> {
+  try {
+    await executor.query(
       `INSERT INTO stock_movements (product_id, variant_id, delta, quantity_after, reason, order_id, actor, note)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
@@ -27,5 +33,7 @@ export async function recordStockMovement(input: {
         input.note ?? null,
       ],
     )
-    .catch((e) => console.log('[stock] ledger write failed:', (e as Error).message))
+  } catch (e) {
+    console.log('[stock] ledger write failed:', (e as Error).message)
+  }
 }

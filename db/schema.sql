@@ -192,6 +192,7 @@ CREATE TABLE IF NOT EXISTS "order_items" (
   PRIMARY KEY ("id")
 );
 
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items (order_id);
 
 CREATE TABLE IF NOT EXISTS "orders" (
   "id" serial NOT NULL,
@@ -485,6 +486,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   PRIMARY KEY ("id")
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON public.products ("slug");
 
 CREATE TABLE IF NOT EXISTS "product_variants" (
   "id" serial NOT NULL,
