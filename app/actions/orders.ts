@@ -18,7 +18,7 @@ import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { getProductSlugMap } from '@/lib/shop/queries'
-import { adjustStockForOrder } from '@/lib/shop/order-fulfillment'
+import { restoreStockOnce, claimStockRededuct, adjustStockForOrder, applyOrderFulfillment } from '@/lib/shop/order-fulfillment'
 
 export async function listOrders(params: OrderListParams = {}) {
   await assertPermission('orders')
@@ -350,43 +350,15 @@ export async function createOrder(input: {
         }
       }),
     )
-    // Decrement stock and bump orders count for real products.
-    const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
-    for (const i of input.items) {
-      if (i.productId) {
-        const res = await pool.query(
-          `UPDATE products SET quantity = GREATEST(0, quantity - $1), orders_count = COALESCE(orders_count,0) + 1 WHERE id = $2 RETURNING quantity`,
-          [i.quantity, i.productId],
-        )
-        await recordStockMovement({
-          productId: i.productId,
-          delta: -i.quantity,
-          quantityAfter: Number(res.rows[0]?.quantity),
-          reason: 'sale',
-          orderId: order.id,
-          actor: me.name,
-        })
-      }
-    }
-  }
-
-  // Bump customer stats.
-  if (input.customerId) {
-    await pool.query(
-      `UPDATE customers SET orders_count = orders_count + 1, total_turnover = total_turnover + $1, last_order_date = NOW() WHERE id = $2`,
-      [total, input.customerId],
-    )
+    // Same stock/variant/analytics path as the storefront so admin-created
+    // orders cannot silently skip variant quantities or is_in_stock.
+    await applyOrderFulfillment(order.id)
   }
 
   await addHistory(
     order.id,
     'status',
     fillAuditTemplate(getAdminDictionary(me.locale).auditLog.orderCreated, { number: orderNumber }),
-  )
-  // Track order for analytics.
-  await pool.query(
-    `INSERT INTO analytics_events (type, order_id, amount) VALUES ('order', $1, $2)`,
-    [order.id, total],
   )
 
   revalidatePath('/admin/orders')
@@ -399,15 +371,15 @@ export async function updateOrderStatus(id: number, status: string) {
   if (!current) return { success: false, error: 'Заказ не найден' }
   await db.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id))
 
-  // Keep stock in sync with cancellations. `stockRestored` guards against
-  // double-counting if the status flips back and forth (cancelled -> new ->
-  // cancelled, etc).
-  if (status === 'cancelled' && current.status !== 'cancelled' && !current.stockRestored) {
-    await adjustStockForOrder(id, 1)
-    await db.update(orders).set({ stockRestored: true }).where(eq(orders.id, id))
-  } else if (status !== 'cancelled' && current.status === 'cancelled' && current.stockRestored) {
-    await adjustStockForOrder(id, -1)
-    await db.update(orders).set({ stockRestored: false }).where(eq(orders.id, id))
+  // Keep stock in sync with cancellations. `stockRestored` is claimed with a
+  // single UPDATE … RETURNING so a concurrent refund webhook cannot inflate
+  // inventory (and a reopen cannot double-deduct).
+  if (status === 'cancelled' && current.status !== 'cancelled') {
+    await restoreStockOnce(id)
+  } else if (status !== 'cancelled' && current.status === 'cancelled') {
+    if (await claimStockRededuct(id)) {
+      await adjustStockForOrder(id, -1)
+    }
   }
 
   const label = getOrderStatusLabel(status, user.locale)

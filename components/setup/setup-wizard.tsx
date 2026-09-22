@@ -53,6 +53,7 @@ export function SetupWizard() {
   const [storeName, setStoreName] = useState('')
   const [storeDescription, setStoreDescription] = useState('')
   const [novaPoshtaApiKey, setNovaPoshtaApiKey] = useState('')
+  const [setupToken, setSetupToken] = useState('')
 
   const [templateId, setTemplateId] = useState<TemplateId>('classic')
 
@@ -72,6 +73,21 @@ export function SetupWizard() {
   useEffect(() => {
     document.title = t.pageTitle
   }, [t.pageTitle])
+
+  useEffect(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get('token') ?? ''
+      const fromStore = sessionStorage.getItem('setup-token') ?? ''
+      if (fromUrl) {
+        setSetupToken(fromUrl)
+        sessionStorage.setItem('setup-token', fromUrl)
+      } else if (fromStore) {
+        setSetupToken(fromStore)
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   const checkDb = async () => {
     setDbChecking(true)
@@ -133,6 +149,7 @@ export function SetupWizard() {
         indexingEnabled,
       },
       installDemo,
+      setupToken,
     })
     if (!res.success) {
       setLoading(false)

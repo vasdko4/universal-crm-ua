@@ -141,8 +141,11 @@ export default async function OrderConfirmationPage({
         </div>
       ) : null}
 
-      {order.note && order.note.startsWith('Реквизиты') ? (
-        <CopyRequisites className="mt-4" text={order.note.replace(/^Реквизиты для оплаты:\n/, '')} />
+      {order.paymentMethod === 'requisites' && order.note ? (
+        <CopyRequisites
+          className="mt-4"
+          text={order.note.replace(/^Реквізити для оплати:\n/, '').replace(/^Реквизиты для оплаты:\n/, '')}
+        />
       ) : null}
 
       <div className="mt-4 rounded-xl border border-border bg-card">

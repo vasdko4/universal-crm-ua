@@ -1,7 +1,7 @@
 'use server'
 
 import { randomInt } from 'node:crypto'
-import { db } from '@/lib/db'
+import { db, pool } from '@/lib/db'
 import { paymentGateways, payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
@@ -17,7 +17,7 @@ import {
   type GatewayResult,
 } from '@/lib/payments/clients'
 import { refundPlan } from '@/lib/payments/refund'
-import { adjustStockForOrder } from '@/lib/shop/order-fulfillment'
+import { restoreStockOnce } from '@/lib/shop/order-fulfillment'
 
 type ActionResult = { ok: boolean; message: string; paymentUrl?: string }
 
@@ -263,6 +263,28 @@ export async function refundPayment(
     }
   }
   const refundAmount = plan.amount
+  const newRefunded = plan.newRefunded
+  const fullyRefunded = plan.status === 'refunded'
+
+  // Reserve the refund in the ledger BEFORE the gateway call. If the write
+  // after a successful gateway refund used to fail, a retry would charge the
+  // customer twice. A reserved row that the gateway later rejects is rolled
+  // back; a reserved row whose DB commit already happened is skipped on retry
+  // because refunded_amount has already moved.
+  const reserved = await pool.query<{ id: number }>(
+    `UPDATE payments
+        SET refunded_amount = $2,
+            status = $3,
+            updated_at = NOW()
+      WHERE id = $1
+        AND refunded_amount = $4
+        AND status IN ('paid', 'partially_refunded')
+      RETURNING id`,
+    [paymentId, newRefunded.toFixed(2), plan.status, Number(payment.refundedAmount).toFixed(2)],
+  )
+  if (!reserved.rowCount) {
+    return { ok: false, message: 'Возврат уже обрабатывается' }
+  }
 
   let result: GatewayResult
   if (gateway.isTestMode) {
@@ -281,55 +303,57 @@ export async function refundPayment(
       comment: 'Возврат средств',
     })
   } else if (payment.gatewayCode === 'monobank') {
-    if (!payment.invoiceId) return { ok: false, message: 'Отсутствует invoiceId' }
+    if (!payment.invoiceId) {
+      await pool.query(
+        `UPDATE payments SET refunded_amount = $2, status = $3, updated_at = NOW() WHERE id = $1`,
+        [paymentId, Number(payment.refundedAmount).toFixed(2), payment.status],
+      )
+      return { ok: false, message: 'Отсутствует invoiceId' }
+    }
     result = await monobankRefund(config, { invoiceId: payment.invoiceId, amount: refundAmount })
   } else {
+    await pool.query(
+      `UPDATE payments SET refunded_amount = $2, status = $3, updated_at = NOW() WHERE id = $1`,
+      [paymentId, Number(payment.refundedAmount).toFixed(2), payment.status],
+    )
     return { ok: false, message: 'Неизвестный шлюз' }
   }
 
   await logEvent(payment.id, 'refund', result, refundAmount)
 
-  if (result.ok) {
-    const newRefunded = plan.newRefunded
-    const fullyRefunded = plan.status === 'refunded'
+  if (!result.ok) {
+    await pool.query(
+      `UPDATE payments SET refunded_amount = $2, status = $3, updated_at = NOW() WHERE id = $1`,
+      [paymentId, Number(payment.refundedAmount).toFixed(2), payment.status],
+    )
+    return { ok: false, message: result.message || 'Ошибка возврата' }
+  }
+
+  revalidatePath('/admin/payments')
+  const [linked] = await db
+    .select({ id: orders.id, status: orders.status })
+    .from(orders)
+    .where(eq(orders.orderNumber, payment.orderReference))
+    .limit(1)
+  if (linked) {
     await db
-      .update(payments)
-      .set({
-        refundedAmount: newRefunded.toFixed(2),
-        status: plan.status,
-        updatedAt: new Date(),
-      })
-      .where(eq(payments.id, paymentId))
-    revalidatePath('/admin/payments')
-    const [linked] = await db
-      .select({ id: orders.id })
-      .from(orders)
-      .where(eq(orders.orderNumber, payment.orderReference))
-      .limit(1)
-    if (linked) {
-      const [current] = await db.select().from(orders).where(eq(orders.id, linked.id)).limit(1)
-      await db
-        .update(orders)
-        .set({ paymentStatus: plan.status, updatedAt: new Date() })
-        .where(eq(orders.id, linked.id))
-      await db.insert(orderHistory).values({
-        orderId: linked.id,
-        type: 'payment',
-        message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
-        actor: 'Платёжный шлюз',
-      })
-      // Full refund puts the goods back on the shelf once (same guard as cancel).
-      if (fullyRefunded && current && !current.stockRestored && current.status !== 'cancelled') {
-        await adjustStockForOrder(linked.id, 1)
-        await db.update(orders).set({ stockRestored: true, updatedAt: new Date() }).where(eq(orders.id, linked.id))
-      }
-    }
-    return {
-      ok: true,
-      message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен`,
+      .update(orders)
+      .set({ paymentStatus: plan.status, updatedAt: new Date() })
+      .where(eq(orders.id, linked.id))
+    await db.insert(orderHistory).values({
+      orderId: linked.id,
+      type: 'payment',
+      message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
+      actor: 'Платёжный шлюз',
+    })
+    if (fullyRefunded && linked.status !== 'cancelled') {
+      await restoreStockOnce(linked.id)
     }
   }
-  return { ok: false, message: result.message || 'Ошибка возврата' }
+  return {
+    ok: true,
+    message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен`,
+  }
 }
 
 /* ------------------------- Simulation (test mode) ------------------------ */

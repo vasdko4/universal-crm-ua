@@ -27,6 +27,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { StatusBadge, PaymentBadge } from '@/components/orders/status-badge'
 import {
   updateOrderStatus,
@@ -87,23 +97,37 @@ export function OrderDetail({
   const [note, setNote] = useState(order.note ?? '')
   const [sending, setSending] = useState<string | null>(null)
   const [refundAmount, setRefundAmount] = useState('')
+  const [refundDialog, setRefundDialog] = useState<'full' | 'partial' | null>(null)
 
   const orderStatuses = getOrderStatusOptions(locale)
   const paymentStatuses = getPaymentStatusOptions(locale)
+  const { cancel: cancelLabel } = dict.common
 
   function changeStatus(status: string) {
     startTransition(async () => {
-      await updateOrderStatus(order.id, status)
-      toast.success(t.toastStatusUpdated)
-      router.refresh()
+      try {
+        const res = await updateOrderStatus(order.id, status)
+        if (res && res.success === false) {
+          toast.error(res.error ?? t.toastError)
+          return
+        }
+        toast.success(t.toastStatusUpdated)
+        router.refresh()
+      } catch {
+        toast.error(t.toastError)
+      }
     })
   }
 
   function changePayment(status: string) {
     startTransition(async () => {
-      await updateOrderPayment(order.id, status)
-      toast.success(t.toastPaymentUpdated)
-      router.refresh()
+      try {
+        await updateOrderPayment(order.id, status)
+        toast.success(t.toastPaymentUpdated)
+        router.refresh()
+      } catch {
+        toast.error(t.toastError)
+      }
     })
   }
 
@@ -122,18 +146,42 @@ export function OrderDetail({
     })
   }
 
+  function parsedRefundAmount(): number | null {
+    const parsed = Number(refundAmount.replace(',', '.'))
+    const total = Number(order.total)
+    if (!Number.isFinite(parsed) || parsed <= 0) return null
+    if (Number.isFinite(total) && parsed > total) return null
+    return parsed
+  }
+
+  function openRefundDialog(kind: 'full' | 'partial') {
+    if (kind === 'partial' && parsedRefundAmount() == null) {
+      toast.error(t.refundInvalidAmount)
+      return
+    }
+    setRefundDialog(kind)
+  }
+
   function refundViaGateway(partial?: boolean) {
     startTransition(async () => {
-      const parsed = Number(refundAmount.replace(',', '.'))
-      const amount = partial && Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
-      const res = await refundOrder(order.id, amount)
-      if (!res.ok) {
-        toast.error(res.message ?? t.toastError)
+      const amount = partial ? parsedRefundAmount() ?? undefined : undefined
+      if (partial && amount == null) {
+        toast.error(t.refundInvalidAmount)
         return
       }
-      toast.success(res.message ?? t.toastRefunded)
-      setRefundAmount('')
-      router.refresh()
+      try {
+        const res = await refundOrder(order.id, amount)
+        if (!res.ok) {
+          toast.error(res.message ?? t.toastError)
+          return
+        }
+        toast.success(res.message ?? t.toastRefunded)
+        setRefundAmount('')
+        setRefundDialog(null)
+        router.refresh()
+      } catch {
+        toast.error(t.toastError)
+      }
     })
   }
 
@@ -412,13 +460,13 @@ export function OrderDetail({
                       placeholder={String(order.total)}
                     />
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={() => refundViaGateway(false)} disabled={isPending}>
+                      <Button variant="outline" size="sm" onClick={() => openRefundDialog('full')} disabled={isPending}>
                         {t.refundViaGateway}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => refundViaGateway(true)}
+                        onClick={() => openRefundDialog('partial')}
                         disabled={isPending || !refundAmount.trim()}
                       >
                         {t.refundPartial}
@@ -594,6 +642,28 @@ export function OrderDetail({
           )}
         </div>
       </div>
+
+      <AlertDialog open={refundDialog !== null} onOpenChange={(open) => !open && setRefundDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.refundConfirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {refundDialog === 'partial'
+                ? t.refundConfirmPartial.replace('{{amount}}', String(parsedRefundAmount() ?? refundAmount))
+                : t.refundConfirmFull}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => refundViaGateway(refundDialog === 'partial')}
+            >
+              {t.refundConfirmAction}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
