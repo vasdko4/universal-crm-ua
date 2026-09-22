@@ -2,9 +2,11 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     try {
       const { ensureSetupToken } = await import('./lib/setup-token')
-      const { token, generated } = ensureSetupToken()
+      const { generated } = ensureSetupToken()
       if (generated) {
-        console.log(`[setup] one-time install token (open /setup?token=${encodeURIComponent(token)}): ${token}`)
+        console.log(
+          '[setup] one-time install token written to .setup-token — open /setup and paste it. Do not put the token in URLs or logs.',
+        )
       }
     } catch (e) {
       console.error('[setup-token]', (e as Error).message)

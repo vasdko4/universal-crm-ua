@@ -13,19 +13,36 @@ import { pool } from '@/lib/db'
  *      no limit, but not multi-instance safe
  *
  * `x-forwarded-for` is trivially spoofable. Prefer the platform-provided
- * client IP (Vercel) and only then the first XFF hop.
+ * client IP (Vercel), then X-Real-IP, then the last XFF hop.
  */
 
 type Bucket = { count: number; resetAt: number }
 const memory = new Map<string, Bucket>()
+
+function lastForwardedHop(value: string | null): string | null {
+  if (!value) return null
+  const hops = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return hops.at(-1) ?? null
+}
 
 export function clientIpFromHeaders(h: { get(name: string): string | null }): string {
   const vercel = h.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
   if (vercel) return vercel
   const real = h.get('x-real-ip')?.trim()
   if (real) return real
-  const forwarded = h.get('x-forwarded-for')?.split(',')[0]?.trim()
+  // nginx `$proxy_add_x_forwarded_for` prepends the caller, so the last hop
+  // is the address the proxy actually saw. The first hop is client-controlled.
+  const forwarded = lastForwardedHop(h.get('x-forwarded-for'))
   return forwarded || 'unknown'
+}
+
+/** Higher ceiling when the IP cannot be resolved, so shoppers sharing
+ *  the sentinel key do not 429 each other (FIX-33). */
+export function unknownIpCeiling(max: number): number {
+  return Math.max(max * 20, 200)
 }
 
 export function clientIp(req: Request): string {
@@ -37,13 +54,17 @@ export async function isRateLimited(
   ip: string,
   max: number,
   windowMs = 60_000,
+  opts: { relaxUnknown?: boolean } = {},
 ): Promise<boolean> {
-  const key = `${scope}:${ip || 'unknown'}`
-  const upstash = await upstashLimited(key, max, windowMs)
+  const resolved = ip || 'unknown'
+  const ceiling =
+    resolved === 'unknown' && opts.relaxUnknown ? unknownIpCeiling(max) : max
+  const key = `${scope}:${resolved}`
+  const upstash = await upstashLimited(key, ceiling, windowMs)
   if (upstash !== null) return upstash
-  const pg = await postgresLimited(key, max, windowMs)
+  const pg = await postgresLimited(key, ceiling, windowMs)
   if (pg !== null) return pg
-  return memoryLimited(key, max, windowMs)
+  return memoryLimited(key, ceiling, windowMs)
 }
 
 /**

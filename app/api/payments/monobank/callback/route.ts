@@ -28,8 +28,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'bad request' }, { status: 400 })
   }
 
-  const invoiceId = body.invoiceId ? String(body.invoiceId) : undefined
-  if (!invoiceId) return NextResponse.json({ error: 'no invoiceId' }, { status: 400 })
+  const invoiceId = typeof body.invoiceId === 'string' || typeof body.invoiceId === 'number'
+    ? String(body.invoiceId).trim().slice(0, 100)
+    : ''
+  if (!invoiceId || !/^[\w.-]+$/.test(invoiceId)) {
+    return NextResponse.json({ error: 'no invoiceId' }, { status: 400 })
+  }
 
   // invoiceId is public (it sits in the checkout URL). Without a signature
   // check, anyone who saw it can force us to hit Monobank's API on a loop.

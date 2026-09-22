@@ -38,12 +38,16 @@ export async function getCanonicalSiteUrl(): Promise<string> {
   return getSiteUrl()
 }
 
-/** Normalizes user input like "mystore.com/" into "https://mystore.com". */
+/** Normalizes user input like "mystore.com/" into "https://mystore.com".
+ *  Keeps an explicit `http://` the admin typed (FIX-37) so http-only
+ *  deploys do not get https canonicals. Bare hostnames still default to https. */
 export function normalizeOrigin(input: string): string {
   let v = stripTrailingSlashes(input.trim())
   if (!/^https?:\/\//i.test(v)) v = `https://${v}`
   try {
-    return new URL(v).origin
+    const url = new URL(v)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return getSiteUrl()
+    return url.origin
   } catch {
     return getSiteUrl()
   }

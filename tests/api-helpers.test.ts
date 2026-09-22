@@ -73,4 +73,22 @@ describe('readJson', () => {
     })
     expect(await readJson<{ items: number[] }>(req)).toEqual({ items: [1] })
   })
+
+  it('rejects a body over the byte cap', async () => {
+    const req = new Request('https://x.test/api/track', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{"x":"' + 'a'.repeat(80_000) + '"}',
+    })
+    expect(await readJson(req, 64 * 1024)).toBeNull()
+  })
+
+  it('rejects an oversized Content-Length without reading the body', async () => {
+    const req = new Request('https://x.test/api/track', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'content-length': '999999' },
+      body: '{"ok":true}',
+    })
+    expect(await readJson(req, 64 * 1024)).toBeNull()
+  })
 })

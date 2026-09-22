@@ -59,17 +59,65 @@ export function parseListParams(url: string) {
   return { page, pageSize, search, status, searchParams, error }
 }
 
+/** Default cap for anonymous JSON routes (track, reviews, webhooks). */
+export const MAX_JSON_BODY_BYTES = 64 * 1024
+
 /**
  * Parse a JSON body without using Request.json().
  * Next.js App Router can surface SyntaxError from json() as an uncaught 500
  * ("Unexpected token...") before a route-level try/catch runs.
+ *
+ * Rejects bodies over `maxBytes` (FIX-34) so self-hosted Node cannot be
+ * forced to buffer an unbounded payload into memory.
  */
-export async function readJson<T>(req: Request): Promise<T | null> {
+export async function readJson<T>(
+  req: Request,
+  maxBytes = MAX_JSON_BODY_BYTES,
+): Promise<T | null> {
   try {
-    const raw = await req.text()
+    const declared = Number(req.headers.get('content-length') ?? '')
+    if (Number.isFinite(declared) && declared > maxBytes) return null
+
+    const reader = req.body?.getReader()
+    if (!reader) {
+      const raw = await req.text()
+      if (raw.length > maxBytes) return null
+      if (!raw.trim()) return null
+      return JSON.parse(raw) as T
+    }
+
+    const chunks: Uint8Array[] = []
+    let total = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        total += value.byteLength
+        if (total > maxBytes) {
+          try {
+            await reader.cancel()
+          } catch {
+            /* ignore */
+          }
+          return null
+        }
+        chunks.push(value)
+      }
+    }
+    const raw = new TextDecoder().decode(concatBytes(chunks, total))
     if (!raw.trim()) return null
     return JSON.parse(raw) as T
   } catch {
     return null
   }
+}
+
+function concatBytes(chunks: Uint8Array[], total: number): Uint8Array {
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    out.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return out
 }

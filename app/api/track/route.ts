@@ -1,34 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { trackEvent } from '@/app/actions/analytics'
 import { readJson } from '@/lib/api/helpers'
-import { clientIp } from '@/lib/api/rate-limit'
+import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
-// Naive in-memory rate limiter: max N events per IP per minute. Good enough to
-// stop casual flooding of the analytics table without extra infrastructure.
-const WINDOW_MS = 60_000
-const MAX_PER_WINDOW = 60
-const hits = new Map<string, { count: number; resetAt: number }>()
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now()
-  const entry = hits.get(ip)
-  if (!entry || now > entry.resetAt) {
-    hits.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-    // Opportunistic cleanup so the map never grows unbounded.
-    if (hits.size > 10_000) {
-      for (const [k, v] of hits) if (now > v.resetAt) hits.delete(k)
-    }
-    return false
-  }
-  entry.count++
-  return entry.count > MAX_PER_WINDOW
-}
-
 export async function POST(req: NextRequest) {
   const ip = clientIp(req)
-  if (rateLimited(ip)) {
+  if (await isRateLimited('track', ip, 60, 60_000, { relaxUnknown: true })) {
     return NextResponse.json({ success: false, error: 'Too many events' }, { status: 429 })
   }
 
