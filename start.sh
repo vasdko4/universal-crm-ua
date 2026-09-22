@@ -253,6 +253,7 @@ fi
 # ── Done ────────────────────────────────────────────────────────────
 SITE_URL="$(grep -E '^BETTER_AUTH_URL=' .env | cut -d= -f2- || true)"
 SITE_URL="${SITE_URL:-http://localhost:3000}"
+SETUP_TOKEN_SHOW="$(grep -E '^SETUP_TOKEN=' .env | cut -d= -f2- || true)"
 FTP_USER_SHOW="$(grep -E '^FTP_USER=' .env | cut -d= -f2- || true)"
 FTP_PASS_SHOW="$(grep -E '^FTP_PASSWORD=' .env | cut -d= -f2- || true)"
 DOMAIN_SHOW="$(grep -E '^DOMAIN=' .env | cut -d= -f2- || true)"
@@ -263,10 +264,17 @@ echo "  ║       🎉 МАГАЗИН 2.0 УСПЕШНО ЗАПУЩЕН! 🎉   
 echo "  ╚═══════════════════════════════════════════════╝"
 printf "${NC}"
 echo ""
-echo "  Откройте:  ${SITE_URL}"
-echo ""
-echo "  При первом заходе вас автоматически перенаправит на мастер"
-echo "  установки — там вы создадите магазин и admin-логин/пароль."
+echo "  Магазин:   ${SITE_URL}"
+if [[ -n "${SETUP_TOKEN_SHOW}" ]]; then
+  echo "  Мастер:    ${SITE_URL%/}/setup?token=${SETUP_TOKEN_SHOW}"
+  echo ""
+  echo "  Откройте ссылку мастера — токен уже в ней, поле заполнять не нужно."
+else
+  echo ""
+  echo "  При первом заходе вас перенаправит на мастер установки."
+  echo "  Если спросит токен — он в .env (SETUP_TOKEN) или в логе:"
+  echo "    docker compose logs app | grep 'one-time install token'"
+fi
 if [[ -n "${DOMAIN_SHOW}" ]]; then
   echo ""
   echo "  HTTPS: встроенный прокси Caddy сам получит SSL-сертификат"
