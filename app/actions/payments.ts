@@ -346,7 +346,7 @@ export async function refundPayment(
       message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
       actor: 'Платёжный шлюз',
     })
-    if (fullyRefunded && linked.status !== 'cancelled' && linked.status !== 'pending_payment') {
+    if (fullyRefunded && linked.status !== 'cancelled') {
       await restoreStockOnce(linked.id)
     }
   }

@@ -118,7 +118,7 @@ export async function settlePayment(
     }
     // A refund initiated in the gateway cabinet (or a chargeback) never
     // goes through refundPayment — restore stock here, once.
-    if (status === 'refunded' && order.status !== 'cancelled' && order.status !== 'pending_payment') {
+    if (status === 'refunded' && order.status !== 'cancelled') {
       if (payment) {
         await pool.query(
           `UPDATE payments

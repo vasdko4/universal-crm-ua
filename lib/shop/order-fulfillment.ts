@@ -56,15 +56,21 @@ export async function adjustStockForOrder(orderId: number, sign: 1 | -1, client?
   )
   const rows = ledger.rows
   if (rows.length === 0) {
-    // Empty *net* is not the same as a pre-ledger order. Oversold lines never
-    // wrote a `sale` movement, so falling back to order_items.quantity would
-    // invent stock that never left the warehouse.
+    // Empty *net* is not the same as a pre-ledger order. Oversold lines and
+    // unpaid online checkouts never wrote a `sale` movement — falling back to
+    // order_items.quantity would invent stock that never left the warehouse.
+    // Only orders placed before the first ledger write may use that fallback.
     const anyLedger = await q.query(
       `SELECT 1 FROM stock_movements WHERE order_id = $1 AND reason IN ('sale', 'cancel') LIMIT 1`,
       [orderId],
     )
     if (anyLedger.rowCount) return
-    // Legacy orders placed before the ledger existed: fall back to order_items.
+    const legacy = await q.query<{ allow: boolean }>(
+      `SELECT (o.created_at < (SELECT MIN(created_at) FROM stock_movements)) AS allow
+         FROM orders o WHERE o.id = $1`,
+      [orderId],
+    )
+    if (!legacy.rows[0]?.allow) return
     const items = await q.query<{ product_id: number | null; variant_id: number | null; quantity: number }>(
       `SELECT product_id, variant_id, quantity FROM order_items WHERE order_id = $1`,
       [orderId],
