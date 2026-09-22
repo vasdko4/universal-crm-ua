@@ -192,8 +192,8 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
           </span>
         ) : null}
 
-        <div className="mt-auto flex items-end gap-1.5 pt-1">
-          <div className="min-w-0 flex-1">
+        <div className="mt-auto flex flex-col items-center gap-1.5 pt-1">
+          <div className="flex min-h-[2.25rem] w-full flex-col items-center justify-center text-center">
             {product.oldPrice && product.oldPrice > product.price ? (
               <span className="block truncate text-[10px] leading-none text-muted-foreground line-through sm:text-[11px]">
                 {formatPrice(product.oldPrice, product.currency, locale)}
@@ -210,19 +210,19 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
             aria-label={addLabel}
             data-testid={needsSize ? 'choose-size' : 'add-to-cart'}
             className={cn(
-              'h-8 w-8 shrink-0 rounded-lg p-0 sm:h-8 sm:w-auto sm:px-2 sm:text-[12px]',
+              'h-8 w-full rounded-lg px-2 text-[12px]',
               added && 'bg-success text-primary-foreground hover:bg-success',
             )}
           >
             {added && !needsSize ? (
               <>
                 <Check className="size-3.5" />
-                <span className="hidden sm:inline">{addLabel}</span>
+                <span>{addLabel}</span>
               </>
             ) : (
               <>
-                <ShoppingCart className="size-3.5 sm:hidden" />
-                <span className="hidden sm:inline">{addLabel}</span>
+                <ShoppingCart className="size-3.5" />
+                <span>{addLabel}</span>
               </>
             )}
           </Button>
