@@ -36,6 +36,7 @@ import { getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { formatPrice } from '@/lib/shop/format'
+import { composeCheckoutNote, formatRequisitesNote } from '@/lib/payments/public-requisites'
 
 const LAST_ORDER_COOKIE = 'pf_last_order'
 
@@ -365,7 +366,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     const { formatRequisitesPreview } = await import('@/lib/payments/public-requisites')
     const loc = locale === 'ru' ? 'ru' as const : 'uk' as const
     requisites = formatRequisitesPreview(cfg, { amount: Number(total), locale: loc, orderNumber })
-    requisitesNote = `${loc === 'ru' ? 'Реквизиты для оплаты' : 'Реквізити для оплати'}:\n${requisites}`
+    requisitesNote = formatRequisitesNote(requisites, loc)
   }
 
   let order: { id: number }
@@ -432,7 +433,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
           autoDiscountAmount: autoDiscountId ? autoDiscountAmount.toFixed(2) : null,
           total: total.toFixed(2),
           itemsCount,
-          note: requisitesNote ?? input.note ?? null,
+          note: composeCheckoutNote(requisitesNote, input.note),
           createdBy: shopUser ? shopUser.id : null,
           userId: shopUser ? shopUser.id : null,
         })

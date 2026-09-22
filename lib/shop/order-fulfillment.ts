@@ -190,9 +190,6 @@ export async function applyOrderFulfillment(orderId: number, client?: PoolClient
       .insert(orderHistory)
       .values({ orderId, type: 'note', message: warning, actor: 'System' })
       .catch(() => {})
-    await q
-      .query(`UPDATE orders SET note = COALESCE(note || E'\\n', '') || $1 WHERE id = $2`, [warning, orderId])
-      .catch(() => {})
   }
 
   const total = Number(order.total)

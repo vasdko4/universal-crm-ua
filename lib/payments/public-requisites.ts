@@ -48,3 +48,54 @@ export function formatRequisitesPreview(
   parts.push(`${uk ? 'Сума' : 'Сумма'}: ${opts.amount} ₴`)
   return parts.join('\n')
 }
+
+export const REQUISITES_NOTE_PREFIX_UK = 'Реквізити для оплати'
+export const REQUISITES_NOTE_PREFIX_RU = 'Реквизиты для оплаты'
+
+export function formatRequisitesNote(requisites: string, locale: 'uk' | 'ru'): string {
+  const prefix = locale === 'ru' ? REQUISITES_NOTE_PREFIX_RU : REQUISITES_NOTE_PREFIX_UK
+  return `${prefix}:\n${requisites}`
+}
+
+/** Keep bank details and the shopper's checkout comment in the same column. */
+export function composeCheckoutNote(
+  requisitesNote: string | undefined,
+  customerNote: string | null | undefined,
+): string | null {
+  const parts = [requisitesNote?.trim(), customerNote?.trim()].filter(Boolean)
+  return parts.length > 0 ? parts.join('\n\n') : null
+}
+
+export function noteLooksLikeRequisites(note: string | null | undefined): boolean {
+  return Boolean(
+    note?.startsWith(`${REQUISITES_NOTE_PREFIX_UK}:`) ||
+      note?.startsWith(`${REQUISITES_NOTE_PREFIX_RU}:`),
+  )
+}
+
+/**
+ * Split a persisted order.note into the bank-requisites block (if any) and
+ * the remaining customer/admin comment. Requisites are always the leading
+ * prefixed paragraph; a blank line separates them from the shopper's note.
+ */
+export function splitOrderNote(note: string | null | undefined): {
+  requisites: string | null
+  comment: string | null
+} {
+  if (!note?.trim()) return { requisites: null, comment: null }
+  if (!noteLooksLikeRequisites(note)) return { requisites: null, comment: note.trim() }
+  const sep = note.indexOf('\n\n')
+  if (sep === -1) return { requisites: note.trim(), comment: null }
+  const requisites = note.slice(0, sep).trim()
+  const comment = note.slice(sep + 2).trim()
+  return { requisites: requisites || null, comment: comment || null }
+}
+
+/** Body of the requisites block without the locale prefix — for copy/email. */
+export function requisitesBody(note: string | null | undefined): string {
+  const { requisites } = splitOrderNote(note)
+  if (!requisites) return ''
+  return requisites
+    .replace(new RegExp(`^${REQUISITES_NOTE_PREFIX_UK}:\\n`), '')
+    .replace(new RegExp(`^${REQUISITES_NOTE_PREFIX_RU}:\\n`), '')
+}

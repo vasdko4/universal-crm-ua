@@ -4,6 +4,7 @@ import { sendMail } from '@/lib/mailer'
 import { buildOrderMessage } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getProductSlugMap } from '@/lib/shop/queries'
+import { noteLooksLikeRequisites, splitOrderNote } from '@/lib/payments/public-requisites'
 
 function money(v: string | number, currency = 'UAH', locale: string = 'uk') {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
@@ -105,6 +106,7 @@ function buildAdminOrderText(order: Order, items: OrderItem[], siteUrl: string):
     .join(', ')
   const paid = order.paymentStatus === 'paid' ? 'Оплачен' : 'Не оплачен'
   const link = siteUrl ? `\n\n${siteUrl}/admin/orders/${order.id}` : ''
+  const comment = splitOrderNote(order.note).comment
   return `Новый заказ №${order.orderNumber}
 
 Покупатель: ${order.customerName ?? '—'}
@@ -114,7 +116,7 @@ function buildAdminOrderText(order: Order, items: OrderItem[], siteUrl: string):
 ${lines}
 
 Итого: ${money(order.total, order.currency, 'uk')}
-Оплата: ${PAYMENT_LABELS[order.paymentMethod ?? ''] ?? order.paymentMethod ?? '—'} (${paid})${delivery ? `\nДоставка: ${delivery}` : ''}${order.note ? `\nКомментарий: ${order.note}` : ''}${link}`
+Оплата: ${PAYMENT_LABELS[order.paymentMethod ?? ''] ?? order.paymentMethod ?? '—'} (${paid})${delivery ? `\nДоставка: ${delivery}` : ''}${comment ? `\nКомментарий: ${comment}` : ''}${link}`
 }
 
 /**
@@ -159,10 +161,8 @@ export function buildAdminOrderTelegramHtml(
   parts.push(`💰 <b>Итого: ${money(order.total, order.currency, 'uk')}</b>`)
   parts.push(`💳 ${escHtml(payLabel)} — ${paidBadge}`)
   if (delivery) parts.push(`🚚 ${escHtml(delivery)}`)
-  const noteIsRequisites =
-    Boolean(order.note?.startsWith('Реквизиты для оплаты:')) ||
-    Boolean(order.note?.startsWith('Реквізити для оплати:'))
-  if (order.note && !noteIsRequisites) parts.push(`💬 ${escHtml(order.note)}`)
+  const comment = splitOrderNote(order.note).comment
+  if (comment) parts.push(`💬 ${escHtml(comment)}`)
   if (siteUrl) parts.push('', `🔗 <a href="${siteUrl}/admin/orders/${order.id}">Открыть заказ в админке</a>`)
   return parts.join('\n')
 }
@@ -213,7 +213,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
     // is on and we have an address (typed at checkout or from the account),
     // even if generic customer emails are disabled in notifications.
     const smtpReady = Boolean(settings.emailSettings?.enabled && settings.emailSettings?.smtpHost && settings.emailSettings?.smtpUser)
-    const isRequisites = o.paymentMethod === 'requisites' || Boolean(o.note?.startsWith('Реквизиты для оплаты:') || o.note?.startsWith('Реквізити для оплати:'))
+    const isRequisites = o.paymentMethod === 'requisites' || noteLooksLikeRequisites(o.note)
     const shouldEmailCustomer =
       Boolean(o.customerEmail) && (n.customerEmailEnabled || (isRequisites && smtpReady))
     if (shouldEmailCustomer && o.customerEmail) {

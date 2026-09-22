@@ -1,4 +1,5 @@
 import type { Order, OrderItem } from '@/lib/db/schema'
+import { noteLooksLikeRequisites, requisitesBody } from '@/lib/payments/public-requisites'
 
 const STATUS_LABELS = {
   uk: {
@@ -166,13 +167,11 @@ export function buildOrderMessage(
       ? `${L.delivery}: ${[carrier?.label, order.deliveryCity, order.deliveryBranch].filter(Boolean).join(', ')}`
       : ''
 
-  // Bank-requisite orders keep the payment details in the note
-  // (prefixed with "Реквизиты для оплаты:") — surface them in the email.
+  // Bank-requisite orders keep the payment details at the start of the note
+  // (prefixed with "Реквізити/Реквизиты для оплаты:") — surface only that
+  // block in the email, never the shopper comment or oversold warnings.
   const requisitesText =
-    kind === 'confirmation' &&
-    (order.note?.startsWith('Реквизиты для оплаты:') || order.note?.startsWith('Реквізити для оплати:'))
-      ? order.note
-      : ''
+    kind === 'confirmation' && noteLooksLikeRequisites(order.note) ? requisitesBody(order.note) : ''
 
   /* ---------------------------------- text ---------------------------------- */
 
@@ -254,7 +253,7 @@ ${L.footer}`
   const requisitesHtml = requisitesText
     ? `<div style="margin-top:16px;padding:18px 20px;background:#ecf8f5;border:2px solid #2f7a6d;border-radius:12px">
         <div style="font-size:12px;color:#1f5e54;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">${esc(L.requisitesTitle)}</div>
-        <div style="font-size:16px;color:#10231f;white-space:pre-line;line-height:1.7;font-family:'Courier New',monospace;font-weight:700">${esc(requisitesText.replace('Реквизиты для оплаты:\n', '').replace('Реквізити для оплати:\n', ''))}</div>
+        <div style="font-size:16px;color:#10231f;white-space:pre-line;line-height:1.7;font-family:'Courier New',monospace;font-weight:700">${esc(requisitesText)}</div>
         <div style="margin-top:10px;font-size:13px;color:#1f5e54">${esc(L.requisitesHint)}</div>
       </div>`
     : ''

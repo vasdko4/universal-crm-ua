@@ -16,6 +16,7 @@ import { GoogleAdsPurchase } from '@/components/shop/google-ads'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
+import { requisitesBody } from '@/lib/payments/public-requisites'
 
 const T = {
   uk: {
@@ -141,11 +142,8 @@ export default async function OrderConfirmationPage({
         </div>
       ) : null}
 
-      {order.paymentMethod === 'requisites' && order.note ? (
-        <CopyRequisites
-          className="mt-4"
-          text={order.note.replace(/^Реквізити для оплати:\n/, '').replace(/^Реквизиты для оплаты:\n/, '')}
-        />
+      {order.paymentMethod === 'requisites' && requisitesBody(order.note) ? (
+        <CopyRequisites className="mt-4" text={requisitesBody(order.note)} />
       ) : null}
 
       <div className="mt-4 rounded-xl border border-border bg-card">
