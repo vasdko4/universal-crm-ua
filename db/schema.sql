@@ -756,6 +756,13 @@ CREATE INDEX IF NOT EXISTS idx_order_items_product ON public.order_items (produc
 CREATE INDEX IF NOT EXISTS idx_orders_created ON public.orders (created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
 CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON public.orders (payment_status);
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders (user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON public.orders (customer_id);
+CREATE INDEX IF NOT EXISTS idx_order_history_order_id ON public.order_history (order_id);
+CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON public.payments (invoice_id);
+CREATE INDEX IF NOT EXISTS idx_promotion_usages_promotion_id ON public.promotion_usages (promotion_id);
+CREATE INDEX IF NOT EXISTS idx_product_characteristics_product_id ON public.product_characteristics (product_id);
+CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON public.categories (parent_id);
 CREATE INDEX IF NOT EXISTS idx_products_visible ON public.products (is_visible) WHERE deleted_at IS NULL;
 
 -- Hot storefront paths that were missing an index, causing full table/index

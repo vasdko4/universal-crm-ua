@@ -41,13 +41,14 @@ manual Postgres, or `scripts/vps-install.sh` for a clean production VPS).
   (pool + drizzle client), `lib/shop/queries.ts` (storefront reads).
 - **No ORM migration tool is used** — schema changes are plain SQL:
   - `db/schema.sql` — full schema for a fresh empty install.
-  - `db/dump.sql` — full schema + all current demo data (used by the default
-    `pnpm setup` / `db:restore` path).
+  - `db/seed.sql` — optional demo catalog/orders applied by `pnpm db:setup --seed`
+    / the setup wizard. There is no committed `db/dump.sql`: `pnpm db:dump`
+    writes a local snapshot (gitignored) for `pnpm db:restore`.
   - `db/migrate.sql` + `migrations/00N_*.sql` — additive, idempotent
     (`ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`) changes to
     bring an existing production database up to date without touching data.
-  - When you add/change a column or index, update **all three**: `schema.sql`,
-    `dump.sql`, and a new `migrations/00N_*.sql` (+ append to `db/migrate.sql`).
+  - When you add/change a column or index, update **both** `schema.sql` and a
+    new `migrations/00N_*.sql` (+ append to `db/migrate.sql`).
 - Products, categories, pages, articles etc. store **uk/ru bilingual pairs**
   as separate columns (`name_uk`/`name_ru`, not a JSON blob); UI falls back to
   `uk` when `ru` is missing.

@@ -2,7 +2,7 @@
 
 import { randomInt } from 'node:crypto'
 import { headers } from 'next/headers'
-import { db } from '@/lib/db'
+import { db, withDbClient, dbForClient } from '@/lib/db'
 import { promotions, promotionUsages, productGroups, productGroupItems, products } from '@/lib/db/schema'
 import { and, asc, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
@@ -184,8 +184,11 @@ export async function togglePromotionActive(id: number, isActive: boolean) {
 
 export async function deletePromotion(id: number) {
   await assertWritePermission('promotions')
-  await db.delete(promotionUsages).where(eq(promotionUsages.promotionId, id))
-  await db.delete(promotions).where(eq(promotions.id, id))
+  await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    await tx.delete(promotionUsages).where(eq(promotionUsages.promotionId, id))
+    await tx.delete(promotions).where(eq(promotions.id, id))
+  })
   revalidatePath('/admin/promotions')
   return { success: true }
 }

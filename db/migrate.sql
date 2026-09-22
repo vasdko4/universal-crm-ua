@@ -402,3 +402,11 @@ ALTER TABLE products ALTER COLUMN prom_id TYPE bigint;
 -- product pages look up by slug. schema.sql used to omit both.
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items (order_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON public.products ("slug");
+
+CREATE INDEX IF NOT EXISTS idx_order_history_order_id ON public.order_history (order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders (user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON public.orders (customer_id);
+CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON public.payments (invoice_id);
+CREATE INDEX IF NOT EXISTS idx_promotion_usages_promotion_id ON public.promotion_usages (promotion_id);
+CREATE INDEX IF NOT EXISTS idx_product_characteristics_product_id ON public.product_characteristics (product_id);
+CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON public.categories (parent_id);

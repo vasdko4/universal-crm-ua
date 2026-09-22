@@ -175,8 +175,19 @@ export function buildAdminOrderTelegramHtml(
 export async function notifyNewOrder(orderId: number): Promise<void> {
   try {
     const [orderRes, itemsRes, settings] = await Promise.all([
-      pool.query('SELECT * FROM orders WHERE id = $1', [orderId]),
-      pool.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]),
+      pool.query(
+        `SELECT id, order_number, customer_name, customer_phone, customer_email,
+                delivery_method, delivery_city, delivery_branch, delivery_address,
+                delivery_cost, delivery_status, tracking_number, payment_method,
+                payment_status, items_total, total, currency, status, note
+           FROM orders WHERE id = $1`,
+        [orderId],
+      ),
+      pool.query(
+        `SELECT id, order_id, product_id, name, sku, image, price, quantity, total, variant_label
+           FROM order_items WHERE order_id = $1`,
+        [orderId],
+      ),
       getStoreSettingsInternal(),
     ])
     const order = orderRes.rows[0] as Order | undefined
@@ -297,8 +308,19 @@ function normalizeItem(r: Record<string, unknown>): OrderItem {
 export async function notifyShippedOrder(orderId: number): Promise<void> {
   try {
     const [orderRes, itemsRes, settings] = await Promise.all([
-      pool.query('SELECT * FROM orders WHERE id = $1', [orderId]),
-      pool.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]),
+      pool.query(
+        `SELECT id, order_number, customer_name, customer_phone, customer_email,
+                delivery_method, delivery_city, delivery_branch, delivery_address,
+                delivery_cost, delivery_status, tracking_number, payment_method,
+                payment_status, items_total, total, currency, status, note
+           FROM orders WHERE id = $1`,
+        [orderId],
+      ),
+      pool.query(
+        `SELECT id, order_id, product_id, name, sku, image, price, quantity, total, variant_label
+           FROM order_items WHERE order_id = $1`,
+        [orderId],
+      ),
       getStoreSettingsInternal(),
     ])
     if (!orderRes.rows[0]) return

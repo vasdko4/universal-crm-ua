@@ -1,7 +1,7 @@
 'use server'
 
 import { cookies, headers } from 'next/headers'
-import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm'
 import { db, pool, withDbClient, dbForClient } from '@/lib/db'
 import {
   orders,
@@ -36,6 +36,7 @@ import { getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { formatPrice } from '@/lib/shop/format'
+import { computeOrderTotals } from '@/lib/shop/order-totals'
 import { composeCheckoutNote, formatRequisitesNote } from '@/lib/payments/public-requisites'
 
 const LAST_ORDER_COOKIE = 'pf_last_order'
@@ -343,7 +344,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     autoDiscountAmount = autoPromo.discount
   }
 
-  const total = Math.max(0, itemsTotal - discount)
+  const { total } = computeOrderTotals({ itemsTotal, discount, deliveryCost: 0 })
   const itemsCount = lineItems.reduce((s, i) => s + i.quantity, 0)
   const orderNumber = await generateUniqueOrderNumber()
   const shopUser = await getShopUser()
@@ -381,7 +382,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       const [existingCustomer] = await tx
         .select()
         .from(customers)
-        .where(eq(customers.phone, input.phone.trim()))
+        .where(and(eq(customers.phone, input.phone.trim()), isNull(customers.deletedAt)))
         .limit(1)
       if (existingCustomer) {
         customerId = existingCustomer.id
@@ -401,7 +402,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
           const [again] = await tx
             .select()
             .from(customers)
-            .where(eq(customers.phone, input.phone.trim()))
+            .where(and(eq(customers.phone, input.phone.trim()), isNull(customers.deletedAt)))
             .limit(1)
           customerId = again?.id
         }
@@ -521,9 +522,8 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
             })
 
       if (result.ok && result.paymentUrl) {
-        await db
-          .insert(payments)
-          .values({
+        try {
+          await db.insert(payments).values({
             gatewayCode: gateway.code,
             orderReference: orderNumber,
             invoiceId: result.invoiceId,
@@ -537,7 +537,14 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
             paymentUrl: result.paymentUrl,
             rawResponse: (result.raw as object) ?? null,
           })
-          .catch(() => {})
+        } catch (e) {
+          console.error('[checkout] payment row failed:', (e as Error).message)
+          await pool.query(
+            `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`,
+            ['Не удалось сохранить платёж после создания инвойса шлюза', order.id],
+          )
+          return { success: false, error: t.paymentInvoiceFailed }
+        }
         paymentUrl = result.paymentUrl // external gateway page
       } else {
         // A LIVE gateway is configured but invoice creation failed (bad token,
@@ -545,12 +552,10 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         // this case — the shopper could "pay" without any real charge. Cancel
         // the order and surface the error so it can be retried or fixed.
         console.log('[v0] Gateway invoice failed:', gateway.code, result.message)
-        await pool
-          .query(
-            `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`,
-            [`Ошибка шлюза ${gateway.code}: ${result.message ?? 'неизвестная ошибка'}`, order.id],
-          )
-          .catch(() => {})
+        await pool.query(
+          `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`,
+          [`Ошибка шлюза ${gateway.code}: ${result.message ?? 'неизвестная ошибка'}`, order.id],
+        )
         return {
           success: false,
           error: t.paymentInvoiceFailed,
@@ -560,9 +565,8 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
 
     if (!paymentUrl) {
       // Fallback: no live gateway (unconfigured/test mode) -> built-in demo page.
-      await db
-        .insert(payments)
-        .values({
+      try {
+        await db.insert(payments).values({
           gatewayCode: 'online',
           orderReference: orderNumber,
           amount: total.toFixed(2),
@@ -573,7 +577,14 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
           customerEmail: input.email?.trim() || null,
           customerPhone: input.phone.trim(),
         })
-        .catch(() => {})
+      } catch (e) {
+        console.error('[checkout] demo payment row failed:', (e as Error).message)
+        await pool.query(
+          `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\\n', '') || $1 WHERE id = $2`,
+          ['Не удалось сохранить демо-платёж', order.id],
+        )
+        return { success: false, error: t.paymentInvoiceFailed }
+      }
       paymentUrl = `/checkout/pay/${orderNumber}`
     }
   }
@@ -812,6 +823,7 @@ export async function getMyOrders() {
       .from(orders)
       .where(and(ownership, ne(orders.status, 'pending_payment')))
       .orderBy(desc(orders.createdAt))
+      .limit(50)
     if (rows.length === 0) return []
     const allItems = await db
       .select(myOrderItemColumns)
@@ -839,7 +851,7 @@ export async function getMyOrders() {
     })
   } catch (e) {
     console.error('[account/orders] getMyOrders failed:', e)
-    return []
+    throw e
   }
 }
 
