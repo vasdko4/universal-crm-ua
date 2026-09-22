@@ -1,6 +1,6 @@
 import 'server-only'
 import { unstable_cache } from 'next/cache'
-import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { Locale } from '@/lib/i18n/config'
 import { sanitizeSearch } from '@/lib/api/helpers'
 import { searchTokens, type CharFilter, type CatalogFacet, type CatalogFacetValue } from '@/lib/shop/catalog-search'
@@ -860,7 +860,10 @@ export async function getProductSlugMap(
 ): Promise<Record<number, string>> {
   const ids = [...new Set(productIds.filter((id): id is number => typeof id === 'number'))]
   if (ids.length === 0) return {}
-  const rows = await db.select({ id: products.id, slug: products.slug }).from(products).where(inArray(products.id, ids))
+  const rows = await db
+    .select({ id: products.id, slug: products.slug })
+    .from(products)
+    .where(and(inArray(products.id, ids), isNull(products.deletedAt)))
   const map: Record<number, string> = {}
   for (const r of rows) if (r.slug) map[r.id] = r.slug
   return map
@@ -1132,7 +1135,11 @@ async function _getCategoryAndDescendantIds(categoryId: number): Promise<number[
 export function getCategoryById(id: number, locale: Locale = 'uk') {
   return unstable_cache(
     async () => {
-      const [row] = await db.select().from(categories).where(eq(categories.id, id)).limit(1)
+      const [row] = await db
+        .select()
+        .from(categories)
+        .where(and(eq(categories.id, id), eq(categories.isVisible, true)))
+        .limit(1)
       if (!row) return null
       const name =
         locale === 'ru'

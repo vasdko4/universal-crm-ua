@@ -13,6 +13,7 @@ import {
 } from '@/lib/db/schema'
 import { getAdminUser, assertPermission, assertWritePermission } from '@/lib/session'
 import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel } from '@/lib/order-status'
+import { computeOrderTotals } from '@/lib/shop/order-totals'
 import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
@@ -135,7 +136,7 @@ export async function searchProductsForOrder(query: string) {
   const rows = await db
     .select({
       id: products.id,
-      name: sql<string>`COALESCE(${products.nameRu}, ${products.nameUk})`,
+      name: sql<string>`COALESCE(NULLIF(${products.nameRu}, ''), ${products.nameUk})`,
       sku: products.sku,
       price: products.price,
       image: products.image,
@@ -292,8 +293,10 @@ export async function createOrder(input: {
 }) {
   const me = await assertWritePermission('orders')
   const itemsTotal = input.items.reduce((sum, i) => sum + i.price * i.quantity, 0)
-  const deliveryCost = input.deliveryCost ?? 0
-  const total = itemsTotal + deliveryCost
+  const { deliveryCost, total } = computeOrderTotals({
+    itemsTotal,
+    deliveryCost: input.deliveryCost ?? 0,
+  })
   const itemsCount = input.items.reduce((sum, i) => sum + i.quantity, 0)
   const orderNumber = await generateUniqueOrderNumber()
 
@@ -402,6 +405,9 @@ export async function updateOrderStatus(id: number, status: string) {
 
 export async function updateOrderPayment(id: number, paymentStatus: string) {
   const user = await assertWritePermission('orders')
+  if (!PAYMENT_STATUSES.some((s) => s.value === paymentStatus)) {
+    return { success: false, error: 'Невідомий статус оплати' }
+  }
   await db.update(orders).set({ paymentStatus, updatedAt: new Date() }).where(eq(orders.id, id))
   const label = getPaymentStatusLabel(paymentStatus, user.locale)
   await addHistory(

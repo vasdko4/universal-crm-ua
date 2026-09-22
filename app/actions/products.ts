@@ -1,6 +1,6 @@
 'use server'
 
-import { db } from '@/lib/db'
+import { db, withDbClient, dbForClient } from '@/lib/db'
 import {
   products,
   productCategory,
@@ -298,25 +298,29 @@ function toProductRow(input: ProductInput) {
   }
 }
 
-async function syncRelations(productId: number, input: ProductInput) {
-  await db.delete(productCategory).where(eq(productCategory.productId, productId))
+async function syncRelations(
+  productId: number,
+  input: ProductInput,
+  tx: Pick<typeof db, 'delete' | 'insert'> = db,
+) {
+  await tx.delete(productCategory).where(eq(productCategory.productId, productId))
   if (input.categoryIds && input.categoryIds.length > 0) {
-    await db
+    await tx
       .insert(productCategory)
       .values(input.categoryIds.map((categoryId) => ({ productId, categoryId })))
   }
 
-  await db.delete(productGroupItems).where(eq(productGroupItems.productId, productId))
+  await tx.delete(productGroupItems).where(eq(productGroupItems.productId, productId))
   if (input.groupIds && input.groupIds.length > 0) {
-    await db
+    await tx
       .insert(productGroupItems)
       .values(input.groupIds.map((groupId, i) => ({ productId, groupId, sortOrder: i })))
   }
 
-  await db.delete(productCharacteristics).where(eq(productCharacteristics.productId, productId))
+  await tx.delete(productCharacteristics).where(eq(productCharacteristics.productId, productId))
   const chars = (input.characteristics || []).filter((c) => c.name.trim() && c.value.trim())
   if (chars.length > 0) {
-    await db.insert(productCharacteristics).values(
+    await tx.insert(productCharacteristics).values(
       chars.map((c, i) => ({
         productId,
         name: c.name.trim(),
@@ -327,10 +331,10 @@ async function syncRelations(productId: number, input: ProductInput) {
   }
 
   // Replace the variant matrix wholesale (simple + safe for the admin UI).
-  await db.delete(productVariants).where(eq(productVariants.productId, productId))
+  await tx.delete(productVariants).where(eq(productVariants.productId, productId))
   const variants = cleanVariants(input)
   if (variants.length > 0) {
-    await db.insert(productVariants).values(
+    await tx.insert(productVariants).values(
       variants.map((v, i) => {
         const qty = Math.max(0, Math.trunc(v.quantity || 0))
         const old = v.oldPrice == null || v.oldPrice === '' ? null : v.oldPrice
@@ -355,13 +359,14 @@ export async function createProduct(input: ProductInput) {
   const error = validateProduct(input)
   if (error) return { success: false, error }
 
-  const [created] = await db.insert(products).values(toProductRow(input)).returning({ id: products.id })
-  await syncRelations(created.id, input)
-
-  // Auto-generate the human-readable URL slug now that we have the id (used
-  // as the disambiguation fallback for a blank/all-symbols name).
-  const slug = await generateUniqueSlug(input.nameUk || input.nameRu || '', created.id)
-  await db.update(products).set({ slug }).where(eq(products.id, created.id))
+  const created = await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    const [row] = await tx.insert(products).values(toProductRow(input)).returning({ id: products.id })
+    await syncRelations(row.id, input, tx)
+    const slug = await generateUniqueSlug(input.nameUk || input.nameRu || '', row.id)
+    await tx.update(products).set({ slug }).where(eq(products.id, row.id))
+    return { id: row.id, slug }
+  })
 
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
@@ -384,8 +389,11 @@ export async function updateProduct(id: number, input: ProductInput) {
   const [existing] = await db.select({ id: products.id, slug: products.slug }).from(products).where(eq(products.id, id))
   if (!existing) return { success: false, error: 'Товар не найден' }
 
-  await db.update(products).set(toProductRow(input)).where(eq(products.id, id))
-  await syncRelations(id, input)
+  await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    await tx.update(products).set(toProductRow(input)).where(eq(products.id, id))
+    await syncRelations(id, input, tx)
+  })
 
   // Slugs are set once and kept stable across renames (protects links/SEO
   // already shared or indexed) — only self-heal products that predate this
@@ -446,22 +454,25 @@ export async function duplicateProduct(id: number) {
 
   const { id: _id, createdAt, updatedAt, deletedAt, categoryIds, groupIds, characteristics, viewsCount, ordersCount, ...rest } = source
 
-  const [created] = await db
-    .insert(products)
-    .values({
-      ...rest,
-      nameRu: rest.nameRu ? `${rest.nameRu} (копия)` : null,
-      nameUk: rest.nameUk ? `${rest.nameUk} (копія)` : null,
-      sku: rest.sku ? `${rest.sku}-COPY` : null,
-    })
-    .returning({ id: products.id })
-
-  await syncRelations(created.id, {
-    price: rest.price,
-    quantity: rest.quantity,
-    categoryIds,
-    groupIds,
-    characteristics: characteristics.map((c) => ({ name: c.name, value: c.value })),
+  const created = await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    const [row] = await tx
+      .insert(products)
+      .values({
+        ...rest,
+        nameRu: rest.nameRu ? `${rest.nameRu} (копия)` : null,
+        nameUk: rest.nameUk ? `${rest.nameUk} (копія)` : null,
+        sku: rest.sku ? `${rest.sku}-COPY` : null,
+      })
+      .returning({ id: products.id })
+    await syncRelations(row.id, {
+      price: rest.price,
+      quantity: rest.quantity,
+      categoryIds,
+      groupIds,
+      characteristics: characteristics.map((c) => ({ name: c.name, value: c.value })),
+    }, tx)
+    return row
   })
 
   revalidatePath('/admin/products')
@@ -603,8 +614,11 @@ export async function bulkSetProductCategory(ids: number[], categoryId: number) 
   const unique = uniqueIds(ids)
   if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
   if (!Number.isInteger(categoryId) || categoryId < 1) return { success: false, error: 'Категорія не задана' }
-  await db.delete(productCategory).where(inArray(productCategory.productId, unique))
-  await db.insert(productCategory).values(unique.map((productId) => ({ productId, categoryId })))
+  await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    await tx.delete(productCategory).where(inArray(productCategory.productId, unique))
+    await tx.insert(productCategory).values(unique.map((productId) => ({ productId, categoryId })))
+  })
   revalidatePath('/admin/products')
   revalidateStorefront()
   return { success: true }

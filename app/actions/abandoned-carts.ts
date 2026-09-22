@@ -68,8 +68,8 @@ export async function saveAbandonedCart(input: {
   const itemsTotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
   const itemsCount = items.reduce((s, i) => s + i.quantity, 0)
 
-  await pool
-    .query(
+  try {
+    await pool.query(
       `INSERT INTO abandoned_carts (token, customer_name, customer_phone, customer_email, items, items_total, items_count, status, updated_at)
        VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, 'open', NOW())
        ON CONFLICT (token) DO UPDATE SET
@@ -84,7 +84,10 @@ export async function saveAbandonedCart(input: {
          updated_at = NOW()`,
       [token, name, phone, email, JSON.stringify(items), itemsTotal.toFixed(2), itemsCount],
     )
-    .catch(() => {})
+  } catch (e) {
+    console.error('[abandoned-cart] save failed:', (e as Error).message)
+    return { ok: false }
+  }
 
   return { ok: true }
 }
