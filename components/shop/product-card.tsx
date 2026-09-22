@@ -17,7 +17,7 @@ import { FavoriteButton } from '@/components/shop/favorite-button'
 import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { cn } from '@/lib/utils'
 
-const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw'
+const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'
 
 export function ProductCard({ product, priority = false }: { product: ShopProduct; priority?: boolean }) {
   const { add } = useCart()
