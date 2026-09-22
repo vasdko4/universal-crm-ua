@@ -1,7 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Globe } from 'lucide-react'
 import { setLocale } from '@/app/actions/locale'
 import { useI18n, persistLocaleClientSide } from '@/lib/i18n/client'
@@ -16,7 +16,6 @@ export function LocaleSwitcher({
   variant?: 'dropdown' | 'inline'
 }) {
   const { locale } = useI18n()
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -38,8 +37,9 @@ export function LocaleSwitcher({
       } catch {
         // Client cookie already keeps the choice.
       }
-      router.push(target)
-      router.refresh()
+      // Full navigation so RSC payload, html lang, and catalog copy all
+      // switch together — client push left the previous language on screen.
+      window.location.assign(target)
     })
   }
 

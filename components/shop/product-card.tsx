@@ -87,10 +87,10 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
     <article
       onPointerEnter={() => setShowHover(true)}
       onFocusCapture={() => setShowHover(true)}
-      className="group relative flex h-full flex-col overflow-visible rounded-xl border border-border/60 bg-card shadow-[0_1px_0_rgba(15,23,42,0.04)] transition-all duration-300 sm:rounded-2xl sm:hover:-translate-y-0.5 hover:border-border hover:shadow-[0_12px_32px_-16px_rgba(15,23,42,0.28)]"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300 sm:rounded-2xl sm:hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md"
     >
-      <div className="relative overflow-hidden rounded-t-xl sm:rounded-t-2xl">
-        <Link href={href} className="relative block aspect-square overflow-hidden bg-muted/60">
+      <div className="relative overflow-hidden rounded-t-xl bg-white dark:bg-neutral-900 sm:rounded-t-2xl">
+        <Link href={href} className="relative block aspect-square overflow-hidden">
           {primary ? (
             <>
               <Image
@@ -103,7 +103,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
                 unoptimized={isProxiedMedia(primary)}
                 loading={priority ? 'eager' : 'lazy'}
                 className={cn(
-                  'object-cover transition duration-500 group-hover:scale-[1.03]',
+                  'object-contain p-2 transition duration-500 group-hover:scale-[1.03] sm:p-3',
                   hoverImage && showHover && 'sm:group-hover:opacity-0',
                 )}
               />
@@ -115,7 +115,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
                   sizes={IMAGE_SIZES}
                   quality={70}
                   unoptimized={isProxiedMedia(hoverImage)}
-                  className="hidden object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:block"
+                  className="hidden object-contain p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:block sm:p-3"
                 />
               )}
             </>
@@ -157,13 +157,13 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
         />
       </div>
 
-      <div className="flex flex-1 flex-col gap-1 p-2 sm:p-2.5">
-        <div className="relative min-h-[2.5rem]">
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5 sm:p-3">
+        <div className="relative min-h-[2.75rem]">
           <Link
             ref={nameRef}
             href={href}
             title={product.name}
-            className="peer line-clamp-2 text-[13px] font-medium leading-snug text-foreground hover:text-primary sm:text-[13px]"
+            className="peer line-clamp-2 text-sm font-semibold leading-snug text-foreground hover:text-primary"
           >
             {product.name}
           </Link>
@@ -193,14 +193,14 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
           </span>
         ) : null}
 
-        <div className="mt-auto flex flex-col items-center gap-1.5 pt-1">
-          <div className="flex min-h-[2.25rem] w-full flex-col items-center justify-center text-center">
+        <div className="mt-auto flex flex-col items-stretch gap-2 pt-1">
+          <div className="flex min-h-[2.5rem] w-full flex-col items-start justify-center">
             {product.oldPrice && product.oldPrice > product.price ? (
-              <span className="block truncate text-[10px] leading-none text-muted-foreground line-through sm:text-[11px]">
+              <span className="block truncate text-xs leading-none text-muted-foreground line-through">
                 {formatPrice(product.oldPrice, product.currency, locale)}
               </span>
             ) : null}
-            <span className="block truncate text-[13px] font-bold leading-tight tracking-tight text-foreground sm:text-[15px]">
+            <span className="block truncate text-base font-bold leading-tight tracking-tight text-foreground sm:text-lg">
               {formatPrice(product.price, product.currency, locale)}
             </span>
           </div>
@@ -211,7 +211,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
             aria-label={addLabel}
             data-testid={needsSize ? 'choose-size' : 'add-to-cart'}
             className={cn(
-              'h-8 w-full rounded-lg px-2 text-[12px]',
+              'h-9 w-full rounded-lg px-2 text-sm font-semibold',
               added && 'bg-success text-primary-foreground hover:bg-success',
             )}
           >
