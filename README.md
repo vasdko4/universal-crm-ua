@@ -11,11 +11,11 @@
 Каталог, заказы, клиенты, Новая Почта, Monobank / WayForPay — на вашей машине,
 без SaaS и без обязательного облака.
 
-**Version 2.5.2** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
+**Version 3.0.0** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
 
 **Демо:** https://magazine-test-ten.vercel.app — имя в вкладке берётся из `/admin` → Налаштування (`storeName`), не из кода.
 **Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/latest
-**Образ:** `ghcr.io/vasdko4/universal-crm-ua:2.5.2`
+**Образ:** `ghcr.io/vasdko4/universal-crm-ua:3.0.0`
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
@@ -86,7 +86,7 @@ DOMAIN=shop.example.com bash install.sh
 Другая версия образа:
 
 ```bash
-IMAGE=ghcr.io/vasdko4/universal-crm-ua:2.5.2 bash install.sh
+IMAGE=ghcr.io/vasdko4/universal-crm-ua:3.0.0 bash install.sh
 ```
 
 Пропустить подготовку ОС (Docker уже стоит):
@@ -222,7 +222,7 @@ pnpm test
 Интеграции, которые включаются ключами, а не отдельным хостингом: SMTP, Telegram-бот,
 Google Ads / Analytics, ключ Новой Почты.
 
-### Стек 2.5
+### Стек 3.0
 
 | Слой | |
 |---|---|

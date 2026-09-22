@@ -51,44 +51,51 @@ function numberMap(value: unknown): Record<string, number> {
 function loadCapState(): ModalCapState {
   const state = emptyCapState()
   if (typeof window === 'undefined') return state
+  try {
+    const persisted = readJson(localStorage.getItem(LS_KEY))
+    state.lastAnyAt = typeof persisted.lastAnyAt === 'number' ? persisted.lastAnyAt : null
+    state.shownAt = numberMap(persisted.shownAt)
+    state.dismissedAt = numberMap(persisted.dismissedAt)
 
-  const persisted = readJson(localStorage.getItem(LS_KEY))
-  state.lastAnyAt = typeof persisted.lastAnyAt === 'number' ? persisted.lastAnyAt : null
-  state.shownAt = numberMap(persisted.shownAt)
-  state.dismissedAt = numberMap(persisted.dismissedAt)
-
-  // Older builds stored last-view timestamps as { [id]: epoch }.
-  const legacy = numberMap(readJson(localStorage.getItem(LEGACY_LS)))
-  for (const [id, at] of Object.entries(legacy)) {
-    if (state.shownAt[id] == null) state.shownAt[id] = at
-    if (state.lastAnyAt == null || at > state.lastAnyAt) state.lastAnyAt = at
-  }
-
-  const session = readJson(sessionStorage.getItem(SS_KEY))
-  state.anyThisSession = session.any === true
-  const ids = session.ids
-  if (ids && typeof ids === 'object') {
-    for (const id of Object.keys(ids as Record<string, unknown>)) {
-      state.sessionShown[id] = true
-      state.anyThisSession = true
+    // Older builds stored last-view timestamps as { [id]: epoch }.
+    const legacy = numberMap(readJson(localStorage.getItem(LEGACY_LS)))
+    for (const [id, at] of Object.entries(legacy)) {
+      if (state.shownAt[id] == null) state.shownAt[id] = at
+      if (state.lastAnyAt == null || at > state.lastAnyAt) state.lastAnyAt = at
     }
+
+    const session = readJson(sessionStorage.getItem(SS_KEY))
+    state.anyThisSession = session.any === true
+    const ids = session.ids
+    if (ids && typeof ids === 'object') {
+      for (const id of Object.keys(ids as Record<string, unknown>)) {
+        state.sessionShown[id] = true
+        state.anyThisSession = true
+      }
+    }
+  } catch {
+    return emptyCapState()
   }
   return state
 }
 
 function persistCapState(state: ModalCapState) {
-  localStorage.setItem(
-    LS_KEY,
-    JSON.stringify({
-      lastAnyAt: state.lastAnyAt,
-      shownAt: state.shownAt,
-      dismissedAt: state.dismissedAt,
-    }),
-  )
-  sessionStorage.setItem(
-    SS_KEY,
-    JSON.stringify({ any: state.anyThisSession, ids: state.sessionShown }),
-  )
+  try {
+    localStorage.setItem(
+      LS_KEY,
+      JSON.stringify({
+        lastAnyAt: state.lastAnyAt,
+        shownAt: state.shownAt,
+        dismissedAt: state.dismissedAt,
+      }),
+    )
+    sessionStorage.setItem(
+      SS_KEY,
+      JSON.stringify({ any: state.anyThisSession, ids: state.sessionShown }),
+    )
+  } catch {
+    // Safari private mode / quota — fail open, do not crash the storefront.
+  }
 }
 
 const SIZE_CLASS: Record<string, string> = {
