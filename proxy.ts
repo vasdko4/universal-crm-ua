@@ -39,6 +39,13 @@ function isLocaleExempt(pathname: string) {
 const HSTS = 'max-age=31536000; includeSubDomains; preload'
 
 function contentSecurityPolicy(nonce: string) {
+  // React dev mode (callstack reconstruction) and Turbopack HMR both need
+  // eval(), which production never uses — the strict policy below stays intact
+  // in real builds, this only loosens it while running `next dev`.
+  const scriptSrc =
+    process.env.NODE_ENV === 'development'
+      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+      : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -48,7 +55,7 @@ function contentSecurityPolicy(nonce: string) {
     // Nonce + strict-dynamic: Next boot scripts and gtag.js (nonce on <Script>)
     // may load further scripts. Host allowlists on script-src are ignored once
     // a nonce is present in CSP3, so they only diluted the policy for scanners.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    scriptSrc,
     "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     // No blanket https: — catalog photos are same-origin (/api/media); Ads/GA pixels only.

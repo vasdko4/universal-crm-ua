@@ -100,8 +100,13 @@ function getCartSnapshot(): CartItem[] {
   }
 }
 
+// Cached as a module-level constant: useSyncExternalStore compares the server
+// snapshot between renders, and a fresh `[]` each call makes React warn
+// "The result of getServerSnapshot should be cached to avoid an infinite loop".
+const EMPTY_CART: CartItem[] = []
+
 function getServerCartSnapshot(): CartItem[] {
-  return []
+  return EMPTY_CART
 }
 
 function persistCart(items: CartItem[]) {

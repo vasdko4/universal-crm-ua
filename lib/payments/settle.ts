@@ -29,6 +29,29 @@ export async function settlePayment(
     .where(eq(orders.orderNumber, orderReference))
     .limit(1)
 
+  // A late Approved after the merchant already refunded must not flip the
+  // order back to paid or run fulfillment (WayForPay retries Service URL).
+  const alreadyRefunded =
+    payment?.status === 'refunded' ||
+    payment?.status === 'partially_refunded' ||
+    order?.paymentStatus === 'refunded'
+  if (alreadyRefunded && status === 'paid') {
+    if (payment) {
+      await db
+        .insert(paymentEvents)
+        .values({
+          paymentId: payment.id,
+          type: opts.eventType ?? 'webhook',
+          status: 'ignored_paid_after_refund',
+          amount: opts.amount != null ? opts.amount.toFixed(2) : null,
+          message: 'Поздний paid после возврата — заказ и платёж не тронуты',
+          payload: (opts.raw as object) ?? null,
+        })
+        .catch(() => {})
+    }
+    return { ok: true, matchedPayment: Boolean(payment), matchedOrder: Boolean(order) }
+  }
+
   // A signed/authoritative `paid` with a short amount must not mark the
   // payment or the order paid, and must not decrement stock (invoice
   // tampering, currency rounding, partial capture). Skip the check when

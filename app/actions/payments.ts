@@ -17,6 +17,7 @@ import {
   type GatewayResult,
 } from '@/lib/payments/clients'
 import { refundPlan } from '@/lib/payments/refund'
+import { settlePayment } from '@/lib/payments/settle'
 import { restoreStockOnce } from '@/lib/shop/order-fulfillment'
 
 type ActionResult = { ok: boolean; message: string; paymentUrl?: string }
@@ -227,12 +228,14 @@ export async function refreshPaymentStatus(paymentId: number): Promise<ActionRes
   await logEvent(payment.id, 'status', result)
 
   if (result.ok && result.status) {
-    const keepRefunded = payment.status === 'refunded' && result.status !== 'refunded'
-    await db
-      .update(payments)
-      .set({ status: keepRefunded ? 'refunded' : result.status, updatedAt: new Date() })
-      .where(eq(payments.id, paymentId))
+    await settlePayment(payment.orderReference, result.status, {
+      eventType: 'status',
+      amount: result.amount,
+      raw: result.raw,
+      message: result.message,
+    })
     revalidatePath('/admin/payments')
+    revalidatePath('/admin/orders')
     return { ok: true, message: `Статус обновлён: ${result.status}` }
   }
   return { ok: false, message: result.message || 'Не удалось получить статус' }
