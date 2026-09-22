@@ -9,6 +9,7 @@ import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { parsePositiveInt } from '@/lib/api/helpers'
+import { requisitesBody } from '@/lib/payments/public-requisites'
 
 function InfoRow({
   icon: Icon,
@@ -173,9 +174,9 @@ export default async function MyOrderDetailPage({
         </div>
       </div>
 
-      {order.paymentMethod === 'requisites' && order.note && (
-        <CopyRequisites className="w-full text-left" text={order.note.replace(/^Реквізити для оплати:\n/, '').replace(/^Реквизиты для оплаты:\n/, '')} />
-      )}
+      {order.paymentMethod === 'requisites' && requisitesBody(order.note) ? (
+        <CopyRequisites className="w-full text-left" text={requisitesBody(order.note)} />
+      ) : null}
 
       <div className="rounded-2xl border border-border bg-card">
         <ul className="divide-y divide-border">
