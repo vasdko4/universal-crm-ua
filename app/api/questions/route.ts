@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (isRateLimited('questions', clientIp(req), 5)) {
+  if (await isRateLimited('questions', clientIp(req), 5)) {
     return fail('Слишком много запросов, попробуйте позже', 429)
   }
   const body = await readJson<Parameters<typeof createQuestion>[0]>(req)
