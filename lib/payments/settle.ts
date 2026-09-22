@@ -23,6 +23,45 @@ export async function settlePayment(
     .where(eq(payments.orderReference, orderReference))
     .limit(1)
 
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.orderNumber, orderReference))
+    .limit(1)
+
+  // A signed/authoritative `paid` with a short amount must not mark the
+  // payment or the order paid, and must not decrement stock (invoice
+  // tampering, currency rounding, partial capture). Skip the check when
+  // the gateway did not report an amount.
+  if (status === 'paid' && order && opts.amount != null && Number.isFinite(opts.amount)) {
+    const expected = Number(order.total)
+    if (!(opts.amount + 0.01 >= expected)) {
+      if (payment) {
+        await db
+          .insert(paymentEvents)
+          .values({
+            paymentId: payment.id,
+            type: opts.eventType ?? 'webhook',
+            status: 'amount_mismatch',
+            amount: opts.amount.toFixed(2),
+            message: `Сумма шлюза ${opts.amount.toFixed(2)} меньше итога заказа ${expected.toFixed(2)} — заказ не отмечен оплаченным`,
+            payload: (opts.raw as object) ?? null,
+          })
+          .catch(() => {})
+      }
+      await db
+        .insert(orderHistory)
+        .values({
+          orderId: order.id,
+          type: 'payment',
+          message: `Оплата отклонена: сумма шлюза ${opts.amount.toFixed(2)} < ${expected.toFixed(2)}`,
+          actor: 'Платёжный шлюз',
+        })
+        .catch(() => {})
+      return { ok: true, matchedPayment: Boolean(payment), matchedOrder: true }
+    }
+  }
+
   let matchedPayment = false
   if (payment) {
     matchedPayment = true
@@ -50,13 +89,6 @@ export async function settlePayment(
       payload: (opts.raw as object) ?? null,
     })
   }
-
-  // Sync the storefront order (orderReference mirrors orderNumber for shop orders).
-  const [order] = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.orderNumber, orderReference))
-    .limit(1)
 
   let matchedOrder = false
   if (order) {

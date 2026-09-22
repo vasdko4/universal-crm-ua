@@ -8,6 +8,7 @@ node_modules
 .next/
 .env
 .env*.local
+.setup-token
 .DS_Store
 
 # Docker backup folder

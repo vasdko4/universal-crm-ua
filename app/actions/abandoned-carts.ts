@@ -19,7 +19,7 @@ import { headers } from 'next/headers'
 // get an admin's later "send reminder" click to mail out attacker-controlled
 // HTML from the store's own address (phishing/injection vector).
 function esc(s: string) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 export type AbandonedCartItem = {
@@ -202,7 +202,7 @@ ${copy.regards}, ${settings.storeName}`
       .join('')}
   </table>
   <p style="font-size:18px">${copy.sum}: <strong>${total} ₴</strong></p>
-  ${siteUrl ? `<p><a href="${siteUrl}/cart" style="display:inline-block;background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">${copy.htmlCta}</a></p>` : ''}
+  ${siteUrl ? `<p><a href="${esc(siteUrl)}/cart" style="display:inline-block;background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">${copy.htmlCta}</a></p>` : ''}
   <p style="color:#64748b;font-size:13px;margin-top:16px">${copy.htmlStock}</p>
 </div>`
 

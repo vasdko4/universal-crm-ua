@@ -56,6 +56,9 @@ function validate(input: ModalAdInput): string | null {
   if (input.buttonUrl?.trim() && !input.buttonText?.trim()) {
     return 'Укажите текст кнопки для ссылки'
   }
+  if (input.buttonUrl?.trim() && !/^(https?:|mailto:|tel:)/i.test(input.buttonUrl.trim())) {
+    return 'Ссылка кнопки должна начинаться с http(s):, mailto: или tel:'
+  }
   if (input.buttonColor?.trim() && !/^#[0-9a-fA-F]{6}$/.test(input.buttonColor.trim())) {
     return 'Цвет кнопки должен быть в формате #RRGGBB'
   }

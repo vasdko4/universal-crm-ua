@@ -12,7 +12,11 @@ import {
 } from '@/lib/db/config'
 import { getLocale } from '@/lib/i18n/server'
 import { getSetupDictionary } from '@/lib/i18n/setup'
-import { fillTemplate } from '@/lib/i18n/dictionaries'
+import {
+  authorizeSetupToken,
+  isBlockedPostgresHost,
+  postgresHostFromUrl,
+} from '@/lib/setup-token'
 
 export type DatabaseStatus = {
   configured: boolean
@@ -33,13 +37,14 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
     const res = await pool.query(`SELECT to_regclass('public."user"') IS NOT NULL AS ready`)
     return { configured, connected: true, schemaReady: Boolean(res.rows[0]?.ready) }
   } catch (e) {
-    return { configured, connected: false, schemaReady: false, error: (e as Error).message }
+    console.error('[db-config] getDatabaseStatus failed:', (e as Error).message)
+    return { configured, connected: false, schemaReady: false }
   }
 }
 
 export type SaveDatabaseInput =
-  | { mode: 'fields'; host: string; port: string; database: string; user: string; password: string; ssl: boolean }
-  | { mode: 'url'; url: string }
+  | { mode: 'fields'; host: string; port: string; database: string; user: string; password: string; ssl: boolean; setupToken?: string }
+  | { mode: 'url'; url: string; setupToken?: string }
 
 export type SaveDatabaseResult = {
   ok: boolean
@@ -56,11 +61,14 @@ export type SaveDatabaseResult = {
 export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<SaveDatabaseResult> {
   const t = getSetupDictionary(await getLocale()).errors
 
-  // SECURITY: this action rewrites DATABASE_URL on disk. Allow it only while
-  // the app is genuinely unconfigured (no working DB / empty schema / no
-  // users). Once the store is installed, changing the DB requires editing
-  // .env.local on the server — never a public endpoint.
-  //
+  // SECURITY: this action rewrites DATABASE_URL on disk. A one-shot install
+  // token (printed on first boot / SETUP_TOKEN) is required even on a fresh
+  // install — otherwise anyone who can reach /setup becomes the first admin.
+  if (!authorizeSetupToken(input.setupToken)) {
+    return { ok: false, error: t.setupTokenRequired }
+  }
+
+  // Also refuse once the store is genuinely configured (schema + users).
   // If DATABASE_URL is already set, a downed pool must NOT reopen this
   // endpoint: that would let anyone overwrite the production connection
   // string during an outage.
@@ -97,6 +105,10 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
   if (input.mode === 'fields' && !input.database.trim()) {
     return { ok: false, error: t.dbNameRequired }
   }
+  const host = input.mode === 'fields' ? input.host : postgresHostFromUrl(url)
+  if (!host || isBlockedPostgresHost(host)) {
+    return { ok: false, error: t.invalidPostgres }
+  }
 
   const client = new Client({ connectionString: url, ssl: sslForConnectionString(url) })
   try {
@@ -104,7 +116,8 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
     await client.query('SELECT 1')
   } catch (e) {
     await client.end().catch(() => {})
-    return { ok: false, error: fillTemplate(t.connectFailed, { message: (e as Error).message }) }
+    console.error('[db-config] connect failed:', (e as Error).message)
+    return { ok: false, error: t.connectFailed }
   }
 
   let schemaApplied = false
@@ -118,7 +131,8 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
       }
     }
   } catch (e) {
-    return { ok: false, error: fillTemplate(t.schemaApplyFailed, { message: (e as Error).message }) }
+    console.error('[db-config] schema apply failed:', (e as Error).message)
+    return { ok: false, error: t.schemaApplyFailed }
   } finally {
     await client.end().catch(() => {})
   }
@@ -126,7 +140,8 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
   try {
     saveDatabaseUrl(url)
   } catch (e) {
-    return { ok: false, error: fillTemplate(t.envSaveFailed, { message: (e as Error).message }) }
+    console.error('[db-config] env save failed:', (e as Error).message)
+    return { ok: false, error: t.envSaveFailed }
   }
 
   return { ok: true, schemaApplied }

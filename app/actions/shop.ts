@@ -726,17 +726,28 @@ export async function checkOrderPaymentStatus(
   const cfg = (gateway?.config ?? {}) as Record<string, string>
 
   let status = payment.status
+  let amount: number | undefined
   if (payment.gatewayCode === 'wayforpay') {
     const r = await wayforpayCheckStatus(cfg, orderNumber)
-    if (r.ok && r.status) status = r.status
+    if (r.ok && r.status) {
+      status = r.status
+      amount = r.amount
+    }
   } else if (payment.gatewayCode === 'monobank' && payment.invoiceId) {
     const r = await monobankCheckStatus(cfg, payment.invoiceId)
-    if (r.ok && r.status) status = r.status
+    if (r.ok && r.status) {
+      status = r.status
+      amount = r.amount
+    }
   } else {
     return { ok: true, status: payment.status }
   }
 
-  await settlePayment(orderNumber, status, { eventType: 'status', message: `Проверка статуса: ${status}` })
+  await settlePayment(orderNumber, status, {
+    eventType: 'status',
+    message: `Проверка статуса: ${status}`,
+    amount,
+  })
   return { ok: true, status }
 }
 

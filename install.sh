@@ -250,6 +250,7 @@ BETTER_AUTH_URL=${PUBLIC_URL}
 NEXT_PUBLIC_SITE_URL=${PUBLIC_URL}
 BETTER_AUTH_SECRET=$(gen_secret)
 CRON_SECRET=$(gen_secret)
+SETUP_TOKEN=$(gen_secret)
 POSTGRES_PASSWORD=$(gen_password)
 FTP_USER=techno
 FTP_PASSWORD=$(gen_password)

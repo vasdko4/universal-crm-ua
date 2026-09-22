@@ -11,6 +11,7 @@ import { normalizeOrigin } from '@/lib/seo'
 import { TEMPLATES } from '@/lib/shop/templates'
 import { getLocale } from '@/lib/i18n/server'
 import { getSetupDictionary } from '@/lib/i18n/setup'
+import { authorizeSetupToken } from '@/lib/setup-token'
 
 // Essential operational data every fresh install needs to function: admin/staff
 // roles (permissions live here), plus the default delivery and payment methods.
@@ -84,6 +85,7 @@ export type SetupInput = {
     indexingEnabled: boolean
   }
   installDemo: boolean
+  setupToken?: string
 }
 
 /**
@@ -108,6 +110,10 @@ async function detectSiteUrl(): Promise<string> {
 
 export async function runSetup(input: SetupInput) {
   const t = getSetupDictionary(await getLocale())
+
+  if (!authorizeSetupToken(input.setupToken)) {
+    return { success: false as const, error: t.errors.setupTokenRequired }
+  }
 
   // Hard guard: setup can only run on a fresh install with no users.
   const needed = await isSetupNeeded()

@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { monobankCheckStatus } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
 import { readJson } from '@/lib/api/helpers'
+import { isRateLimited, clientIp } from '@/lib/api/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,16 @@ export async function POST(req: Request) {
   const invoiceId = body.invoiceId ? String(body.invoiceId) : undefined
   if (!invoiceId) return NextResponse.json({ error: 'no invoiceId' }, { status: 400 })
 
+  // invoiceId is public (it sits in the checkout URL). Without a signature
+  // check, anyone who saw it can force us to hit Monobank's API on a loop.
+  // Cap per-invoice and per-IP so a replay cannot burn the merchant quota.
+  if (
+    (await isRateLimited('mono-webhook', invoiceId, 8, 60_000)) ||
+    (await isRateLimited('mono-webhook-ip', clientIp(req), 30, 60_000))
+  ) {
+    return NextResponse.json({ ok: true, note: 'rate limited' })
+  }
+
   const [gateway] = await db
     .select()
     .from(paymentGateways)
@@ -51,6 +62,7 @@ export async function POST(req: Request) {
     await settlePayment(payment.orderReference, status.status, {
       eventType: 'webhook',
       message: `Monobank: ${status.message ?? status.status}`,
+      amount: status.amount,
       raw: status.raw,
     })
   }

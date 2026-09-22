@@ -21,6 +21,21 @@ export function DatabaseSetup() {
     document.title = t.pageTitle
   }, [t.pageTitle])
 
+  useEffect(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get('token') ?? ''
+      const fromStore = sessionStorage.getItem('setup-token') ?? ''
+      if (fromUrl) {
+        setSetupToken(fromUrl)
+        sessionStorage.setItem('setup-token', fromUrl)
+      } else if (fromStore) {
+        setSetupToken(fromStore)
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const [mode, setMode] = useState<'fields' | 'url'>('fields')
   const [host, setHost] = useState('localhost')
   const [port, setPort] = useState('5432')
@@ -29,6 +44,7 @@ export function DatabaseSetup() {
   const [password, setPassword] = useState('')
   const [ssl, setSsl] = useState(false)
   const [url, setUrl] = useState('')
+  const [setupToken, setSetupToken] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -42,8 +58,8 @@ export function DatabaseSetup() {
     setSaving(true)
     const res = await saveDatabaseConfig(
       mode === 'url'
-        ? { mode: 'url', url }
-        : { mode: 'fields', host, port, database, user, password, ssl },
+        ? { mode: 'url', url, setupToken }
+        : { mode: 'fields', host, port, database, user, password, ssl, setupToken },
     )
     setSaving(false)
     if (!res.ok) {
@@ -180,6 +196,24 @@ export function DatabaseSetup() {
                   <p className="text-xs text-muted-foreground">{d.urlFormat}</p>
                 </div>
               )}
+
+              <div className="mt-4 flex flex-col gap-2">
+                <Label htmlFor="setup-token">{t.errors.setupTokenRequired.split('.')[0]}</Label>
+                <Input
+                  id="setup-token"
+                  value={setupToken}
+                  onChange={(e) => {
+                    setSetupToken(e.target.value)
+                    try {
+                      sessionStorage.setItem('setup-token', e.target.value)
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  placeholder="SETUP_TOKEN"
+                  autoComplete="off"
+                />
+              </div>
 
               {error && (
                 <p className="mt-5 text-sm text-destructive" role="alert">
