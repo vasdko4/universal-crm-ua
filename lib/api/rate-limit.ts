@@ -64,17 +64,24 @@ export async function isRateLimitedHot(
 ): Promise<boolean> {
   const key = `${scope}:${ip || 'unknown'}`
   if (memoryLimited(key, max, windowMs)) return true
-  const upstash = await upstashLimited(`hot:${key}`, max, windowMs)
+  // 150ms: a hung Upstash must not stall every catalog thumbnail.
+  const upstash = await upstashLimited(`hot:${key}`, max, windowMs, 150)
   return upstash === true
 }
 
-async function upstashLimited(key: string, max: number, windowMs: number): Promise<boolean | null> {
+async function upstashLimited(
+  key: string,
+  max: number,
+  windowMs: number,
+  timeoutMs = 500,
+): Promise<boolean | null> {
   const url = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/$/, '')
   const token = process.env.UPSTASH_REDIS_REST_TOKEN
   if (!url || !token) return null
   try {
     const res = await fetch(`${url}/pipeline`, {
       method: 'POST',
+      signal: AbortSignal.timeout(timeoutMs),
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify([
         ['INCR', key],
@@ -87,12 +94,16 @@ async function upstashLimited(key: string, max: number, windowMs: number): Promi
     const ttl = Number(json[1]?.result ?? -1)
     if (count === 1 || ttl < 0) {
       await fetch(`${url}/pexpire/${encodeURIComponent(key)}/${windowMs}`, {
+        signal: AbortSignal.timeout(timeoutMs),
         headers: { Authorization: `Bearer ${token}` },
       })
     }
     return count > max
   } catch (e) {
-    console.error('[rate-limit] upstash failed:', (e as Error).message)
+    const name = (e as Error).name
+    if (name !== 'TimeoutError' && name !== 'AbortError') {
+      console.error('[rate-limit] upstash failed:', (e as Error).message)
+    }
     return null
   }
 }

@@ -15,27 +15,42 @@ function exec(client?: PoolClient): QueryExecutor {
  */
 export async function adjustStockForOrder(orderId: number, sign: 1 | -1, client?: PoolClient) {
   const q = exec(client)
-  // Restore/re-deduct from the *net* ledger of this order (M5). Oversold
-  // lines never wrote a `sale` movement, so they must not be added back as
-  // if the full ordered qty had left the warehouse. Netting sale+cancel also
-  // keeps a restore→reopen→restore cycle from double-counting historical
-  // sale rows.
+  // Restore (sign +1): outstanding deduction = -net(sale+cancel). Oversold
+  // lines never wrote a `sale` movement, so they must not be added back.
+  // Re-deduct (sign -1): unmatched restore = cancel rows after that line's
+  // latest sale. After a full restore the net is 0, so SUM(delta) cannot
+  // drive reopen — that left phantom stock on every cancel→reopen cycle.
   const ledger = await q.query<{
     product_id: number
     variant_id: number | null
     qty: string
   }>(
-    `SELECT product_id, variant_id,
+    `WITH last_sale AS (
+       SELECT product_id, variant_id, MAX(created_at) AS at
+         FROM stock_movements
+        WHERE order_id = $1 AND reason = 'sale'
+        GROUP BY product_id, variant_id
+     )
+     SELECT m.product_id, m.variant_id,
             CASE WHEN $2::int = 1
-                 THEN GREATEST(0, -SUM(delta))::int
-                 ELSE GREATEST(0,  SUM(delta))::int
+                 THEN GREATEST(0, -SUM(m.delta))::int
+                 ELSE GREATEST(0, SUM(m.delta) FILTER (
+                        WHERE m.reason = 'cancel'
+                          AND m.created_at >= COALESCE(ls.at, '-infinity'::timestamptz)
+                      ))::int
             END AS qty
-       FROM stock_movements
-      WHERE order_id = $1 AND reason IN ('sale', 'cancel')
-      GROUP BY product_id, variant_id
+       FROM stock_movements m
+       LEFT JOIN last_sale ls
+         ON ls.product_id = m.product_id
+        AND ls.variant_id IS NOT DISTINCT FROM m.variant_id
+      WHERE m.order_id = $1 AND m.reason IN ('sale', 'cancel')
+      GROUP BY m.product_id, m.variant_id, ls.at
      HAVING (CASE WHEN $2::int = 1
-                  THEN GREATEST(0, -SUM(delta))
-                  ELSE GREATEST(0,  SUM(delta))
+                  THEN GREATEST(0, -SUM(m.delta))
+                  ELSE GREATEST(0, SUM(m.delta) FILTER (
+                         WHERE m.reason = 'cancel'
+                           AND m.created_at >= COALESCE(ls.at, '-infinity'::timestamptz)
+                       ))
              END) > 0`,
     [orderId, sign],
   )
