@@ -151,6 +151,11 @@ export type AdminDictionary = {
     refundViaGateway: string
     refundPartial: string
     refundAmountLabel: string
+    refundConfirmTitle: string
+    refundConfirmFull: string
+    refundConfirmPartial: string
+    refundConfirmAction: string
+    refundInvalidAmount: string
     allPayments: string
     paymentFilter: string
     missingTtn: string
@@ -1877,6 +1882,11 @@ const uk: AdminDictionary = {
     refundViaGateway: 'Повернути через шлюз',
     refundPartial: 'Часткове повернення',
     refundAmountLabel: 'Сума повернення, ₴',
+    refundConfirmTitle: 'Повернути кошти?',
+    refundConfirmFull: 'Повне повернення на картку покупця. Скасувати цю операцію в шлюзі буде неможливо.',
+    refundConfirmPartial: 'Повернути {{amount}} ₴ на картку покупця. Скасувати цю операцію в шлюзі буде неможливо.',
+    refundConfirmAction: 'Повернути',
+    refundInvalidAmount: 'Вкажіть суму від 0.01 до підсумку замовлення',
     allPayments: 'Усі оплати',
     paymentFilter: 'Оплата',
     missingTtn: 'Без ТТН',
@@ -3629,6 +3639,11 @@ const ru: AdminDictionary = {
     refundViaGateway: 'Вернуть через шлюз',
     refundPartial: 'Частичный возврат',
     refundAmountLabel: 'Сумма возврата, ₴',
+    refundConfirmTitle: 'Вернуть средства?',
+    refundConfirmFull: 'Полный возврат на карту покупателя. Отменить эту операцию в шлюзе будет невозможно.',
+    refundConfirmPartial: 'Вернуть {{amount}} ₴ на карту покупателя. Отменить эту операцию в шлюзе будет невозможно.',
+    refundConfirmAction: 'Вернуть',
+    refundInvalidAmount: 'Укажите сумму от 0.01 до итога заказа',
     allPayments: 'Все оплаты',
     paymentFilter: 'Оплата',
     missingTtn: 'Без ТТН',
