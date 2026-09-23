@@ -214,7 +214,7 @@ export async function deletePromotion(id: number) {
   return { success: true }
 }
 
-export type PromoCartLine = { productId: number; price: number; quantity: number }
+export type PromoCartLine = { productId: number; price: number; quantity: number; salesType?: string | null }
 
 export type PromoEvaluation =
   | { ok: false; error: string }
@@ -251,6 +251,21 @@ function groupEligibleBase(lines: PromoCartLine[], groupIds: number[], membershi
 // row, used by both the promo-code path (evaluatePromoCode) and the
 // automatic-discount path (findBestAutomaticDiscount) so the two can never
 // drift apart on targeting/date/limit rules.
+function isWholesaleLine(line: PromoCartLine): boolean {
+  return line.salesType === 'wholesale'
+}
+
+async function withSalesTypes(lines: PromoCartLine[]): Promise<PromoCartLine[]> {
+  const missing = [...new Set(lines.filter((l) => l.salesType == null).map((l) => l.productId))]
+  if (!missing.length) return lines
+  const rows = await db
+    .select({ id: products.id, salesType: products.salesType })
+    .from(products)
+    .where(inArray(products.id, missing))
+  const byId = new Map(rows.map((r) => [r.id, r.salesType]))
+  return lines.map((l) => (l.salesType != null ? l : { ...l, salesType: byId.get(l.productId) ?? 'retail' }))
+}
+
 async function computePromoDiscount(
   promo: PromotionRow,
   lines: PromoCartLine[],
@@ -262,7 +277,10 @@ async function computePromoDiscount(
   if (promo.endsAt && new Date(promo.endsAt) < now) return { error: 'expired' }
   if (promo.usageLimit != null && promo.usedCount >= promo.usageLimit) return { error: 'usage_limit' }
 
-  const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0)
+  const priced = promo.excludeWholesale ? lines.filter((l) => !isWholesaleLine(l)) : lines
+  if (promo.excludeWholesale && priced.length === 0) return { error: 'not_applicable' }
+
+  const subtotal = priced.reduce((s, l) => s + l.price * l.quantity, 0)
   if (promo.minOrderAmount != null && subtotal < Number(promo.minOrderAmount)) {
     return { error: 'min_order', minOrderAmount: Number(promo.minOrderAmount) }
   }
@@ -271,12 +289,12 @@ async function computePromoDiscount(
   let eligibleBase = subtotal
   if (promo.targetType === 'products') {
     const targetIds = new Set((promo.targetProductIds as number[]) ?? [])
-    eligibleBase = lines.filter((l) => targetIds.has(l.productId)).reduce((s, l) => s + l.price * l.quantity, 0)
+    eligibleBase = priced.filter((l) => targetIds.has(l.productId)).reduce((s, l) => s + l.price * l.quantity, 0)
   } else if (promo.targetType === 'groups') {
     const groupIds = (promo.targetGroupIds as number[]) ?? []
-    const productIds = lines.map((l) => l.productId)
+    const productIds = priced.map((l) => l.productId)
     const memberships = groupMemberships ?? (await loadGroupMemberships(productIds, groupIds))
-    eligibleBase = groupEligibleBase(lines, groupIds, memberships)
+    eligibleBase = groupEligibleBase(priced, groupIds, memberships)
   }
 
   if (eligibleBase <= 0) return { error: 'not_applicable' }
@@ -314,7 +332,7 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
 
   if (!promo) return { ok: false, error: t.promoNotFound }
 
-  const result = await computePromoDiscount(promo, lines)
+  const result = await computePromoDiscount(promo, await withSalesTypes(lines))
   if ('error' in result) {
     switch (result.error) {
       case 'inactive':
@@ -354,6 +372,7 @@ export async function validatePromoCode(code: string, lines: PromoCartLine[]): P
     productId: l.productId,
     price: Math.max(0, Number(l.price) || 0),
     quantity: Math.max(1, Math.floor(l.quantity)),
+    salesType: l.salesType ?? undefined,
   }))
   return evaluatePromoCode(code, safeLines)
 }
@@ -376,14 +395,15 @@ export async function findBestAutomaticDiscount(lines: PromoCartLine[]): Promise
       candidates.flatMap((p) => (p.targetType === 'groups' ? ((p.targetGroupIds as number[]) ?? []) : [])),
     ),
   ]
+  const priced = await withSalesTypes(lines)
   const memberships = await loadGroupMemberships(
-    lines.map((l) => l.productId),
+    priced.map((l) => l.productId),
     allGroupIds,
   )
 
   let best: (PromoEvaluation & { ok: true }) | null = null
   for (const promo of candidates) {
-    const result = await computePromoDiscount(promo, lines, memberships)
+    const result = await computePromoDiscount(promo, priced, memberships)
     if ('error' in result) continue
     if (!best || result.discount > best.discount) {
       best = {
@@ -409,6 +429,7 @@ export async function previewAutomaticDiscount(lines: PromoCartLine[]): Promise<
     productId: l.productId,
     price: Math.max(0, Number(l.price) || 0),
     quantity: Math.max(1, Math.floor(l.quantity)),
+    salesType: l.salesType ?? undefined,
   }))
   return findBestAutomaticDiscount(safeLines)
 }

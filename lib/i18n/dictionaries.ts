@@ -513,6 +513,10 @@ export type Dictionary = {
     invalidEmail: string
     deliveryMethodRequired: string
     paymentMethodRequired: string
+    invalidDeliveryMethod: string
+    invalidPaymentMethod: string
+    codRequiresBranchDelivery: string
+    productNotFound: string
   }
   notFoundPage: {
     title: string
@@ -1089,6 +1093,10 @@ const uk: Dictionary = {
     invalidEmail: 'Вкажіть коректний email',
     deliveryMethodRequired: 'Оберіть спосіб доставки',
     paymentMethodRequired: 'Оберіть спосіб оплати',
+    invalidDeliveryMethod: 'Невідомий спосіб доставки',
+    invalidPaymentMethod: 'Невідомий спосіб оплати',
+    codRequiresBranchDelivery: 'Накладений платіж доступний лише для Нової Пошти та Укрпошти',
+    productNotFound: 'Товар не знайдено',
   },
   notFoundPage: {
     title: 'Сторінку не знайдено',
@@ -1670,6 +1678,10 @@ const ru: Dictionary = {
     invalidEmail: 'Укажите корректный email',
     deliveryMethodRequired: 'Выберите способ доставки',
     paymentMethodRequired: 'Выберите способ оплаты',
+    invalidDeliveryMethod: 'Неизвестный способ доставки',
+    invalidPaymentMethod: 'Неизвестный способ оплаты',
+    codRequiresBranchDelivery: 'Наложенный платёж доступен только для Новой Почты и Укрпочты',
+    productNotFound: 'Товар не найден',
   },
   notFoundPage: {
     title: 'Страница не найдена',

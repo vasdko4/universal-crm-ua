@@ -216,6 +216,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       image: products.image,
       quantity: products.quantity,
       variantsEnabled: products.variantsEnabled,
+      salesType: products.salesType,
     })
     .from(products)
     .where(and(inArray(products.id, ids), sql`${products.deletedAt} IS NULL`))
@@ -317,7 +318,12 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   // Authoritatively re-evaluate the promo code AND any automatic ("type:
   // discount") promotion (never trust a client discount). Only the resulting
   // code/amounts are persisted here; usage is recorded at fulfillment.
-  const promoLines = lineItems.map((i) => ({ productId: i.productId, price: i.price, quantity: i.quantity }))
+  const promoLines = lineItems.map((i) => ({
+    productId: i.productId,
+    price: i.price,
+    quantity: i.quantity,
+    salesType: byId.get(i.productId)?.salesType ?? 'retail',
+  }))
 
   let manualPromo: Awaited<ReturnType<typeof evaluatePromoCode>> | null = null
   if (input.promoCode?.trim()) {
@@ -864,8 +870,18 @@ export async function submitReview(input: {
   const user = await getShopUser()
   const name = (input.authorName?.trim() || user?.name || dict.common.anonymous).slice(0, 120)
   if (!input.body?.trim()) return { success: false, error: dict.serverErrors.reviewTextRequired }
+  const productId = Math.floor(Number(input.productId))
+  if (!Number.isSafeInteger(productId) || productId < 1) {
+    return { success: false, error: dict.serverErrors.productNotFound }
+  }
+  const [product] = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(and(eq(products.id, productId), isNull(products.deletedAt)))
+    .limit(1)
+  if (!product) return { success: false, error: dict.serverErrors.productNotFound }
   await db.insert(productReviews).values({
-    productId: input.productId,
+    productId,
     authorName: name,
     authorEmail: (input.authorEmail?.trim() || user?.email || null)?.slice(0, 255) ?? null,
     rating: Math.min(5, Math.max(1, input.rating)),
@@ -891,8 +907,18 @@ export async function submitQuestion(input: {
   const user = await getShopUser()
   const name = (input.authorName?.trim() || user?.name || dict.common.anonymous).slice(0, 120)
   if (!input.question?.trim()) return { success: false, error: dict.serverErrors.questionRequired }
+  const productId = Math.floor(Number(input.productId))
+  if (!Number.isSafeInteger(productId) || productId < 1) {
+    return { success: false, error: dict.serverErrors.productNotFound }
+  }
+  const [product] = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(and(eq(products.id, productId), isNull(products.deletedAt)))
+    .limit(1)
+  if (!product) return { success: false, error: dict.serverErrors.productNotFound }
   await db.insert(productQuestions).values({
-    productId: input.productId,
+    productId,
     authorName: name,
     authorEmail: (input.authorEmail?.trim() || user?.email || null)?.slice(0, 255) ?? null,
     question: input.question.trim().slice(0, 3000),

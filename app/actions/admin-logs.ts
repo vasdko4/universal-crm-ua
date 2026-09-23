@@ -80,6 +80,11 @@ export async function getAdminLogs(filter: LogsFilter = {}): Promise<LogsResult>
 // Clear logs older than N days (or all when days = 0). Audit-worthy itself.
 export async function clearAdminLogs(days: number): Promise<{ ok: boolean; removed: number }> {
   const user = await assertWritePermission('logs')
+  // days = 0 still nukes the whole trail (intentional, logs:write). Reject
+  // NaN / Infinity / negatives so a bad client cannot 500 the action.
+  if (!Number.isInteger(days) || days < 0 || days > 36500) {
+    return { ok: false, removed: 0 }
+  }
 
   const res =
     days > 0

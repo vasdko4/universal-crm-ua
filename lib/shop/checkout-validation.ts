@@ -16,6 +16,10 @@ import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import type { Locale } from '@/lib/i18n/config'
 import { looksLikeEmail } from '@/lib/text'
 
+export const CHECKOUT_DELIVERY_METHODS = ['nova_poshta', 'ukrposhta', 'courier', 'pickup'] as const
+export const CHECKOUT_PAYMENT_METHODS = ['online', 'cod', 'prepay', 'cash', 'requisites'] as const
+export const CHECKOUT_COD_DELIVERY = ['nova_poshta', 'ukrposhta'] as const
+
 export const CHECKOUT_LIMITS = {
   maxItems: 50,
   maxQuantityPerLine: 999,
@@ -116,8 +120,18 @@ export function validateCheckoutInput(input: CheckoutInput, locale: Locale = 'ru
   // --- delivery / payment ---
   const deliveryMethod = cap(input.deliveryMethod, L.deliveryMethod)
   if (!deliveryMethod) return { ok: false, error: t.deliveryMethodRequired }
+  if (!(CHECKOUT_DELIVERY_METHODS as readonly string[]).includes(deliveryMethod)) {
+    return { ok: false, error: t.invalidDeliveryMethod }
+  }
   const paymentMethod = cap(input.paymentMethod, L.paymentMethod)
   if (!paymentMethod) return { ok: false, error: t.paymentMethodRequired }
+  if (!(CHECKOUT_PAYMENT_METHODS as readonly string[]).includes(paymentMethod)) {
+    return { ok: false, error: t.invalidPaymentMethod }
+  }
+  // Cash-on-delivery is only offered for branch deliveries (Nova / Ukrposhta).
+  if (paymentMethod === 'cod' && !(CHECKOUT_COD_DELIVERY as readonly string[]).includes(deliveryMethod)) {
+    return { ok: false, error: t.codRequiresBranchDelivery }
+  }
 
   const cartTokenRaw = cap(input.cartToken, L.cartToken)
 

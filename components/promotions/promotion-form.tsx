@@ -93,14 +93,8 @@ export function PromotionForm({
     promotion?.minOrderAmount != null ? String(Number(promotion.minOrderAmount)) : '',
   )
   const [noStacking, setNoStacking] = useState(promotion?.noStacking ?? false)
-  // "Не применять к оптовым ценам" was removed from this form: the project
-  // has no wholesale-pricing concept anywhere (no wholesale price field on
-  // products/customers), so the checkbox had literally nothing to exclude
-  // from — it saved a value to the DB that no code ever read. Left the
-  // schema column in place (harmless) in case wholesale pricing is built
-  // later, but stopped exposing/settable it here to avoid promising
-  // behavior that doesn't exist.
-  const excludeWholesale = false
+  // Exclude lines whose product.salesType is "wholesale". Retail + both stay eligible.
+  const [excludeWholesale, setExcludeWholesale] = useState(promotion?.excludeWholesale ?? false)
 
   const [startsAt, setStartsAt] = useState(toDateInput(promotion?.startsAt) || todayStr())
   const [hasEnd, setHasEnd] = useState(Boolean(promotion?.endsAt))
@@ -150,6 +144,7 @@ export function PromotionForm({
     if (limitUsage && usageLimit) limits.push(`${t.promotions.summaryLimitUsagePrefix} ${usageLimit}`)
     if (limitMinOrder && minOrderAmount) limits.push(`${t.promotions.summaryLimitMinOrderPrefix} ${minOrderAmount} ₴`)
     if (noStacking) limits.push(t.promotions.summaryNoStacking)
+    if (excludeWholesale) limits.push(t.promotions.excludeWholesaleTitle)
     rows.push({
       label: t.promotions.summaryLimitsLabel,
       value: limits.length ? limits.join(', ') : t.promotions.summaryNone,
@@ -166,7 +161,7 @@ export function PromotionForm({
     return rows
   }, [
     t, type, name, discountType, discountValue, promoCode, targetType, groupIds, productIds,
-    limitUsage, usageLimit, limitMinOrder, minOrderAmount, noStacking,
+    limitUsage, usageLimit, limitMinOrder, minOrderAmount, noStacking, excludeWholesale,
     startsAt, hasEnd, endsAt,
   ])
 
@@ -431,6 +426,11 @@ export function PromotionForm({
                 checked={noStacking}
                 onChange={setNoStacking}
                 title={t.promotions.noStackingTitle}
+              />
+              <CheckRow
+                checked={excludeWholesale}
+                onChange={setExcludeWholesale}
+                title={t.promotions.excludeWholesaleTitle}
               />
             </div>
           </section>
