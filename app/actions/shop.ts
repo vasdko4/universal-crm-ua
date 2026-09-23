@@ -202,10 +202,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   if (!validated.ok) return { success: false, error: validated.error }
   // Sanitized values are already trimmed/capped; null vs undefined is
   // equivalent for every downstream `?.` / `||` use in this function.
-  input = {
-    ...validated.value,
-    items: mergeCheckoutItems(validated.value.items),
-  } as unknown as CheckoutInput
+  input = validated.value as unknown as CheckoutInput
 
   // Load real products to compute authoritative prices and check availability.
   const ids = input.items.map((i) => i.productId)
@@ -224,6 +221,16 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     .where(and(inArray(products.id, ids), sql`${products.deletedAt} IS NULL`))
 
   const byId = new Map(rows.map((r) => [r.id, r]))
+
+  // Drop variantId on products with variants disabled, then merge so
+  // duplicate parent-SKU lines share one stock check (FIX-13 + FIX-22).
+  input.items = mergeCheckoutItems(
+    input.items.map((i) =>
+      i.variantId != null && !byId.get(i.productId)?.variantsEnabled
+        ? { productId: i.productId, quantity: i.quantity }
+        : i,
+    ),
+  )
 
   // Load any variants referenced by the cart to validate per-variant stock/price.
   // Disabled variants (FIX-22) are ignored — parent product price/qty win.

@@ -62,7 +62,7 @@ export async function expirePendingPayments(opts?: {
         })
         settled += 1
         canCancel = false
-      } else {
+      } else if (result.status === 'failed' || result.status === 'expired') {
         await settlePayment(row.order_number, result.status, {
           eventType: 'expire-cron',
           amount: result.amount,
@@ -71,6 +71,9 @@ export async function expirePendingPayments(opts?: {
         })
         settled += 1
         canCancel = true
+      } else {
+        // pending / hold / InProcessing — invoice is still payable.
+        continue
       }
     }
 
