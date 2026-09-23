@@ -143,3 +143,29 @@ export function validateCheckoutInput(input: CheckoutInput, locale: Locale = 'ru
     },
   }
 }
+
+/**
+ * Collapse duplicate product/variant lines so stock is checked against the
+ * summed quantity, not each row in isolation (FIX-13). Direct action calls
+ * can send `[{id:1,qty:5},{id:1,qty:5}]`; the storefront UI already merges.
+ */
+export function mergeCheckoutItems(
+  items: { productId: number; quantity: number; variantId?: number }[],
+): { productId: number; quantity: number; variantId?: number }[] {
+  const map = new Map<string, { productId: number; quantity: number; variantId?: number }>()
+  for (const it of items) {
+    const key = it.variantId != null ? `v:${it.variantId}` : `p:${it.productId}`
+    const prev = map.get(key)
+    if (prev) {
+      prev.quantity += it.quantity
+      continue
+    }
+    map.set(
+      key,
+      it.variantId != null
+        ? { productId: it.productId, quantity: it.quantity, variantId: it.variantId }
+        : { productId: it.productId, quantity: it.quantity },
+    )
+  }
+  return [...map.values()]
+}

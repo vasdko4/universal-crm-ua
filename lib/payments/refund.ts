@@ -22,3 +22,19 @@ export function refundPlan(total: number, alreadyRefunded: number, requested?: n
     status: fully ? 'refunded' : 'partially_refunded',
   }
 }
+
+/**
+ * Cabinet / webhook `Refunded` is not always a full refund (FIX-05).
+ * A reported amount short of the invoice is partial — stock stays deducted.
+ * Missing amount keeps the historical "full refund" meaning (WayForPay often
+ * omits a separate refunded-sum and sends the original invoice amount).
+ */
+export function classifyWebhookRefund(
+  paymentAmount: number,
+  reportedAmount?: number | null,
+): 'refunded' | 'partially_refunded' {
+  const total = Number(paymentAmount) || 0
+  if (reportedAmount == null || !Number.isFinite(reportedAmount)) return 'refunded'
+  if (Number(reportedAmount) + 0.01 < total) return 'partially_refunded'
+  return 'refunded'
+}
