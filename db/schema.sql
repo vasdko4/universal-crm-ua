@@ -121,6 +121,9 @@ CREATE TABLE IF NOT EXISTS "customers" (
   PRIMARY KEY ("id")
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS customers_phone_live_unique
+  ON public.customers (phone)
+  WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS "delivery_methods" (
   "id" serial NOT NULL,

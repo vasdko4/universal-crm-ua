@@ -419,3 +419,8 @@ ALTER TABLE public.store_settings
 CREATE UNIQUE INDEX IF NOT EXISTS promotions_promo_code_unique
   ON promotions (UPPER(promo_code))
   WHERE type = 'promocode' AND promo_code IS NOT NULL AND btrim(promo_code) <> '';
+
+-- One live customer per phone (FIX-18).
+CREATE UNIQUE INDEX IF NOT EXISTS customers_phone_live_unique
+  ON customers (phone)
+  WHERE deleted_at IS NULL;

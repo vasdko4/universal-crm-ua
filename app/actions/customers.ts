@@ -115,6 +115,15 @@ export async function getCustomers(opts?: { search?: string; page?: number; minS
   }
 }
 
+function isUniqueViolation(e: unknown): boolean {
+  let cur: unknown = e
+  for (let i = 0; i < 4 && cur && typeof cur === 'object'; i++) {
+    if ('code' in cur && (cur as { code: unknown }).code === '23505') return true
+    cur = 'cause' in cur ? (cur as { cause: unknown }).cause : undefined
+  }
+  return false
+}
+
 function validate(input: CustomerInput): string | null {
   if (!input.firstName?.trim()) return 'Имя обязательно'
   if (!input.phone?.trim()) return 'Основной телефон обязателен'
@@ -135,17 +144,23 @@ export async function createCustomer(input: CustomerInput) {
   const error = validate(input)
   if (error) return { success: false, error }
 
-  const [row] = await db
-    .insert(customers)
-    .values({
-      firstName: input.firstName.trim(),
-      lastName: input.lastName?.trim() || null,
-      phone: input.phone.trim(),
-      email: input.email?.trim() || null,
-      reliabilityScore: input.reliabilityScore ?? 100,
-      note: input.note?.trim() || null,
-    })
-    .returning({ id: customers.id })
+  let row: { id: number }
+  try {
+    ;[row] = await db
+      .insert(customers)
+      .values({
+        firstName: input.firstName.trim(),
+        lastName: input.lastName?.trim() || null,
+        phone: input.phone.trim(),
+        email: input.email?.trim() || null,
+        reliabilityScore: input.reliabilityScore ?? 100,
+        note: input.note?.trim() || null,
+      })
+      .returning({ id: customers.id })
+  } catch (e) {
+    if (isUniqueViolation(e)) return { success: false, error: 'Клиент с таким телефоном уже есть' }
+    throw e
+  }
 
   const contacts = cleanContacts(input.contacts)
   if (contacts.length) {
@@ -163,18 +178,23 @@ export async function updateCustomer(id: number, input: CustomerInput) {
   const error = validate(input)
   if (error) return { success: false, error }
 
-  await db
-    .update(customers)
-    .set({
-      firstName: input.firstName.trim(),
-      lastName: input.lastName?.trim() || null,
-      phone: input.phone.trim(),
-      email: input.email?.trim() || null,
-      reliabilityScore: input.reliabilityScore ?? 100,
-      note: input.note?.trim() || null,
-      updatedAt: new Date(),
-    })
-    .where(eq(customers.id, id))
+  try {
+    await db
+      .update(customers)
+      .set({
+        firstName: input.firstName.trim(),
+        lastName: input.lastName?.trim() || null,
+        phone: input.phone.trim(),
+        email: input.email?.trim() || null,
+        reliabilityScore: input.reliabilityScore ?? 100,
+        note: input.note?.trim() || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(customers.id, id))
+  } catch (e) {
+    if (isUniqueViolation(e)) return { success: false, error: 'Клиент с таким телефоном уже есть' }
+    throw e
+  }
 
   // Пересобираем дополнительные контакты
   await db.delete(customerContacts).where(eq(customerContacts.customerId, id))
