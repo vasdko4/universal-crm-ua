@@ -283,6 +283,7 @@ export const customers = pgTable('customers', {
   id: serial('id').primaryKey(),
   firstName: varchar('first_name', { length: 150 }).notNull(),
   lastName: varchar('last_name', { length: 150 }),
+  // Live rows are unique on phone (customers_phone_live_unique, FIX-18).
   phone: varchar('phone', { length: 50 }).notNull(),
   email: varchar('email', { length: 255 }),
   reliabilityScore: integer('reliability_score').notNull().default(100),

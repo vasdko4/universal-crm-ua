@@ -76,11 +76,17 @@ export function SetupWizard() {
 
   useEffect(() => {
     try {
-      const fromUrl = new URLSearchParams(window.location.search).get('token') ?? ''
+      const params = new URLSearchParams(window.location.search)
+      const fromUrl = params.get('token') ?? ''
       const fromStore = sessionStorage.getItem('setup-token') ?? ''
       if (fromUrl) {
         setSetupToken(fromUrl)
         sessionStorage.setItem('setup-token', fromUrl)
+        // Drop the one-shot secret from the address bar so it is not left in
+        // history, access logs of later navigations, or a leaked Referer.
+        params.delete('token')
+        const qs = params.toString()
+        window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`)
       } else if (fromStore) {
         setSetupToken(fromStore)
       }
