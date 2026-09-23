@@ -9,6 +9,7 @@ import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { getLocale } from '@/lib/i18n/server'
+import type { Locale } from '@/lib/i18n/config'
 
 export type AdminUserRow = {
   id: string
@@ -36,7 +37,7 @@ export async function listUsers(): Promise<AdminUserRow[]> {
   }))
 }
 
-async function requireExistingRole(code: string, locale: string) {
+async function requireExistingRole(code: string, locale: Locale) {
   const [row] = await db.select({ code: roles.code }).from(roles).where(eq(roles.code, code)).limit(1)
   if (!row) return { success: false as const, error: getAdminDictionary(locale).users.unknownRole }
   return { success: true as const }
