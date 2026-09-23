@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateCheckoutInput, CHECKOUT_LIMITS } from '@/lib/shop/checkout-validation'
+import { validateCheckoutInput, mergeCheckoutItems, CHECKOUT_LIMITS } from '@/lib/shop/checkout-validation'
 import type { CheckoutInput } from '@/app/actions/shop'
 
 function base(overrides: Partial<CheckoutInput> = {}): CheckoutInput {
@@ -102,5 +102,33 @@ describe('validateCheckoutInput', () => {
   it('requires delivery and payment methods', () => {
     expect(validateCheckoutInput(base({ deliveryMethod: '' })).ok).toBe(false)
     expect(validateCheckoutInput(base({ paymentMethod: '' })).ok).toBe(false)
+  })
+})
+
+describe('mergeCheckoutItems', () => {
+  it('sums duplicate product lines so stock is checked against the total', () => {
+    expect(
+      mergeCheckoutItems([
+        { productId: 1, quantity: 5 },
+        { productId: 1, quantity: 5 },
+        { productId: 2, quantity: 1 },
+      ]),
+    ).toEqual([
+      { productId: 1, quantity: 10 },
+      { productId: 2, quantity: 1 },
+    ])
+  })
+
+  it('keeps distinct variants of the same product separate', () => {
+    expect(
+      mergeCheckoutItems([
+        { productId: 1, quantity: 1, variantId: 10 },
+        { productId: 1, quantity: 2, variantId: 11 },
+        { productId: 1, quantity: 3, variantId: 10 },
+      ]),
+    ).toEqual([
+      { productId: 1, quantity: 4, variantId: 10 },
+      { productId: 1, quantity: 2, variantId: 11 },
+    ])
   })
 })

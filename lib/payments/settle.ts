@@ -3,6 +3,7 @@ import { payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { finalizePaidOrder, restoreStockOnce } from '@/lib/shop/order-fulfillment'
 import { extractGatewayReceiptUrl } from '@/lib/payments/receipt'
+import { classifyWebhookRefund } from '@/lib/payments/refund'
 
 /**
  * Applies a verified gateway status update to the payment record and the linked
@@ -15,7 +16,13 @@ import { extractGatewayReceiptUrl } from '@/lib/payments/receipt'
 export async function settlePayment(
   orderReference: string,
   status: string,
-  opts: { eventType?: string; message?: string; amount?: number; raw?: unknown } = {},
+  opts: {
+    eventType?: string
+    message?: string
+    amount?: number
+    refundedAmount?: number
+    raw?: unknown
+  } = {},
 ): Promise<{ ok: boolean; matchedPayment: boolean; matchedOrder: boolean }> {
   const [payment] = await db
     .select()
@@ -125,10 +132,17 @@ export async function settlePayment(
     // fiscalization enabled do), capture it once so the order's receipt can
     // link to it instead of the non-fiscal fallback.
     const receiptUrl = payment.receiptUrl ?? extractGatewayReceiptUrl(payment.gatewayCode, opts.raw)
+    // Incoming `refunded` is classified below (full vs partial). Do not stamp
+    // the payment as fully refunded here or the partial UPDATE will miss it.
+    const nextPaymentStatus = keepRefunded
+      ? 'refunded'
+      : status === 'refunded'
+        ? payment.status
+        : status
     await db
       .update(payments)
       .set({
-        status: keepRefunded ? 'refunded' : status,
+        status: nextPaymentStatus,
         receiptUrl: receiptUrl ?? payment.receiptUrl,
         updatedAt: new Date(),
       })
@@ -146,7 +160,18 @@ export async function settlePayment(
   let matchedOrder = false
   if (order) {
     matchedOrder = true
-    const paymentStatus = status === 'paid' ? 'paid' : status === 'refunded' ? 'refunded' : 'unpaid'
+    const refundKind =
+      status === 'refunded'
+        ? classifyWebhookRefund(Number(payment?.amount ?? order.total), opts.refundedAmount ?? opts.amount)
+        : null
+    const paymentStatus =
+      status === 'paid'
+        ? 'paid'
+        : refundKind === 'partially_refunded'
+          ? 'partially_refunded'
+          : status === 'refunded'
+            ? 'refunded'
+            : 'unpaid'
     if (order.paymentStatus !== paymentStatus) {
       await db
         .update(orders)
@@ -158,9 +183,11 @@ export async function settlePayment(
         message:
           status === 'paid'
             ? 'Оплата получена (онлайн-шлюз)'
-            : status === 'refunded'
-              ? 'Средства возвращены (онлайн-шлюз)'
-              : `Статус оплаты обновлён: ${status}`,
+            : refundKind === 'partially_refunded'
+              ? 'Частичный возврат (онлайн-шлюз) — склад не восстановлен'
+              : status === 'refunded'
+                ? 'Средства возвращены (онлайн-шлюз)'
+                : `Статус оплаты обновлён: ${status}`,
         actor: 'Платёжный шлюз',
       })
     }
@@ -169,20 +196,44 @@ export async function settlePayment(
     if (status === 'paid') {
       await finalizePaidOrder(orderReference)
     }
+    // Declined / expired invoices should leave the admin list, not hang as
+    // pending_payment forever (FIX-07).
+    if ((status === 'failed' || status === 'expired') && order.status === 'pending_payment') {
+      await pool.query(
+        `UPDATE orders SET status = 'cancelled', updated_at = NOW()
+          WHERE id = $1 AND status = 'pending_payment'`,
+        [order.id],
+      )
+    }
     // A refund initiated in the gateway cabinet (or a chargeback) never
-    // goes through refundPayment — restore stock here, once.
+    // goes through refundPayment. Full refunds restore stock once; partial
+    // ones only record the amount (FIX-05).
     if (status === 'refunded' && order.status !== 'cancelled') {
       if (payment) {
-        await pool.query(
-          `UPDATE payments
-              SET refunded_amount = amount,
-                  status = 'refunded',
-                  updated_at = NOW()
-            WHERE id = $1 AND refunded_amount < amount`,
-          [payment.id],
-        )
+        if (refundKind === 'partially_refunded') {
+          const reported = Number(opts.refundedAmount ?? opts.amount)
+          await pool.query(
+            `UPDATE payments
+                SET refunded_amount = GREATEST(refunded_amount, $2),
+                    status = 'partially_refunded',
+                    updated_at = NOW()
+              WHERE id = $1 AND status IN ('paid', 'partially_refunded')`,
+            [payment.id, reported.toFixed(2)],
+          )
+        } else {
+          await pool.query(
+            `UPDATE payments
+                SET refunded_amount = amount,
+                    status = 'refunded',
+                    updated_at = NOW()
+              WHERE id = $1 AND refunded_amount < amount`,
+            [payment.id],
+          )
+          await restoreStockOnce(order.id)
+        }
+      } else {
+        await restoreStockOnce(order.id)
       }
-      await restoreStockOnce(order.id)
     }
   }
 

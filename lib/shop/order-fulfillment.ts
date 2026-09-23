@@ -1,6 +1,6 @@
 import { db, pool, dbForClient } from '@/lib/db'
 import { orders, orderItems, orderHistory, promotions } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { asc, eq, sql } from 'drizzle-orm'
 import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
 import { recordStockMovement, type QueryExecutor } from '@/lib/shop/stock-ledger'
 import type { PoolClient } from 'pg'
@@ -305,30 +305,17 @@ export async function applyOrderFulfillment(orderId: number, client?: PoolClient
       .map((o) => `«${o.name}»${o.variantLabel ? ` (${o.variantLabel})` : ''} × ${o.requested}`)
       .join(', ')
     const warning = `⚠ Недостаточно остатка на складе на момент подтверждения заказа: ${details}. Проверьте наличие перед отправкой.`
-    await tx
-      .insert(orderHistory)
-      .values({ orderId, type: 'note', message: warning, actor: 'System' })
-      .catch(() => {})
+    await q.query(
+      `INSERT INTO order_history (order_id, type, message, actor) VALUES ($1, 'note', $2, 'System')`,
+      [orderId, warning],
+    )
   }
 
   const total = Number(order.total)
 
-  // Customer lifetime stats.
-  if (order.customerId) {
-    await q
-      .query(
-        `UPDATE customers SET orders_count = orders_count + 1, total_turnover = total_turnover + $1, last_order_date = NOW() WHERE id = $2`,
-        [total, order.customerId],
-      )
-      .catch(() => {})
-  }
-
-  // Promo usage + timeline note. discountTotal can be the sum of a manually
-  // entered promo code AND an automatic ("type: discount") promotion applied
-  // at the same time (see createStorefrontOrder) — autoDiscountAmount is the
-  // slice attributed to the automatic promotion, the remainder (if any) to
-  // the promo code, so both get their usage stats recorded without
-  // double-counting either one.
+  // Promo usage on the same connection as the order (FIX-11). Cash checkout
+  // aborts if the limit is already taken. Online (no client) already claimed
+  // pending_payment → new, so a missed increment is logged, not rolled back.
   const totalDiscount = Number(order.discountTotal)
   const autoAmount = Number(order.autoDiscountAmount || 0)
   const manualAmount = Math.max(0, totalDiscount - autoAmount)
@@ -337,51 +324,58 @@ export async function applyOrderFulfillment(orderId: number, client?: PoolClient
     const [promo] = await tx
       .select({ id: promotions.id })
       .from(promotions)
-      .where(sql`UPPER(${promotions.promoCode}) = ${order.promoCode.toUpperCase()}`)
+      .where(
+        sql`UPPER(${promotions.promoCode}) = ${order.promoCode.toUpperCase()} AND ${promotions.type} = 'promocode'`,
+      )
+      .orderBy(asc(promotions.id))
       .limit(1)
     if (promo) {
-      await recordPromotionUsageInternal({
-        promotionId: promo.id,
-        orderReference: order.orderNumber,
-        orderAmount: total,
-        discountAmount: manualAmount,
-      }).catch(() => {})
-      await tx
-        .insert(orderHistory)
-        .values({
-          orderId,
-          type: 'note',
-          message: `Промокод ${order.promoCode} — ${manualAmount.toFixed(2)} ₴`,
-          actor: order.customerName ?? 'System',
-        })
-        .catch(() => {})
+      const usage = await recordPromotionUsageInternal(
+        {
+          promotionId: promo.id,
+          orderReference: order.orderNumber,
+          orderAmount: total,
+          discountAmount: manualAmount,
+        },
+        client,
+      )
+      if (!usage.counted && client) throw new Error('promo-limit')
+      await q.query(
+        `INSERT INTO order_history (order_id, type, message, actor) VALUES ($1, 'note', $2, $3)`,
+        [orderId, `Промокод ${order.promoCode} — ${manualAmount.toFixed(2)} ₴`, order.customerName ?? 'System'],
+      )
     }
   }
 
   if (order.autoDiscountId && autoAmount > 0) {
-    await recordPromotionUsageInternal({
-      promotionId: order.autoDiscountId,
-      orderReference: order.orderNumber,
-      orderAmount: total,
-      discountAmount: autoAmount,
-    }).catch(() => {})
-    await tx
-      .insert(orderHistory)
-      .values({
-        orderId,
-        type: 'note',
-        message: `Автознижка — ${autoAmount.toFixed(2)} ₴`,
-        actor: order.customerName ?? 'System',
-      })
-      .catch(() => {})
+    const usage = await recordPromotionUsageInternal(
+      {
+        promotionId: Number(order.autoDiscountId),
+        orderReference: order.orderNumber,
+        orderAmount: total,
+        discountAmount: autoAmount,
+      },
+      client,
+    )
+    if (!usage.counted && client) throw new Error('promo-limit')
+    await q.query(
+      `INSERT INTO order_history (order_id, type, message, actor) VALUES ($1, 'note', $2, $3)`,
+      [orderId, `Автознижка — ${autoAmount.toFixed(2)} ₴`, order.customerName ?? 'System'],
+    )
   }
 
-  // Record the sale for analytics.
-  await q
-    .query(`INSERT INTO analytics_events (type, order_id, amount) VALUES ('order', $1, $2)`, [
-      orderId,
-      total,
-    ])
+  // Customer stats / analytics on the pool, not the checkout client — a
+  // missing column or transient error must not abort the order (FIX-12).
+  if (order.customerId) {
+    await pool
+      .query(
+        `UPDATE customers SET orders_count = orders_count + 1, total_turnover = total_turnover + $1, last_order_date = NOW() WHERE id = $2`,
+        [total, order.customerId],
+      )
+      .catch(() => {})
+  }
+  await pool
+    .query(`INSERT INTO analytics_events (type, order_id, amount) VALUES ('order', $1, $2)`, [orderId, total])
     .catch(() => {})
 }
 

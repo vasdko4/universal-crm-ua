@@ -30,7 +30,7 @@ import { applyOrderFulfillment, finalizePaidOrder } from '@/lib/shop/order-fulfi
 import { notifyNewOrder } from '@/lib/notifications'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
-import { validateCheckoutInput } from '@/lib/shop/checkout-validation'
+import { mergeCheckoutItems, validateCheckoutInput } from '@/lib/shop/checkout-validation'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -215,14 +215,29 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       costPrice: products.costPrice,
       image: products.image,
       quantity: products.quantity,
+      variantsEnabled: products.variantsEnabled,
     })
     .from(products)
     .where(and(inArray(products.id, ids), sql`${products.deletedAt} IS NULL`))
 
   const byId = new Map(rows.map((r) => [r.id, r]))
 
+  // Drop variantId on products with variants disabled, then merge so
+  // duplicate parent-SKU lines share one stock check (FIX-13 + FIX-22).
+  input.items = mergeCheckoutItems(
+    input.items.map((i) =>
+      i.variantId != null && !byId.get(i.productId)?.variantsEnabled
+        ? { productId: i.productId, quantity: i.quantity }
+        : i,
+    ),
+  )
+
   // Load any variants referenced by the cart to validate per-variant stock/price.
-  const variantIds = input.items.map((i) => i.variantId).filter((v): v is number => typeof v === 'number')
+  // Disabled variants (FIX-22) are ignored — parent product price/qty win.
+  const variantIds = input.items
+    .filter((i) => i.variantId != null && byId.get(i.productId)?.variantsEnabled)
+    .map((i) => i.variantId)
+    .filter((v): v is number => typeof v === 'number')
   const variantRows = variantIds.length
     ? await db.select().from(productVariants).where(inArray(productVariants.id, variantIds))
     : []
@@ -245,7 +260,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     if (!p) return { success: false, error: t.someItemsUnavailable }
     const qty = Math.max(1, Math.floor(it.quantity))
 
-    if (it.variantId != null) {
+    if (it.variantId != null && p.variantsEnabled) {
       const v = variantById.get(it.variantId)
       if (!v || v.productId !== p.id) {
         return { success: false, error: fillTemplate(t.variantUnavailable, { name: p.name }) }
@@ -468,21 +483,21 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         await applyOrderFulfillment(created.id, client)
       }
 
-      if (input.cartToken) {
-        await client
-          .query(
-            `UPDATE abandoned_carts SET status = 'recovered', recovered_order_number = $1, updated_at = NOW()
-             WHERE token = $2 AND status IN ('open', 'reminded')`,
-            [orderNumber, input.cartToken],
-          )
-          .catch(() => {})
-      }
-
       return { id: created.id }
     })
   } catch (e) {
     console.error('[checkout] order write failed:', (e as Error).message)
     return { success: false, error: t.paymentInvoiceFailed }
+  }
+
+  if (input.cartToken) {
+    await pool
+      .query(
+        `UPDATE abandoned_carts SET status = 'recovered', recovered_order_number = $1, updated_at = NOW()
+         WHERE token = $2 AND status IN ('open', 'reminded')`,
+        [orderNumber, input.cartToken],
+      )
+      .catch(() => {})
   }
 
   if (!isOnline) {

@@ -414,3 +414,8 @@ CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON public.categories (parent
 -- Optional longer storefront query cache for weak VPS (Settings → General).
 ALTER TABLE public.store_settings
   ADD COLUMN IF NOT EXISTS storefront_cache_enabled boolean NOT NULL DEFAULT false;
+
+-- One live promocode per code (FIX-14).
+CREATE UNIQUE INDEX IF NOT EXISTS promotions_promo_code_unique
+  ON promotions (UPPER(promo_code))
+  WHERE type = 'promocode' AND promo_code IS NOT NULL AND btrim(promo_code) <> '';

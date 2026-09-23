@@ -38,6 +38,23 @@ export type PromotionListParams = {
   pageSize?: number
 }
 
+async function assertUniquePromoCode(code: string | null | undefined, exceptId?: number): Promise<string | null> {
+  const normalized = code?.trim().toUpperCase() || null
+  if (!normalized) return null
+  const [dup] = await db
+    .select({ id: promotions.id })
+    .from(promotions)
+    .where(
+      and(
+        eq(promotions.type, 'promocode'),
+        sql`UPPER(${promotions.promoCode}) = ${normalized}`,
+        exceptId != null ? sql`${promotions.id} <> ${exceptId}` : sql`true`,
+      ),
+    )
+    .limit(1)
+  return dup ? 'Промокод уже используется другой акцией' : null
+}
+
 function validate(input: PromotionInput): string | null {
   if (!input.name?.trim()) return 'Название акции обязательно'
   if (!(input.discountValue > 0)) return 'Размер скидки должен быть больше нуля'
@@ -122,6 +139,8 @@ export async function createPromotion(input: PromotionInput) {
   await assertWritePermission('promotions')
   const error = validate(input)
   if (error) return { success: false, error }
+  const dup = await assertUniquePromoCode(input.type === 'promocode' ? input.promoCode : null)
+  if (dup) return { success: false, error: dup }
 
   await db.insert(promotions).values({
     type: input.type,
@@ -148,6 +167,8 @@ export async function updatePromotion(id: number, input: PromotionInput) {
   await assertWritePermission('promotions')
   const error = validate(input)
   if (error) return { success: false, error }
+  const dup = await assertUniquePromoCode(input.type === 'promocode' ? input.promoCode : null, id)
+  if (dup) return { success: false, error: dup }
 
   await db
     .update(promotions)
@@ -288,6 +309,7 @@ export async function evaluatePromoCode(rawCode: string, lines: PromoCartLine[])
     .select()
     .from(promotions)
     .where(and(eq(promotions.type, 'promocode'), sql`UPPER(${promotions.promoCode}) = ${code}`))
+    .orderBy(asc(promotions.id))
     .limit(1)
 
   if (!promo) return { ok: false, error: t.promoNotFound }

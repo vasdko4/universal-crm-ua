@@ -583,6 +583,9 @@ CREATE TABLE IF NOT EXISTS "promotions" (
   "updated_at" timestamptz DEFAULT now(),
   PRIMARY KEY ("id")
 );
+CREATE UNIQUE INDEX IF NOT EXISTS promotions_promo_code_unique
+  ON promotions (UPPER(promo_code))
+  WHERE type = 'promocode' AND promo_code IS NOT NULL AND btrim(promo_code) <> '';
 
 
 CREATE TABLE IF NOT EXISTS "roles" (
