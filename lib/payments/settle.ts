@@ -59,13 +59,13 @@ export async function settlePayment(
     return { ok: true, matchedPayment: Boolean(payment), matchedOrder: Boolean(order) }
   }
 
-  // A signed/authoritative `paid` with a short amount must not mark the
-  // payment or the order paid, and must not decrement stock (invoice
-  // tampering, currency rounding, partial capture). Skip the check when
-  // the gateway did not report an amount.
-  if (status === 'paid' && order && opts.amount != null && Number.isFinite(opts.amount)) {
+  // A signed/authoritative `paid` must report a finite amount that covers
+  // the order total. Missing amounts fail closed (FIX-08) — otherwise a
+  // truncated webhook could mark the order paid without a sum.
+  if (status === 'paid' && order) {
     const expected = Number(order.total)
-    if (!(opts.amount + 0.01 >= expected)) {
+    const paid = opts.amount
+    if (paid == null || !Number.isFinite(paid) || paid + 0.001 < expected) {
       if (payment) {
         await db
           .insert(paymentEvents)
@@ -73,8 +73,11 @@ export async function settlePayment(
             paymentId: payment.id,
             type: opts.eventType ?? 'webhook',
             status: 'amount_mismatch',
-            amount: opts.amount.toFixed(2),
-            message: `Сумма шлюза ${opts.amount.toFixed(2)} меньше итога заказа ${expected.toFixed(2)} — заказ не отмечен оплаченным`,
+            amount: paid != null && Number.isFinite(paid) ? paid.toFixed(2) : null,
+            message:
+              paid != null && Number.isFinite(paid)
+                ? `Сумма шлюза ${paid.toFixed(2)} меньше итога заказа ${expected.toFixed(2)} — заказ не отмечен оплаченным`
+                : `Шлюз не передал сумму оплаты — заказ не отмечен оплаченным (итог ${expected.toFixed(2)})`,
             payload: (opts.raw as object) ?? null,
           })
           .catch(() => {})
@@ -84,7 +87,10 @@ export async function settlePayment(
         .values({
           orderId: order.id,
           type: 'payment',
-          message: `Оплата отклонена: сумма шлюза ${opts.amount.toFixed(2)} < ${expected.toFixed(2)}`,
+          message:
+            paid != null && Number.isFinite(paid)
+              ? `Оплата отклонена: сумма шлюза ${paid.toFixed(2)} < ${expected.toFixed(2)}`
+              : `Оплата отклонена: шлюз не передал сумму (итог ${expected.toFixed(2)})`,
           actor: 'Платёжный шлюз',
         })
         .catch(() => {})

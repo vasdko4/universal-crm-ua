@@ -103,6 +103,18 @@ describe('validateCheckoutInput', () => {
     expect(validateCheckoutInput(base({ deliveryMethod: '' })).ok).toBe(false)
     expect(validateCheckoutInput(base({ paymentMethod: '' })).ok).toBe(false)
   })
+
+  it('rejects unknown delivery and payment codes', () => {
+    expect(validateCheckoutInput(base({ deliveryMethod: 'pigeon' })).ok).toBe(false)
+    expect(validateCheckoutInput(base({ paymentMethod: 'bitcoin' })).ok).toBe(false)
+  })
+
+  it('rejects cash-on-delivery unless the delivery is a post office', () => {
+    expect(validateCheckoutInput(base({ deliveryMethod: 'courier', paymentMethod: 'cod' })).ok).toBe(false)
+    expect(validateCheckoutInput(base({ deliveryMethod: 'pickup', paymentMethod: 'cod' })).ok).toBe(false)
+    expect(validateCheckoutInput(base({ deliveryMethod: 'nova_poshta', paymentMethod: 'cod' })).ok).toBe(true)
+    expect(validateCheckoutInput(base({ deliveryMethod: 'ukrposhta', paymentMethod: 'cod' })).ok).toBe(true)
+  })
 })
 
 describe('mergeCheckoutItems', () => {

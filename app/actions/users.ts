@@ -36,6 +36,12 @@ export async function listUsers(): Promise<AdminUserRow[]> {
   }))
 }
 
+async function requireExistingRole(code: string, locale: string) {
+  const [row] = await db.select({ code: roles.code }).from(roles).where(eq(roles.code, code)).limit(1)
+  if (!row) return { success: false as const, error: getAdminDictionary(locale).users.unknownRole }
+  return { success: true as const }
+}
+
 async function requireAdminGuard() {
   const me = await getAdminUser()
   const e = getAdminDictionary(me?.locale ?? (await getLocale())).users
@@ -55,6 +61,8 @@ export async function createUser(input: {
   role: string
 }) {
   const me = await requireAdminGuard()
+  const roleOk = await requireExistingRole(input.role, me.locale)
+  if (!roleOk.success) return roleOk
   // Create the account via email sign-up, then assign the chosen role directly.
   try {
     const auth = await getAuth()
@@ -80,6 +88,8 @@ export async function createUser(input: {
 
 export async function updateUserRole(userId: string, role: string) {
   const me = await requireAdminGuard()
+  const roleOk = await requireExistingRole(role, me.locale)
+  if (!roleOk.success) return roleOk
   if (me.id === userId) {
     // Prevent a super-admin from locking themselves (and everyone else) out
     // of user management by changing their own role to one without '*'.

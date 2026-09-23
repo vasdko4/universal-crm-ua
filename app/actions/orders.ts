@@ -377,34 +377,64 @@ export async function createOrder(input: {
 
 export async function updateOrderStatus(id: number, status: string) {
   const user = await assertWritePermission('orders')
-  const [current] = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
-  if (!current) return { success: false, error: 'Заказ не найден' }
-  await db.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id))
-
-  // Keep stock in sync with cancellations. `stockRestored` is claimed with a
-  // single UPDATE … RETURNING so a concurrent refund webhook cannot inflate
-  // inventory (and a reopen cannot double-deduct).
-  if (status === 'cancelled' && current.status !== 'cancelled') {
-    // Ledger decides the qty. Unfulfilled / pending_payment orders have no
-    // sale rows, so this is a no-op rather than inventing stock.
-    await restoreStockOnce(id)
-  } else if (status !== 'cancelled' && current.status === 'cancelled') {
-    if (await claimStockRededuct(id)) {
-      await adjustStockForOrder(id, -1)
-    }
+  if (!ORDER_STATUSES.some((s) => s.value === status)) {
+    return { success: false, error: 'Невідомий статус' }
   }
+
+  // Lock the row so a parallel cancel+reopen cannot restore stock and then
+  // write `new` without a matching deduction (FIX-15).
+  const result = await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    const locked = await client.query<{
+      id: number
+      status: string
+      tracking_number: string | null
+      order_number: string
+    }>(`SELECT id, status, tracking_number, order_number FROM orders WHERE id = $1 FOR UPDATE`, [id])
+    const current = locked.rows[0]
+    if (!current) return { success: false as const, error: 'Заказ не найден' }
+    if (current.status === status) {
+      return {
+        success: true as const,
+        unchanged: true,
+        prev: current.status,
+        trackingNumber: current.tracking_number,
+        orderNumber: current.order_number,
+      }
+    }
+
+    await tx.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id))
+
+    if (status === 'cancelled' && current.status !== 'cancelled') {
+      await restoreStockOnce(id, client)
+    } else if (status !== 'cancelled' && current.status === 'cancelled') {
+      if (await claimStockRededuct(id, client)) {
+        await adjustStockForOrder(id, -1, client)
+      }
+    }
+
+    return {
+      success: true as const,
+      unchanged: false,
+      prev: current.status,
+      trackingNumber: current.tracking_number,
+      orderNumber: current.order_number,
+    }
+  })
+  if (!result.success) return result
+  if (result.unchanged) return { success: true }
 
   const label = getOrderStatusLabel(status, user.locale)
   const t = getAdminDictionary(user.locale).auditLog
   await addHistory(id, 'status', fillAuditTemplate(t.orderStatusChanged, { label }))
-  if (status === 'shipped' && current.status !== 'shipped' && current.trackingNumber) {
+  if (status === 'shipped' && result.prev !== 'shipped' && result.trackingNumber) {
     const { notifyShippedOrder } = await import('@/lib/notifications')
     void notifyShippedOrder(id)
   }
   const { auditLog } = await import('@/lib/audit-log')
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
-    action: 'update', entity: 'order', entityId: current.orderNumber,
+    action: 'update', entity: 'order', entityId: result.orderNumber,
     details: fillAuditTemplate(t.orderStatusChanged, { label }),
   })
   revalidatePath('/admin/orders')

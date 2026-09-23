@@ -1365,6 +1365,7 @@ export type AdminDictionary = {
     roleSaveFailed: string
     cannotDeleteSystemRole: string
     roleInUse: string
+    unknownRole: string
   }
   articles: {
     title: string
@@ -3121,6 +3122,7 @@ const uk: AdminDictionary = {
     roleSaveFailed: 'Помилка збереження ролі',
     cannotDeleteSystemRole: 'Системну роль не можна видалити',
     roleInUse: 'Роль призначена користувачам',
+    unknownRole: 'Невідома роль',
   },
   articles: {
     title: 'Статті та блог',
@@ -4883,6 +4885,7 @@ const ru: AdminDictionary = {
     roleSaveFailed: 'Ошибка сохранения роли',
     cannotDeleteSystemRole: 'Системную роль нельзя удалить',
     roleInUse: 'Роль назначена пользователям',
+    unknownRole: 'Неизвестная роль',
   },
   articles: {
     title: 'Статьи и блог',
