@@ -175,6 +175,12 @@ export type ShopProduct = {
   isComingSoon: boolean
   /** True when quantity is 0 but the admin enabled pre-orders (visible, purchasable). */
   isPreorder: boolean
+  /**
+   * Listing cards strip options/variants to keep the payload small. This flag
+   * is computed before that strip: true only when the shopper must pick among
+   * more than one variant. A single "34-37" range is not a choice.
+   */
+  needsSizeChoice?: boolean
 }
 
 /**
@@ -379,10 +385,19 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
  * on the product page — keeping them in listings is what made the homepage
  * ship hundreds of kilobytes of HTML before the first scroll.
  */
+export function listingNeedsSizeChoice(p: Pick<ShopProduct, 'variantsEnabled' | 'options' | 'variants'>): boolean {
+  return (
+    p.variantsEnabled &&
+    p.options.some((o) => o.values.length > 1) &&
+    p.variants.length > 1
+  )
+}
+
 export function toListingCard(p: ShopProduct): ShopProduct {
   const hover = p.images.find((url) => url && url !== p.image)
   return {
     ...p,
+    needsSizeChoice: listingNeedsSizeChoice(p),
     description: null,
     metaDescription: null,
     // One extra photo is enough: the card only ever shows a single hover image.

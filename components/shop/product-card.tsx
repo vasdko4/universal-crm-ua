@@ -25,13 +25,14 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
   const { dict, locale } = useI18n()
   const href = localizedPath(`/product/${product.slug}`, locale)
   const [added, setAdded] = useState(false)
-  // A single "Розмір: 34-37" characteristic is the adjustable range of one
-  // pair, not a choice. Only send the shopper to the page when there is more
-  // than one variant to pick — otherwise the card button buys immediately.
+  // Listing payloads strip options/variants (toListingCard). The flag is set
+  // before that strip. Fall back to the live arrays for cards that still
+  // carry them (related products). A single "34-37" range is not a choice.
   const needsSize =
-    product.variantsEnabled &&
-    product.options.some((o) => o.values.length > 1) &&
-    product.variants.length > 1
+    product.needsSizeChoice ??
+    (product.variantsEnabled &&
+      product.options.some((o) => o.values.length > 1) &&
+      product.variants.length > 1)
 
   const primary = product.image
   const hoverImage = useMemo(() => {
