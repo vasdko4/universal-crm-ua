@@ -8,7 +8,8 @@ export const maxDuration = 60
 /**
  * Cancels storefront orders that stayed in pending_payment after the gateway
  * window (FIX-07). Probes WayForPay/Monobank first so a late paid webhook is
- * not overwritten.
+ * not overwritten. Vercel Hobby only allows daily crons, so this runs once a
+ * day; the 45-minute age check still drops anything older than that window.
  */
 export async function GET(req: NextRequest) {
   const auth = authorizeCronRequest(process.env.CRON_SECRET, req.headers.get('authorization'))

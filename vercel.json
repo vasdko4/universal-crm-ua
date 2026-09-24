@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/expire-pending",
-      "schedule": "*/15 * * * *"
+      "schedule": "30 4 * * *"
     }
   ],
   "headers": [
