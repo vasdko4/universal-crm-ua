@@ -176,8 +176,10 @@ export default async function HomePage() {
       <JsonLd data={structuredData} />
       {/* The homepage's only h1: what this shop is and what it offers. Hero
           slides and section titles are h2 (they used to each render an h1,
-          which left the page with several competing top-level headings). */}
-      <h1 className="mx-auto max-w-7xl px-3 pt-3 text-sm font-semibold tracking-tight text-foreground sm:px-4 sm:pt-4 sm:text-base lg:px-8">
+          which left the page with several competing top-level headings).
+          Visually hidden (sr-only) per store owner request — kept in the DOM
+          for SEO and screen readers. */}
+      <h1 className="sr-only">
         {storeName} — {c.pageHeading}
       </h1>
       {/* Hero — layout depends on the active storefront template */}
