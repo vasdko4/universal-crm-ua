@@ -6,6 +6,7 @@ import { asc, eq } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/shop/queries'
 import { assertPermission, assertWritePermission } from '@/lib/session'
+import { decryptSecret } from '@/lib/secrets'
 import { searchCities, searchWarehouses, type NpCity, type NpWarehouse } from '@/lib/delivery/nova-poshta'
 
 type ActionResult = { ok: boolean; message: string }
@@ -60,7 +61,7 @@ async function getNovaPoshtaKey(): Promise<string> {
     .from(deliveryMethods)
     .where(eq(deliveryMethods.code, 'nova_poshta'))
   const config = (np?.config ?? {}) as Record<string, string>
-  return (config.apiKey ?? '').trim()
+  return decryptSecret(config.apiKey).trim()
 }
 
 export async function npSearchCities(

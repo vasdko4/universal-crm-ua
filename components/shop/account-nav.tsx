@@ -51,13 +51,13 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
         )
       })}
       {isAdmin && (
-        <a
+        <Link
           href="/admin"
           className="flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
         >
           <ShieldCheck className="size-4 shrink-0" />
           {dict.account.navAdmin}
-        </a>
+        </Link>
       )}
       <button
         type="button"

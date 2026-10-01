@@ -1,4 +1,5 @@
 import { db, pool } from '@/lib/db'
+import { decryptConfigSecrets, GATEWAY_CONFIG_SECRET_KEYS } from '@/lib/secrets'
 import { paymentGateways, payments } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { monobankCheckStatus, wayforpayCheckStatus } from '@/lib/payments/clients'
@@ -46,7 +47,11 @@ export async function expirePendingPayments(opts?: {
         .from(paymentGateways)
         .where(eq(paymentGateways.code, row.gateway_code))
         .limit(1)
-      const cfg = (gateway?.config ?? {}) as Record<string, string>
+      // Gateway credentials are stored encrypted at rest (lib/secrets.ts).
+      const cfg = decryptConfigSecrets(
+        (gateway?.config ?? {}) as Record<string, string>,
+        GATEWAY_CONFIG_SECRET_KEYS,
+      )
       const result =
         row.gateway_code === 'wayforpay'
           ? await wayforpayCheckStatus(cfg, row.order_number)

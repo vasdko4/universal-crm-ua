@@ -12,6 +12,7 @@ import { TEMPLATES } from '@/lib/shop/templates'
 import { getLocale } from '@/lib/i18n/server'
 import { getSetupDictionary } from '@/lib/i18n/setup'
 import { authorizeSetupToken } from '@/lib/setup-token'
+import { encryptSecret } from '@/lib/secrets'
 
 // Essential operational data every fresh install needs to function: admin/staff
 // roles (permissions live here), plus the default delivery and payment methods.
@@ -189,9 +190,10 @@ export async function runSetup(input: SetupInput) {
     revalidateTag('store-settings', 'max')
     const npKey = input.store.novaPoshtaApiKey.trim()
     if (npKey) {
+      // SECURITY: encrypt the API key at rest — lib/secrets.ts.
       await pool.query(
         `UPDATE "delivery_methods" SET config = jsonb_set(COALESCE(config,'{}'::jsonb), '{apiKey}', to_jsonb($1::text)), is_active = true WHERE code = 'nova_poshta'`,
-        [npKey],
+        [encryptSecret(npKey)],
       )
     }
 

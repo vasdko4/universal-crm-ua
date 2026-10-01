@@ -4,6 +4,7 @@ import { paymentGateways } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { wayforpayVerifyCallback, wayforpayCallbackResponse } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
+import { decryptSecret } from '@/lib/secrets'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,7 +78,8 @@ export async function POST(req: Request) {
     .from(paymentGateways)
     .where(eq(paymentGateways.code, 'wayforpay'))
     .limit(1)
-  const secret = ((gateway?.config ?? {}) as Record<string, string>).merchantSecretKey
+  // The secret key is stored encrypted at rest (lib/secrets.ts).
+  const secret = decryptSecret(((gateway?.config ?? {}) as Record<string, string>).merchantSecretKey)
   if (!secret) {
     if (browserNav) return redirectToReturn(req, bodyOrderRef)
     return NextResponse.json({ error: 'gateway not configured' }, { status: 400 })

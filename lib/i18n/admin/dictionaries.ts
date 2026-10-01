@@ -140,6 +140,7 @@ export type AdminDictionary = {
     utmTerm: string
     utmContent: string
     toastStatusUpdated: string
+    toastBulkPartial: string
     toastPaymentUpdated: string
     toastTrackingSaved: string
     toastNoteSaved: string
@@ -1875,6 +1876,7 @@ const uk: AdminDictionary = {
     utmTerm: 'Ключове слово',
     utmContent: 'Контент оголошення',
     toastStatusUpdated: 'Статус оновлено',
+    toastBulkPartial: 'Не оновлено замовлень',
     toastPaymentUpdated: 'Оплату оновлено',
     toastTrackingSaved: 'Накладну збережено',
     toastNoteSaved: 'Примітку збережено',
@@ -3638,6 +3640,7 @@ const ru: AdminDictionary = {
     utmTerm: 'Ключевое слово',
     utmContent: 'Контент объявления',
     toastStatusUpdated: 'Статус обновлён',
+    toastBulkPartial: 'Не обновлено заказов',
     toastPaymentUpdated: 'Оплата обновлена',
     toastTrackingSaved: 'Накладная сохранена',
     toastNoteSaved: 'Примечание сохранено',

@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Database, Loader2, Check, RefreshCw, TerminalSquare } from 'lucide-react'
 import { useSetupLocale } from '@/lib/i18n/setup-locale'
+import { useSetupToken } from '@/components/setup/use-setup-token'
 import { SetupLangSwitch } from '@/components/setup/setup-lang-switch'
 
 export function DatabaseSetup() {
@@ -25,26 +26,16 @@ export function DatabaseSetup() {
   const [password, setPassword] = useState('')
   const [ssl, setSsl] = useState(false)
   const [url, setUrl] = useState('')
-  const [setupToken, setSetupToken] = useState('')
+  // One-shot token from ?token= or sessionStorage. Local edits take precedence
+  // once the user types (null = untouched). Read as an external store so no
+  // mount effect with setState is needed.
+  const externalToken = useSetupToken()
+  const [editedToken, setEditedToken] = useState<string | null>(null)
+  const setupToken = editedToken ?? externalToken
 
   useEffect(() => {
     document.title = t.pageTitle
   }, [t.pageTitle])
-
-  useEffect(() => {
-    try {
-      const fromUrl = new URLSearchParams(window.location.search).get('token') ?? ''
-      const fromStore = sessionStorage.getItem('setup-token') ?? ''
-      if (fromUrl) {
-        setSetupToken(fromUrl)
-        sessionStorage.setItem('setup-token', fromUrl)
-      } else if (fromStore) {
-        setSetupToken(fromStore)
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [])
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -203,7 +194,7 @@ export function DatabaseSetup() {
                   id="setup-token"
                   value={setupToken}
                   onChange={(e) => {
-                    setSetupToken(e.target.value)
+                    setEditedToken(e.target.value)
                     try {
                       sessionStorage.setItem('setup-token', e.target.value)
                     } catch {

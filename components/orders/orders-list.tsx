@@ -220,6 +220,11 @@ export function OrdersList({
                 const res = await bulkUpdateOrderStatus(selected, v)
                 if (res.success) {
                   toast.success(t.toastStatusUpdated)
+                  if (res.failedIds && res.failedIds.length > 0) {
+                    toast.warning(
+                      `${t.toastBulkPartial}: ${res.failedIds.map((f) => `#${f.id}`).join(', ')}`,
+                    )
+                  }
                   setSelected([])
                   router.refresh()
                 } else {

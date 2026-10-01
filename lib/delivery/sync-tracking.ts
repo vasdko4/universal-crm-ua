@@ -5,6 +5,7 @@ import { sendMail } from '@/lib/mailer'
 import { buildOrderMessage } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getProductSlugMap } from '@/lib/shop/queries'
+import { decryptSecret } from '@/lib/secrets'
 
 export type DeliverySyncResult = {
   ok: boolean
@@ -53,8 +54,10 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
   const npRes = await pool.query(
     "SELECT config FROM delivery_methods WHERE code = 'nova_poshta' LIMIT 1",
   )
-  const apiKey = String(
-    (npRes.rows[0]?.config as Record<string, string> | undefined)?.apiKey ?? '',
+  // The API key is stored encrypted at rest (lib/secrets.ts); plaintext
+  // (pre-migration) values pass through decryptSecret unchanged.
+  const apiKey = decryptSecret(
+    (npRes.rows[0]?.config as Record<string, string> | undefined)?.apiKey,
   ).trim()
   if (!apiKey) {
     return { ...result, ok: false, reason: 'Не задан API-ключ Нова Пошта в настройках доставки' }

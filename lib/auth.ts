@@ -6,6 +6,7 @@ import { sendMail } from '@/lib/mailer'
 import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR } from '@/lib/shop/email-domains'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { authRateLimitStorage } from '@/lib/auth-rate-limit-storage'
+import { decryptSecret } from '@/lib/secrets'
 
 function trustedAuthProxies(): string[] {
   const raw = process.env.TRUSTED_PROXIES?.trim()
@@ -35,8 +36,10 @@ async function readGoogleCreds(): Promise<GoogleCreds> {
       clientId?: string
       clientSecret?: string
     }
-    if (g.enabled && g.clientId?.trim() && g.clientSecret?.trim()) {
-      return { clientId: g.clientId.trim(), clientSecret: g.clientSecret.trim() }
+    // The client secret is stored encrypted at rest (lib/secrets.ts).
+    const clientSecret = decryptSecret(g.clientSecret)
+    if (g.enabled && g.clientId?.trim() && clientSecret.trim()) {
+      return { clientId: g.clientId.trim(), clientSecret: clientSecret.trim() }
     }
   } catch {
     // Table/column may not exist yet (fresh install) — fall through to env.

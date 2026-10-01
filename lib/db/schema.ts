@@ -496,6 +496,37 @@ export const productReviews = pgTable('product_reviews', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 
+// Storefront customer favorites (wishlist). One row per (user, product).
+// Matches db/schema.sql; user_id references the better-auth "user" table,
+// which is managed outside the drizzle schema, so no .references() here.
+export const userFavorites = pgTable('user_favorites', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  productId: integer('product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Saved delivery addresses for storefront customers. Matches db/schema.sql.
+export const userAddresses = pgTable('user_addresses', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  label: varchar('label', { length: 120 }),
+  firstName: varchar('first_name', { length: 150 }).notNull(),
+  lastName: varchar('last_name', { length: 150 }),
+  phone: varchar('phone', { length: 50 }).notNull(),
+  deliveryMethod: varchar('delivery_method', { length: 30 }).notNull().default('nova_poshta'),
+  city: varchar('city', { length: 255 }),
+  cityRef: varchar('city_ref', { length: 120 }),
+  branch: varchar('branch', { length: 255 }),
+  branchType: varchar('branch_type', { length: 20 }).default('branch'),
+  postIndex: varchar('post_index', { length: 20 }),
+  isDefault: boolean('is_default').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const productQuestions = pgTable('product_questions', {
   id: serial('id').primaryKey(),
   productId: integer('product_id').notNull(),
@@ -682,6 +713,8 @@ export type PromotionUsage = typeof promotionUsages.$inferSelect
 
 export type Customer = typeof customers.$inferSelect
 export type CustomerContact = typeof customerContacts.$inferSelect
+export type UserFavorite = typeof userFavorites.$inferSelect
+export type UserAddress = typeof userAddresses.$inferSelect
 
 export type PaymentGateway = typeof paymentGateways.$inferSelect
 export type Payment = typeof payments.$inferSelect

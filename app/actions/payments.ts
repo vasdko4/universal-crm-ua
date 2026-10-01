@@ -19,6 +19,7 @@ import {
 import { refundPlan } from '@/lib/payments/refund'
 import { settlePayment } from '@/lib/payments/settle'
 import { restoreStockOnce } from '@/lib/shop/order-fulfillment'
+import { decryptConfigSecrets, encryptConfigSecrets } from '@/lib/secrets'
 
 type ActionResult = { ok: boolean; message: string; paymentUrl?: string }
 
@@ -76,7 +77,11 @@ export async function updateGateway(
     }
 
     let warning = ''
-    const effectiveToken = next.token
+    // The stored token may be encrypted at rest (enc:v1:…) when the form was
+    // saved without a new token — decrypt before the live check so Monobank
+    // never receives ciphertext (which it would reject with 403, falsely
+    // failing the save). Plaintext passes through unchanged.
+    const effectiveToken = decryptConfigSecrets({ token: next.token }, ['token']).token
     if (code === 'monobank' && data.isActive && !data.isTestMode && effectiveToken) {
       try {
         const res = await fetch('https://api.monobank.ua/api/merchant/details', {
@@ -96,12 +101,14 @@ export async function updateGateway(
       }
     }
 
+    // SECURITY: gateway credentials (Monobank token, WayForPay secret key)
+    // are encrypted at rest — see lib/secrets.ts.
     await db
       .update(paymentGateways)
       .set({
         isActive: data.isActive,
         isTestMode: data.isTestMode,
-        config: next,
+        config: encryptConfigSecrets(next, GATEWAY_SECRET_KEYS),
         updatedAt: new Date(),
       })
       .where(eq(paymentGateways.code, code))
@@ -240,7 +247,7 @@ export async function refreshPaymentStatus(paymentId: number): Promise<ActionRes
   if (!payment) return { ok: false, message: 'Платёж не найден' }
   const gateway = await getGateway(payment.gatewayCode)
   if (!gateway) return { ok: false, message: 'Шлюз не найден' }
-  const config = (gateway.config ?? {}) as Record<string, string>
+  const config = decryptConfigSecrets((gateway.config ?? {}) as Record<string, string>, GATEWAY_SECRET_KEYS)
 
   if (gateway.isTestMode) {
     return { ok: true, message: `Тестовый режим: текущий статус «${payment.status}»` }
@@ -292,7 +299,7 @@ export async function refundPayment(
   }
   const gateway = await getGateway(payment.gatewayCode)
   if (!gateway) return { ok: false, message: 'Шлюз не найден' }
-  const config = (gateway.config ?? {}) as Record<string, string>
+  const config = decryptConfigSecrets((gateway.config ?? {}) as Record<string, string>, GATEWAY_SECRET_KEYS)
 
   const plan = refundPlan(Number(payment.amount), Number(payment.refundedAmount), amount)
   if (!plan.ok) {

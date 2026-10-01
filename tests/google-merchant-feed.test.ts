@@ -168,3 +168,21 @@ describe('htmlToPlainText', () => {
     expect(htmlToPlainText('<p>ok</p>')).not.toContain('<')
   })
 })
+
+describe('feed hygiene', () => {
+  it('expandFeedOffers skips products with a blank name (broken Prom.ua import rows)', () => {
+    expect(expandFeedOffers(product({ name: '' }))).toEqual([])
+    expect(expandFeedOffers(product({ name: '   ' }))).toEqual([])
+    expect(expandFeedOffers(product({ name: 'iPhone 15' }))).toHaveLength(1)
+  })
+
+  it('buildItemXml never emits an item without title, price, or id', () => {
+    const [offer] = expandFeedOffers(product())
+    const good = buildItemXml(offer, 'https://magazine.store', 'uk', merchant)
+    expect(good).toContain('<title>iPhone 15</title>')
+    expect(buildItemXml({ ...offer, name: '' }, 'https://magazine.store', 'uk', merchant)).toBe('')
+    expect(buildItemXml({ ...offer, name: '  ' }, 'https://magazine.store', 'uk', merchant)).toBe('')
+    expect(buildItemXml({ ...offer, price: 0 }, 'https://magazine.store', 'uk', merchant)).toBe('')
+    expect(buildItemXml({ ...offer, price: -5 }, 'https://magazine.store', 'uk', merchant)).toBe('')
+  })
+})

@@ -113,7 +113,7 @@ export default async function DashboardPage() {
         <div className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-destructive">{t.loadError}</p>
           <Button asChild size="sm" variant="outline">
-            <a href="/admin">{t.tryAgain}</a>
+            <Link href="/admin">{t.tryAgain}</Link>
           </Button>
         </div>
       )}

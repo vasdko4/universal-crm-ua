@@ -10,6 +10,12 @@ import {
   stripSecrets,
   type StoreSettingsData,
 } from '@/lib/store-settings'
+import {
+  encryptConfigSecrets,
+  STORE_EMAIL_SECRET_KEYS,
+  STORE_GOOGLE_AUTH_SECRET_KEYS,
+  STORE_NOTIFICATIONS_SECRET_KEYS,
+} from '@/lib/secrets'
 
 // Re-export types for existing callers/components that import them from
 // this action file.
@@ -91,6 +97,12 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
       clientSecret: keepSecret(data.googleAuth.clientSecret, current.googleAuth.clientSecret),
     }
   }
+  // SECURITY: integration secrets are encrypted at rest — lib/secrets.ts.
+  // Encryption is idempotent, so carried-over (already encrypted) values
+  // from keepSecret() are not double-encrypted.
+  merged.emailSettings = encryptConfigSecrets(merged.emailSettings, STORE_EMAIL_SECRET_KEYS)
+  merged.notifications = encryptConfigSecrets(merged.notifications, STORE_NOTIFICATIONS_SECRET_KEYS)
+  merged.googleAuth = encryptConfigSecrets(merged.googleAuth, STORE_GOOGLE_AUTH_SECRET_KEYS)
   const values = {
     storeName: merged.storeName,
     storeDescription: merged.storeDescription,

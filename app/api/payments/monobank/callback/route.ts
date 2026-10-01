@@ -6,6 +6,7 @@ import { monobankCheckStatus } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
 import { readJson } from '@/lib/api/helpers'
 import { isRateLimited, clientIp } from '@/lib/api/rate-limit'
+import { decryptSecret } from '@/lib/secrets'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,7 +51,8 @@ export async function POST(req: Request) {
     .from(paymentGateways)
     .where(eq(paymentGateways.code, 'monobank'))
     .limit(1)
-  const token = ((gateway?.config ?? {}) as Record<string, string>).token
+  // The token is stored encrypted at rest (lib/secrets.ts).
+  const token = decryptSecret(((gateway?.config ?? {}) as Record<string, string>).token)
   if (!token) return NextResponse.json({ error: 'gateway not configured' }, { status: 400 })
 
   // Find our payment by invoiceId to resolve the orderReference.

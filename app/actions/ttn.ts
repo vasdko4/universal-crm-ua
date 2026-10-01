@@ -11,6 +11,7 @@ import { buildInternetDocumentPayload, parcelWeightKg } from '@/lib/delivery/ttn
 import { fetchSenderProfile, saveInternetDocument } from '@/lib/delivery/nova-poshta'
 import { updateOrderDelivery } from '@/app/actions/orders'
 import type { NpSenderRefs } from '@/lib/delivery/np-sender'
+import { decryptSecret } from '@/lib/secrets'
 
 type NpConfig = {
   apiKey?: string
@@ -61,7 +62,7 @@ export async function createTtnForOrder(
   if (order.trackingNumber) return { ok: false, error: 'ТТН уже створена' }
 
   const cfg = await npConfig()
-  const apiKey = (cfg.apiKey || process.env.NOVA_POSHTA_API_KEY || '').trim()
+  const apiKey = (decryptSecret(cfg.apiKey) || process.env.NOVA_POSHTA_API_KEY || '').trim()
   if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти' }
 
   let sender: NpSenderRefs = {
@@ -162,7 +163,7 @@ export async function printTtnForOrder(
   const ttn = (order.trackingNumber || '').trim()
   if (!ttn) return { ok: false, error: 'Немає ТТН для друку' }
   const cfg = await npConfig()
-  const apiKey = (cfg.apiKey || process.env.NOVA_POSHTA_API_KEY || '').trim()
+  const apiKey = (decryptSecret(cfg.apiKey) || process.env.NOVA_POSHTA_API_KEY || '').trim()
   if (!apiKey) return { ok: false, error: 'Не задано API-ключ Нової Пошти' }
   return { ok: true, printUrl: `/api/admin/np-label?orderId=${orderId}` }
 }
