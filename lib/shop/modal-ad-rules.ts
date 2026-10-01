@@ -35,7 +35,9 @@ export function emptyCapState(): ModalCapState {
 }
 
 export function classifyStorefrontPath(pathname: string): ModalPageType {
-  const path = stripLocalePrefix(pathname).replace(/\/+$/, '') || '/'
+  let path = stripLocalePrefix(pathname)
+  while (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1)
+  if (!path) path = '/'
   if (
     path === '/checkout' ||
     path.startsWith('/checkout/') ||

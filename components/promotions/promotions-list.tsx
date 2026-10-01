@@ -373,7 +373,7 @@ function PromotionCard({
           {p.promoCode && (
             <button
               type="button"
-              onClick={() => copyPromoCode(p.promoCode!)}
+              onClick={() => void copyPromoCode(p.promoCode!)}
               title={t.promotions.copyCodeAction}
               className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-200 transition-colors hover:bg-violet-50 hover:text-violet-700 hover:ring-violet-200"
             >
@@ -455,7 +455,7 @@ function PromotionCard({
             </DropdownMenuItem>
             {p.promoCode && (
               <DropdownMenuItem
-                onClick={() => copyPromoCode(p.promoCode!)}
+                onClick={() => void copyPromoCode(p.promoCode!)}
               >
                 <Copy className="size-4" />
                 {t.promotions.copyCodeAction}

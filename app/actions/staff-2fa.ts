@@ -82,7 +82,7 @@ export async function beginStaffTwoFactor(): Promise<
     if (!rows[0]?.two_factor_enabled) {
       const auth = await getAuth()
       const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
-      const createdAt = session?.session?.createdAt ? new Date(session.session.createdAt).getTime() : NaN
+      const createdAt = session?.session?.createdAt ? new Date(session.session.createdAt).getTime() : Number.NaN
       if (!Number.isFinite(createdAt) || Date.now() - createdAt > 15 * 60 * 1000) {
         return { ok: false, error: 'З міркувань безпеки увімкнення 2FA потребує свіжого входу — вийдіть і увійдіть знову.' }
       }

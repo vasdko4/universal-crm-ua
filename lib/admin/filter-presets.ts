@@ -39,7 +39,7 @@ export function loadFilterPresets<F>(
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(isValidPreset<F>)
+    return parsed.filter((p) => isValidPreset<F>(p))
   } catch {
     return []
   }
@@ -69,7 +69,7 @@ export function addFilterPreset<F>(
 ): FilterPreset<F>[] {
   const trimmed = name.trim()
   if (!trimmed) return presets
-  const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  const id = crypto.randomUUID()
   return [...presets, { id, name: trimmed, filters }]
 }
 

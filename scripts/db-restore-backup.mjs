@@ -18,6 +18,7 @@
 import { Pool } from 'pg'
 import { list } from '@vercel/blob'
 import { readFile } from 'node:fs/promises'
+import { resolve, sep } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 
 const BACKUP_PREFIX = 'db-backups/'
@@ -68,7 +69,13 @@ async function loadBackup() {
     return { label: pathname, bytes: Buffer.from(await res.arrayBuffer()) }
   }
   console.log(`Reading local file ${arg} …`)
-  return { label: arg, bytes: await readFile(arg) }
+  // Refuse to read outside the working directory (path traversal via CLI arg).
+  const resolved = resolve(arg)
+  const cwd = resolve('.')
+  if (resolved !== cwd && !resolved.startsWith(cwd + sep)) {
+    throw new Error(`Refusing to read file outside the working directory: ${arg}`)
+  }
+  return { label: arg, bytes: await readFile(resolved) }
 }
 
 function quoteIdent(name) {
