@@ -176,13 +176,73 @@ export function trackBeginCheckout(
   fireGtagEvent('begin_checkout', {
     currency,
     value,
-    items: items.map((it) => ({
-      item_id: it.sku || String(it.id),
-      item_name: it.name,
-      price: it.price,
-      quantity: it.quantity,
-    })),
+    items: ga4Items(items),
     ...ecommParams('cart', items.map((i) => i.sku || i.id), value),
+  })
+}
+
+// Shared GA4 item mapping used by the e-commerce events below.
+function ga4Items(items: CartItem[]) {
+  return items.map((it) => ({
+    item_id: it.sku || String(it.id),
+    item_name: it.name,
+    price: it.price,
+    quantity: it.quantity,
+  }))
+}
+
+// GA4 recommended e-commerce event: fired once per checkout-page visit when
+// the shipping step is complete (delivery method chosen + branch/city details
+// filled). Same once-per-visit dedup contract as trackBeginCheckout — the
+// caller fires it a single time (guarded by a ref), this function only
+// validates the GA id and the payload.
+export function trackAddShippingInfo(
+  gaId: string | undefined,
+  items: CartItem[],
+  opts: { shippingTier?: string; coupon?: string } = {},
+  currency = 'UAH',
+) {
+  if (!gaId || !isValidGaId(gaId) || items.length === 0) return
+  const value = items.reduce((s, i) => s + i.price * i.quantity, 0)
+  fireGtagEvent('add_shipping_info', {
+    currency,
+    value,
+    ...(opts.coupon ? { coupon: opts.coupon } : {}),
+    ...(opts.shippingTier ? { shipping_tier: opts.shippingTier } : {}),
+    items: ga4Items(items),
+    ...ecommParams(
+      'cart',
+      items.map((i) => i.sku || i.id),
+      value,
+    ),
+  })
+}
+
+// GA4 recommended e-commerce event: fired once per checkout-page visit when
+// the visitor explicitly picks a payment method. Same once-per-visit dedup
+// contract as trackBeginCheckout — the caller guards it, this function only
+// validates the GA id and the payload. (Fires on explicit selection only,
+// not on render, because the payment method defaults to the first available
+// option before the visitor has made any choice.)
+export function trackAddPaymentInfo(
+  gaId: string | undefined,
+  items: CartItem[],
+  opts: { paymentType?: string; coupon?: string } = {},
+  currency = 'UAH',
+) {
+  if (!gaId || !isValidGaId(gaId) || items.length === 0) return
+  const value = items.reduce((s, i) => s + i.price * i.quantity, 0)
+  fireGtagEvent('add_payment_info', {
+    currency,
+    value,
+    ...(opts.coupon ? { coupon: opts.coupon } : {}),
+    ...(opts.paymentType ? { payment_type: opts.paymentType } : {}),
+    items: ga4Items(items),
+    ...ecommParams(
+      'cart',
+      items.map((i) => i.sku || i.id),
+      value,
+    ),
   })
 }
 

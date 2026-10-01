@@ -10,6 +10,7 @@ import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { getLocale } from '@/lib/i18n/server'
 import type { Locale } from '@/lib/i18n/config'
+import { reportError } from '@/lib/server-errors'
 
 export type AdminUserRow = {
   id: string
@@ -169,7 +170,13 @@ export async function deleteUser(userId: string) {
     await client.query('COMMIT')
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {})
-    throw e
+    // BUGFIX: used to re-throw the raw DB error, which surfaced as a 500
+    // with a technical message in the admin UI. Return the same typed
+    // { success: false, error } shape as the other actions in this file
+    // (the UI renders it via toast.error) and report the raw error
+    // server-side instead of leaking it to the admin.
+    void reportError('delete-user', e, { context: { reason: 'delete-failed' } })
+    return { success: false, error: getAdminDictionary(me.locale).users.deleteFailed }
   } finally {
     client.release()
   }

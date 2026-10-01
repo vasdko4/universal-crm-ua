@@ -554,6 +554,12 @@ export async function updateOrderPayment(id: number, paymentStatus: string): Pro
   if (paymentStatus === 'paid' && current?.status === 'pending_payment') {
     const { finalizePaidOrder } = await import('@/lib/shop/order-fulfillment')
     await finalizePaidOrder(current.orderNumber)
+    // Server-side GA4 purchase (Measurement Protocol): the browser pixel can
+    // be blocked by ad blockers, so a confirmed payment resends the purchase
+    // from the server. Best-effort and never throws. Only fires on the
+    // pending_payment -> paid transition, not on repeat saves.
+    const { reportGa4Purchase } = await import('@/lib/analytics/ga4')
+    await reportGa4Purchase(current.orderNumber)
   }
   // BUGFIX: a manually marked full refund voids the sale — release the promo
   // usage like the gateway refund path does. Idempotent: already-released

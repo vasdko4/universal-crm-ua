@@ -202,6 +202,32 @@ export async function settlePayment(
     // (decrement stock, record promo usage, analytics). Idempotent.
     if (status === 'paid') {
       await finalizePaidOrder(orderReference)
+      // Server-side GA4 purchase (Measurement Protocol): the browser pixel
+      // can be blocked by ad blockers, so a confirmed payment resends the
+      // purchase from the server. Best-effort and never throws — it must not
+      // affect settlement. Only fires on the transition to paid, so webhook
+      // retries do not resend.
+      if (order.paymentStatus !== 'paid') {
+        const { reportGa4Purchase } = await import('@/lib/analytics/ga4')
+        await reportGa4Purchase(orderReference)
+      }
+    }
+    // Google Ads server-side conversion duplicate: fires only on the
+    // unpaid → paid transition (the local `order` row still carries the
+    // pre-update paymentStatus here — the UPDATE above never mutates it).
+    // Every paid path routes through settlePayment (webhooks, status
+    // checks, manual test-mode marks), so this is the single hook point.
+    // Best-effort: uploadOfflineConversion reports failures internally and
+    // never throws, so an Ads outage can never break settlement.
+    if (status === 'paid' && order.paymentStatus !== 'paid') {
+      const { uploadOfflineConversion } = await import('@/lib/ads/offline-conversions')
+      await uploadOfflineConversion({
+        orderNumber: orderReference,
+        value: Number(order.total),
+        currency: order.currency ?? 'UAH',
+        email: order.customerEmail,
+        phone: order.customerPhone,
+      })
     }
     // Declined / expired invoices should leave the admin list, not hang as
     // pending_payment forever (FIX-07).

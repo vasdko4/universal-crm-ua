@@ -42,7 +42,7 @@ import { useSession } from '@/lib/auth-client'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils'
-import { trackBeginCheckout } from '@/components/shop/google-ads'
+import { trackBeginCheckout, trackAddShippingInfo, trackAddPaymentInfo } from '@/components/shop/google-ads'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { formatRequisitesPreview } from '@/lib/payments/public-requisites'
@@ -364,6 +364,56 @@ export function CheckoutFlow({
     setPayment(availablePayments[0].code)
   }
 
+  // Checkout-step completion, sequential: a step only counts as done when its
+  // own fields are filled AND every previous step is done. Delivery/payment
+  // have preselected defaults, so without the sequential gate later steps
+  // showed as done before the visitor had entered anything at all. Shared by
+  // the progress stepper below and by the add_shipping_info analytics event.
+  const step1Done = !!firstName.trim() && !!lastName.trim() && !!normalizeUaPhone(phone)
+  const step2Done =
+    step1Done &&
+    !!delivery &&
+    (isNova ? !!city && !!branchQuery.trim() : isUkr ? !!upCity.trim() && !!upIndex.trim() : true)
+  const step3Done = step2Done && !!payment
+
+  // GA4 add_shipping_info: fired once per checkout-page visit when the
+  // delivery step is complete, same once-per-visit dedup as begin_checkout
+  // (ref guard below). Completes the funnel between "begin_checkout" and
+  // "purchase" in GA4/Ads reporting.
+  const shippingInfoFired = useRef(false)
+  useEffect(() => {
+    if (shippingInfoFired.current || !step2Done || items.length === 0) return
+    shippingInfoFired.current = true
+    trackAddShippingInfo(
+      gaId,
+      items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+      {
+        shippingTier: methodLabel(delivery, deliveryMethods.find((m) => m.code === delivery)?.name ?? delivery),
+        coupon: applied?.code,
+      },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gaId, step2Done, items, delivery, deliveryMethods, applied])
+
+  // GA4 add_payment_info: fired once per checkout-page visit when the visitor
+  // explicitly picks a payment method, same once-per-visit dedup. The payment
+  // defaults to the first available method on render, so this only fires on
+  // real user selection — never before the visitor made a choice.
+  const paymentInfoFired = useRef(false)
+  function selectPayment(code: string) {
+    setPayment(code)
+    if (paymentInfoFired.current || items.length === 0) return
+    paymentInfoFired.current = true
+    trackAddPaymentInfo(
+      gaId,
+      items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+      {
+        paymentType: methodLabel(code, paymentMethods.find((m) => m.code === code)?.name ?? code),
+        coupon: applied?.code,
+      },
+    )
+  }
+
   // Debounced city search for Nova Poshta.
   const cityTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -641,17 +691,8 @@ export function CheckoutFlow({
             { step: 2, icon: Truck, label: t.delivery },
             { step: 3, icon: CreditCard, label: t.payment },
           ].map((s, i, arr) => {
-            // A step is "done" only when its own fields are filled AND every
-            // previous step is done. Delivery/payment have preselected
-            // defaults, so without the sequential gate step 3 showed a
-            // checkmark before the visitor had entered anything at all.
-            const step1Done =
-              !!firstName.trim() && !!lastName.trim() && !!normalizeUaPhone(phone)
-            const step2Done =
-              step1Done &&
-              !!delivery &&
-              (isNova ? !!city && !!branchQuery.trim() : isUkr ? !!upCity.trim() && !!upIndex.trim() : true)
-            const step3Done = step2Done && !!payment
+            // `done` reuses the hoisted sequential step-done flags above so
+            // the stepper and the analytics events can't disagree.
             const done = s.step === 1 ? step1Done : s.step === 2 ? step2Done : step3Done
             return (
               <div key={s.step} className="flex flex-1 items-center">
@@ -949,7 +990,7 @@ export function CheckoutFlow({
               <OptionCard
                 key={m.code}
                 active={payment === m.code}
-                onClick={() => setPayment(m.code)}
+                onClick={() => selectPayment(m.code)}
                 title={methodLabel(m.code, m.name)}
                 icon={
                   m.code === 'cod' ? Banknote : m.code === 'requisites' ? FileText : CreditCard

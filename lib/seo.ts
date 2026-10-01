@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { storefrontMediaUrl } from '@/lib/shop/own-image-url'
 import { stripTrailingSlashes } from '@/lib/text'
 
 /**
@@ -78,6 +79,77 @@ export function absoluteUrl(path = '/'): string {
 export async function canonicalUrl(path = '/'): Promise<string> {
   const base = await getCanonicalSiteUrl()
   return toAbsolute(base, path)
+}
+
+/**
+ * Resolves the absolute URL of an Open Graph image with a fallback chain:
+ * the page's own image (category photo, article cover, product photo) →
+ * the store-wide default from Настройки → SEO → ogImageUrl → the stock hero.
+ *
+ * Per-page `openGraph.images` overrides the root layout's global OG image,
+ * so pages must always resolve an image themselves instead of leaving the
+ * field empty — otherwise shares of those pages lose their preview image.
+ */
+export function resolveOgImageUrl(
+  siteOrigin: string,
+  pageImage: string | null | undefined,
+  storeOgImage: string | null | undefined,
+): string {
+  return storefrontMediaUrl(siteOrigin, pageImage?.trim() || storeOgImage?.trim() || '/hero-electronics.png')
+}
+
+export interface BreadcrumbLdItem {
+  name: string
+  /** Internal page path (already locale-prefixed), or an absolute URL. */
+  path: string
+}
+
+/**
+ * Builds a BreadcrumbList JSON-LD object from ordered crumb name/path pairs.
+ * Used by storefront pages (product, category, catalog) — kept here so the
+ * construction logic is unit-testable rather than inlined in each page.
+ */
+export function buildBreadcrumbLd(items: BreadcrumbLdItem[], siteOrigin: string) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: item.name,
+      item: toAbsolute(siteOrigin, item.path),
+    })),
+  }
+}
+
+export interface FaqLdQuestion {
+  question: string
+  answer: string | null | undefined
+}
+
+/**
+ * Builds a FAQPage JSON-LD object from the product's answered questions
+ * (the "Питання" module, `product_questions` table). Questions without an
+ * answer are skipped — an FAQ entry without acceptedAnswer is invalid for
+ * rich results. Returns null when nothing renderable remains.
+ */
+export function buildFaqPageLd(questions: FaqLdQuestion[]): Record<string, unknown> | null {
+  const mainEntity = questions
+    .filter((q) => q.question?.trim() && q.answer?.trim())
+    .map((q) => ({
+      '@type': 'Question',
+      name: q.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: q.answer,
+      },
+    }))
+  if (mainEntity.length === 0) return null
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity,
+  }
 }
 
 /**

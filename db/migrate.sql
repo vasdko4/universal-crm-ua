@@ -506,3 +506,6 @@ ALTER TABLE public.modal_ads ADD COLUMN IF NOT EXISTS theme varchar(20) NOT NULL
 
 -- Admin panel color theme (teal | blue | violet | emerald | amber | rose | slate | midnight)
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "admin_theme" varchar(20) NOT NULL DEFAULT 'teal';
+
+-- Manual ad spend for the ROAS report (Admin → Campaigns & ROAS), see lib/analytics/roas.ts
+ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "ads_spend" jsonb NOT NULL DEFAULT '{}';

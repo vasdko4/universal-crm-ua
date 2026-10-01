@@ -29,6 +29,12 @@ export type AdminDictionary = {
     close: string
     back: string
     language: string
+    presetsTitle: string
+    presetSave: string
+    presetNamePlaceholder: string
+    presetDeleteAria: string
+    bulkActions: string
+    columnsLabel: string
   }
   signIn: {
     subtitle: string
@@ -172,6 +178,12 @@ export type AdminDictionary = {
     toastAddAtLeastOneItem: string
     toastOrderCreated: string
     toastCreateFailed: string
+    presetNew: string
+    presetUnpaid: string
+    presetNoTtn: string
+    bulkEditTitle: string
+    bulkApplyTo: string
+    clearSelection: string
   }
   paymentMethods: {
     online: string
@@ -263,6 +275,22 @@ export type AdminDictionary = {
     toastBulkSkippedVariants: string
     toastCategorySet: string
     stockHistory: string
+    presetVisible: string
+    presetOutOfStock: string
+    presetHidden: string
+    presetPopular: string
+    bulkChooseAction: string
+    bulkActionPrice: string
+    bulkActionStock: string
+    bulkActionCategory: string
+    bulkActionTrash: string
+    bulkPriceLabel: string
+    bulkStockHint: string
+    bulkCategoryLabel: string
+    bulkTrashWarning: string
+    bulkApplyTo: string
+    clearSelection: string
+    invalidNumber: string
   }
   categories: {
     title: string
@@ -839,6 +867,9 @@ export type AdminDictionary = {
     toastRequisitesFieldsRequired: string
     toastMethodEnabledSuffix: string
     toastMethodDisabledSuffix: string
+    pageOfTemplate: string
+    backButton: string
+    forwardButton: string
   }
   promotions: {
     tabAll: string
@@ -1020,6 +1051,44 @@ export type AdminDictionary = {
     trafficSourcesTitle: string
     directTraffic: string
     methodUnspecified: string
+  }
+  analytics: {
+    pageTitle: string
+    pageSubtitle: string
+    fromLabel: string
+    toLabel: string
+    applyButton: string
+    roasTitle: string
+    roasHint: string
+    colSource: string
+    colMedium: string
+    colCampaign: string
+    colOrders: string
+    colRevenue: string
+    colSpend: string
+    colRoas: string
+    totalRow: string
+    noSpend: string
+    saveSpendButton: string
+    spendSaved: string
+    spendSaveError: string
+    spendPlaceholder: string
+    emptyReport: string
+    funnelTitle: string
+    funnelSubtitle: string
+    funnelLimitation: string
+    untrackedHint: string
+    stepCarts: string
+    stepCheckoutVisits: string
+    stepOrders: string
+    stepPaid: string
+    stepFulfilled: string
+    untrackedContacts: string
+    untrackedDelivery: string
+    untrackedPayment: string
+    conversionFromPrev: string
+    dropOff: string
+    noData: string
   }
   import: {
     pageTitle: string
@@ -1390,6 +1459,7 @@ export type AdminDictionary = {
     cannotDeactivateSelf: string
     cannotDeleteSelf: string
     userNotFound: string
+    deleteFailed: string
     roleSaveFailed: string
     cannotDeleteSystemRole: string
     roleInUse: string
@@ -1767,6 +1837,12 @@ const uk: AdminDictionary = {
     close: 'Закрити',
     back: 'Назад',
     language: 'Мова',
+    presetsTitle: 'Швидкі фільтри',
+    presetSave: 'Зберегти фільтр',
+    presetNamePlaceholder: 'Назва фільтра…',
+    presetDeleteAria: 'Видалити збережений фільтр',
+    bulkActions: 'Масові дії',
+    columnsLabel: 'Колонки',
   },
   signIn: {
     subtitle: 'Увійдіть в адмін-центр',
@@ -1819,6 +1895,7 @@ const uk: AdminDictionary = {
   navItems: {
     dashboard: 'Дашборд',
     statistics: 'Статистика',
+    analyticsNav: 'Кампанії та ROAS',
     guides: 'Інструкції',
     orders: 'Замовлення',
     abandoned_carts: 'Покинуті кошики',
@@ -1946,6 +2023,12 @@ const uk: AdminDictionary = {
     toastAddAtLeastOneItem: 'Додайте хоча б один товар',
     toastOrderCreated: 'Замовлення №{n} створено',
     toastCreateFailed: 'Не вдалося створити замовлення',
+    presetNew: 'Нові',
+    presetUnpaid: 'Без оплати',
+    presetNoTtn: 'Без ТТН',
+    bulkEditTitle: 'Масова зміна статусу',
+    bulkApplyTo: 'Буде застосовано до {n} замовлень',
+    clearSelection: 'Скасувати вибір',
   },
   paymentMethods: {
     online: 'Онлайн-оплата',
@@ -2037,6 +2120,22 @@ const uk: AdminDictionary = {
     toastBulkSkippedVariants: 'Пропущено {n} з варіантами (ціна/залишок беруться з матриці варіантів)',
     toastCategorySet: 'Категорію оновлено',
     stockHistory: 'Рух складу',
+    presetVisible: 'Видимі',
+    presetOutOfStock: 'Немає в наявності',
+    presetHidden: 'Приховані',
+    presetPopular: 'Популярні',
+    bulkChooseAction: 'Оберіть дію',
+    bulkActionPrice: 'Встановити ціну',
+    bulkActionStock: 'Змінити залишок (±)',
+    bulkActionCategory: 'Змінити категорію',
+    bulkActionTrash: 'Перемістити в кошик',
+    bulkPriceLabel: 'Нова ціна, ₴',
+    bulkStockHint: 'Наприклад: 5 — додати, -3 — списати',
+    bulkCategoryLabel: 'Категорія',
+    bulkTrashWarning: 'Товари буде переміщено в кошик. Їх можна буде відновити.',
+    bulkApplyTo: 'Застосувати до {n} товарів',
+    clearSelection: 'Скасувати вибір',
+    invalidNumber: 'Вкажіть коректне число',
   },
   categories: {
     title: 'Категорії',
@@ -2634,6 +2733,9 @@ const uk: AdminDictionary = {
     toastRequisitesFieldsRequired: 'Заповніть ЄДРПОУ/РНОКПП, отримувача та IBAN',
     toastMethodEnabledSuffix: 'увімкнено',
     toastMethodDisabledSuffix: 'вимкнено',
+    pageOfTemplate: 'Сторінка {page} з {total}',
+    backButton: 'Назад',
+    forwardButton: 'Вперед',
   },
   promotions: {
     tabAll: 'Усі',
@@ -2815,6 +2917,46 @@ const uk: AdminDictionary = {
     trafficSourcesTitle: 'Джерела трафіку',
     directTraffic: 'Прямі заходи',
     methodUnspecified: 'Не вказано',
+  },
+  analytics: {
+    pageTitle: 'Кампанії та ROAS',
+    pageSubtitle: 'Атрибуція замовлень за UTM-мітками (last-touch) і воронка чекаута',
+    fromLabel: 'З дати',
+    toLabel: 'По дату',
+    applyButton: 'Застосувати',
+    roasTitle: 'Кампанії → замовлення → ROAS',
+    roasHint:
+      'Виручка — з оплачуваних замовлень (скасовані та неоплачені онлайн-замовлення не враховуються). Витрати вводяться вручну — автоматичного джерела витрат немає.',
+    colSource: 'Джерело',
+    colMedium: 'Канал',
+    colCampaign: 'Кампанія',
+    colOrders: 'Замовлення',
+    colRevenue: 'Виручка',
+    colSpend: 'Витрати, ₴',
+    colRoas: 'ROAS',
+    totalRow: 'Разом',
+    noSpend: '—',
+    saveSpendButton: 'Зберегти витрати',
+    spendSaved: 'Витрати збережено',
+    spendSaveError: 'Не вдалося зберегти витрати',
+    spendPlaceholder: '0.00',
+    emptyReport: 'За цей період замовлень з UTM-мітками немає',
+    funnelTitle: 'Воронка чекаута',
+    funnelSubtitle: 'Тільки вимірювані кроки — за подіями аналітики та замовленнями',
+    funnelLimitation:
+      'Чекаут — одна сторінка (/checkout): кроки «контакти», «доставка» та «оплата» не мають окремих подій аналітики, тому їх конверсія не вимірюється. Нижче — кроки, для яких дані реально існують.',
+    untrackedHint: 'Немає даних: крок не трекається',
+    stepCarts: 'Кошик',
+    stepCheckoutVisits: 'Сторінка чекаута',
+    stepOrders: 'Замовлення створено',
+    stepPaid: 'Оплачено',
+    stepFulfilled: 'Виконано',
+    untrackedContacts: 'Контакти',
+    untrackedDelivery: 'Доставка',
+    untrackedPayment: 'Оплата',
+    conversionFromPrev: 'конверсія з попереднього кроку',
+    dropOff: 'втрачено',
+    noData: 'Немає даних',
   },
   import: {
     pageTitle: 'Імпорт товарів',
@@ -3186,6 +3328,7 @@ const uk: AdminDictionary = {
     cannotDeactivateSelf: 'Не можна деактивувати самого себе',
     cannotDeleteSelf: 'Не можна видалити самого себе',
     userNotFound: 'Користувача не знайдено',
+    deleteFailed: 'Не вдалося видалити користувача. Спробуйте ще раз.',
     roleSaveFailed: 'Помилка збереження ролі',
     cannotDeleteSystemRole: 'Системну роль не можна видалити',
     roleInUse: 'Роль призначена користувачам',
@@ -3569,6 +3712,12 @@ const ru: AdminDictionary = {
     close: 'Закрыть',
     back: 'Назад',
     language: 'Язык',
+    presetsTitle: 'Быстрые фильтры',
+    presetSave: 'Сохранить фильтр',
+    presetNamePlaceholder: 'Название фильтра…',
+    presetDeleteAria: 'Удалить сохранённый фильтр',
+    bulkActions: 'Массовые действия',
+    columnsLabel: 'Колонки',
   },
   signIn: {
     subtitle: 'Войдите в админ-центр',
@@ -3621,6 +3770,7 @@ const ru: AdminDictionary = {
   navItems: {
     dashboard: 'Дашборд',
     statistics: 'Статистика',
+    analyticsNav: 'Кампании и ROAS',
     guides: 'Инструкции',
     orders: 'Заказы',
     abandoned_carts: 'Брошенные корзины',
@@ -3748,6 +3898,12 @@ const ru: AdminDictionary = {
     toastAddAtLeastOneItem: 'Добавьте хотя бы один товар',
     toastOrderCreated: 'Заказ №{n} создан',
     toastCreateFailed: 'Не удалось создать заказ',
+    presetNew: 'Новые',
+    presetUnpaid: 'Без оплаты',
+    presetNoTtn: 'Без ТТН',
+    bulkEditTitle: 'Массовое изменение статуса',
+    bulkApplyTo: 'Будет применено к {n} заказов',
+    clearSelection: 'Снять выбор',
   },
   paymentMethods: {
     online: 'Онлайн-оплата',
@@ -3839,6 +3995,22 @@ const ru: AdminDictionary = {
     toastBulkSkippedVariants: 'Пропущено {n} с вариантами (цена/остаток берутся из матрицы вариантов)',
     toastCategorySet: 'Категория обновлена',
     stockHistory: 'Движение склада',
+    presetVisible: 'Видимые',
+    presetOutOfStock: 'Нет в наличии',
+    presetHidden: 'Скрытые',
+    presetPopular: 'Популярные',
+    bulkChooseAction: 'Выберите действие',
+    bulkActionPrice: 'Установить цену',
+    bulkActionStock: 'Изменить остаток (±)',
+    bulkActionCategory: 'Изменить категорию',
+    bulkActionTrash: 'Переместить в корзину',
+    bulkPriceLabel: 'Новая цена, ₴',
+    bulkStockHint: 'Например: 5 — добавить, -3 — списать',
+    bulkCategoryLabel: 'Категория',
+    bulkTrashWarning: 'Товары будут перемещены в корзину. Их можно будет восстановить.',
+    bulkApplyTo: 'Применить к {n} товаров',
+    clearSelection: 'Снять выбор',
+    invalidNumber: 'Укажите корректное число',
   },
   categories: {
     title: 'Категории',
@@ -4436,6 +4608,9 @@ const ru: AdminDictionary = {
     toastRequisitesFieldsRequired: 'Заполните ЕГРПОУ/РНУКПН, получателя и IBAN',
     toastMethodEnabledSuffix: 'включён',
     toastMethodDisabledSuffix: 'отключён',
+    pageOfTemplate: 'Страница {page} из {total}',
+    backButton: 'Назад',
+    forwardButton: 'Вперёд',
   },
   promotions: {
     tabAll: 'Все',
@@ -4617,6 +4792,46 @@ const ru: AdminDictionary = {
     trafficSourcesTitle: 'Источники трафика',
     directTraffic: 'Прямые заходы',
     methodUnspecified: 'Не указано',
+  },
+  analytics: {
+    pageTitle: 'Кампании и ROAS',
+    pageSubtitle: 'Атрибуция заказов по UTM-меткам (last-touch) и воронка чекаута',
+    fromLabel: 'С даты',
+    toLabel: 'По дату',
+    applyButton: 'Применить',
+    roasTitle: 'Кампании → заказы → ROAS',
+    roasHint:
+      'Выручка — из оплачиваемых заказов (отменённые и неоплаченные онлайн-заказы не учитываются). Расходы вводятся вручную — автоматического источника расходов нет.',
+    colSource: 'Источник',
+    colMedium: 'Канал',
+    colCampaign: 'Кампания',
+    colOrders: 'Заказы',
+    colRevenue: 'Выручка',
+    colSpend: 'Расходы, ₴',
+    colRoas: 'ROAS',
+    totalRow: 'Итого',
+    noSpend: '—',
+    saveSpendButton: 'Сохранить расходы',
+    spendSaved: 'Расходы сохранены',
+    spendSaveError: 'Не удалось сохранить расходы',
+    spendPlaceholder: '0.00',
+    emptyReport: 'За этот период заказов с UTM-метками нет',
+    funnelTitle: 'Воронка чекаута',
+    funnelSubtitle: 'Только измеримые шаги — по событиям аналитики и заказам',
+    funnelLimitation:
+      'Чекаут — одна страница (/checkout): шаги «контакты», «доставка» и «оплата» не имеют отдельных событий аналитики, поэтому их конверсия не измеряется. Ниже — шаги, для которых данные реально существуют.',
+    untrackedHint: 'Нет данных: шаг не трекается',
+    stepCarts: 'Корзина',
+    stepCheckoutVisits: 'Страница чекаута',
+    stepOrders: 'Заказ создан',
+    stepPaid: 'Оплачено',
+    stepFulfilled: 'Выполнено',
+    untrackedContacts: 'Контакты',
+    untrackedDelivery: 'Доставка',
+    untrackedPayment: 'Оплата',
+    conversionFromPrev: 'конверсия с предыдущего шага',
+    dropOff: 'потеряно',
+    noData: 'Нет данных',
   },
   import: {
     pageTitle: 'Импорт товаров',
@@ -4988,6 +5203,7 @@ const ru: AdminDictionary = {
     cannotDeactivateSelf: 'Нельзя деактивировать самого себя',
     cannotDeleteSelf: 'Нельзя удалить самого себя',
     userNotFound: 'Пользователь не найден',
+    deleteFailed: 'Не удалось удалить пользователя. Попробуйте ещё раз.',
     roleSaveFailed: 'Ошибка сохранения роли',
     cannotDeleteSystemRole: 'Системную роль нельзя удалить',
     roleInUse: 'Роль назначена пользователям',

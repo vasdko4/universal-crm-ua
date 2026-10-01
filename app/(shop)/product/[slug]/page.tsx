@@ -23,7 +23,7 @@ import {
 } from '@/lib/shop/queries'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
-import { getCanonicalSiteUrl, toAbsolute, extractBrand, merchantReturnPolicy, shippingDetails } from '@/lib/seo'
+import { getCanonicalSiteUrl, toAbsolute, extractBrand, merchantReturnPolicy, shippingDetails, resolveOgImageUrl, buildBreadcrumbLd, buildFaqPageLd } from '@/lib/seo'
 import { formatShippingPrice, normalizeGtin } from '@/lib/shop/google-merchant-feed'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { stripPromMarketplaceCopy } from '@/lib/prom-import/scraper'
@@ -65,8 +65,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     `${product.name} — купить с доставкой по Украине. ${formatPrice(product.price, product.currency, locale)}.`
   const path = `/product/${product.slug}`
   const canonical = localizedPath(path, locale)
-  const image = product.image || '/hero-electronics.png'
-  const ogImage = storefrontMediaUrl(await getCanonicalSiteUrl(), image)
+  const siteUrl = await getCanonicalSiteUrl()
+  const settings = await getStoreSettingsInternal().catch(() => null)
+  const ogImage = resolveOgImageUrl(siteUrl, product.image, settings?.seo?.ogImageUrl)
   return {
     title,
     description,
@@ -197,45 +198,22 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       : {}),
   }
 
-  const breadcrumbLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: dict.common.home, item: abs(lp('/')) },
-      { '@type': 'ListItem', position: 2, name: dict.common.catalog, item: abs(lp('/catalog')) },
-      ...(categories[0]
-        ? [{ '@type': 'ListItem', position: 3, name: categories[0].name, item: abs(lp(`/category/${categories[0].id}`)) }]
-        : []),
-      {
-        '@type': 'ListItem',
-        position: categories[0] ? 4 : 3,
-        name: product.name,
-        item: abs(lp(`/product/${product.slug}`)),
-      },
+  const breadcrumbLd = buildBreadcrumbLd(
+    [
+      { name: dict.common.home, path: lp('/') },
+      { name: dict.common.catalog, path: lp('/catalog') },
+      ...(categories[0] ? [{ name: categories[0].name, path: lp(`/category/${categories[0].id}`) }] : []),
+      { name: product.name, path: lp(`/product/${product.slug}`) },
     ],
-  }
+    siteUrl,
+  )
+
+  // FAQ structured data from the Q&A section — improves product rich results.
+  const faqLd = buildFaqPageLd(questions)
 
   return (
     <div className="mx-auto max-w-7xl px-3 py-3 sm:px-4 lg:px-8 lg:py-8">
-      <JsonLd data={[
-        productLd,
-        breadcrumbLd,
-        // FAQ structured data from the Q&A section — improves product rich results.
-        ...(questions.length > 0
-          ? [{
-              '@context': 'https://schema.org',
-              '@type': 'FAQPage',
-              mainEntity: questions.map((q) => ({
-                '@type': 'Question',
-                name: q.question,
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: q.answer,
-                },
-              })),
-            }]
-          : []),
-      ]} />
+      <JsonLd data={[productLd, breadcrumbLd, ...(faqLd ? [faqLd] : [])]} />
       <ProductViewTracker
         productId={product.id}
         slug={product.slug}

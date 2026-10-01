@@ -11,7 +11,7 @@ import { localizedPath } from '@/lib/i18n/config'
 import { ArticleCard } from '@/components/shop/article-card'
 import { JsonLd } from '@/components/shop/json-ld'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
-import { canonicalUrl, getCanonicalSiteUrl } from '@/lib/seo'
+import { canonicalUrl, getCanonicalSiteUrl, resolveOgImageUrl } from '@/lib/seo'
 import { isProxiedMedia } from '@/lib/shop/own-image-url'
 
 export const dynamic = 'force-dynamic'
@@ -26,6 +26,9 @@ export async function generateMetadata({
   const article = await getArticleBySlug(slug, locale)
   if (!article) notFound()
   const path = `/articles/${slug}`
+  const siteUrl = await getCanonicalSiteUrl()
+  const settings = await getStoreSettingsInternal().catch(() => null)
+  const ogImage = resolveOgImageUrl(siteUrl, article.coverImage, settings?.seo?.ogImageUrl)
   return {
     title: article.metaTitle || article.title,
     description: article.metaDescription || article.excerpt || undefined,
@@ -37,7 +40,7 @@ export async function generateMetadata({
       title: article.metaTitle || article.title,
       description: article.metaDescription || article.excerpt || undefined,
       type: 'article',
-      images: article.coverImage ? [article.coverImage] : undefined,
+      images: [{ url: ogImage, alt: article.title }],
     },
   }
 }

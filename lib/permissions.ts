@@ -22,6 +22,7 @@ import {
   Trash2,
   ScrollText,
   RefreshCw,
+  Target,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -106,6 +107,13 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/promotions', label: 'Акції', icon: Percent, permission: 'promotions' },
       { href: '/admin/modal-ads', label: 'Модальна реклама', icon: Megaphone, permission: 'modal_ads' },
       { href: '/admin/bestsellers', label: 'Топ продажів', icon: TrendingUp, permission: 'bestsellers' },
+      {
+        href: '/admin/analytics',
+        label: 'Кампанії та ROAS',
+        icon: Target,
+        permission: 'statistics',
+        labelKey: 'analyticsNav',
+      },
     ],
   },
   {

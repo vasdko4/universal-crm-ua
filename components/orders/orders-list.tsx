@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
@@ -27,6 +27,16 @@ import { StatusBadge, PaymentBadge } from '@/components/orders/status-badge'
 import { bulkUpdateOrderStatus, updateOrderStatus, type OrderListRow } from '@/app/actions/orders'
 import { getOrderStatusOptions, getPaymentStatusOptions, getDeliveryMethodLabel } from '@/lib/order-status'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
+import { FilterPresetBar } from '@/components/admin/filter-preset-bar'
+import { BulkActionDrawer } from '@/components/admin/bulk-action-drawer'
+import { useAdminHotkeys } from '@/components/admin/use-admin-hotkeys'
+
+type OrderPresetFilters = {
+  q?: string
+  status?: string
+  payment?: string
+  missingTtn?: boolean
+}
 
 type Stats = { total: number; new: number; active: number; revenue: number }
 
@@ -67,14 +77,24 @@ export function OrdersList({
   const searchParams = useSearchParams()
   const { locale, dict } = useAdminI18n()
   const t = dict.orders
+  const c = dict.common
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState(initialSearch)
+  const searchRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState(initialStatus)
   const [payment, setPayment] = useState(initialPayment)
   const [missingTtn, setMissingTtn] = useState(initialMissingTtn)
   const [selected, setSelected] = useState<number[]>([])
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkStatus, setBulkStatus] = useState('')
   const orderStatuses = getOrderStatusOptions(locale)
   const paymentStatuses = getPaymentStatusOptions(locale)
+
+  useAdminHotkeys({
+    onFocusSearch: () => searchRef.current?.focus(),
+    onNew: () => router.push('/admin/orders/new'),
+    onEscape: () => setBulkOpen(false),
+  })
 
   function applyFilters(next: { q?: string; status?: string; payment?: string; missingTtn?: boolean; page?: number }) {
     const params = new URLSearchParams(searchParams.toString())
@@ -99,6 +119,28 @@ export function OrdersList({
       const res = await updateOrderStatus(orderId, newStatus)
       if (res.success) {
         toast.success(t.toastStatusUpdated)
+        router.refresh()
+      } else {
+        toast.error(res.error ?? t.toastError)
+      }
+    })
+  }
+
+  function handleBulkStatusConfirm() {
+    if (!bulkStatus) return
+    const ids = selected
+    startTransition(async () => {
+      const res = await bulkUpdateOrderStatus(ids, bulkStatus)
+      if (res.success) {
+        toast.success(t.toastStatusUpdated)
+        if (res.failedIds && res.failedIds.length > 0) {
+          toast.warning(
+            `${t.toastBulkPartial}: ${res.failedIds.map((f) => `#${f.id}`).join(', ')}`,
+          )
+        }
+        setSelected([])
+        setBulkStatus('')
+        setBulkOpen(false)
         router.refresh()
       } else {
         toast.error(res.error ?? t.toastError)
@@ -142,6 +184,38 @@ export function OrdersList({
         ))}
       </div>
 
+      <FilterPresetBar<OrderPresetFilters>
+        storageKey="admin:presets:orders"
+        builtinPresets={[
+          { id: 'new', label: t.presetNew, filters: { status: 'new' } },
+          { id: 'unpaid', label: t.presetUnpaid, filters: { payment: 'unpaid' } },
+          { id: 'no-ttn', label: t.presetNoTtn, filters: { missingTtn: true } },
+        ]}
+        currentFilters={{
+          q: search,
+          status: status !== 'all' ? status : undefined,
+          payment: payment !== 'all' ? payment : undefined,
+          missingTtn: missingTtn || undefined,
+        }}
+        onApply={(f) => {
+          const q = f.q ?? ''
+          const s = f.status ?? 'all'
+          const pay = f.payment ?? 'all'
+          const noTtn = f.missingTtn ?? false
+          setSearch(q)
+          setStatus(s)
+          setPayment(pay)
+          setMissingTtn(noTtn)
+          applyFilters({ q, status: s, payment: pay, missingTtn: noTtn, page: 1 })
+        }}
+        strings={{
+          title: c.presetsTitle,
+          saveLabel: c.presetSave,
+          namePlaceholder: c.presetNamePlaceholder,
+          deleteAria: c.presetDeleteAria,
+        }}
+      />
+
       <div className="flex flex-col gap-3 sm:flex-row">
         <form
           onSubmit={(e) => {
@@ -152,6 +226,7 @@ export function OrdersList({
         >
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={searchRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t.searchPlaceholder}
@@ -214,38 +289,52 @@ export function OrdersList({
           <span className="text-sm text-muted-foreground">
             {t.selectedCount}: {selected.length}
           </span>
-          <Select
-            onValueChange={(v) => {
-              startTransition(async () => {
-                const res = await bulkUpdateOrderStatus(selected, v)
-                if (res.success) {
-                  toast.success(t.toastStatusUpdated)
-                  if (res.failedIds && res.failedIds.length > 0) {
-                    toast.warning(
-                      `${t.toastBulkPartial}: ${res.failedIds.map((f) => `#${f.id}`).join(', ')}`,
-                    )
-                  }
-                  setSelected([])
-                  router.refresh()
-                } else {
-                  toast.error(res.error ?? t.toastError)
-                }
-              })
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder={t.bulkStatus} />
-            </SelectTrigger>
-            <SelectContent>
-              {orderStatuses.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => setSelected([])}
+            >
+              {t.clearSelection}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isPending}
+              onClick={() => setBulkOpen(true)}
+            >
+              {c.bulkActions}
+            </Button>
+          </div>
         </div>
       )}
+
+      <BulkActionDrawer
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        title={t.bulkEditTitle}
+        description={t.bulkApplyTo.replace('{n}', String(selected.length))}
+        confirmLabel={c.confirm}
+        cancelLabel={c.cancel}
+        isPending={isPending}
+        confirmDisabled={!bulkStatus}
+        onConfirm={handleBulkStatusConfirm}
+      >
+        <Select value={bulkStatus} onValueChange={setBulkStatus}>
+          <SelectTrigger className="w-full" aria-label={t.bulkStatus}>
+            <SelectValue placeholder={t.bulkStatus} />
+          </SelectTrigger>
+          <SelectContent>
+            {orderStatuses.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </BulkActionDrawer>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {initialData.items.length === 0 ? (

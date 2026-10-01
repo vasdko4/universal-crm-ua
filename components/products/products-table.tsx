@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -70,8 +70,26 @@ import {
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { pluralize } from '@/lib/i18n/plural'
 import { pickLocalized } from '@/lib/i18n/config'
+import { FilterPresetBar } from '@/components/admin/filter-preset-bar'
+import { useColumnVisibility, ColumnToggle } from '@/components/admin/column-toggle'
+import { BulkActionDrawer } from '@/components/admin/bulk-action-drawer'
+import { useAdminHotkeys } from '@/components/admin/use-admin-hotkeys'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
 
 const PER_PAGE = 10
+
+/** Column ids that can be toggled in the products table (product + actions columns are always visible). */
+const TOGGLEABLE_COLUMNS = ['sku', 'categories', 'price', 'views', 'stock', 'status']
+
+type ProductPresetFilters = {
+  search?: string
+  category?: string
+  status?: string
+  sort?: string
+}
+
+type BulkAction = 'show' | 'hide' | 'price' | 'stock' | 'category' | 'trash'
 
 function formatPrice(value: string | null, currency = 'UAH', locale: string = 'uk') {
   if (value == null) return '—'
@@ -96,18 +114,36 @@ export function ProductsTable({
   const router = useRouter()
   const { dict, locale } = useAdminI18n()
   const t = dict.products
+  const c = dict.common
   const [isPending, startTransition] = useTransition()
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [searchValue, setSearchValue] = useState(filters.search ?? '')
+  const searchRef = useRef<HTMLInputElement>(null)
   const [deleteTarget, setDeleteTarget] = useState<number[] | null>(null)
   const [bulkPrice, setBulkPrice] = useState('')
   const [bulkDelta, setBulkDelta] = useState('')
   const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkAction, setBulkAction] = useState<BulkAction>('price')
+  const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility(
+    'admin:cols:products',
+    TOGGLEABLE_COLUMNS,
+  )
+  const showCol = (id: string) => visibleCols.includes(id)
+
+  useAdminHotkeys({
+    onFocusSearch: () => searchRef.current?.focus(),
+    onNew: () => router.push('/admin/products/new'),
+    onEscape: () => {
+      setBulkOpen(false)
+      setDeleteTarget(null)
+    },
+  })
 
   const page = filters.page ?? 1
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE))
   const categoryNames = new Map(
-    categories.map((c) => [c.id, pickLocalized(locale, c.nameUk, c.nameRu)]),
+    categories.map((cat) => [cat.id, pickLocalized(locale, cat.nameUk, cat.nameRu)]),
   )
 
   function updateParams(patch: Record<string, string | undefined>) {
@@ -179,6 +215,49 @@ export function ProductsTable({
     })
   }
 
+  function parseBulkNumber(raw: string): number | null {
+    const n = Number(raw.replace(',', '.'))
+    return Number.isFinite(n) ? n : null
+  }
+
+  function handleBulkConfirm() {
+    const ids = [...selected]
+    switch (bulkAction) {
+      case 'show':
+        runBulk(() => setProductsVisibility(ids, true), t.toastShown)
+        break
+      case 'hide':
+        runBulk(() => setProductsVisibility(ids, false), t.toastHidden)
+        break
+      case 'price': {
+        const n = parseBulkNumber(bulkPrice)
+        if (n === null) {
+          toast.error(t.invalidNumber)
+          return
+        }
+        runBulk(() => bulkSetProductPrice(ids, n), t.toastPriceSet)
+        break
+      }
+      case 'stock': {
+        const n = parseBulkNumber(bulkDelta)
+        if (n === null) {
+          toast.error(t.invalidNumber)
+          return
+        }
+        runBulk(() => bulkAdjustProductStock(ids, n), t.toastStockAdjusted)
+        break
+      }
+      case 'category':
+        if (!bulkCategory) return
+        runBulk(() => bulkSetProductCategory(ids, Number(bulkCategory)), t.toastCategorySet)
+        break
+      case 'trash':
+        runBulk(() => softDeleteProducts(ids), t.toastMovedToTrash)
+        break
+    }
+    setBulkOpen(false)
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -204,10 +283,37 @@ export function ProductsTable({
         </div>
       </header>
 
+      <FilterPresetBar<ProductPresetFilters>
+        storageKey="admin:presets:products"
+        builtinPresets={[
+          { id: 'visible', label: t.presetVisible, filters: { status: 'visible' } },
+          { id: 'out_of_stock', label: t.presetOutOfStock, filters: { status: 'out_of_stock' } },
+          { id: 'hidden', label: t.presetHidden, filters: { status: 'hidden' } },
+          { id: 'popular', label: t.presetPopular, filters: { status: 'popular' } },
+        ]}
+        currentFilters={{
+          search: filters.search,
+          category: filters.categoryId ? String(filters.categoryId) : undefined,
+          status: filters.status,
+          sort: filters.sort,
+        }}
+        onApply={(f) => {
+          setSearchValue(f.search ?? '')
+          updateParams({ search: f.search, category: f.category, status: f.status, sort: f.sort })
+        }}
+        strings={{
+          title: c.presetsTitle,
+          saveLabel: c.presetSave,
+          namePlaceholder: c.presetNamePlaceholder,
+          deleteAria: c.presetDeleteAria,
+        }}
+      />
+
       <div className="flex flex-wrap items-center gap-2">
         <form onSubmit={submitSearch} className="relative min-w-52 flex-1 md:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={searchRef}
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             placeholder={t.searchPlaceholder}
@@ -224,9 +330,9 @@ export function ProductsTable({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t.allCategories}</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={String(c.id)}>
-                {pickLocalized(locale, c.nameUk, c.nameRu)} ({c.productCount})
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={String(cat.id)}>
+                {pickLocalized(locale, cat.nameUk, cat.nameRu)} ({cat.productCount})
               </SelectItem>
             ))}
           </SelectContent>
@@ -262,6 +368,19 @@ export function ProductsTable({
             <SelectItem value="name">{t.byName}</SelectItem>
           </SelectContent>
         </Select>
+        <ColumnToggle
+          columns={[
+            { id: 'sku', label: t.colSku },
+            { id: 'categories', label: t.colCategories },
+            { id: 'price', label: t.colPrice },
+            { id: 'views', label: t.colViews },
+            { id: 'stock', label: t.colStock },
+            { id: 'status', label: t.colStatus },
+          ]}
+          visible={visibleCols}
+          onToggle={toggleCol}
+          label={c.columnsLabel}
+        />
       </div>
 
       {selected.size > 0 && (
@@ -274,104 +393,21 @@ export function ProductsTable({
               size="sm"
               variant="outline"
               disabled={isPending}
-              onClick={() =>
-                runBulk(() => setProductsVisibility([...selected], true), t.toastShown)
-              }
+              onClick={() => setSelected(new Set())}
             >
-              <Eye className="size-4" />
-              {t.show}
+              {t.clearSelection}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isPending}
-              onClick={() =>
-                runBulk(() => setProductsVisibility([...selected], false), t.toastHidden)
-              }
-            >
-              <EyeOff className="size-4" />
-              {t.hide}
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={isPending}
-              onClick={() => setDeleteTarget([...selected])}
-            >
-              <Trash2 className="size-4" />
-              {t.toTrash}
-            </Button>
-            <Input
-              className="h-8 w-24"
-              placeholder={t.bulkPrice}
-              value={bulkPrice}
-              onChange={(e) => setBulkPrice(e.target.value)}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isPending || !bulkPrice}
-              onClick={() =>
-                runBulk(
-                  () => bulkSetProductPrice([...selected], Number(bulkPrice.replace(',', '.'))),
-                  t.toastPriceSet,
-                )
-              }
-            >
-              {t.applyPrice}
-            </Button>
-            <Input
-              className="h-8 w-20"
-              placeholder={t.bulkStock}
-              value={bulkDelta}
-              onChange={(e) => setBulkDelta(e.target.value)}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isPending || !bulkDelta}
-              onClick={() =>
-                runBulk(
-                  () => bulkAdjustProductStock([...selected], Number(bulkDelta)),
-                  t.toastStockAdjusted,
-                )
-              }
-            >
-              {t.applyStock}
-            </Button>
-            <Select value={bulkCategory} onValueChange={setBulkCategory}>
-              <SelectTrigger className="h-8 w-40">
-                <SelectValue placeholder={t.bulkCategory} />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>
-                    {pickLocalized(locale, c.nameUk, c.nameRu)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isPending || !bulkCategory}
-              onClick={() =>
-                runBulk(
-                  () => bulkSetProductCategory([...selected], Number(bulkCategory)),
-                  t.toastCategorySet,
-                )
-              }
-            >
-              {t.applyCategory}
+            <Button size="sm" disabled={isPending} onClick={() => setBulkOpen(true)}>
+              {c.bulkActions}
             </Button>
           </div>
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="max-h-[70vh] overflow-x-hidden overflow-y-auto rounded-lg border bg-card">
         <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
+          <TableHeader className="sticky top-0 z-10">
+            <TableRow className="bg-muted hover:bg-muted">
               <TableHead className="w-10">
                 <Checkbox
                   checked={allSelected}
@@ -380,12 +416,22 @@ export function ProductsTable({
                 />
               </TableHead>
               <TableHead>{t.colProduct}</TableHead>
-              <TableHead className="hidden md:table-cell">{t.colSku}</TableHead>
-              <TableHead className="hidden lg:table-cell">{t.colCategories}</TableHead>
-              <TableHead className="text-right">{t.colPrice}</TableHead>
-              <TableHead className="hidden text-right lg:table-cell">{t.colViews}</TableHead>
-              <TableHead className="hidden text-right sm:table-cell">{t.colStock}</TableHead>
-              <TableHead className="hidden sm:table-cell">{t.colStatus}</TableHead>
+              {showCol('sku') && (
+                <TableHead className="hidden md:table-cell">{t.colSku}</TableHead>
+              )}
+              {showCol('categories') && (
+                <TableHead className="hidden lg:table-cell">{t.colCategories}</TableHead>
+              )}
+              {showCol('price') && <TableHead className="text-right">{t.colPrice}</TableHead>}
+              {showCol('views') && (
+                <TableHead className="hidden text-right lg:table-cell">{t.colViews}</TableHead>
+              )}
+              {showCol('stock') && (
+                <TableHead className="hidden text-right sm:table-cell">{t.colStock}</TableHead>
+              )}
+              {showCol('status') && (
+                <TableHead className="hidden sm:table-cell">{t.colStatus}</TableHead>
+              )}
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -449,64 +495,76 @@ export function ProductsTable({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
-                      {product.sku ?? '—'}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <div className="flex flex-wrap gap-1">
-                        {cats.length === 0 ? (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        ) : (
-                          cats.map((name) => (
-                            <Badge key={name} variant="outline" className="text-xs font-normal">
-                              {name}
-                            </Badge>
-                          ))
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-medium tabular-nums">
-                        {formatPrice(product.price, product.currency ?? 'UAH', locale)}
-                      </span>
-                      {product.oldPrice && (
-                        <span className="ml-1.5 text-xs text-muted-foreground line-through tabular-nums">
-                          {formatPrice(product.oldPrice, product.currency ?? 'UAH', locale)}
+                    {showCol('sku') && (
+                      <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
+                        {product.sku ?? '—'}
+                      </TableCell>
+                    )}
+                    {showCol('categories') && (
+                      <TableCell className="hidden lg:table-cell">
+                        <div className="flex flex-wrap gap-1">
+                          {cats.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          ) : (
+                            cats.map((name) => (
+                              <Badge key={name} variant="outline" className="text-xs font-normal">
+                                {name}
+                              </Badge>
+                            ))
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
+                    {showCol('price') && (
+                      <TableCell className="text-right">
+                        <span className="font-medium tabular-nums">
+                          {formatPrice(product.price, product.currency ?? 'UAH', locale)}
                         </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="hidden text-right tabular-nums lg:table-cell">
-                      <span className="text-muted-foreground">{product.viewsCount ?? 0}</span>
-                    </TableCell>
-                    <TableCell className="hidden text-right tabular-nums sm:table-cell">
-                      <span className={product.quantity === 0 ? 'text-destructive' : ''}>
-                        {product.quantity} {product.unit}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <div className="flex flex-wrap gap-1">
-                        {product.quantity > 0 ? (
-                          <Badge className="bg-success/15 text-success hover:bg-success/15">
-                            {t.inStock}
-                          </Badge>
-                        ) : product.availabilityMode === 'preorder' ? (
-                          <Badge className="bg-primary/15 text-primary hover:bg-primary/15">
-                            {t.preorderBadge}
-                          </Badge>
-                        ) : product.availabilityMode === 'coming_soon' ? (
-                          <Badge className="bg-warning/15 text-warning hover:bg-warning/15">
-                            {t.comingSoonBadge}
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive" className="bg-destructive/15 text-destructive hover:bg-destructive/15">
-                            {t.outOfStock}
-                          </Badge>
+                        {product.oldPrice && (
+                          <span className="ml-1.5 text-xs text-muted-foreground line-through tabular-nums">
+                            {formatPrice(product.oldPrice, product.currency ?? 'UAH', locale)}
+                          </span>
                         )}
-                        {!product.isVisible && (
-                          <Badge variant="secondary">{t.hidden}</Badge>
-                        )}
-                      </div>
-                    </TableCell>
+                      </TableCell>
+                    )}
+                    {showCol('views') && (
+                      <TableCell className="hidden text-right tabular-nums lg:table-cell">
+                        <span className="text-muted-foreground">{product.viewsCount ?? 0}</span>
+                      </TableCell>
+                    )}
+                    {showCol('stock') && (
+                      <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                        <span className={product.quantity === 0 ? 'text-destructive' : ''}>
+                          {product.quantity} {product.unit}
+                        </span>
+                      </TableCell>
+                    )}
+                    {showCol('status') && (
+                      <TableCell className="hidden sm:table-cell">
+                        <div className="flex flex-wrap gap-1">
+                          {product.quantity > 0 ? (
+                            <Badge className="bg-success/15 text-success hover:bg-success/15">
+                              {t.inStock}
+                            </Badge>
+                          ) : product.availabilityMode === 'preorder' ? (
+                            <Badge className="bg-primary/15 text-primary hover:bg-primary/15">
+                              {t.preorderBadge}
+                            </Badge>
+                          ) : product.availabilityMode === 'coming_soon' ? (
+                            <Badge className="bg-warning/15 text-warning hover:bg-warning/15">
+                              {t.comingSoonBadge}
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="bg-destructive/15 text-destructive hover:bg-destructive/15">
+                              {t.outOfStock}
+                            </Badge>
+                          )}
+                          {!product.isVisible && (
+                            <Badge variant="secondary">{t.hidden}</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -609,6 +667,102 @@ export function ProductsTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <BulkActionDrawer
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        title={c.bulkActions}
+        description={t.bulkApplyTo.replace('{n}', String(selected.size))}
+        confirmLabel={c.confirm}
+        cancelLabel={c.cancel}
+        destructive={bulkAction === 'trash'}
+        isPending={isPending}
+        confirmDisabled={
+          (bulkAction === 'price' && !bulkPrice.trim()) ||
+          (bulkAction === 'stock' && !bulkDelta.trim()) ||
+          (bulkAction === 'category' && !bulkCategory)
+        }
+        onConfirm={handleBulkConfirm}
+      >
+        <p className="mb-3 text-sm font-medium text-foreground">{t.bulkChooseAction}</p>
+        <RadioGroup
+          value={bulkAction}
+          onValueChange={(v) => setBulkAction(v as BulkAction)}
+          className="flex flex-col gap-3"
+        >
+          <div className="flex items-center gap-2">
+            <RadioGroupItem value="show" id="bulk-show" />
+            <Label htmlFor="bulk-show">{t.show}</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <RadioGroupItem value="hide" id="bulk-hide" />
+            <Label htmlFor="bulk-hide">{t.hide}</Label>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="price" id="bulk-price" />
+              <Label htmlFor="bulk-price">{t.bulkActionPrice}</Label>
+            </div>
+            {bulkAction === 'price' && (
+              <Input
+                value={bulkPrice}
+                onChange={(e) => setBulkPrice(e.target.value)}
+                placeholder={t.bulkPriceLabel}
+                inputMode="decimal"
+                className="ml-6 w-48"
+                aria-label={t.bulkPriceLabel}
+              />
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="stock" id="bulk-stock" />
+              <Label htmlFor="bulk-stock">{t.bulkActionStock}</Label>
+            </div>
+            {bulkAction === 'stock' && (
+              <>
+                <Input
+                  value={bulkDelta}
+                  onChange={(e) => setBulkDelta(e.target.value)}
+                  placeholder={t.bulkStock}
+                  inputMode="numeric"
+                  className="ml-6 w-48"
+                  aria-label={t.bulkStock}
+                />
+                <p className="ml-6 text-xs text-muted-foreground">{t.bulkStockHint}</p>
+              </>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="category" id="bulk-category" />
+              <Label htmlFor="bulk-category">{t.bulkActionCategory}</Label>
+            </div>
+            {bulkAction === 'category' && (
+              <Select value={bulkCategory} onValueChange={setBulkCategory}>
+                <SelectTrigger className="ml-6 w-56" aria-label={t.bulkCategoryLabel}>
+                  <SelectValue placeholder={t.bulkCategory} />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>
+                      {pickLocalized(locale, cat.nameUk, cat.nameRu)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="trash" id="bulk-trash" />
+              <Label htmlFor="bulk-trash">{t.bulkActionTrash}</Label>
+            </div>
+            {bulkAction === 'trash' && (
+              <p className="ml-6 text-xs text-muted-foreground">{t.bulkTrashWarning}</p>
+            )}
+          </div>
+        </RadioGroup>
+      </BulkActionDrawer>
     </div>
   )
 }

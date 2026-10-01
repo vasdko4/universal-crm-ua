@@ -117,3 +117,66 @@ export function buildFunnel(input: FunnelInput): SalesFunnel {
     overallConversion: ratePercent(Math.max(0, input.paidOrders), first),
   }
 }
+
+/* ------------------------- Checkout funnel ------------------------- */
+
+/**
+ * Checkout funnel: cart -> checkout page -> order -> paid -> fulfilled.
+ *
+ * DATA LIMITATION (by design, not a bug to fix later): the storefront
+ * checkout is a single page (/checkout) — contacts, delivery and payment
+ * are form sections on that page, not separate URLs or events. The only
+ * checkout-related signals that really exist are:
+ *   - `add_to_cart` analytics events (the cart step),
+ *   - `pageview` events with path=/checkout* (reached the checkout page),
+ *   - rows in `orders` (placed / paid / fulfilled).
+ * There are NO per-step events for contacts -> delivery -> payment, so those
+ * intermediate conversions cannot be measured. Do not invent them: the UI
+ * must render them as "no data", and only the measurable steps below get
+ * conversion rates.
+ */
+
+export type CheckoutFunnelStageKey = 'carts' | 'checkoutVisits' | 'orders' | 'paidOrders' | 'fulfilledOrders'
+
+export type CheckoutFunnelInput = {
+  /** Unique sessions with at least one add_to_cart event. */
+  cartSessions: number
+  /** Unique sessions that opened the checkout page. */
+  checkoutSessions: number
+  /** Orders placed in the period (cancelled excluded). */
+  orders: number
+  /** Orders whose payment is settled. */
+  paidOrders: number
+  /** Paid orders that were shipped or completed. */
+  fulfilledOrders: number
+}
+
+export type CheckoutFunnelStage = {
+  key: CheckoutFunnelStageKey
+  value: number
+  /** Percentage of the previous stage. null for the first stage or no data. */
+  conversionFromPrev: number | null
+  /** How many units were lost between the previous stage and this one. */
+  dropOff: number | null
+}
+
+export function buildCheckoutFunnel(input: CheckoutFunnelInput): CheckoutFunnelStage[] {
+  const ordered: { key: CheckoutFunnelStageKey; value: number }[] = [
+    { key: 'carts', value: Math.max(0, input.cartSessions) },
+    { key: 'checkoutVisits', value: Math.max(0, input.checkoutSessions) },
+    { key: 'orders', value: Math.max(0, input.orders) },
+    { key: 'paidOrders', value: Math.max(0, input.paidOrders) },
+    { key: 'fulfilledOrders', value: Math.max(0, input.fulfilledOrders) },
+  ]
+  return ordered.map((stage, i) => {
+    if (i === 0) {
+      return { ...stage, conversionFromPrev: null, dropOff: null }
+    }
+    const prev = ordered[i - 1].value
+    return {
+      ...stage,
+      conversionFromPrev: ratePercent(stage.value, prev),
+      dropOff: prev > stage.value ? prev - stage.value : 0,
+    }
+  })
+}

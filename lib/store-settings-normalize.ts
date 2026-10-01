@@ -94,6 +94,22 @@ export type MinOrderSettings = {
   amount: number
 }
 
+/**
+ * Manual ad spend per campaign for the ROAS report (Admin → Campaigns & ROAS).
+ * Stored as one JSON setting in store_settings.ads_spend. Spend is kept as a
+ * number rounded to 2 decimals (UAH).
+ */
+export type AdsSpendEntry = {
+  source: string
+  medium: string
+  campaign: string
+  spend: number
+}
+
+export type AdsSpendSettings = {
+  entries: AdsSpendEntry[]
+}
+
 export type StoreSettingsData = {
   storeName: string
   storeDescription: string | null
@@ -143,6 +159,7 @@ export type StoreSettingsData = {
   homeHero: HomeHeroSettings
   homeBenefits: HomeBenefitsSettings
   minOrder: MinOrderSettings
+  adsSpend: AdsSpendSettings
 }
 
 export const DEFAULTS: StoreSettingsData = {
@@ -226,6 +243,7 @@ export const DEFAULTS: StoreSettingsData = {
     ],
   },
   minOrder: { enabled: false, amount: 0 },
+  adsSpend: { entries: [] },
   contact: {
     phones: [''],
     address: '',
@@ -383,6 +401,34 @@ export function mergeContact(stored: unknown): ContactData {
   }
 }
 
+/**
+ * Normalizes the manual ad-spend setting ({ entries: [...] }) written by
+ * saveCampaignSpend. Unknown shapes degrade to the empty default — spend
+ * must never poison the ROAS report with NaN.
+ */
+export function normalizeAdsSpend(stored: unknown): AdsSpendSettings {
+  const entries: AdsSpendEntry[] = []
+  const rec = asRecord(stored)
+  const raw = Array.isArray(rec?.entries) ? rec.entries : []
+  for (const item of raw) {
+    const r = asRecord(item)
+    if (!r) continue
+    const source = asString(r.source, '').slice(0, 150)
+    const medium = asString(r.medium, '').slice(0, 150)
+    const campaign = asString(r.campaign, '').slice(0, 150)
+    const spendNum = Number(r.spend)
+    if (!source || !Number.isFinite(spendNum) || spendNum < 0) continue
+    // Last write wins on duplicate keys, like a key-value store would.
+    const key = `${source}\u0000${medium}\u0000${campaign}`
+    const spend = Math.round(spendNum * 100) / 100
+    const idx = entries.findIndex((e) => `${e.source}\u0000${e.medium}\u0000${e.campaign}` === key)
+    const entry = { source, medium, campaign, spend }
+    if (idx >= 0) entries[idx] = entry
+    else entries.push(entry)
+  }
+  return { entries }
+}
+
 function mergeSocial(stored: unknown): StoreSettingsData['social'] {
   const src = asRecord(stored)
   const out = {
@@ -444,5 +490,6 @@ export function normalizeStoreSettingsRow(row: unknown): StoreSettingsData {
         amount: Number.isFinite(amount) ? amount : 0,
       }
     })(),
+    adsSpend: normalizeAdsSpend(col(src, 'adsSpend', 'ads_spend')),
   }
 }

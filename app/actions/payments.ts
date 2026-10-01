@@ -3,7 +3,7 @@
 import { randomInt } from 'node:crypto'
 import { db, pool } from '@/lib/db'
 import { paymentGateways, payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, count } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/shop/queries'
 import { assertPermission, assertWritePermission } from '@/lib/session'
@@ -18,6 +18,7 @@ import {
 } from '@/lib/payments/clients'
 import { refundPlan } from '@/lib/payments/refund'
 import { settlePayment } from '@/lib/payments/settle'
+import { normalizePaymentPage, totalPages, type PaymentPageParams } from '@/lib/payments/pagination'
 import { restoreStockOnce } from '@/lib/shop/order-fulfillment'
 import { decryptConfigSecrets, encryptConfigSecrets } from '@/lib/secrets'
 
@@ -127,11 +128,18 @@ export async function updateGateway(
 
 /* ------------------------------- Payments -------------------------------- */
 
-export async function getPayments() {
+export async function getPayments(params: PaymentPageParams = {}) {
   await assertPermission('payments')
-  // BUGFIX: unbounded select — with thousands of payments the payload got
-  // heavy. Cap at 1000 newest (a real paginated list is a follow-up).
-  return db.select().from(payments).orderBy(desc(payments.createdAt)).limit(1000)
+  // Paginated list (was: unbounded select capped at 1000 rows — a heavy
+  // payload once the table grows). Page/pageSize are clamped through the
+  // shared list helper, so defaults and bounds match every other admin list.
+  const { page, pageSize, offset, limit } = normalizePaymentPage(params)
+  const [rows, totalRows] = await Promise.all([
+    db.select().from(payments).orderBy(desc(payments.createdAt)).limit(limit).offset(offset),
+    db.select({ value: count() }).from(payments),
+  ])
+  const total = totalRows[0]?.value ?? 0
+  return { items: rows, total, page, pageSize, totalPages: totalPages(total, pageSize) }
 }
 
 // SECURITY: no permission check — reachable directly as a server action

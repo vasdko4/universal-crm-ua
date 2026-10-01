@@ -684,6 +684,10 @@ export const storeSettings = pgTable('store_settings', {
   // Минимальная сумма заказа: можно включить/выключить и задать порог,
   // ниже которого оформление заказа на чекауте блокируется.
   minOrder: jsonb('min_order').notNull().default({}),
+  // Ручной ввод рекламных расходов для ROAS-отчёта (Админка → Кампанії та ROAS).
+  // Одна JSON-настройка: { entries: [{ source, medium, campaign, spend }] } —
+  // см. lib/analytics/roas.ts и app/actions/analytics.ts (saveCampaignSpend).
+  adsSpend: jsonb('ads_spend').notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 

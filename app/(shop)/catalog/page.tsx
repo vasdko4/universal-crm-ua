@@ -8,7 +8,7 @@ import { catalogSearchQuery, parseCharFilters } from '@/lib/shop/catalog-search'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { localizedPath } from '@/lib/i18n/config'
-import { getCanonicalSiteUrl, toAbsolute } from '@/lib/seo'
+import { getCanonicalSiteUrl, toAbsolute, buildBreadcrumbLd } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,14 +82,13 @@ export default async function CatalogPage({
   const siteUrl = await getCanonicalSiteUrl()
   const abs = (path: string) => toAbsolute(siteUrl, path)
   const lp = (path: string) => localizedPath(path, locale)
-  const breadcrumbLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: dict.common.home, item: abs(lp('/')) },
-      { '@type': 'ListItem', position: 2, name: dict.common.catalog, item: abs(lp('/catalog')) },
+  const breadcrumbLd = buildBreadcrumbLd(
+    [
+      { name: dict.common.home, path: lp('/') },
+      { name: dict.common.catalog, path: lp('/catalog') },
     ],
-  }
+    siteUrl,
+  )
   const itemListLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',

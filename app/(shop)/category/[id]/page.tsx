@@ -9,23 +9,41 @@ import { getCatalogProducts, getCatalogFacets, getCategoryById, getPriceBounds, 
 import { parseCharFilters } from '@/lib/shop/catalog-search'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
-import { getCanonicalSiteUrl, toAbsolute } from '@/lib/seo'
+import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { getCanonicalSiteUrl, toAbsolute, resolveOgImageUrl, buildBreadcrumbLd } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
 
 const loadCategory = cache((id: number, locale: 'uk' | 'ru') => getCategoryById(id, locale))
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}): Promise<Metadata> {
   const { id } = await params
   const categoryId = Number(id)
   if (!Number.isInteger(categoryId) || categoryId < 1) notFound()
   const locale = await getLocale()
   const category = await loadCategory(categoryId, locale).catch(() => null)
   if (!category) notFound()
+  const sp = await searchParams
+  const get = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]) as string | undefined
+  // Sorted/filtered category views are near-duplicates of the plain category
+  // page (which is the canonical one) — keep them out of the index while
+  // still following links, mirroring app/(shop)/catalog/page.tsx.
+  const isFiltered =
+    get('sort') != null || get('inStock') != null || get('discount') != null ||
+    get('minPrice') != null || get('maxPrice') != null || get('chars') != null
   const description =
     category.description || `${category.name} — більший вибір з доставкою по всій Україні і гарантією.`
   const path = `/category/${category.id}`
   const canonical = localizedPath(path, locale)
+  const siteUrl = await getCanonicalSiteUrl()
+  const settings = await getStoreSettingsInternal().catch(() => null)
+  const ogImage = resolveOgImageUrl(siteUrl, category.image, settings?.seo?.ogImageUrl)
   return {
     title: category.name,
     description,
@@ -33,7 +51,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       canonical,
       languages: { uk: path, ru: localizedPath(path, 'ru'), 'x-default': path },
     },
-    openGraph: { type: 'website', title: category.name, description, url: canonical },
+    ...(isFiltered ? { robots: { index: false, follow: true } } : {}),
+    openGraph: {
+      type: 'website',
+      title: category.name,
+      description,
+      url: canonical,
+      images: [{ url: ogImage, alt: category.name }],
+    },
+    twitter: { card: 'summary_large_image', title: category.name, description, images: [ogImage] },
   }
 }
 
@@ -56,15 +82,14 @@ export default async function CategoryPage({
   const siteUrl = await getCanonicalSiteUrl()
   const abs = (path: string) => toAbsolute(siteUrl, path)
   const lp = (path: string) => localizedPath(path, locale)
-  const breadcrumbLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: dict.common.home, item: abs(lp('/')) },
-      { '@type': 'ListItem', position: 2, name: dict.common.catalog, item: abs(lp('/catalog')) },
-      { '@type': 'ListItem', position: 3, name: category.name, item: abs(lp(`/category/${category.id}`)) },
+  const breadcrumbLd = buildBreadcrumbLd(
+    [
+      { name: dict.common.home, path: lp('/') },
+      { name: dict.common.catalog, path: lp('/catalog') },
+      { name: category.name, path: lp(`/category/${category.id}`) },
     ],
-  }
+    siteUrl,
+  )
 
   const get = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]) as string | undefined
   const toPrice = (v: string | undefined) => {

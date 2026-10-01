@@ -7,7 +7,20 @@ import { assertPermission, assertWritePermission, getAdminUser } from '@/lib/ses
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { hasPermission } from '@/lib/permissions'
 import type { Locale } from '@/lib/i18n/config'
-import { buildFunnel, type SalesFunnel } from '@/lib/analytics/funnel'
+import {
+  buildFunnel,
+  buildCheckoutFunnel,
+  type SalesFunnel,
+  type CheckoutFunnelStage,
+} from '@/lib/analytics/funnel'
+import { kyivDayBoundary, SHOP_TZ } from '@/lib/shop/promo-dates'
+import {
+  mergeSpendIntoReport,
+  validateSpendEntries,
+  DIRECT_SOURCE_SENTINEL,
+  type CampaignReportRow,
+} from '@/lib/analytics/roas'
+import { getStoreSettingsInternal, normalizeAdsSpend } from '@/lib/store-settings'
 import { normDays, normLimit } from '@/lib/api/helpers'
 
 async function adminLocale(): Promise<Locale> {
@@ -743,4 +756,174 @@ export async function getProductViewCounts(
   const map: Record<number, number> = {}
   for (const row of res.rows) map[row.product_id] = row.views
   return map
+}
+
+/* --------------------- Campaign ROAS report (admin) --------------------- */
+
+export type { CampaignReportRow }
+
+function validDateStr(value: string | undefined): value is string {
+  if (typeof value !== 'string') return false
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const [y, m, d] = value.split('-').map(Number)
+  if (m < 1 || m > 12 || d < 1 || d > 31) return false
+  // Reject impossible dates (e.g. 2026-02-30) instead of silently rolling over.
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d
+}
+
+/**
+ * Normalizes the from/to date filter (YYYY-MM-DD, Europe/Kyiv calendar days).
+ * Garbage falls back to the last 30 Kyiv days; a swapped range is flipped.
+ */
+function parseDateRange(
+  fromRaw: string | undefined,
+  toRaw: string | undefined,
+): { from: string; to: string; fromTs: Date; toTs: Date } {
+  const todayKyiv = new Intl.DateTimeFormat('en-CA', {
+    timeZone: SHOP_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date()) // YYYY-MM-DD
+  let from = validDateStr(fromRaw) ? fromRaw : null
+  let to = validDateStr(toRaw) ? toRaw : null
+  if (!from || !to) {
+    const d = new Date(todayKyiv + 'T00:00:00Z')
+    d.setUTCDate(d.getUTCDate() - 29)
+    from = from ?? d.toISOString().slice(0, 10)
+    to = to ?? todayKyiv
+  }
+  if (from > to) [from, to] = [to, from]
+  return { from, to, fromTs: kyivDayBoundary(from, false), toTs: kyivDayBoundary(to, true) }
+}
+
+export type CampaignReportResult = {
+  from: string
+  to: string
+  rows: CampaignReportRow[]
+  totals: { orders: number; revenue: number; spend: number | null; roas: number | null }
+}
+
+/**
+ * Campaign -> orders -> ROAS report. Attribution is last-touch from the
+ * orders.utm_* columns (captured from the landing URL, see lib/shop/utm.ts).
+ * Only orders that can actually produce revenue count: cancelled and
+ * not-yet-paid online orders are excluded, consistent with the other reports
+ * in this file.
+ */
+export async function getCampaignReport(
+  fromRaw?: string,
+  toRaw?: string,
+): Promise<CampaignReportResult> {
+  await assertPermission('statistics')
+  const { from, to, fromTs, toTs } = parseDateRange(fromRaw, toRaw)
+  const res = await pool.query(
+    `SELECT
+       COALESCE(NULLIF(utm_source, ''), '${DIRECT_SOURCE_SENTINEL}') AS source,
+       COALESCE(NULLIF(utm_medium, ''), '') AS medium,
+       COALESCE(NULLIF(utm_campaign, ''), '') AS campaign,
+       COUNT(*)::int AS orders,
+       COALESCE(SUM(total), 0)::float AS revenue
+     FROM orders
+     WHERE status NOT IN ('cancelled', 'pending_payment')
+       AND created_at >= $1
+       AND created_at <= $2
+     GROUP BY 1, 2, 3
+     ORDER BY revenue DESC`,
+    [fromTs, toTs],
+  )
+  const settings = await getStoreSettingsInternal()
+  const rows = mergeSpendIntoReport(
+    res.rows.map((r) => ({
+      source: String(r.source),
+      medium: String(r.medium),
+      campaign: String(r.campaign),
+      orders: r.orders ?? 0,
+      revenue: r.revenue ?? 0,
+    })),
+    settings.adsSpend?.entries ?? [],
+  )
+  const orders = rows.reduce((s, r) => s + r.orders, 0)
+  const revenue = rows.reduce((s, r) => s + r.revenue, 0)
+  const spend = rows.reduce<number | null>((s, r) => (r.spend == null ? s : (s ?? 0) + r.spend), null)
+  const roas = spend != null && spend > 0 ? revenue / spend : null
+  return { from, to, rows, totals: { orders, revenue, spend, roas } }
+}
+
+/**
+ * Saves the manually-entered ad spend for the ROAS report. The UI posts the
+ * full table; entries are validated (see lib/analytics/roas.ts) and the
+ * whole ads_spend setting is replaced — one JSON setting, no schema churn
+ * per campaign.
+ */
+export async function saveCampaignSpend(
+  entries: unknown,
+): Promise<{ success: boolean; saved: number }> {
+  await assertWritePermission('statistics')
+  const clean = validateSpendEntries(entries)
+  // Re-normalize so what is stored is exactly what normalizeAdsSpend will
+  // read back (dedup, rounding, clamping) — no drift between write and read.
+  const normalized = normalizeAdsSpend({ entries: clean })
+  await pool.query(`UPDATE store_settings SET ads_spend = $1, updated_at = NOW() WHERE id = 1`, [
+    JSON.stringify(normalized),
+  ])
+  revalidatePath('/admin/analytics')
+  return { success: true, saved: normalized.entries.length }
+}
+
+/* --------------------- Checkout funnel (admin) --------------------- */
+
+export type CheckoutFunnelResult = {
+  from: string
+  to: string
+  stages: CheckoutFunnelStage[]
+  /**
+   * Checkout steps the schema cannot measure (contacts / delivery / payment
+   * are form sections of one /checkout page — no per-step events exist).
+   * Rendered as "no data" in the UI; see lib/analytics/funnel.ts.
+   */
+  untrackedSteps: string[]
+}
+
+/**
+ * Measurable checkout funnel: cart sessions -> checkout page sessions ->
+ * placed orders -> paid orders -> fulfilled orders. Only signals that really
+ * exist (analytics_events + orders) are used — no invented step data.
+ */
+export async function getCheckoutFunnel(
+  fromRaw?: string,
+  toRaw?: string,
+): Promise<CheckoutFunnelResult> {
+  await assertPermission('statistics')
+  const { from, to, fromTs, toTs } = parseDateRange(fromRaw, toRaw)
+  const [eventsRes, ordersRes] = await Promise.all([
+    pool.query(
+      `SELECT
+         COUNT(DISTINCT session_id) FILTER (WHERE type = 'add_to_cart' AND session_id IS NOT NULL)::int AS cart_sessions,
+         COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL AND path LIKE '/checkout%')::int AS checkout_sessions
+       FROM analytics_events
+       WHERE created_at >= $1 AND created_at <= $2`,
+      [fromTs, toTs],
+    ),
+    pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status <> 'cancelled')::int AS placed,
+         COUNT(*) FILTER (WHERE status <> 'cancelled' AND payment_status = 'paid')::int AS paid,
+         COUNT(*) FILTER (WHERE status <> 'cancelled' AND payment_status = 'paid' AND status IN ('shipped', 'done'))::int AS fulfilled
+       FROM orders
+       WHERE created_at >= $1 AND created_at <= $2`,
+      [fromTs, toTs],
+    ),
+  ])
+  const e = eventsRes.rows[0] ?? {}
+  const o = ordersRes.rows[0] ?? {}
+  const stages = buildCheckoutFunnel({
+    cartSessions: e.cart_sessions ?? 0,
+    checkoutSessions: e.checkout_sessions ?? 0,
+    orders: o.placed ?? 0,
+    paidOrders: o.paid ?? 0,
+    fulfilledOrders: o.fulfilled ?? 0,
+  })
+  return { from, to, stages, untrackedSteps: ['contacts', 'delivery', 'payment'] }
 }

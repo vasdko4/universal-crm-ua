@@ -62,6 +62,8 @@ import {
   Undo2,
   Clock,
   ListChecks,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
@@ -94,13 +96,28 @@ const emptyForm = {
   customerPhone: '',
 }
 
+function tpl(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
+    template,
+  )
+}
+
+export type PaymentsList = {
+  items: Payment[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 export function PaymentsManager({
   gateways,
   payments,
   methods,
 }: {
   gateways: PaymentGateway[]
-  payments: Payment[]
+  payments: PaymentsList
   methods: PaymentMethod[]
 }) {
   const { dict: t, locale } = useAdminI18n()
@@ -122,13 +139,17 @@ export function PaymentsManager({
     let paid = 0
     let refunded = 0
     let pending = 0
-    for (const p of payments) {
+    for (const p of payments.items) {
       if (p.status === 'paid' || p.status === 'partially_refunded') paid += Number(p.amount)
       refunded += Number(p.refundedAmount)
       if (p.status === 'pending' || p.status === 'created') pending += 1
     }
-    return { paid, refunded, pending, total: payments.length }
+    return { paid, refunded, pending, total: payments.total }
   }, [payments])
+
+  function goToPage(p: number) {
+    router.push(`/admin/payments?page=${p}`)
+  }
 
   function gatewayName(code: string) {
     return gateways.find((g) => g.code === code)?.name ?? code
@@ -277,7 +298,7 @@ export function PaymentsManager({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.length === 0 ? (
+                {payments.items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-32 text-center">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -287,7 +308,7 @@ export function PaymentsManager({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  payments.map((p) => {
+                  payments.items.map((p) => {
                     const meta = statusMeta(t, p.status)
                     const refunded = Number(p.refundedAmount)
                     const canRefund = p.status === 'paid' || p.status === 'partially_refunded'
@@ -380,6 +401,31 @@ export function PaymentsManager({
                 )}
               </TableBody>
             </Table>
+            {payments.totalPages > 1 && (
+              <div className="flex items-center justify-between border-t px-4 py-3">
+                <p className="text-sm text-muted-foreground">
+                  {tpl(t.payments.pageOfTemplate, { page: payments.page, total: payments.totalPages })}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={payments.page <= 1}
+                    onClick={() => goToPage(payments.page - 1)}
+                  >
+                    <ChevronLeft className="size-4" /> {t.payments.backButton}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={payments.page >= payments.totalPages}
+                    onClick={() => goToPage(payments.page + 1)}
+                  >
+                    {t.payments.forwardButton} <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
 

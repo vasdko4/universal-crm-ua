@@ -655,6 +655,7 @@ CREATE TABLE IF NOT EXISTS "store_settings" (
   "google_auth" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "home_hero" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "home_benefits" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "ads_spend" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "updated_at" timestamptz DEFAULT now(),
   PRIMARY KEY ("id")
 );
@@ -813,6 +814,8 @@ CREATE INDEX IF NOT EXISTS abandoned_carts_status_idx ON public.abandoned_carts 
 
 -- Минимальная сумма заказа: включение/выключение + порог (Настройки → Общие)
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS min_order jsonb NOT NULL DEFAULT '{}'::jsonb;
+-- Manual ad spend for the ROAS report (Admin → Campaigns & ROAS), see lib/analytics/roas.ts
+ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS ads_spend jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS storefront_cache_enabled boolean NOT NULL DEFAULT false;
 
 -- Реальный URL фискального чека от эквайринга (WayForPay/Monobank), если API

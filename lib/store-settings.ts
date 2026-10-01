@@ -38,6 +38,7 @@ export const STORE_SETTINGS_TAG = 'store-settings'
 export {
   DEFAULTS,
   normalizeStoreSettingsRow,
+  normalizeAdsSpend,
   stripSecrets,
   mergeContact,
   mergeHomeHero,
