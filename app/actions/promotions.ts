@@ -12,6 +12,7 @@ import { getLocale } from '@/lib/i18n/server'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { escapeLikeWildcards, ilikeEscaped, sanitizeSearch } from '@/lib/api/helpers'
 import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
+import { kyivDayBoundary } from '@/lib/shop/promo-dates'
 
 export type PromotionInput = {
   type: 'promocode' | 'discount'
@@ -100,27 +101,6 @@ function validate(input: PromotionInput): string | null {
 // of end of day. Interpret the dates in the Europe/Kyiv shop timezone:
 // startsAt → start of that Kyiv day, endsAt → end of that Kyiv day.
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const SHOP_TZ = 'Europe/Kyiv'
-
-// Exported for unit tests (DST edge cases).
-export function kyivDayBoundary(dateStr: string, endOfDay: boolean): Date {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const guess = Date.UTC(y, m - 1, d, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0)
-  const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone: SHOP_TZ,
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-  const parts = dtf.formatToParts(new Date(guess))
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value)
-  const asUTC = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'))
-  return new Date(guess - (asUTC - guess))
-}
 
 export async function generatePromoCode(): Promise<string> {
   await assertPermission('promotions')

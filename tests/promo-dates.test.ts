@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { kyivDayBoundary } from '@/app/actions/promotions'
+import { kyivDayBoundary } from '@/lib/shop/promo-dates'
 
 // Kyiv is UTC+2 in winter, UTC+3 in summer (DST). The helper must map a
 // YYYY-MM-DD date to 00:00:00 / 23:59:59 Kyiv wall time, regardless of the
