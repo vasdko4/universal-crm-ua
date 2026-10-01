@@ -59,7 +59,7 @@ export function getConfiguredSetupToken(): string | null {
   return null
 }
 
-/** Create and persist a token if none is configured. Safe to call on every boot. */
+/** Create a token if none is configured. Safe to call on every boot. */
 export function ensureSetupToken(): { token: string; generated: boolean } {
   const existing = getConfiguredSetupToken()
   if (existing) return { token: existing, generated: false }
