@@ -237,6 +237,9 @@ export function ProductVariantsEditor({ options, variants, currency, onChange }:
                   <Input
                     id={`v-price-${i}`}
                     inputMode="decimal"
+                    type="number"
+                    min="0"
+                    step="0.01"
                     value={v.price}
                     onChange={(e) => updateVariant(i, { price: e.target.value })}
                     placeholder="0"

@@ -1127,9 +1127,15 @@ async function _getCategoryAndDescendantIds(categoryId: number): Promise<number[
   }
   const result: number[] = [categoryId]
   const queue = [categoryId]
+  // BUGFIX: visited set — a parentId cycle in the DB (now rejected at write
+  // time, but legacy rows could exist) used to spin this BFS forever and
+  // hang the storefront until the serverless timeout.
+  const visited = new Set<number>([categoryId])
   while (queue.length > 0) {
     const current = queue.shift()!
     for (const child of childrenOf.get(current) ?? []) {
+      if (visited.has(child)) continue
+      visited.add(child)
       result.push(child)
       queue.push(child)
     }

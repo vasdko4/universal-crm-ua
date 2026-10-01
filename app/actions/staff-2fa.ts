@@ -1,8 +1,9 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { pool } from '@/lib/db'
 import { getAdminUser, getStaffSessionId, staffTwoFactorSatisfied } from '@/lib/session'
+import { getAuth } from '@/lib/auth'
 import {
   generateTotpSecret,
   otpauthUrl,
@@ -72,6 +73,20 @@ export async function beginStaffTwoFactor(): Promise<
     if (rows[0]?.two_factor_enabled && !(await staffTwoFactorSatisfied(me.id))) {
       return { ok: false, error: 'Спочатку підтвердіть поточний код 2FA' }
     }
+    // SECURITY: binding a new authenticator is account-takeover-grade. A
+    // stolen session cookie alone must not be enough — require a FRESH login
+    // (≤15 min). Otherwise an attacker with the cookie binds their own
+    // authenticator, confirms it, and locks the legitimate owner out behind
+    // their 2FA. createdAt is the login moment (sliding expiry only moves
+    // expiresAt), so this is a genuine re-authentication check.
+    if (!rows[0]?.two_factor_enabled) {
+      const auth = await getAuth()
+      const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
+      const createdAt = session?.session?.createdAt ? new Date(session.session.createdAt).getTime() : NaN
+      if (!Number.isFinite(createdAt) || Date.now() - createdAt > 15 * 60 * 1000) {
+        return { ok: false, error: 'З міркувань безпеки увімкнення 2FA потребує свіжого входу — вийдіть і увійдіть знову.' }
+      }
+    }
     const secret = generateTotpSecret()
     // BUGFIX: TOTP secrets used to be stored in plaintext. Encrypt at rest;
     // decryptSecret passes legacy plaintext rows through, so no data migration needed.
@@ -121,11 +136,17 @@ export async function disableStaffTwoFactor(code: string): Promise<{ ok: boolean
   if (await isRateLimited('staff-2fa', me.id, 5)) {
     return { ok: false, error: 'Забагато спроб. Зачекайте хвилину.' }
   }
-  const { rows } = await pool.query<{ two_factor_secret: string | null }>(
-    `SELECT two_factor_secret FROM "user" WHERE id = $1`,
+  const { rows } = await pool.query<{ two_factor_secret: string | null; two_factor_enabled: boolean | null }>(
+    `SELECT two_factor_secret, two_factor_enabled FROM "user" WHERE id = $1`,
     [me.id],
   )
   const secret = decryptSecret(rows[0]?.two_factor_secret)
+  // BUGFIX: when two_factor_enabled was true but the secret was NULL
+  // (corrupt state), the code check was skipped entirely and 2FA got
+  // disabled with no verification. Refuse instead of silently disabling.
+  if (rows[0]?.two_factor_enabled && !secret) {
+    return { ok: false, error: '2FA у пошкодженому стані — зверніться до адміністратора' }
+  }
   if (secret && !verifyTotp(secret, code)) return { ok: false, error: 'Невірний код' }
   await pool.query(
     `UPDATE "user" SET two_factor_secret = NULL, two_factor_enabled = false, two_factor_pending_secret = NULL, "updatedAt" = NOW() WHERE id = $1`,

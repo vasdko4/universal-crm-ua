@@ -1,6 +1,6 @@
 'use server'
 
-import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db, pool, withDbClient, dbForClient } from '@/lib/db'
 import {
@@ -12,6 +12,7 @@ import {
   customers,
 } from '@/lib/db/schema'
 import { getAdminUser, assertPermission, assertWritePermission } from '@/lib/session'
+import { escapeLikeWildcards, ilikeEscaped } from '@/lib/api/helpers'
 import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel } from '@/lib/order-status'
 import { computeOrderTotals } from '@/lib/shop/order-totals'
 import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
@@ -29,14 +30,14 @@ export async function listOrders(params: OrderListParams = {}) {
 
   const search = (params.search ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)
   if (search) {
-    const s = `%${search}%`
+    const s = `%${escapeLikeWildcards(search)}%`
     conditions.push(
       or(
-        ilike(orders.orderNumber, s),
-        ilike(orders.customerName, s),
-        ilike(orders.customerPhone, s),
-        ilike(orders.customerEmail, s),
-        ilike(orders.trackingNumber, s),
+        ilikeEscaped(orders.orderNumber, s),
+        ilikeEscaped(orders.customerName, s),
+        ilikeEscaped(orders.customerPhone, s),
+        ilikeEscaped(orders.customerEmail, s),
+        ilikeEscaped(orders.trackingNumber, s),
       ),
     )
   }
@@ -147,9 +148,9 @@ export async function searchProductsForOrder(query: string) {
       and(
         sql`${products.deletedAt} IS NULL`,
         or(
-          ilike(products.nameRu, s),
-          ilike(products.nameUk, s),
-          ilike(products.sku, s),
+          ilikeEscaped(products.nameRu, s),
+          ilikeEscaped(products.nameUk, s),
+          ilikeEscaped(products.sku, s),
         ),
       ),
     )
@@ -278,6 +279,7 @@ export async function refundOrder(orderId: number, amount?: number) {
     .select()
     .from(payments)
     .where(eq(payments.orderReference, order.orderNumber))
+    .orderBy(desc(payments.createdAt))
     .limit(1)
   if (!payment) return { ok: false, message: 'Онлайн-платіж не знайдено — змініть статус вручну' }
   const { refundPayment } = await import('@/app/actions/payments')
@@ -372,6 +374,11 @@ export async function createOrder(input: {
             return {
               orderId: created.id,
               productId: i.productId,
+              // BUGFIX: variantId was dropped on the admin path — stock was
+              // decremented on products.quantity instead of the variant row,
+              // desyncing SUM(variants.quantity) and allowing oversell.
+              variantId: i.variantId ?? null,
+              variantLabel: i.variantLabel ?? null,
               name: i.name,
               sku: i.sku,
               image: i.image,
@@ -525,7 +532,11 @@ export async function updateOrderStatus(id: number, status: string) {
 }
 
 export async function updateOrderPayment(id: number, paymentStatus: string): Promise<{ success: boolean; error?: string }> {
+  // BUGFIX: changing payment_status (paid/refunded) is a financial operation —
+  // require BOTH rights, like refundOrder does. A role with orders:write but
+  // no payments:write could previously mark orders paid/refunded.
   const user = await assertWritePermission('orders')
+  await assertWritePermission('payments')
   if (!PAYMENT_STATUSES.some((s) => s.value === paymentStatus)) {
     return { success: false, error: 'Невідомий статус оплати' }
   }

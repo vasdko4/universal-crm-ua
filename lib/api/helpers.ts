@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { sql, type SQL, type SQLWrapper } from 'drizzle-orm'
 
 export function ok(data: unknown, meta?: Record<string, unknown>) {
   return NextResponse.json({ success: true, data, ...(meta ? { meta } : {}) })
@@ -44,6 +45,38 @@ export function normLimit(limit: unknown, fallback = 10): number {
 /** Strip NUL / other C0 controls so Postgres LIKE/ilike cannot 500. */
 export function sanitizeSearch(raw: string): string {
   return raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)
+}
+
+/**
+ * Escape LIKE wildcards so a literal `%` or `_` in the search term can't turn
+ * into "match everything". BUGFIX: searching for `%` used to return the whole
+ * table. Use together with ESCAPE '\\' in the SQL/pattern.
+ */
+export function escapeLikeWildcards(s: string): string {
+  return s.replace(/[\\%_]/g, (ch) => `\\${ch}`)
+}
+
+/**
+ * ILIKE with an explicit ESCAPE clause — pair with escapeLikeWildcards() so
+ * user-typed `%`/`_` stay literal. Drizzle's ilike() emits no ESCAPE clause.
+ */
+export function ilikeEscaped(column: SQLWrapper, pattern: string): SQL {
+  return sql`${column} ILIKE ${pattern} ESCAPE '\\'`
+}
+
+/**
+ * Normalize page/pageSize for list actions. BUGFIX: unvalidated pagination
+ * (page = -3, pageSize = 1e9) produced negative OFFSETs / huge payloads and
+ * 500s on direct server-action calls. Clamps to page >= 1, 1..100 per page.
+ */
+export function normPageParams(
+  page: unknown,
+  pageSize: unknown,
+  defaultSize = 10,
+): { page: number; pageSize: number } {
+  const p = typeof page === 'number' && Number.isFinite(page) ? Math.floor(page) : 1
+  const ps = typeof pageSize === 'number' && Number.isFinite(pageSize) ? Math.floor(pageSize) : defaultSize
+  return { page: Math.max(1, p), pageSize: Math.min(100, Math.max(1, ps)) }
 }
 
 const MAX_PAGE_SIZE = 100

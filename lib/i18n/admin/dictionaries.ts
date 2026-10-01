@@ -53,6 +53,7 @@ export type AdminDictionary = {
     enabledHint: string
     disabledHint: string
     scanHint: string
+    qrManualFallback: string
     openInApp: string
     enable: string
     confirm: string
@@ -259,6 +260,7 @@ export type AdminDictionary = {
     applyCategory: string
     toastPriceSet: string
     toastStockAdjusted: string
+    toastBulkSkippedVariants: string
     toastCategorySet: string
     stockHistory: string
   }
@@ -1387,6 +1389,7 @@ export type AdminDictionary = {
     cannotDemoteSelf: string
     cannotDeactivateSelf: string
     cannotDeleteSelf: string
+    userNotFound: string
     roleSaveFailed: string
     cannotDeleteSystemRole: string
     roleInUse: string
@@ -1788,6 +1791,7 @@ const uk: AdminDictionary = {
     enabledHint: 'Увімкнено для цього акаунта. Після пароля потрібен 6-значний код.',
     disabledHint: 'Додатковий код з Authenticator при вході в адмінку.',
     scanHint: 'Відскануйте QR у Google Authenticator / Authy або введіть ключ вручну.',
+    qrManualFallback: 'Не вдалося згенерувати QR — введіть ключ вручну.',
     openInApp: 'Відкрити в додатку',
     enable: 'Увімкнути',
     confirm: 'Підтвердити',
@@ -2030,6 +2034,7 @@ const uk: AdminDictionary = {
     applyCategory: 'Категорія',
     toastPriceSet: 'Ціну оновлено',
     toastStockAdjusted: 'Залишок змінено',
+    toastBulkSkippedVariants: 'Пропущено {n} з варіантами (ціна/залишок беруться з матриці варіантів)',
     toastCategorySet: 'Категорію оновлено',
     stockHistory: 'Рух складу',
   },
@@ -3180,6 +3185,7 @@ const uk: AdminDictionary = {
     cannotDemoteSelf: 'Не можна позбавити самого себе прав адміністратора',
     cannotDeactivateSelf: 'Не можна деактивувати самого себе',
     cannotDeleteSelf: 'Не можна видалити самого себе',
+    userNotFound: 'Користувача не знайдено',
     roleSaveFailed: 'Помилка збереження ролі',
     cannotDeleteSystemRole: 'Системну роль не можна видалити',
     roleInUse: 'Роль призначена користувачам',
@@ -3587,6 +3593,7 @@ const ru: AdminDictionary = {
     enabledHint: 'Включено для этого аккаунта. После пароля нужен 6-значный код.',
     disabledHint: 'Дополнительный код из Authenticator при входе в админку.',
     scanHint: 'Отсканируйте QR в Google Authenticator / Authy или введите ключ вручную.',
+    qrManualFallback: 'Не удалось сгенерировать QR — введите ключ вручную.',
     openInApp: 'Открыть в приложении',
     enable: 'Включить',
     confirm: 'Подтвердить',
@@ -3829,6 +3836,7 @@ const ru: AdminDictionary = {
     applyCategory: 'Категория',
     toastPriceSet: 'Цена обновлена',
     toastStockAdjusted: 'Остаток изменён',
+    toastBulkSkippedVariants: 'Пропущено {n} с вариантами (цена/остаток берутся из матрицы вариантов)',
     toastCategorySet: 'Категория обновлена',
     stockHistory: 'Движение склада',
   },
@@ -4979,6 +4987,7 @@ const ru: AdminDictionary = {
     cannotDemoteSelf: 'Нельзя лишить самого себя прав администратора',
     cannotDeactivateSelf: 'Нельзя деактивировать самого себя',
     cannotDeleteSelf: 'Нельзя удалить самого себя',
+    userNotFound: 'Пользователь не найден',
     roleSaveFailed: 'Ошибка сохранения роли',
     cannotDeleteSystemRole: 'Системную роль нельзя удалить',
     roleInUse: 'Роль назначена пользователям',

@@ -5,6 +5,7 @@ import { importTasks, products } from '@/lib/db/schema'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
+import { generateUniqueSlug } from '@/lib/product-slug'
 
 export type ImportRow = {
   name_uk?: string
@@ -86,13 +87,17 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       // inserted as new.
       const existing = sku
         ? await db
-            .select({ id: products.id })
+            .select({ id: products.id, slug: products.slug })
             .from(products)
             .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
             .limit(1)
         : []
 
       if (existing.length > 0) {
+        const ex = existing[0]
+        // BUGFIX: legacy imports left slug = NULL → storefront 404 /
+        // redirect loop for those products. Self-heal the slug on re-import.
+        const healSlug = ex.slug ? undefined : await generateUniqueSlug(nameUk || nameRu || sku || 'product', ex.id, ex.id)
         await db
           .update(products)
           .set({
@@ -107,22 +112,34 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             stockStatus: quantity > 0 ? 'В наличии' : 'Нет в наличии',
             isInStock: quantity > 0,
             updatedAt: sql`now()`,
+            ...(healSlug ? { slug: healSlug } : {}),
           })
-          .where(eq(products.id, existing[0].id))
+          .where(eq(products.id, ex.id))
       } else {
-        await db.insert(products).values({
-          nameRu: nameRu || null,
-          nameUk: nameUk || null,
-          descriptionRu: row.description_ru || null,
-          descriptionUk: row.description_uk || null,
-          sku,
-          price: String(price),
-          oldPrice,
-          quantity,
-          unit: row.unit?.trim() || 'шт',
-          stockStatus: quantity > 0 ? 'В наличии' : 'Нет в наличии',
-          isInStock: quantity > 0,
-        })
+        // BUGFIX: imported products were created with slug = NULL. The
+        // storefront builds /product/<slug> links and the legacy numeric-id
+        // redirect bounces back to the same URL when the slug is missing —
+        // every imported product was a 404 / redirect loop until edited by
+        // hand. Generate the slug right away (same as createProduct).
+        const nameForSlug = nameUk || nameRu || sku || 'product'
+        const [inserted] = await db
+          .insert(products)
+          .values({
+            nameRu: nameRu || null,
+            nameUk: nameUk || null,
+            descriptionRu: row.description_ru || null,
+            descriptionUk: row.description_uk || null,
+            sku,
+            price: String(price),
+            oldPrice,
+            quantity,
+            unit: row.unit?.trim() || 'шт',
+            stockStatus: quantity > 0 ? 'В наличии' : 'Нет в наличии',
+            isInStock: quantity > 0,
+          })
+          .returning({ id: products.id })
+        const slug = await generateUniqueSlug(nameForSlug, inserted.id)
+        await db.update(products).set({ slug }).where(eq(products.id, inserted.id))
       }
       success++
     } catch (e) {

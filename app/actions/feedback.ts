@@ -8,6 +8,7 @@ import { headers } from 'next/headers'
 import { CACHE_TAGS } from '@/lib/shop/queries'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
+import { normPageParams } from '@/lib/api/helpers'
 
 type Status = 'pending' | 'approved' | 'rejected'
 
@@ -32,7 +33,8 @@ async function attachProductNames<T extends { productId: number }>(rows: T[]) {
 
 export async function getReviews(params: ReviewListParams = {}) {
   await assertPermission('reviews')
-  const { status = 'all', page = 1, pageSize = 10 } = params
+  const { status = 'all', page: rawPage = 1, pageSize: rawPageSize = 10 } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize)
   const where = status !== 'all' ? eq(productReviews.status, status) : undefined
   const [rows, totalRows] = await Promise.all([
     db.select().from(productReviews).where(where).orderBy(desc(productReviews.createdAt)).limit(pageSize).offset((page - 1) * pageSize),
@@ -50,7 +52,8 @@ export async function getReviews(params: ReviewListParams = {}) {
 // itself, so a direct call to the admin action can never accidentally leak
 // pending/rejected reviews or emails regardless of what a caller requests.
 export async function getPublicApprovedReviews(params: { page?: number; pageSize?: number; productId?: number } = {}) {
-  const { page = 1, pageSize = 10, productId } = params
+  const { page: rawPage = 1, pageSize: rawPageSize = 10, productId } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize)
   const conditions = [eq(productReviews.status, 'approved')]
   if (productId != null) conditions.push(eq(productReviews.productId, productId))
   const where = and(...conditions)

@@ -7,21 +7,19 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 
-function qrImageUrl(otpauth: string) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&ecc=M&data=${encodeURIComponent(otpauth)}`
-}
-
 export function StaffTwoFactorCard({ enabled }: { enabled: boolean }) {
   const { dict } = useAdminI18n()
   const t = dict.twoFactor
   const [pending, start] = useTransition()
   const [secret, setSecret] = useState<string | null>(null)
   const [otpauth, setOtpauth] = useState<string | null>(null)
-  // Locally rendered QR, keyed by the otpauth URI it was generated for. The
-  // hosted fallback URL is derived during render, so the effect below only
-  // performs the async upgrade and never calls setState synchronously.
+  // SECURITY: the QR is rendered locally only. An earlier version used the
+  // api.qrserver.com hosted renderer as the first paint — the otpauth URI
+  // embeds the raw TOTP secret, so the browser leaked it to a third party
+  // (and their logs) before the local render replaced the image.
   const [qrCache, setQrCache] = useState<{ otpauth: string; url: string } | null>(null)
-  const qr = otpauth ? (qrCache?.otpauth === otpauth ? qrCache.url : qrImageUrl(otpauth)) : null
+  const [qrFailed, setQrFailed] = useState(false)
+  const qr = otpauth && qrCache?.otpauth === otpauth ? qrCache.url : null
   const [code, setCode] = useState('')
   const [on, setOn] = useState(enabled)
 
@@ -29,6 +27,7 @@ export function StaffTwoFactorCard({ enabled }: { enabled: boolean }) {
     if (!otpauth) {
       return
     }
+    setQrFailed(false)
     let cancelled = false
     import('qrcode')
       .then((mod) => mod.toDataURL(otpauth, { width: 220, margin: 1, color: { dark: '#111111', light: '#ffffff' } }))
@@ -36,7 +35,9 @@ export function StaffTwoFactorCard({ enabled }: { enabled: boolean }) {
         if (!cancelled) setQrCache({ otpauth, url })
       })
       .catch(() => {
-        // Keep the hosted QR fallback.
+        // No hosted fallback on purpose (see SECURITY note above) — the
+        // manual secret below is the fallback.
+        if (!cancelled) setQrFailed(true)
       })
     return () => {
       cancelled = true
@@ -94,6 +95,8 @@ export function StaffTwoFactorCard({ enabled }: { enabled: boolean }) {
             {qr ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={qr} alt="2FA QR" width={180} height={180} className="size-full object-contain" />
+            ) : qrFailed ? (
+              <span className="px-2 text-center text-xs text-muted-foreground">{t.qrManualFallback}</span>
             ) : (
               <span className="text-xs text-muted-foreground">QR…</span>
             )}

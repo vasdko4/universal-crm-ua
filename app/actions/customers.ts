@@ -2,10 +2,10 @@
 
 import { db, dbForClient, withDbClient } from '@/lib/db'
 import { customers, customerContacts } from '@/lib/db/schema'
-import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-import { parsePage, sanitizeSearch } from '@/lib/api/helpers'
+import { escapeLikeWildcards, ilikeEscaped, parsePage, sanitizeSearch } from '@/lib/api/helpers'
 import { looksLikeEmail } from '@/lib/text'
 
 export type ContactInput = {
@@ -50,10 +50,10 @@ export async function getCustomers(opts?: { search?: string; page?: number; minS
   if (search) {
     conditions.push(
       or(
-        ilike(customers.firstName, `%${search}%`),
-        ilike(customers.lastName, `%${search}%`),
-        ilike(customers.phone, `%${search}%`),
-        ilike(customers.email, `%${search}%`),
+        ilikeEscaped(customers.firstName, `%${escapeLikeWildcards(search)}%`),
+        ilikeEscaped(customers.lastName, `%${escapeLikeWildcards(search)}%`),
+        ilikeEscaped(customers.phone, `%${escapeLikeWildcards(search)}%`),
+        ilikeEscaped(customers.email, `%${escapeLikeWildcards(search)}%`),
       )!,
     )
   }
@@ -144,33 +144,35 @@ export async function createCustomer(input: CustomerInput) {
   const error = validate(input)
   if (error) return { success: false, error }
 
-  let row: { id: number }
+  let id: number
+  const contacts = cleanContacts(input.contacts)
   try {
-    ;[row] = await db
-      .insert(customers)
-      .values({
-        firstName: input.firstName.trim(),
-        lastName: input.lastName?.trim() || null,
-        phone: input.phone.trim(),
-        email: input.email?.trim() || null,
-        reliabilityScore: input.reliabilityScore ?? 100,
-        note: input.note?.trim() || null,
-      })
-      .returning({ id: customers.id })
+    // BUGFIX: customer insert and contacts insert ran as separate statements —
+    // if the contacts insert failed, the customer stayed without contacts.
+    id = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(customers)
+        .values({
+          firstName: input.firstName.trim(),
+          lastName: input.lastName?.trim() || null,
+          phone: input.phone.trim(),
+          email: input.email?.trim() || null,
+          reliabilityScore: input.reliabilityScore ?? 100,
+          note: input.note?.trim() || null,
+        })
+        .returning({ id: customers.id })
+      if (contacts.length) {
+        await tx.insert(customerContacts).values(contacts.map((c) => ({ ...c, customerId: row.id })))
+      }
+      return row.id
+    })
   } catch (e) {
     if (isUniqueViolation(e)) return { success: false, error: 'Клиент с таким телефоном уже есть' }
     throw e
   }
 
-  const contacts = cleanContacts(input.contacts)
-  if (contacts.length) {
-    await db.insert(customerContacts).values(
-      contacts.map((c) => ({ ...c, customerId: row.id })),
-    )
-  }
-
   revalidatePath('/admin/customers')
-  return { success: true, id: row.id }
+  return { success: true, id }
 }
 
 export async function updateCustomer(id: number, input: CustomerInput) {

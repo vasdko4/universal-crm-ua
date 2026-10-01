@@ -1,6 +1,6 @@
 import { db, pool } from '@/lib/db'
 import { payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { finalizePaidOrder, restoreStockOnce } from '@/lib/shop/order-fulfillment'
 import { extractGatewayReceiptUrl } from '@/lib/payments/receipt'
 import { classifyWebhookRefund } from '@/lib/payments/refund'
@@ -28,6 +28,7 @@ export async function settlePayment(
     .select()
     .from(payments)
     .where(eq(payments.orderReference, orderReference))
+    .orderBy(desc(payments.createdAt))
     .limit(1)
 
   const [order] = await db

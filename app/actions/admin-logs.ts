@@ -3,7 +3,7 @@
 import { pool } from '@/lib/db'
 import { requirePermission, assertWritePermission } from '@/lib/session'
 import type { AdminLog } from '@/lib/db/schema'
-import { parsePage, sanitizeSearch } from '@/lib/api/helpers'
+import { escapeLikeWildcards, parsePage, sanitizeSearch } from '@/lib/api/helpers'
 
 export type LogsFilter = {
   entity?: string
@@ -38,11 +38,13 @@ export async function getAdminLogs(filter: LogsFilter = {}): Promise<LogsResult>
     params.push(filter.action)
     where.push(`action = $${params.length}`)
   }
-  const search = sanitizeSearch(filter.search ?? '').trim()
+  const search = sanitizeSearch(String(filter.search ?? '')).trim()
   if (search) {
-    params.push(`%${search}%`)
+    // BUGFIX: non-string filter.search crashed sanitizeSearch; a literal %
+    // in the term matched everything. Escape wildcards with ESCAPE '\\'.
+    params.push(`%${escapeLikeWildcards(search)}%`)
     where.push(
-      `(user_name ILIKE $${params.length} OR user_email ILIKE $${params.length} OR details ILIKE $${params.length} OR entity_id ILIKE $${params.length})`,
+      `(user_name ILIKE $${params.length} ESCAPE '\\' OR user_email ILIKE $${params.length} ESCAPE '\\' OR details ILIKE $${params.length} ESCAPE '\\' OR entity_id ILIKE $${params.length} ESCAPE '\\'')`,
     )
   }
 

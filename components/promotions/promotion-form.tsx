@@ -35,15 +35,26 @@ const labelClass = 'mb-1.5 block text-sm font-medium text-slate-700'
 const cardClass = 'rounded-xl border border-slate-200 bg-white p-5 shadow-sm'
 const cardTitleClass = 'mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900'
 
+function kyivDateStr(d: Date): string {
+  // BUGFIX: toISOString() is UTC — between 00:00 and 03:00 Kyiv time "today"
+  // showed as yesterday. The shop works in Europe/Kyiv.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Kyiv',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d)
+}
+
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  return kyivDateStr(new Date())
 }
 
 function toDateInput(value: Date | string | null | undefined): string {
   if (!value) return ''
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toISOString().slice(0, 10)
+  return kyivDateStr(d)
 }
 
 function asIdList(value: unknown): number[] {

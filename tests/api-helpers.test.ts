@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { parsePositiveInt, parseListParams, readJson, normDays, normLimit } from '@/lib/api/helpers'
+import { parsePositiveInt, parseListParams, readJson, normDays, normLimit, escapeLikeWildcards, ilikeEscaped, normPageParams } from '@/lib/api/helpers'
+import { products } from '@/lib/db/schema'
 
 describe('parsePositiveInt', () => {
   it('accepts 1+', () => {
@@ -112,5 +113,37 @@ describe('normLimit', () => {
     expect(normLimit(0)).toBe(1)
     expect(normLimit(1000)).toBe(100)
     expect(normLimit(NaN, 20)).toBe(20)
+  })
+})
+
+describe('escapeLikeWildcards', () => {
+  it('escapes %, _ and backslash so they stay literal (REGRESSION: "%" matched everything)', () => {
+    expect(escapeLikeWildcards('%')).toBe('\\%')
+    expect(escapeLikeWildcards('100% cotton_under')).toBe('100\\% cotton\\_under')
+    expect(escapeLikeWildcards('a\\b')).toBe('a\\\\b')
+    expect(escapeLikeWildcards('plain')).toBe('plain')
+  })
+})
+
+describe('ilikeEscaped', () => {
+  it('emits an explicit ESCAPE clause so escaped wildcards work', () => {
+    const frag = ilikeEscaped(products.nameRu, '%100\\%%')
+    const built = frag.getSQL() as unknown as { queryChunks: Array<{ value?: string[] } | string> }
+    const text = built.queryChunks
+      .map((c) => (typeof c === 'string' ? c : (c.value ?? []).join('')))
+      .join('')
+    expect(text).toContain('ILIKE')
+    expect(text).toContain("ESCAPE '\\'")
+  })
+})
+
+describe('normPageParams', () => {
+  it('clamps page >= 1 and pageSize to 1..100 (REGRESSION: page=-3, pageSize=1e9)', () => {
+    expect(normPageParams(1, 10)).toEqual({ page: 1, pageSize: 10 })
+    expect(normPageParams(-3, 10)).toEqual({ page: 1, pageSize: 10 })
+    expect(normPageParams(2, 1e9)).toEqual({ page: 2, pageSize: 100 })
+    expect(normPageParams(0, 0)).toEqual({ page: 1, pageSize: 1 })
+    expect(normPageParams(NaN, NaN)).toEqual({ page: 1, pageSize: 10 })
+    expect(normPageParams('2' as unknown as number, 8, 8)).toEqual({ page: 1, pageSize: 8 })
   })
 })

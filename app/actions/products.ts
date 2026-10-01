@@ -9,14 +9,14 @@ import {
   productVariants,
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
-import { and, asc, desc, eq, ilike, inArray, isNull, isNotNull, ne, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, isNotNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { revalidateStorefront } from '@/lib/shop/cache'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueSlug } from '@/lib/product-slug'
-import { sanitizeSearch } from '@/lib/api/helpers'
+import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
 
 export type VariantInput = {
   options: VariantOptions
@@ -38,16 +38,17 @@ export type ProductFilters = {
 
 export async function getProducts(filters: ProductFilters = {}) {
   await assertPermission('products')
-  const { search, categoryId, status = 'all', sort = 'newest', page = 1, perPage = 10 } = filters
+  const { search, categoryId, status = 'all', sort = 'newest', page: rawPage = 1, perPage: rawPerPage = 10 } = filters
+  const { page, pageSize: perPage } = normPageParams(rawPage, rawPerPage)
 
   const conditions: SQL[] = [isNull(products.deletedAt)]
 
   if (search?.trim()) {
-    const q = `%${sanitizeSearch(search.trim())}%`
+    const q = `%${escapeLikeWildcards(sanitizeSearch(search.trim()))}%`
     const searchCond = or(
-      ilike(products.nameRu, q),
-      ilike(products.nameUk, q),
-      ilike(products.sku, q)
+      ilikeEscaped(products.nameRu, q),
+      ilikeEscaped(products.nameUk, q),
+      ilikeEscaped(products.sku, q)
     )
     if (searchCond) conditions.push(searchCond)
   }
@@ -217,7 +218,9 @@ function cleanOptions(options: ProductOption[] | undefined): ProductOption[] {
     .filter((o) => o.name && o.values.length > 0)
 }
 
-// Keep only variants whose options match the defined axes and have a price.
+// Keep only variants whose options match the defined axes and have a valid
+// non-negative price. BUGFIX: negative prices used to pass the filter and
+// Math.min() made the whole product price negative on the storefront.
 function cleanVariants(input: ProductInput): VariantInput[] {
   const options = cleanOptions(input.options)
   if (options.length === 0 || !input.variants) return []
@@ -230,7 +233,11 @@ function cleanVariants(input: ProductInput): VariantInput[] {
       }
       return { ...v, options: opts }
     })
-    .filter((v) => Object.keys(v.options).length === axisNames.length && v.price !== '' && !Number.isNaN(Number(v.price)))
+    .filter((v) => {
+      if (Object.keys(v.options).length !== axisNames.length || v.price === '') return false
+      const n = Number(v.price)
+      return !Number.isNaN(n) && n >= 0
+    })
 }
 
 function toProductRow(input: ProductInput) {
@@ -458,7 +465,7 @@ export async function duplicateProduct(id: number) {
     // promId must not be copied either: the Prom.ua importer matches on it,
     // and a duplicate promId would make the next import overwrite the copy
     // (or pick nondeterministically between the two rows).
-    slug: _slug, promId: _promId, ...rest } = source
+    slug: _slug, promId: _promId, variants: sourceVariants, ...rest } = source
 
   const created = await withDbClient(async (client) => {
     const tx = dbForClient(client)
@@ -473,12 +480,30 @@ export async function duplicateProduct(id: number) {
         sku: rest.sku ? `${rest.sku}-COPY` : null,
       })
       .returning({ id: products.id })
+    // BUGFIX: the copy used to get slug = NULL — invisible on the storefront
+    // (/product/<slug> 404s and the numeric-id fallback redirect-loops).
+    // Generate a fresh unique slug for the duplicate.
+    const slug = await generateUniqueSlug(rest.nameUk || rest.nameRu || `product-${row.id}`, row.id)
+    await tx.update(products).set({ slug }).where(eq(products.id, row.id))
+    // BUGFIX: syncRelations was called without options/variants, so the
+    // variant matrix was wiped and the copy kept variantsEnabled=true with
+    // zero variants. Copy the source matrix over (new SKUs to avoid clashes).
     await syncRelations(row.id, {
       price: rest.price,
       quantity: rest.quantity,
       categoryIds,
       groupIds,
       characteristics: characteristics.map((c) => ({ name: c.name, value: c.value })),
+      options: (rest.options as ProductInput['options']) ?? [],
+      variantsEnabled: rest.variantsEnabled,
+      variants: (sourceVariants ?? []).map((v) => ({
+        options: (v.options ?? {}) as VariantOptions,
+        sku: v.sku ? `${v.sku}-COPY` : null,
+        price: String(v.price ?? 0),
+        oldPrice: v.oldPrice != null ? String(v.oldPrice) : null,
+        quantity: v.quantity ?? 0,
+        image: v.image,
+      })),
     }, tx)
     return row
   })
@@ -570,26 +595,42 @@ function uniqueIds(ids: number[]) {
   return [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))].slice(0, 200)
 }
 
+// BUGFIX: products with variants_enabled derive price/quantity from the
+// variant matrix (MIN/SUM) — writing the aggregates directly desyncs them.
+// Bulk ops skip those products and report how many were skipped.
+async function splitVariantProducts(ids: number[]): Promise<{ plain: number[]; skipped: number }> {
+  if (ids.length === 0) return { plain: [], skipped: 0 }
+  const rows = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(and(inArray(products.id, ids), eq(products.variantsEnabled, true)))
+  const variantIds = new Set(rows.map((r) => r.id))
+  return { plain: ids.filter((id) => !variantIds.has(id)), skipped: variantIds.size }
+}
+
 export async function bulkSetProductPrice(ids: number[], price: number) {
   const user = await assertWritePermission('products')
   const unique = uniqueIds(ids)
   if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
   if (!Number.isFinite(price) || price < 0) return { success: false, error: 'Некоректна ціна' }
-  await db
-    .update(products)
-    .set({ price: price.toFixed(2), updatedAt: new Date() })
-    .where(inArray(products.id, unique))
+  const { plain, skipped } = await splitVariantProducts(unique)
+  if (plain.length > 0) {
+    await db
+      .update(products)
+      .set({ price: price.toFixed(2), updatedAt: new Date() })
+      .where(inArray(products.id, plain))
+  }
   void auditLog({
     userId: user.id,
     userName: user.name,
     userEmail: user.email,
     action: 'update',
     entity: 'product',
-    details: `Масова ціна ${price.toFixed(2)} для ${unique.length} товарів`,
+    details: `Масова ціна ${price.toFixed(2)} для ${plain.length} товарів${skipped ? ` (пропущено ${skipped} з варіантами)` : ''}`,
   })
   revalidatePath('/admin/products')
   revalidateStorefront()
-  return { success: true }
+  return { success: true, skipped }
 }
 
 export async function bulkAdjustProductStock(ids: number[], delta: number) {
@@ -600,28 +641,52 @@ export async function bulkAdjustProductStock(ids: number[], delta: number) {
   if (!d) return { success: false, error: 'Дельта не може бути 0' }
   const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
   const { withDbClient } = await import('@/lib/db')
-  await withDbClient(async (client) => {
-    const res = await client.query<{ id: number; quantity: number }>(
-      `UPDATE products SET quantity = GREATEST(0, quantity + $1), is_in_stock = GREATEST(0, quantity + $1) > 0, updated_at = NOW()
-        WHERE id = ANY($2::int[]) RETURNING id, quantity`,
-      [d, unique],
-    )
-    for (const row of res.rows) {
-      await recordStockMovement(
-        {
-          productId: Number(row.id),
-          delta: d,
-          quantityAfter: Number(row.quantity),
-          reason: 'bulk',
-          actor: user.name,
-        },
-        client,
+  const { plain, skipped } = await splitVariantProducts(unique)
+  if (plain.length > 0) {
+    await withDbClient(async (client) => {
+      // BUGFIX: the ledger used to record the REQUESTED delta even when
+      // GREATEST(0, …) clamped the result — record the ACTUAL delta. Also
+      // keeps the stock_status text consistent (was stuck on 'В наявності'
+      // after the stock hit zero).
+      const res = await client.query<{ id: number; qty_after: number; qty_before: number }>(
+        `WITH target AS (
+           SELECT id, quantity AS qty_before FROM products WHERE id = ANY($2::int[])
+         ),
+         upd AS (
+           UPDATE products p SET
+             quantity = GREATEST(0, p.quantity + $1),
+             is_in_stock = GREATEST(0, p.quantity + $1) > 0,
+             stock_status = CASE
+               WHEN GREATEST(0, p.quantity + $1) = 0 THEN 'Нет в наличии'
+               WHEN p.stock_status = 'Нет в наличии' THEN 'В наличии'
+               ELSE p.stock_status
+             END,
+             updated_at = NOW()
+           WHERE p.id = ANY($2::int[])
+           RETURNING p.id, p.quantity AS qty_after
+         )
+         SELECT upd.id, upd.qty_after, target.qty_before
+         FROM upd JOIN target ON target.id = upd.id`,
+        [d, plain],
       )
-    }
-  })
+      for (const row of res.rows) {
+        const actualDelta = Number(row.qty_after) - Number(row.qty_before)
+        await recordStockMovement(
+          {
+            productId: Number(row.id),
+            delta: actualDelta,
+            quantityAfter: Number(row.qty_after),
+            reason: 'bulk',
+            actor: user.name,
+          },
+          client,
+        )
+      }
+    })
+  }
   revalidatePath('/admin/products')
   revalidateStorefront()
-  return { success: true }
+  return { success: true, skipped }
 }
 
 export async function bulkSetProductCategory(ids: number[], categoryId: number) {

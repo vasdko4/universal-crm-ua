@@ -70,7 +70,9 @@ export async function getBestsellers(limit = 20): Promise<BestsellerRow[]> {
      FROM order_items oi
      JOIN orders o ON o.id = oi.order_id
      LEFT JOIN products p ON p.id = oi.product_id
-     WHERE o.status <> 'cancelled'
+     -- BUGFIX: was o.status <> 'cancelled' — unpaid pending_payment orders
+     -- inflated bestsellers. Same exclusion as every neighboring report.
+     WHERE o.status NOT IN ('cancelled', 'pending_payment')
      GROUP BY oi.product_id, p.name_ru, p.name_uk, oi.name, p.image, oi.image, p.price, oi.price, p.is_popular
      ORDER BY units_sold DESC
      LIMIT $1`,
@@ -299,26 +301,32 @@ export async function getTimeseries(days = 30): Promise<TimeseriesPoint[]> {
   // Pre-aggregated per day in separate CTEs (not a single 3-way join on date)
   // so per-day event/order counts never fan out against each other.
   const res = await pool.query(
-    `WITH days AS (
+    // BUGFIX: day buckets used to be cut at UTC midnight while the UI formats
+    // dates in Europe/Kyiv — an order at 23:30 Kyiv time landed on "tomorrow".
+    // All day groupings now use the shop timezone (Kyiv).
+    `WITH bounds AS (
+       SELECT ((date_trunc('day', NOW() AT TIME ZONE 'Europe/Kyiv') - ($1 || ' days')::interval) AT TIME ZONE 'Europe/Kyiv') AS start_ts
+     ),
+     days AS (
        SELECT generate_series(
-         date_trunc('day', NOW() - ($1 || ' days')::interval),
-         date_trunc('day', NOW()),
+         date_trunc('day', (SELECT start_ts FROM bounds) AT TIME ZONE 'Europe/Kyiv'),
+         date_trunc('day', NOW() AT TIME ZONE 'Europe/Kyiv'),
          '1 day'
        ) AS day
      ),
      events_by_day AS (
-       SELECT date_trunc('day', created_at) AS day,
+       SELECT date_trunc('day', created_at AT TIME ZONE 'Europe/Kyiv') AS day,
               COUNT(*) FILTER (WHERE type = 'pageview') AS page_views,
               COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL) AS visitors
-       FROM analytics_events
-       WHERE created_at >= date_trunc('day', NOW() - ($1 || ' days')::interval)
+       FROM analytics_events, bounds
+       WHERE created_at >= bounds.start_ts
        GROUP BY 1
      ),
      orders_by_day AS (
-       SELECT date_trunc('day', created_at) AS day, COUNT(*) AS orders
-       FROM orders
+       SELECT date_trunc('day', created_at AT TIME ZONE 'Europe/Kyiv') AS day, COUNT(*) AS orders
+       FROM orders, bounds
        WHERE status NOT IN ('cancelled', 'pending_payment')
-         AND created_at >= date_trunc('day', NOW() - ($1 || ' days')::interval)
+         AND created_at >= bounds.start_ts
        GROUP BY 1
      )
      SELECT
@@ -415,12 +423,12 @@ export async function getRevenueTimeseries(days = 30): Promise<RevenuePoint[]> {
       COALESCE(SUM(op.profit), 0)::float AS profit,
       COUNT(DISTINCT o.id)::int AS orders
      FROM generate_series(
-       date_trunc('day', NOW() - ($1 || ' days')::interval),
-       date_trunc('day', NOW()),
+       date_trunc('day', (NOW() - ($1 || ' days')::interval) AT TIME ZONE 'Europe/Kyiv'),
+       date_trunc('day', NOW() AT TIME ZONE 'Europe/Kyiv'),
        '1 day'
      ) AS d(day)
      LEFT JOIN orders o
-       ON date_trunc('day', o.created_at) = d.day
+       ON date_trunc('day', o.created_at AT TIME ZONE 'Europe/Kyiv') = d.day
       AND o.status NOT IN ('cancelled', 'pending_payment')
      LEFT JOIN LATERAL (
        SELECT SUM(oi.total - COALESCE(oi.cost_price, p.cost_price, 0) * oi.quantity) AS profit
@@ -632,7 +640,7 @@ export async function getWeekdayActivity(days = 30): Promise<WeekdayRow[]> {
   days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
-    `SELECT EXTRACT(ISODOW FROM created_at)::int AS weekday,
+    `SELECT EXTRACT(ISODOW FROM created_at AT TIME ZONE 'Europe/Kyiv')::int AS weekday,
             COUNT(*)::int AS orders, COALESCE(SUM(total), 0)::float AS revenue
      FROM orders
      WHERE created_at >= NOW() - ($1 || ' days')::interval

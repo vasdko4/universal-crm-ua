@@ -87,12 +87,43 @@ export async function createCategory(input: CategoryInput) {
   return { success: true }
 }
 
+/** All descendant category ids (children, grandchildren, …) via visited-set BFS. */
+async function getCategoryDescendantIds(rootId: number): Promise<number[]> {
+  const visited = new Set<number>([rootId])
+  const queue = [rootId]
+  const out: number[] = []
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    const children = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(eq(categories.parentId, current))
+    for (const c of children) {
+      if (visited.has(c.id)) continue
+      visited.add(c.id)
+      out.push(c.id)
+      queue.push(c.id)
+    }
+  }
+  return out
+}
+
 export async function updateCategory(id: number, input: CategoryInput) {
   await assertWritePermission('categories')
   const error = validate(input)
   if (error) return { success: false, error }
 
   if (input.parentId === id) return { success: false, error: 'Категория не может быть родителем самой себя' }
+  // BUGFIX: only the self-parent case was rejected. A↔B cycles were creatable
+  // in two edits and sent the storefront category BFS
+  // (_getCategoryAndDescendantIds) into an infinite loop (Vercel timeout).
+  // Reject any parent that is a descendant of the category being moved.
+  if (input.parentId != null) {
+    const descendants = await getCategoryDescendantIds(id)
+    if (descendants.includes(input.parentId)) {
+      return { success: false, error: 'Категория не может быть вложена в свою подкатегорию' }
+    }
+  }
 
   await db
     .update(categories)

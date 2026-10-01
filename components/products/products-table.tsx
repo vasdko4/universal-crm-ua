@@ -145,11 +145,20 @@ export function ProductsTable({
     setSelected(next)
   }
 
-  function runBulk(fn: () => Promise<{ success: boolean; error?: string }>, successMsg: string) {
+  function runBulk(
+    fn: () => Promise<{ success: boolean; error?: string; skipped?: number }>,
+    successMsg: string,
+  ) {
     startTransition(async () => {
       const result = await fn()
       if (result.success) {
         toast.success(successMsg)
+        // BUGFIX: bulk price/stock skip variant-matrix products (their
+        // price/qty are aggregates) — tell the admin instead of silently
+        // ignoring them.
+        if (result.skipped) {
+          toast.info(t.toastBulkSkippedVariants.replace('{n}', String(result.skipped)))
+        }
         setSelected(new Set())
         router.refresh()
       } else {

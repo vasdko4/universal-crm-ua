@@ -110,6 +110,8 @@ export function getDeliveryMethodLabel(method: string | null | undefined, locale
 
 export type OrderItemInput = {
   productId?: number
+  variantId?: number
+  variantLabel?: string
   name: string
   sku?: string
   image?: string

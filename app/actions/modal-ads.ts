@@ -2,14 +2,14 @@
 
 import { db } from '@/lib/db'
 import { modalAds } from '@/lib/db/schema'
-import { and, count, desc, eq, ilike, lte, or, isNull, gte, sql } from 'drizzle-orm'
+import { and, count, desc, eq, lte, or, isNull, gte, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
-import { sanitizeSearch } from '@/lib/api/helpers'
+import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
 import { normalizeModalAdTheme, type ModalAdTheme } from '@/lib/shop/modal-ad-themes'
 
 export type ModalAdTargetPage = 'all' | 'home' | 'catalog' | 'product' | 'cart'
@@ -48,6 +48,19 @@ function validate(input: ModalAdInput): string | null {
   if (!input.name?.trim()) return 'Название кампании обязательно'
   if (!input.title?.trim()) return 'Заголовок баннера обязателен'
   if (!input.targetPages?.length) return 'Выберите хотя бы одну страницу показа'
+  // BUGFIX: dates and enum-ish fields were trusted from the client — a bad
+  // date string produced `Invalid Date` and a 500 on insert; unknown
+  // trigger/frequency/size values slipped into the DB on direct calls.
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+  if (!input.startsAt?.trim() || !DATE_RE.test(input.startsAt.trim())) return 'Некорректная дата начала'
+  if (input.endsAt?.trim() && !DATE_RE.test(input.endsAt.trim())) return 'Некорректная дата окончания'
+  if (input.endsAt?.trim() && input.endsAt.trim() < input.startsAt.trim()) {
+    return 'Дата окончания раньше даты начала'
+  }
+  if (!['delay', 'scroll', 'exit'].includes(input.triggerType)) return 'Некорректный тип триггера'
+  if (!['every', 'session', 'days'].includes(input.frequency)) return 'Некорректная частота показа'
+  if (!['small', 'medium', 'large'].includes(input.size)) return 'Некорректный размер'
+  if (!Number.isFinite(input.triggerValue)) return 'Некорректное значение триггера'
   if (input.triggerType === 'delay' && !(input.triggerValue >= 0 && input.triggerValue <= 300)) {
     return 'Задержка должна быть от 0 до 300 секунд'
   }
@@ -93,12 +106,13 @@ function toValues(input: ModalAdInput) {
 
 export async function getModalAds(params: ModalAdListParams = {}) {
   await assertPermission('modal_ads')
-  const { search = '', status = 'all', page = 1, pageSize = 8 } = params
+  const { search = '', status = 'all', page: rawPage = 1, pageSize: rawPageSize = 8 } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize, 8)
   const conditions = []
   const q = sanitizeSearch(search).trim()
   if (q) {
     conditions.push(
-      or(ilike(modalAds.name, `%${q}%`), ilike(modalAds.title, `%${q}%`)),
+      or(ilikeEscaped(modalAds.name, `%${escapeLikeWildcards(q)}%`), ilikeEscaped(modalAds.title, `%${escapeLikeWildcards(q)}%`)),
     )
   }
   if (status === 'active') conditions.push(eq(modalAds.isActive, true))

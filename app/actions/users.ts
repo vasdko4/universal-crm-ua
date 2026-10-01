@@ -74,7 +74,17 @@ export async function createUser(input: {
     const dict = getAdminDictionary(me.locale).users
     return { success: false, error: e instanceof Error ? e.message : dict.createFailed }
   }
-  await pool.query(`UPDATE "user" SET role = $1 WHERE email = $2`, [input.role, input.email])
+  try {
+    await pool.query(`UPDATE "user" SET role = $1 WHERE email = $2`, [input.role, input.email])
+  } catch (e) {
+    // BUGFIX: signup and the role UPDATE were not atomic — if the UPDATE
+    // failed, a half-created account (wrong default role) stayed behind and
+    // every retry died with "user already exists". Roll the account back
+    // (session/account rows cascade) so the admin can retry cleanly.
+    await pool.query(`DELETE FROM "user" WHERE email = $1`, [input.email]).catch(() => {})
+    const dict = getAdminDictionary(me.locale).users
+    return { success: false, error: e instanceof Error ? e.message : dict.createFailed }
+  }
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'create', entity: 'user',
@@ -100,7 +110,11 @@ export async function updateUserRole(userId: string, role: string) {
       return { success: false, error: getAdminDictionary(me.locale).users.cannotDemoteSelf }
     }
   }
-  await pool.query(`UPDATE "user" SET role = $1, "updatedAt" = NOW() WHERE id = $2`, [role, userId])
+  const roleRes = await pool.query(`UPDATE "user" SET role = $1, "updatedAt" = NOW() WHERE id = $2`, [role, userId])
+  // BUGFIX: reported success even when the user id didn't exist (0 rows).
+  if (roleRes.rowCount === 0) {
+    return { success: false, error: getAdminDictionary(me.locale).users.userNotFound }
+  }
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'security', entity: 'user', entityId: userId,
@@ -115,10 +129,14 @@ export async function setUserActive(userId: string, isActive: boolean) {
   if (me.id === userId && !isActive) {
     return { success: false, error: getAdminDictionary(me.locale).users.cannotDeactivateSelf }
   }
-  await pool.query(`UPDATE "user" SET is_active = $1, "updatedAt" = NOW() WHERE id = $2`, [
+  const activeRes = await pool.query(`UPDATE "user" SET is_active = $1, "updatedAt" = NOW() WHERE id = $2`, [
     isActive,
     userId,
   ])
+  // BUGFIX: reported success even when the user id didn't exist (0 rows).
+  if (activeRes.rowCount === 0) {
+    return { success: false, error: getAdminDictionary(me.locale).users.userNotFound }
+  }
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'security', entity: 'user', entityId: userId,

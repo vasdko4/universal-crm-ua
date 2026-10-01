@@ -2,11 +2,11 @@
 
 import { db } from '@/lib/db'
 import { pages } from '@/lib/db/schema'
-import { and, count, desc, eq, ilike } from 'drizzle-orm'
+import { and, count, desc, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { slugify } from '@/lib/slug'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-import { sanitizeSearch } from '@/lib/api/helpers'
+import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
 
 export type PageInput = {
   title: string
@@ -40,10 +40,11 @@ export type PageListParams = {
 // instead, which is not permission-gated but always hardcodes 'published'.
 export async function getPages(params: PageListParams = {}) {
   await assertPermission('pages')
-  const { search = '', status = 'all', page = 1, pageSize = 10 } = params
+  const { search = '', status = 'all', page: rawPage = 1, pageSize: rawPageSize = 10 } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize)
   const conditions = []
   const q = sanitizeSearch(search).trim()
-  if (q) conditions.push(ilike(pages.title, `%${q}%`))
+  if (q) conditions.push(ilikeEscaped(pages.title, `%${escapeLikeWildcards(q)}%`))
   if (status !== 'all') conditions.push(eq(pages.status, status))
   const where = conditions.length ? and(...conditions) : undefined
 
@@ -68,10 +69,11 @@ export async function getPublicPublishedPages(params: {
   page?: number
   pageSize?: number
 } = {}) {
-  const { search = '', page = 1, pageSize = 10 } = params
+  const { search = '', page: rawPage = 1, pageSize: rawPageSize = 10 } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize)
   const conditions = [eq(pages.status, 'published')]
   const q = sanitizeSearch(search).trim()
-  if (q) conditions.push(ilike(pages.title, `%${q}%`))
+  if (q) conditions.push(ilikeEscaped(pages.title, `%${escapeLikeWildcards(q)}%`))
   const where = and(...conditions)
 
   const [rows, totalRows] = await Promise.all([

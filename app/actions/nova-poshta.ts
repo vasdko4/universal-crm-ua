@@ -31,11 +31,15 @@ async function npRequest(modelName: string, calledMethod: string, methodProperti
   const apiKey = await getApiKey()
   if (!apiKey) return { success: false, error: 'Нова Пошта не настроена', data: [] }
   try {
+    // BUGFIX: no timeout — a hung NP API hung the city/warehouse
+    // autocomplete server action. (lib/delivery/nova-poshta.ts already
+    // uses 10s; unified here too.)
     const res = await fetch(NP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey, modelName, calledMethod, methodProperties }),
       cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
     })
     const json = await res.json()
     return { success: json.success as boolean, data: json.data ?? [], error: (json.errors ?? []).join(', ') }

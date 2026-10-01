@@ -159,7 +159,15 @@ export function ProductForm({
       toast.error(t.toastNameRequired)
       return
     }
-    if (form.price === '' || Number.isNaN(Number(form.price)) || Number(form.price) < 0) {
+    // BUGFIX: when the variant matrix is active the base price field is
+    // disabled and shows the aggregate — requiring it broke the
+    // "create product with variants" flow (admins had to enter a fake price).
+    // The server computes aggPrice from the variants.
+    const priceRequired = !variantsActive
+    if (
+      priceRequired &&
+      (form.price === '' || Number.isNaN(Number(form.price)) || Number(form.price) < 0)
+    ) {
       toast.error(t.toastPriceInvalid)
       return
     }

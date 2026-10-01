@@ -2,11 +2,11 @@
 
 import { db } from '@/lib/db'
 import { articles, articleCategories } from '@/lib/db/schema'
-import { and, asc, count, desc, eq, ilike } from 'drizzle-orm'
+import { and, asc, count, desc, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { slugify } from '@/lib/slug'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-import { sanitizeSearch } from '@/lib/api/helpers'
+import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
 
 export type ArticleInput = {
   title: string
@@ -52,10 +52,11 @@ export async function getArticleCategories() {
 // but always hardcodes status to 'published'.
 export async function getArticles(params: ArticleListParams = {}) {
   await assertPermission('articles')
-  const { search = '', status = 'all', categoryId = 'all', page = 1, pageSize = 10 } = params
+  const { search = '', status = 'all', categoryId = 'all', page: rawPage = 1, pageSize: rawPageSize = 10 } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize)
   const conditions = []
   const q = sanitizeSearch(search).trim()
-  if (q) conditions.push(ilike(articles.title, `%${q}%`))
+  if (q) conditions.push(ilikeEscaped(articles.title, `%${escapeLikeWildcards(q)}%`))
   if (status !== 'all') conditions.push(eq(articles.status, status))
   if (categoryId !== 'all') conditions.push(eq(articles.categoryId, categoryId as number))
   const where = conditions.length ? and(...conditions) : undefined
@@ -87,10 +88,11 @@ export async function getPublicPublishedArticles(params: {
   page?: number
   pageSize?: number
 } = {}) {
-  const { search = '', categoryId = 'all', page = 1, pageSize = 10 } = params
+  const { search = '', categoryId = 'all', page: rawPage = 1, pageSize: rawPageSize = 10 } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize)
   const conditions = [eq(articles.status, 'published')]
   const q = sanitizeSearch(search).trim()
-  if (q) conditions.push(ilike(articles.title, `%${q}%`))
+  if (q) conditions.push(ilikeEscaped(articles.title, `%${escapeLikeWildcards(q)}%`))
   if (categoryId !== 'all') conditions.push(eq(articles.categoryId, categoryId as number))
   const where = and(...conditions)
 
@@ -222,10 +224,42 @@ export async function deleteArticle(id: number) {
   return { success: true }
 }
 
+// Postgres unique-violation (23505), unwrapping driver error nesting.
+function isUniqueViolation(e: unknown): boolean {
+  let cur: unknown = e
+  for (let i = 0; i < 4 && cur && typeof cur === 'object'; i++) {
+    if ('code' in cur && (cur as { code: unknown }).code === '23505') return true
+    cur = 'cause' in cur ? (cur as { cause: unknown }).cause : undefined
+  }
+  return false
+}
+
 export async function createArticleCategory(name: string) {
   await assertWritePermission('articles')
   if (!name.trim()) return { success: false, error: 'Название обязательно' }
-  await db.insert(articleCategories).values({ name: name.trim(), slug: slugify(name) || 'category' })
+  // BUGFIX: slugify() alone collided on duplicate names → unique violation
+  // → unhandled 500. Suffix until free; retry once on a concurrent race.
+  const base = slugify(name) || 'category'
+  let slug = base
+  for (let attempt = 0; attempt < 5; attempt++) {
+    slug = attempt === 0 ? base : `${base}-${attempt + 1}`
+    const [existing] = await db
+      .select({ id: articleCategories.id })
+      .from(articleCategories)
+      .where(eq(articleCategories.slug, slug))
+      .limit(1)
+    if (!existing) break
+  }
+  try {
+    await db.insert(articleCategories).values({ name: name.trim(), slug })
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      const retrySlug = `${base}-${Date.now().toString(36)}`
+      await db.insert(articleCategories).values({ name: name.trim(), slug: retrySlug })
+    } else {
+      throw e
+    }
+  }
   revalidatePath('/admin/articles')
   return { success: true }
 }

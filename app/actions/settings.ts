@@ -41,13 +41,18 @@ export async function updateDeliveryMethod(
     // Нова Пошта — обязательный метод, отключить нельзя
     const isActive = method.isRemovable ? data.isActive : true
 
+    // BUGFIX: same config-wipe issue as updatePaymentMethod — merge incoming
+    // fields over the stored config so the toggle never drops the apiKey.
+    // encryptConfigSecrets is idempotent, so merging the decrypted apiKey
+    // over the encrypted stored value is safe.
+    const merged = { ...((method.config as Record<string, string> | null) ?? {}), ...data.config }
     await db
       .update(deliveryMethods)
       // BUGFIX: the Nova Poshta apiKey used to be stored in plaintext,
       // contradicting the app's at-rest encryption policy (lib/secrets.ts).
       // Read paths already decrypt (getNovaPoshtaKey, nova-poshta.ts), and
       // encryptConfigSecrets is idempotent, so this is a safe migration.
-      .set({ isActive, config: encryptConfigSecrets(data.config, DELIVERY_CONFIG_SECRET_KEYS), updatedAt: new Date() })
+      .set({ isActive, config: encryptConfigSecrets(merged, DELIVERY_CONFIG_SECRET_KEYS), updatedAt: new Date() })
       .where(eq(deliveryMethods.code, code))
     revalidatePath('/admin/delivery')
     revalidateTag(CACHE_TAGS.checkout, 'max')
@@ -116,9 +121,18 @@ export async function updatePaymentMethod(
 ): Promise<ActionResult> {
   try {
     await assertWritePermission('payments')
+    const [method] = await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.code, code))
+    if (!method) return { ok: false, message: 'Метод оплаты не найден' }
+    // BUGFIX: used to REPLACE config wholesale — the isActive toggle in
+    // payment-methods-tab sends config: {}, wiping saved IBAN/card holder/
+    // requisites. Merge incoming fields over the stored config instead.
+    const merged = { ...((method.config as Record<string, string> | null) ?? {}), ...data.config }
     await db
       .update(paymentMethods)
-      .set({ isActive: data.isActive, config: data.config, updatedAt: new Date() })
+      .set({ isActive: data.isActive, config: merged, updatedAt: new Date() })
       .where(eq(paymentMethods.code, code))
     revalidatePath('/admin/payments')
     revalidateTag(CACHE_TAGS.checkout, 'max')

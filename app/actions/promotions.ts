@@ -4,13 +4,13 @@ import { randomInt } from 'node:crypto'
 import { headers } from 'next/headers'
 import { db, withDbClient, dbForClient } from '@/lib/db'
 import { promotions, promotionUsages, productGroups, productGroupItems, products } from '@/lib/db/schema'
-import { and, asc, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
-import { sanitizeSearch } from '@/lib/api/helpers'
+import { escapeLikeWildcards, ilikeEscaped, sanitizeSearch } from '@/lib/api/helpers'
 import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
 
 export type PromotionInput = {
@@ -85,7 +85,41 @@ function validate(input: PromotionInput): string | null {
   if (input.targetType === 'products' && !(input.targetProductIds && input.targetProductIds.length)) {
     return 'Выберите хотя бы одну позицию'
   }
+  // BUGFIX: a fractional usageLimit (direct action call) hit the integer
+  // column as a Postgres error → 500. Reject non-integers up front.
+  if (input.usageLimit != null && (!Number.isInteger(input.usageLimit) || input.usageLimit < 0)) {
+    return 'Ліміт використань має бути цілим невідʼємним числом'
+  }
+  if (!DATE_RE.test(input.startsAt)) return 'Некорректная дата начала'
+  if (input.endsAt && !DATE_RE.test(input.endsAt)) return 'Некорректная дата окончания'
   return null
+}
+
+// BUGFIX: <input type="date"> sends YYYY-MM-DD and `new Date('2026-10-05')`
+// is midnight UTC — a promo ending Oct 5 expired at 03:00 Kyiv time instead
+// of end of day. Interpret the dates in the Europe/Kyiv shop timezone:
+// startsAt → start of that Kyiv day, endsAt → end of that Kyiv day.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const SHOP_TZ = 'Europe/Kyiv'
+
+// Exported for unit tests (DST edge cases).
+export function kyivDayBoundary(dateStr: string, endOfDay: boolean): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const guess = Date.UTC(y, m - 1, d, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0)
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: SHOP_TZ,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+  const parts = dtf.formatToParts(new Date(guess))
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value)
+  const asUTC = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'))
+  return new Date(guess - (asUTC - guess))
 }
 
 export async function generatePromoCode(): Promise<string> {
@@ -101,7 +135,7 @@ export async function getPromotions(params: PromotionListParams = {}) {
   const { search = '', status = 'all', page = 1, pageSize = 8 } = params
   const conditions = []
   const q = sanitizeSearch(search).trim()
-  if (q) conditions.push(ilike(promotions.name, `%${q}%`))
+  if (q) conditions.push(ilikeEscaped(promotions.name, `%${escapeLikeWildcards(q)}%`))
   if (status === 'active') conditions.push(eq(promotions.isActive, true))
   if (status === 'inactive') conditions.push(eq(promotions.isActive, false))
   const where = conditions.length ? and(...conditions) : undefined
@@ -171,8 +205,8 @@ export async function createPromotion(input: PromotionInput) {
       minOrderAmount: input.minOrderAmount != null ? String(input.minOrderAmount) : null,
       noStacking: input.noStacking ?? false,
       excludeWholesale: input.excludeWholesale ?? false,
-      startsAt: new Date(input.startsAt),
-      endsAt: input.endsAt ? new Date(input.endsAt) : null,
+      startsAt: kyivDayBoundary(input.startsAt, false),
+      endsAt: input.endsAt ? kyivDayBoundary(input.endsAt, true) : null,
       isActive: input.isActive ?? true,
     })
   } catch (e) {
@@ -206,8 +240,8 @@ export async function updatePromotion(id: number, input: PromotionInput) {
         minOrderAmount: input.minOrderAmount != null ? String(input.minOrderAmount) : null,
         noStacking: input.noStacking ?? false,
         excludeWholesale: input.excludeWholesale ?? false,
-        startsAt: new Date(input.startsAt),
-        endsAt: input.endsAt ? new Date(input.endsAt) : null,
+        startsAt: kyivDayBoundary(input.startsAt, false),
+        endsAt: input.endsAt ? kyivDayBoundary(input.endsAt, true) : null,
         isActive: input.isActive ?? true,
         updatedAt: new Date(),
       })

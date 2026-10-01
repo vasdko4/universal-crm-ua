@@ -3,7 +3,7 @@
 import { randomInt } from 'node:crypto'
 import { db, pool } from '@/lib/db'
 import { paymentGateways, payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
-import { and, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/shop/queries'
 import { assertPermission, assertWritePermission } from '@/lib/session'
@@ -129,7 +129,9 @@ export async function updateGateway(
 
 export async function getPayments() {
   await assertPermission('payments')
-  return db.select().from(payments).orderBy(desc(payments.createdAt))
+  // BUGFIX: unbounded select — with thousands of payments the payload got
+  // heavy. Cap at 1000 newest (a real paginated list is a follow-up).
+  return db.select().from(payments).orderBy(desc(payments.createdAt)).limit(1000)
 }
 
 // SECURITY: no permission check — reachable directly as a server action
@@ -178,7 +180,9 @@ export async function createPayment(input: {
   const gateway = await getGateway(input.gatewayCode)
   if (!gateway) return { ok: false, message: 'Шлюз не найден' }
   if (!gateway.isActive) return { ok: false, message: 'Шлюз отключён. Активируйте его во вкладке «Шлюзы».' }
-  if (!input.amount || input.amount <= 0) return { ok: false, message: 'Укажите корректную сумму' }
+  // BUGFIX: Infinity passed the old check (!Infinity === false) and blew up
+  // with a 500 on `toFixed`/numeric insert. Require a finite amount.
+  if (!Number.isFinite(input.amount) || input.amount <= 0) return { ok: false, message: 'Укажите корректную сумму' }
 
   const orderReference = genOrderRef()
   // BUGFIX: gateway secrets are stored encrypted (updateGateway encrypts
@@ -429,17 +433,27 @@ export async function markPaymentPaid(paymentId: number): Promise<ActionResult> 
   if (!gateway?.isTestMode) {
     return { ok: false, message: 'Ручная отметка доступна только в тестовом режиме' }
   }
-  await db
-    .update(payments)
-    .set({ status: 'paid', updatedAt: new Date() })
-    .where(and(eq(payments.id, paymentId), eq(payments.gatewayCode, payment.gatewayCode)))
-  await db.insert(paymentEvents).values({
-    paymentId,
-    type: 'manual',
-    status: 'paid',
-    amount: payment.amount,
+  // BUGFIX: used to stamp payments.status='paid' directly — the linked
+  // storefront order stayed pending_payment (no stock deduction, no promo
+  // accounting, no email, invisible in the buyer cabinet). Route through
+  // settlePayment(), the single source of truth (idempotent for paid).
+  const { settlePayment } = await import('@/lib/payments/settle')
+  const res = await settlePayment(payment.orderReference, 'paid', {
+    eventType: 'manual',
     message: 'Отмечено оплаченным вручную (тестовый режим)',
+    amount: Number(payment.amount),
   })
+  // settlePayment fails closed on amount mismatch — surface it honestly
+  // instead of claiming success while the order stayed unpaid.
+  if (res.matchedOrder) {
+    const [o] = await db
+      .select({ paymentStatus: orders.paymentStatus })
+      .from(orders)
+      .where(eq(orders.orderNumber, payment.orderReference))
+    if (o && o.paymentStatus !== 'paid') {
+      return { ok: false, message: 'Сумма платежа меньше итога заказа — отметка отклонена (см. историю заказа)' }
+    }
+  }
   revalidatePath('/admin/payments')
   return { ok: true, message: 'Платёж отмечен как оплаченный' }
 }

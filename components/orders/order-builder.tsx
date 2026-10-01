@@ -36,6 +36,7 @@ import { useAdminI18n } from '@/lib/i18n/admin/context'
 type CartItem = {
   productId?: number
   variantId?: number
+  variantLabel?: string
   name: string
   sku?: string
   image?: string | null
@@ -129,6 +130,7 @@ export function OrderBuilder() {
         {
           productId: p.id,
           variantId: p.variantId ?? undefined,
+          variantLabel: p.variantLabel ?? undefined,
           name: p.variantLabel ? `${p.name} (${p.variantLabel})` : p.name,
           sku: p.sku ?? undefined,
           image: p.image,
@@ -176,6 +178,8 @@ export function OrderBuilder() {
         deliveryCost: Number.parseFloat(deliveryCost) || 0,
         items: items.map((i) => ({
           productId: i.productId,
+          variantId: i.variantId,
+          variantLabel: i.variantLabel,
           name: i.name,
           sku: i.sku,
           image: i.image ?? undefined,
@@ -189,7 +193,9 @@ export function OrderBuilder() {
         toast.success(t.toastOrderCreated.replace('{n}', String(res.orderNumber)))
         router.push(`/admin/orders/${res.id}`)
       } else {
-        toast.error(t.toastCreateFailed)
+        // BUGFIX: was a generic toast — the server returns the specific
+        // reason (e.g. "insufficient stock"), show it.
+        toast.error(res.error || t.toastCreateFailed)
       }
     })
   }
@@ -420,7 +426,9 @@ export function OrderBuilder() {
             <div className="flex flex-col divide-y divide-border">
               {results.map((p) => (
                 <button
-                  key={p.id}
+                  // BUGFIX: variant search returns one row per variant of the
+                  // same product — key={p.id} produced duplicate React keys.
+                  key={p.variantId ? `${p.id}-v${p.variantId}` : p.id}
                   onClick={() => addProduct(p)}
                   className="flex items-center gap-3 py-2 text-left transition-colors hover:bg-muted/50"
                 >
