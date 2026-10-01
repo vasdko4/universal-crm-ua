@@ -1,6 +1,5 @@
-import { NextResponse, type NextRequest } from 'next/server'
-import { fetchAllowedImage } from '@/lib/api/proxy-image'
-import { clientIp, isRateLimitedHot } from '@/lib/api/rate-limit'
+import type { NextRequest } from 'next/server'
+import { proxyImageResponse } from '@/lib/api/proxy-image'
 
 /**
  * Image proxy for transactional emails.
@@ -14,19 +13,5 @@ import { clientIp, isRateLimitedHot } from '@/lib/api/rate-limit'
  * each redirect hop is rebuilt through the same allow-list.
  */
 export async function GET(req: NextRequest) {
-  if (await isRateLimitedHot('email-image', clientIp(req), 60, 60_000)) {
-    return new NextResponse('Too many requests', { status: 429 })
-  }
-  const src = req.nextUrl.searchParams.get('src')
-  if (!src) return new NextResponse('Missing src', { status: 400 })
-
-  const result = await fetchAllowedImage(src)
-  if (!result.ok) return new NextResponse(result.message, { status: result.status })
-
-  return new NextResponse(result.body, {
-    headers: {
-      'Content-Type': result.contentType,
-      'Cache-Control': 'public, max-age=86400, s-maxage=604800, immutable',
-    },
-  })
+  return proxyImageResponse(req, 'email-image', 60)
 }

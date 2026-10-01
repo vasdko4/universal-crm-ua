@@ -14,8 +14,11 @@ describe('storefrontAuthShortcut', () => {
   })
 
   it('collapses missing account subpages onto live routes', () => {
-    expect(storefrontAuthShortcut('/account/profile')).toBe('/account')
     expect(storefrontAuthShortcut('/account/favorites')).toBe('/favorites')
     expect(storefrontAuthShortcut('/account/wishlist')).toBe('/favorites')
+  })
+
+  it('leaves the real profile page alone', () => {
+    expect(storefrontAuthShortcut('/account/profile')).toBeNull()
   })
 })

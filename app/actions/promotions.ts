@@ -164,6 +164,27 @@ export async function getTargetOptions() {
   return { groups, products: prods }
 }
 
+/** Shared insert/update payload for promotions. */
+function promotionValues(input: PromotionInput) {
+  return {
+    type: input.type,
+    name: input.name.trim(),
+    discountType: input.discountType,
+    discountValue: String(input.discountValue),
+    promoCode: input.type === 'promocode' ? input.promoCode?.trim().toUpperCase() || null : null,
+    targetType: input.targetType,
+    targetGroupIds: input.targetType === 'groups' ? input.targetGroupIds ?? [] : [],
+    targetProductIds: input.targetType === 'products' ? input.targetProductIds ?? [] : [],
+    usageLimit: input.usageLimit ?? null,
+    minOrderAmount: input.minOrderAmount != null ? String(input.minOrderAmount) : null,
+    noStacking: input.noStacking ?? false,
+    excludeWholesale: input.excludeWholesale ?? false,
+    startsAt: kyivDayBoundary(input.startsAt, false),
+    endsAt: input.endsAt ? kyivDayBoundary(input.endsAt, true) : null,
+    isActive: input.isActive ?? true,
+  }
+}
+
 export async function createPromotion(input: PromotionInput) {
   await assertWritePermission('promotions')
   const error = validate(input)
@@ -172,23 +193,7 @@ export async function createPromotion(input: PromotionInput) {
   if (dup) return { success: false, error: dup }
 
   try {
-    await db.insert(promotions).values({
-      type: input.type,
-      name: input.name.trim(),
-      discountType: input.discountType,
-      discountValue: String(input.discountValue),
-      promoCode: input.type === 'promocode' ? input.promoCode?.trim().toUpperCase() || null : null,
-      targetType: input.targetType,
-      targetGroupIds: input.targetType === 'groups' ? input.targetGroupIds ?? [] : [],
-      targetProductIds: input.targetType === 'products' ? input.targetProductIds ?? [] : [],
-      usageLimit: input.usageLimit ?? null,
-      minOrderAmount: input.minOrderAmount != null ? String(input.minOrderAmount) : null,
-      noStacking: input.noStacking ?? false,
-      excludeWholesale: input.excludeWholesale ?? false,
-      startsAt: kyivDayBoundary(input.startsAt, false),
-      endsAt: input.endsAt ? kyivDayBoundary(input.endsAt, true) : null,
-      isActive: input.isActive ?? true,
-    })
+    await db.insert(promotions).values(promotionValues(input))
   } catch (e) {
     if (isUniqueViolation(e)) return { success: false, error: DUP_CODE_ERROR }
     throw e
@@ -208,21 +213,7 @@ export async function updatePromotion(id: number, input: PromotionInput) {
     await db
       .update(promotions)
       .set({
-        type: input.type,
-        name: input.name.trim(),
-        discountType: input.discountType,
-        discountValue: String(input.discountValue),
-        promoCode: input.type === 'promocode' ? input.promoCode?.trim().toUpperCase() || null : null,
-        targetType: input.targetType,
-        targetGroupIds: input.targetType === 'groups' ? input.targetGroupIds ?? [] : [],
-        targetProductIds: input.targetType === 'products' ? input.targetProductIds ?? [] : [],
-        usageLimit: input.usageLimit ?? null,
-        minOrderAmount: input.minOrderAmount != null ? String(input.minOrderAmount) : null,
-        noStacking: input.noStacking ?? false,
-        excludeWholesale: input.excludeWholesale ?? false,
-        startsAt: kyivDayBoundary(input.startsAt, false),
-        endsAt: input.endsAt ? kyivDayBoundary(input.endsAt, true) : null,
-        isActive: input.isActive ?? true,
+        ...promotionValues(input),
         updatedAt: new Date(),
       })
       .where(eq(promotions.id, id))

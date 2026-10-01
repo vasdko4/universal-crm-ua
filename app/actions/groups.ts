@@ -10,27 +10,7 @@ import {
 import { asc, eq, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-import { stripEdgeDashes } from '@/lib/text'
-
-function slugify(text: string) {
-  const map: Record<string, string> = {
-    а: 'a', б: 'b', в: 'v', г: 'g', ґ: 'g', д: 'd', е: 'e', є: 'ie', ё: 'e',
-    ж: 'zh', з: 'z', и: 'y', і: 'i', ї: 'i', й: 'i', к: 'k', л: 'l', м: 'm',
-    н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh',
-    ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ы: 'y', э: 'e', ю: 'iu', я: 'ia',
-    ь: '', ъ: '',
-  }
-  return (
-    stripEdgeDashes(
-      text
-        .toLowerCase()
-        .split('')
-        .map((ch) => map[ch] ?? ch)
-        .join('')
-        .replace(/[^a-z0-9]+/g, '-'),
-    ).slice(0, 100) || 'group'
-  )
-}
+import { slugify } from '@/lib/text'
 
 // SECURITY: these three reads had no permission check — reachable directly
 // as server actions regardless of which page imports them. Only ever called
@@ -86,7 +66,7 @@ export async function createGroup(input: GroupInput) {
   await db.insert(productGroups).values({
     nameUk: input.nameUk.trim(),
     nameRu: input.nameRu.trim(),
-    slug: slugify(input.nameUk),
+    slug: slugify(input.nameUk, 'group'),
     descriptionUk: input.descriptionUk || null,
     descriptionRu: input.descriptionRu || null,
     sortOrder: input.sortOrder ?? 0,
@@ -106,7 +86,7 @@ export async function updateGroup(id: number, input: GroupInput) {
     .set({
       nameUk: input.nameUk.trim(),
       nameRu: input.nameRu.trim(),
-      slug: slugify(input.nameUk),
+      slug: slugify(input.nameUk, 'group'),
       descriptionUk: input.descriptionUk || null,
       descriptionRu: input.descriptionRu || null,
       sortOrder: input.sortOrder ?? 0,

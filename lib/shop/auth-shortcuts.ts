@@ -6,7 +6,6 @@ const AUTH_SHORTCUTS: Record<string, string> = {
   '/login': '/account/login',
   '/register': '/account/register',
   '/signup': '/account/register',
-  '/account/profile': '/account',
   '/account/favorites': '/favorites',
   '/account/wishlist': '/favorites',
 }

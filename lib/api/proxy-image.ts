@@ -1,5 +1,7 @@
+import { NextResponse, type NextRequest } from 'next/server'
 import { detectImageKind, mimeForImageKind } from '@/lib/api/image-kind'
 import { buildAllowedImageUrl } from '@/lib/api/safe-image-url'
+import { clientIp, isRateLimitedHot } from '@/lib/api/rate-limit'
 
 const MAX_BYTES = 8_000_000
 const MAX_REDIRECTS = 3
@@ -66,4 +68,30 @@ export async function fetchAllowedImage(src: string): Promise<ProxyImageResult> 
   }
 
   return { ok: false, status: 502, message: 'Upstream error' }
+}
+
+/**
+ * Shared GET handler for the image-proxy routes (/api/media, /api/email-image).
+ * Rate-limit key and budget differ per route; the proxying logic is identical.
+ */
+export async function proxyImageResponse(
+  req: NextRequest,
+  rateLimitKey: string,
+  limit: number,
+): Promise<NextResponse> {
+  if (await isRateLimitedHot(rateLimitKey, clientIp(req), limit, 60_000)) {
+    return new NextResponse('Too many requests', { status: 429 })
+  }
+  const src = req.nextUrl.searchParams.get('src')
+  if (!src) return new NextResponse('Missing src', { status: 400 })
+
+  const result = await fetchAllowedImage(src)
+  if (!result.ok) return new NextResponse(result.message, { status: result.status })
+
+  return new NextResponse(result.body, {
+    headers: {
+      'Content-Type': result.contentType,
+      'Cache-Control': 'public, max-age=86400, s-maxage=604800, immutable',
+    },
+  })
 }

@@ -20,6 +20,29 @@ export function stripTrailingSlashes(s: string): string {
   return stripTrailingChars(s, '/')
 }
 
+/** Cyrillic → Latin transliteration table shared by slugify(). */
+const TRANSLIT_MAP: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'g', ґ: 'g', д: 'd', е: 'e', є: 'ie', ё: 'e',
+  ж: 'zh', з: 'z', и: 'y', і: 'i', ї: 'i', й: 'i', к: 'k', л: 'l', м: 'm',
+  н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh',
+  ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ы: 'y', э: 'e', ю: 'iu', я: 'ia',
+  ь: '', ъ: '',
+}
+
+/** URL slug with Cyrillic transliteration. Falls back when nothing remains. */
+export function slugify(text: string, fallback = 'item'): string {
+  return (
+    stripEdgeDashes(
+      text
+        .toLowerCase()
+        .split('')
+        .map((ch) => TRANSLIT_MAP[ch] ?? ch)
+        .join('')
+        .replace(/[^a-z0-9]+/g, '-'),
+    ).slice(0, 100) || fallback
+  )
+}
+
 export function looksLikeEmail(value: string): boolean {
   const at = value.indexOf('@')
   if (at < 1 || at !== value.lastIndexOf('@')) return false

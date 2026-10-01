@@ -1118,6 +1118,24 @@ export async function getMyOrderDetail(orderId: number) {
   }
 }
 
+/** Validates a public product id and confirms the product exists. */
+async function resolveFeedbackProductId(
+  rawId: unknown,
+  notFoundError: string,
+): Promise<{ productId: number } | { error: string }> {
+  const productId = Math.floor(Number(rawId))
+  if (!Number.isSafeInteger(productId) || productId < 1) {
+    return { error: notFoundError }
+  }
+  const [product] = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(and(eq(products.id, productId), isNull(products.deletedAt)))
+    .limit(1)
+  if (!product) return { error: notFoundError }
+  return { productId }
+}
+
 export async function submitReview(input: {
   productId: number
   rating: number
@@ -1136,16 +1154,9 @@ export async function submitReview(input: {
   const user = await getShopUser()
   const name = (input.authorName?.trim() || user?.name || dict.common.anonymous).slice(0, 120)
   if (!input.body?.trim()) return { success: false, error: dict.serverErrors.reviewTextRequired }
-  const productId = Math.floor(Number(input.productId))
-  if (!Number.isSafeInteger(productId) || productId < 1) {
-    return { success: false, error: dict.serverErrors.productNotFound }
-  }
-  const [product] = await db
-    .select({ id: products.id })
-    .from(products)
-    .where(and(eq(products.id, productId), isNull(products.deletedAt)))
-    .limit(1)
-  if (!product) return { success: false, error: dict.serverErrors.productNotFound }
+  const resolved = await resolveFeedbackProductId(input.productId, dict.serverErrors.productNotFound)
+  if ('error' in resolved) return { success: false, error: resolved.error }
+  const productId = resolved.productId
   await db.insert(productReviews).values({
     productId,
     authorName: name,
@@ -1173,16 +1184,9 @@ export async function submitQuestion(input: {
   const user = await getShopUser()
   const name = (input.authorName?.trim() || user?.name || dict.common.anonymous).slice(0, 120)
   if (!input.question?.trim()) return { success: false, error: dict.serverErrors.questionRequired }
-  const productId = Math.floor(Number(input.productId))
-  if (!Number.isSafeInteger(productId) || productId < 1) {
-    return { success: false, error: dict.serverErrors.productNotFound }
-  }
-  const [product] = await db
-    .select({ id: products.id })
-    .from(products)
-    .where(and(eq(products.id, productId), isNull(products.deletedAt)))
-    .limit(1)
-  if (!product) return { success: false, error: dict.serverErrors.productNotFound }
+  const resolved = await resolveFeedbackProductId(input.productId, dict.serverErrors.productNotFound)
+  if ('error' in resolved) return { success: false, error: resolved.error }
+  const productId = resolved.productId
   await db.insert(productQuestions).values({
     productId,
     authorName: name,
