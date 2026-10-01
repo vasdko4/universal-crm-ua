@@ -1,58 +1,64 @@
 # Database backups
 
-Production PostgreSQL is backed up automatically by the `DB backup` GitHub
-workflow (`.github/workflows/db-backup.yml`). Dumps are stored in Vercel Blob
-as `db-backups/YYYY-MM-DD-HHmm.dump` (timestamp in Europe/Kyiv).
+Nightly PostgreSQL backup, fully inside the app — no GitHub Actions involved.
 
-## Schedule and retention
+## How it works
 
-- Runs daily at `01:30 UTC` — that's `03:30 Europe/Kyiv` in winter (UTC+2)
-  and `04:30` in summer (UTC+3, DST), because GitHub cron always uses UTC.
-- Retention: **10 days**. Every run deletes all dumps **strictly older than
-  10 days**. A dump that is exactly 10 days old is kept; one that is
-  10 days + 1 minute old is deleted. Objects whose names don't match the
-  `YYYY-MM-DD-HHmm.dump` pattern are never deleted automatically.
+- **Schedule:** Vercel Cron `GET /api/cron/db-backup`, daily at `30 0 * * *`
+  (00:30 UTC ≈ 03:30 Kyiv in winter, 02:30 in summer). See `vercel.json`.
+- **Auth:** `CRON_SECRET` Bearer token, fail-closed (`lib/cron-auth.ts`).
+- **Format:** data-only gzipped NDJSON (`lib/shop/db-backup.ts`):
+  first line is a manifest
+  (`{"_manifest":true,"dumpedAt":"...","retentionDays":10,"tables":[...]}`),
+  then one `{"t":"table","r":{...row...}}` per row.
+  The whole dump runs in a single `REPEATABLE READ` transaction, so the
+  snapshot is consistent. Schema is NOT included — it lives in `db/migrate.sql`.
+- **Storage:** Vercel Blob (private), `db-backups/YYYY-MM-DD-HHmm.jsonl.gz`.
+- **Retention:** backups older than **10 days** are deleted automatically
+  on every run (matched by filename date). A backup exactly 10 days old is kept.
+- **Failure:** `reportError('cron:db-backup', …, { alertAdmin: true })` —
+  structured log + Telegram alert to the admin chat.
+- **Timeout:** `maxDuration = 300` (5 min). A safety valve aborts the dump
+  above 2M rows instead of OOM-killing the function.
 
-## Required GitHub Secrets
+## Required env (Vercel project — already used by the app)
 
-Configure under **Settings → Secrets and variables → Actions**:
-
-| Secret | Description |
+| Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Production Postgres connection string (read access is enough for `pg_dump`). |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob read/write token of the store used for backups. |
+| `DATABASE_URL` | production Postgres |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob (already used for uploads) |
+| `CRON_SECRET` | cron auth (already used by other crons) |
+
+No new secrets, nothing in GitHub.
+
+## Restore
+
+```bash
+# newest backup from Blob into the DB pointed to by DATABASE_URL
+node --env-file=.env.local scripts/db-restore-backup.mjs --latest
+
+# a specific backup
+node --env-file=.env.local scripts/db-restore-backup.mjs db-backups/2026-10-01-0030.jsonl.gz
+
+# a local file (e.g. downloaded from the Vercel dashboard)
+node --env-file=.env.local scripts/db-restore-backup.mjs ./backup.jsonl.gz
+```
+
+The script TRUNCATEs every dumped table (CASCADE) and re-INSERTs rows in one
+transaction — it rolls back on any error. **It wipes the target database**,
+so double-check `DATABASE_URL` first. Apply `db/migrate.sql` first if the
+target schema is empty/outdated (Admin → Updates → «Перевірити версію БД»).
 
 ## Manual run
 
-1. Go to **Actions → DB backup → Run workflow**.
-2. The run dumps the database with
-   `pg_dump -Fc --no-owner --no-acl` and uploads it via
-   `scripts/db-backup.mjs`, which also prunes expired dumps.
-
-To dry-run the prune step locally (lists what would be deleted, deletes
-nothing):
-
 ```bash
-BLOB_READ_WRITE_TOKEN=<token> node scripts/db-backup.mjs /tmp/db-backup.dump --dry-run
+curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/db-backup
 ```
 
-## Restore from a backup
+## Limits
 
-Download the `.dump` file from the Blob store (Vercel dashboard or API),
-then restore with `pg_restore`:
-
-```bash
-# Restore into an empty database (recommended for a full disaster recovery):
-pg_restore --clean --if-exists -d "$DATABASE_URL" db-backups-2026-10-01-0330.dump
-```
-
-Notes:
-
-- Dumps are taken with `--no-owner --no-acl`, so they restore cleanly into a
-  database owned by a different role.
-- `--clean --if-exists` drops existing objects before recreating them —
-  only use it when you intend to replace the target database.
-- Always restore to a staging database first and verify the application
-  boots against it before touching production.
-- The custom format (`-Fc`) is compressed; use `pg_restore -l file.dump` to
-  list its contents without restoring.
+- The dump buffers tables in memory; fine for this store's size. If the DB
+  ever grows past a few hundred MB, switch `runDatabaseBackup` to chunked
+  `COPY` streaming.
+- `bytea` columns round-trip via Buffer JSON encoding; `timestamptz` via ISO
+  strings — both restored correctly by `scripts/db-restore-backup.mjs`.
