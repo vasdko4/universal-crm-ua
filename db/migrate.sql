@@ -495,3 +495,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS customers_phone_live_unique
 
 -- Modal ads: visual theme of the popup (classic | gradient | split | minimal | dark | ticket)
 ALTER TABLE public.modal_ads ADD COLUMN IF NOT EXISTS theme varchar(20) NOT NULL DEFAULT 'classic';
+
+-- Admin panel color theme (teal | blue | violet | emerald | amber | rose | slate | midnight)
+ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "admin_theme" varchar(20) NOT NULL DEFAULT 'teal';

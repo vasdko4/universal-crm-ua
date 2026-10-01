@@ -527,6 +527,8 @@ export type AdminDictionary = {
     premiumBadge: string
     nicheTemplatesTitle: string
     baseTemplatesTitle: string
+    adminThemeTitle: string
+    adminThemeDesc: string
     defaultLangTitle: string
     defaultLangDesc: string
     localePromptTitle: string
@@ -2285,6 +2287,8 @@ const uk: AdminDictionary = {
     premiumBadge: 'Преміум',
     nicheTemplatesTitle: 'Нішеві теми',
     baseTemplatesTitle: 'Базові теми',
+    adminThemeTitle: 'Тема адмін-панелі',
+    adminThemeDesc: 'Кольорове оформлення самої адмін-панелі. Застосовується одразу після збереження.',
     defaultLangTitle: 'Мова за замовчуванням',
     defaultLangDesc: 'Мова, яка пропонується новим відвідувачам під час першого входу.',
     localePromptTitle: 'Перший вибір мови',
@@ -4065,6 +4069,8 @@ const ru: AdminDictionary = {
     premiumBadge: 'Премиум',
     nicheTemplatesTitle: 'Нишевые темы',
     baseTemplatesTitle: 'Базовые темы',
+    adminThemeTitle: 'Тема админ-панели',
+    adminThemeDesc: 'Цветовое оформление самой админ-панели. Применяется сразу после сохранения.',
     defaultLangTitle: 'Язык по умолчанию',
     defaultLangDesc: 'Язык, предлагаемый новым посетителям при первом входе.',
     localePromptTitle: 'Первый выбор языка',

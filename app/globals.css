@@ -1001,3 +1001,119 @@
   --ring: oklch(0.35 0.08 150);
   --radius: 0.5rem;
 }
+
+/* ============================================================
+   Admin panel themes — applied on the admin layout wrapper
+   via [data-admin-theme="..."]. "teal" is the default.
+   ============================================================ */
+
+/* Teal — стандартна бірюзова (збігається з :root) */
+[data-admin-theme='teal'] {
+  --primary: oklch(0.48 0.11 190);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.48 0.11 190);
+  --accent: oklch(0.94 0.02 190);
+  --accent-foreground: oklch(0.3 0.05 190);
+  --sidebar: oklch(0.235 0.015 260);
+  --sidebar-primary: oklch(0.7 0.11 190);
+  --sidebar-accent: oklch(0.3 0.02 260);
+}
+
+/* Blue — спокійний синій акцент */
+[data-admin-theme='blue'] {
+  --primary: oklch(0.55 0.16 250);
+  --primary-foreground: oklch(0.98 0.01 250);
+  --ring: oklch(0.55 0.16 250);
+  --accent: oklch(0.93 0.03 250);
+  --accent-foreground: oklch(0.32 0.06 255);
+  --sidebar: oklch(0.22 0.03 260);
+  --sidebar-primary: oklch(0.68 0.15 250);
+  --sidebar-accent: oklch(0.3 0.035 260);
+}
+
+/* Violet — яскравий фіолетовий акцент */
+[data-admin-theme='violet'] {
+  --primary: oklch(0.58 0.18 300);
+  --primary-foreground: oklch(0.99 0.005 300);
+  --ring: oklch(0.58 0.18 300);
+  --accent: oklch(0.93 0.035 300);
+  --accent-foreground: oklch(0.34 0.07 305);
+  --sidebar: oklch(0.22 0.03 300);
+  --sidebar-primary: oklch(0.7 0.16 300);
+  --sidebar-accent: oklch(0.3 0.035 300);
+}
+
+/* Emerald — свіжий зелений акцент */
+[data-admin-theme='emerald'] {
+  --primary: oklch(0.55 0.15 160);
+  --primary-foreground: oklch(0.98 0.005 160);
+  --ring: oklch(0.55 0.15 160);
+  --accent: oklch(0.92 0.04 160);
+  --accent-foreground: oklch(0.3 0.06 165);
+  --sidebar: oklch(0.2 0.03 160);
+  --sidebar-primary: oklch(0.68 0.14 160);
+  --sidebar-accent: oklch(0.29 0.035 160);
+}
+
+/* Amber — теплий бурштиновий акцент */
+[data-admin-theme='amber'] {
+  --primary: oklch(0.68 0.16 75);
+  --primary-foreground: oklch(0.25 0.03 75);
+  --ring: oklch(0.68 0.16 75);
+  --accent: oklch(0.93 0.05 80);
+  --accent-foreground: oklch(0.35 0.07 70);
+  --sidebar: oklch(0.24 0.02 70);
+  --sidebar-primary: oklch(0.78 0.15 80);
+  --sidebar-accent: oklch(0.32 0.03 70);
+}
+
+/* Rose — мʼякий рожевий акцент */
+[data-admin-theme='rose'] {
+  --primary: oklch(0.58 0.19 10);
+  --primary-foreground: oklch(0.99 0.005 10);
+  --ring: oklch(0.58 0.19 10);
+  --accent: oklch(0.93 0.04 15);
+  --accent-foreground: oklch(0.36 0.08 15);
+  --sidebar: oklch(0.24 0.03 350);
+  --sidebar-primary: oklch(0.7 0.17 10);
+  --sidebar-accent: oklch(0.32 0.035 350);
+}
+
+/* Slate — стриманий графітовий акцент */
+[data-admin-theme='slate'] {
+  --primary: oklch(0.35 0.02 260);
+  --primary-foreground: oklch(0.98 0.005 260);
+  --ring: oklch(0.35 0.02 260);
+  --accent: oklch(0.93 0.01 260);
+  --accent-foreground: oklch(0.3 0.02 260);
+  --sidebar: oklch(0.2 0.01 260);
+  --sidebar-primary: oklch(0.6 0.02 260);
+  --sidebar-accent: oklch(0.28 0.015 260);
+}
+
+/* Midnight — повністю темна адмін-панель */
+[data-admin-theme='midnight'] {
+  color-scheme: dark;
+  --background: oklch(0.18 0.015 260);
+  --foreground: oklch(0.93 0.01 260);
+  --card: oklch(0.23 0.02 260);
+  --card-foreground: oklch(0.93 0.01 260);
+  --popover: oklch(0.23 0.02 260);
+  --popover-foreground: oklch(0.93 0.01 260);
+  --primary: oklch(0.7 0.14 250);
+  --primary-foreground: oklch(0.16 0.02 260);
+  --secondary: oklch(0.28 0.025 260);
+  --secondary-foreground: oklch(0.9 0.01 260);
+  --muted: oklch(0.27 0.02 260);
+  --muted-foreground: oklch(0.68 0.02 260);
+  --accent: oklch(0.3 0.04 255);
+  --accent-foreground: oklch(0.92 0.02 255);
+  --border: oklch(0.32 0.02 260);
+  --input: oklch(0.32 0.02 260);
+  --ring: oklch(0.7 0.14 250);
+  --sidebar: oklch(0.16 0.02 260);
+  --sidebar-foreground: oklch(0.9 0.01 260);
+  --sidebar-muted: oklch(0.65 0.015 260);
+  --sidebar-accent: oklch(0.26 0.025 260);
+  --sidebar-primary: oklch(0.7 0.14 250);
+}

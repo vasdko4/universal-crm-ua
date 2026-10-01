@@ -32,6 +32,7 @@ import {
   LayoutTemplate,
 } from 'lucide-react'
 import { TEMPLATES, type TemplatePreset } from '@/lib/shop/templates'
+import { ADMIN_THEMES } from '@/lib/admin/admin-themes'
 import { cn } from '@/lib/utils'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
@@ -88,6 +89,66 @@ export function DesignSection({ data, setData, t }: SectionProps) {
           premiumBadge={t.premiumBadge}
           onSelect={(id) => setData((d) => ({ ...d, activeTemplate: id }))}
         />
+      </div>
+
+      <div className="flex flex-col gap-4 border-t border-border pt-6">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{t.adminThemeTitle}</h2>
+          <p className="text-sm text-muted-foreground">{t.adminThemeDesc}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {ADMIN_THEMES.map((tpl) => {
+            const active = data.adminTheme === tpl.id
+            return (
+              <button
+                key={tpl.id}
+                type="button"
+                onClick={() => setData((d) => ({ ...d, adminTheme: tpl.id }))}
+                aria-pressed={active}
+                className={cn(
+                  'group relative flex flex-col gap-3 overflow-hidden rounded-xl border-2 p-3 text-left transition-colors',
+                  active ? 'border-primary' : 'border-border hover:border-primary/40',
+                )}
+              >
+                {active && (
+                  <span className="absolute right-2 top-2 z-10 flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <Check className="size-4" />
+                  </span>
+                )}
+                {/* Mini admin preview: sidebar + topbar + content */}
+                <div className="flex h-20 overflow-hidden rounded-lg border border-border">
+                  <div className="w-7 shrink-0" style={{ backgroundColor: tpl.swatches.sidebar }}>
+                    <div
+                      className="mx-auto mt-2 h-1.5 w-4 rounded-full"
+                      style={{ backgroundColor: tpl.swatches.primary }}
+                    />
+                  </div>
+                  <div
+                    className="flex min-w-0 flex-1 flex-col"
+                    style={{ backgroundColor: tpl.swatches.surface }}
+                  >
+                    <div className="h-3 shrink-0 border-b border-border/60" />
+                    <div className="flex flex-1 items-center gap-1.5 p-2">
+                      <span
+                        className="h-4 w-9 shrink-0 rounded"
+                        style={{ backgroundColor: tpl.swatches.primary }}
+                      />
+                      <span className="h-1.5 w-full rounded-full bg-foreground/15" />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {locale === 'ru' ? tpl.nameRu : tpl.name}
+                  </p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {locale === 'ru' ? tpl.descriptionRu : tpl.description}
+                  </p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="flex max-w-xl flex-col gap-3 border-t border-border pt-6">

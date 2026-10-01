@@ -660,6 +660,8 @@ export const storeSettings = pgTable('store_settings', {
   // First-visit language: 'modal' asks the shopper, 'browser' uses Accept-Language.
   localePromptMode: varchar('locale_prompt_mode', { length: 20 }).notNull().default('browser'),
   activeTemplate: varchar('active_template', { length: 30 }).notNull().default('classic'),
+  // Admin panel color theme (Настройки → Дизайн → Тема адмін-панелі).
+  adminTheme: varchar('admin_theme', { length: 20 }).notNull().default('teal'),
   social: jsonb('social').notNull().default({}),
   googleAds: jsonb('google_ads').notNull().default({}),
   emailSettings: jsonb('email_settings').notNull().default({}),

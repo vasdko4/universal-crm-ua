@@ -644,6 +644,7 @@ CREATE TABLE IF NOT EXISTS "store_settings" (
   "default_locale" varchar(5) DEFAULT 'uk'::character varying NOT NULL,
   "locale_prompt_mode" varchar(20) DEFAULT 'browser'::character varying NOT NULL,
   "active_template" varchar(30) DEFAULT 'classic'::character varying NOT NULL,
+  "admin_theme" varchar(20) DEFAULT 'teal'::character varying NOT NULL,
   "social" jsonb DEFAULT '{"viber": {"url": "", "enabled": false}, "tiktok": {"url": "", "enabled": false}, "telegram": {"url": "", "enabled": false}, "instagram": {"url": "", "enabled": false}}'::jsonb NOT NULL,
   "google_ads" jsonb DEFAULT '{"enabled": false, "conversionId": "", "conversionLabel": ""}'::jsonb NOT NULL,
   "merchant_feed" jsonb DEFAULT '{}'::jsonb NOT NULL,
