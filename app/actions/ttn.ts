@@ -59,9 +59,7 @@ export async function createTtnForOrder(
   if (order.deliveryMethod && order.deliveryMethod !== 'nova_poshta') {
     return { ok: false, error: 'ТТН доступна лише для Нової Пошти' }
   }
-  if (order.trackingNumber) {
-    return { ok: true, ttn: order.trackingNumber, printUrl: `/api/admin/np-label?orderId=${orderId}` }
-  }
+  if (order.trackingNumber) return { ok: false, error: 'ТТН уже створена' }
 
   const cfg = await npConfig()
   const apiKey = (decryptSecret(cfg.apiKey) || process.env.NOVA_POSHTA_API_KEY || '').trim()
