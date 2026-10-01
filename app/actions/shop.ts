@@ -26,7 +26,7 @@ import {
 import { settlePayment } from '@/lib/payments/settle'
 import { getProductSlugMap } from '@/lib/shop/queries'
 import { evaluatePromoCode, findBestAutomaticDiscount } from '@/app/actions/promotions'
-import { applyOrderFulfillment, finalizePaidOrder } from '@/lib/shop/order-fulfillment'
+import { applyOrderFulfillment, finalizePaidOrder, InsufficientStockError } from '@/lib/shop/order-fulfillment'
 import { notifyNewOrder } from '@/lib/notifications'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
@@ -34,6 +34,7 @@ import { mergeCheckoutItems, validateCheckoutInput } from '@/lib/shop/checkout-v
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
+import { decryptConfigSecrets, GATEWAY_CONFIG_SECRET_KEYS } from '@/lib/secrets'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { formatPrice } from '@/lib/shop/format'
 import { computeOrderTotals } from '@/lib/shop/order-totals'
@@ -132,12 +133,14 @@ async function pickLiveGateway() {
   const gws = await db.select().from(paymentGateways).orderBy(paymentGateways.sortOrder)
   for (const g of gws) {
     if (!g.isActive || g.isTestMode) continue
-    const cfg = (g.config ?? {}) as Record<string, string>
-    if (g.code === 'wayforpay' && cfg.merchantAccount && cfg.merchantSecretKey && cfg.merchantDomainName) {
-      return { code: 'wayforpay' as const, config: cfg }
+    const raw = (g.config ?? {}) as Record<string, string>
+    // Presence checks work on the raw (possibly encrypted) config; the
+    // config handed to invoice creation is decrypted (lib/secrets.ts).
+    if (g.code === 'wayforpay' && raw.merchantAccount && raw.merchantSecretKey && raw.merchantDomainName) {
+      return { code: 'wayforpay' as const, config: decryptConfigSecrets(raw, GATEWAY_CONFIG_SECRET_KEYS) }
     }
-    if (g.code === 'monobank' && cfg.token) {
-      return { code: 'monobank' as const, config: cfg }
+    if (g.code === 'monobank' && raw.token) {
+      return { code: 'monobank' as const, config: decryptConfigSecrets(raw, GATEWAY_CONFIG_SECRET_KEYS) }
     }
   }
   return null
@@ -485,13 +488,20 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
 
       // Cash / requisite orders are finalized right away. Online orders defer
       // their side effects (stock, promo, analytics) until payment is confirmed.
+      // Strict stock mode: if the atomic reservation loses a race, the error
+      // propagates and this whole transaction rolls back — no oversold order.
       if (!isOnline) {
-        await applyOrderFulfillment(created.id, client)
+        await applyOrderFulfillment(created.id, client, { strictStock: true })
       }
 
       return { id: created.id }
     })
   } catch (e) {
+    // Lost a stock race between the availability pre-check and the atomic
+    // reservation: the transaction rolled back, tell the shopper plainly.
+    if (e instanceof InsufficientStockError) {
+      return { success: false, error: t.someItemsUnavailable }
+    }
     console.error('[checkout] order write failed:', (e as Error).message)
     return { success: false, error: t.paymentInvoiceFailed }
   }
@@ -706,7 +716,10 @@ export async function checkOrderPaymentStatus(
     .from(paymentGateways)
     .where(eq(paymentGateways.code, payment.gatewayCode))
     .limit(1)
-  const cfg = (gateway?.config ?? {}) as Record<string, string>
+  const cfg = decryptConfigSecrets(
+    (gateway?.config ?? {}) as Record<string, string>,
+    GATEWAY_CONFIG_SECRET_KEYS,
+  )
 
   let status = payment.status
   let amount: number | undefined

@@ -17,21 +17,23 @@ export function StaffTwoFactorCard({ enabled }: { enabled: boolean }) {
   const [pending, start] = useTransition()
   const [secret, setSecret] = useState<string | null>(null)
   const [otpauth, setOtpauth] = useState<string | null>(null)
-  const [qr, setQr] = useState<string | null>(null)
+  // Locally rendered QR, keyed by the otpauth URI it was generated for. The
+  // hosted fallback URL is derived during render, so the effect below only
+  // performs the async upgrade and never calls setState synchronously.
+  const [qrCache, setQrCache] = useState<{ otpauth: string; url: string } | null>(null)
+  const qr = otpauth ? (qrCache?.otpauth === otpauth ? qrCache.url : qrImageUrl(otpauth)) : null
   const [code, setCode] = useState('')
   const [on, setOn] = useState(enabled)
 
   useEffect(() => {
     if (!otpauth) {
-      setQr(null)
       return
     }
     let cancelled = false
-    setQr(qrImageUrl(otpauth))
     import('qrcode')
       .then((mod) => mod.toDataURL(otpauth, { width: 220, margin: 1, color: { dark: '#111111', light: '#ffffff' } }))
       .then((url) => {
-        if (!cancelled) setQr(url)
+        if (!cancelled) setQrCache({ otpauth, url })
       })
       .catch(() => {
         // Keep the hosted QR fallback.
@@ -64,7 +66,7 @@ export function StaffTwoFactorCard({ enabled }: { enabled: boolean }) {
       setOn(true)
       setSecret(null)
       setOtpauth(null)
-      setQr(null)
+      setQrCache(null)
       setCode('')
     })
   }

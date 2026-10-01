@@ -26,6 +26,12 @@ import {
   normalizeStoreSettingsRow,
   type StoreSettingsData,
 } from '@/lib/store-settings-normalize'
+import {
+  decryptConfigSecrets,
+  STORE_EMAIL_SECRET_KEYS,
+  STORE_GOOGLE_AUTH_SECRET_KEYS,
+  STORE_NOTIFICATIONS_SECRET_KEYS,
+} from '@/lib/secrets'
 
 export const STORE_SETTINGS_TAG = 'store-settings'
 
@@ -96,7 +102,17 @@ export const readSettingsRow = unstable_cache(
 export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
   try {
     const row = await readSettingsRow()
-    return normalizeStoreSettingsRow(row)
+    const s = normalizeStoreSettingsRow(row)
+    // Secrets are stored encrypted at rest (lib/secrets.ts) — decrypt once
+    // here so every consumer (mailer, Telegram notifications, Google OAuth)
+    // transparently gets usable values. Plaintext (pre-migration) values
+    // pass through unchanged.
+    return {
+      ...s,
+      emailSettings: decryptConfigSecrets(s.emailSettings, STORE_EMAIL_SECRET_KEYS),
+      notifications: decryptConfigSecrets(s.notifications, STORE_NOTIFICATIONS_SECRET_KEYS),
+      googleAuth: decryptConfigSecrets(s.googleAuth, STORE_GOOGLE_AUTH_SECRET_KEYS),
+    }
   } catch (err) {
     console.error('[store-settings] getStoreSettingsInternal failed:', (err as Error).message)
     return DEFAULTS

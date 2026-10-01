@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, type Locale } from './config'
 import { persistLocaleClientSide } from './client'
 import { getSetupDictionary, type SetupDictionary } from './setup'
@@ -12,20 +12,32 @@ function readLocaleCookie(): Locale {
   return isLocale(value) ? value : DEFAULT_LOCALE
 }
 
+// The locale cookie is an external store (browser-only). useSyncExternalStore
+// reads it with the server snapshot during SSR/hydration, so the client never
+// renders a mismatched locale and no mount effect with setState is needed.
+const localeListeners = new Set<() => void>()
+
+function subscribeLocale(listener: () => void): () => void {
+  localeListeners.add(listener)
+  return () => {
+    localeListeners.delete(listener)
+  }
+}
+
+function getLocaleServerSnapshot(): Locale {
+  return DEFAULT_LOCALE
+}
+
 export function useSetupLocale(): {
   locale: Locale
   t: SetupDictionary
   setLocale: (locale: Locale) => void
 } {
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE)
-
-  useEffect(() => {
-    setLocaleState(readLocaleCookie())
-  }, [])
+  const locale = useSyncExternalStore(subscribeLocale, readLocaleCookie, getLocaleServerSnapshot)
 
   const setLocale = useCallback((next: Locale) => {
     persistLocaleClientSide(next)
-    setLocaleState(next)
+    localeListeners.forEach((listener) => listener())
   }, [])
 
   return { locale, t: getSetupDictionary(locale), setLocale }

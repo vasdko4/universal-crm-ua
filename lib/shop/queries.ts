@@ -1069,19 +1069,6 @@ export function getAnsweredQuestions(productId: number) {
   )
 }
 
-export function getReviewSummary(productId: number) {
-  return cachedQuery(['review-summary', String(productId)], [CACHE_TAGS.reviews], async () => {
-    const res = await db
-      .select({
-        count: sql<number>`count(*)::int`,
-        avg: sql<number>`COALESCE(AVG(${productReviews.rating}), 0)::float`,
-      })
-      .from(productReviews)
-      .where(and(eq(productReviews.productId, productId), eq(productReviews.status, 'approved')))
-    return { count: res[0]?.count ?? 0, avg: res[0]?.avg ?? 0 }
-  })
-}
-
 export function getShopCategories(locale: Locale = 'uk') {
   return cachedQuery(['shop-categories', locale], [CACHE_TAGS.categories], () => _getShopCategories(locale))
 }

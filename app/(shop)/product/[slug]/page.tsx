@@ -16,7 +16,6 @@ import {
   getFrequentlyBoughtTogether,
   getApprovedReviews,
   getAnsweredQuestions,
-  getReviewSummary,
   getActiveDeliveryMethods,
   getActivePaymentMethods,
   getActiveGateways,
@@ -30,12 +29,12 @@ import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { stripPromMarketplaceCopy } from '@/lib/prom-import/scraper'
 import { storefrontMediaUrl, rewritePromHtmlImages } from '@/lib/shop/own-image-url'
 import { stripTags } from '@/lib/text'
+import { summarizeReviews } from '@/lib/shop/review-summary'
 
 export const dynamic = 'force-dynamic'
 
 // Deduped per request: generateMetadata and the page share a single DB read.
 const loadProduct = cache((slug: string, locale: 'uk' | 'ru') => getProductBySlug(slug, locale))
-const loadSummary = cache((id: number) => getReviewSummary(id))
 
 function plainText(html: string | null, max = 160): string {
   if (!html) return ''
@@ -99,19 +98,24 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const { product, characteristics, categories } = data
   const productId = product.id
   const brand = extractBrand(characteristics)
-  const [related, boughtTogether, reviews, questions, summary, settings, deliveryRows, paymentRows, gateways, promo] =
+  const [related, boughtTogether, reviews, questions, settings, deliveryRows, paymentRows, gateways, promo] =
     await Promise.all([
       getRelatedProducts(productId, categories.map((c) => c.id), 4, locale, brand),
       getFrequentlyBoughtTogether(productId, 4, locale),
       getApprovedReviews(productId),
       getAnsweredQuestions(productId),
-      loadSummary(productId),
       getStoreSettingsInternal().catch(() => null),
       getActiveDeliveryMethods(),
       getActivePaymentMethods(),
       getActiveGateways(),
       getProductPromotionDeadline(productId, categories.map((c) => c.id)),
     ])
+  // Single source of truth for the review count/average: derived from the same
+  // approved-reviews array that renders the cards and the tab label (see
+  // lib/shop/review-summary.ts). A separate aggregate query used to live in its
+  // own cache entry and could disagree with the list (stale entry) — e.g. the
+  // header showing "4.0 (3)" while the review cards rendered empty.
+  const summary = summarizeReviews(reviews)
   const gaId = settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined
 
   // SECURITY: never forward the raw `config` column to the client (Nova

@@ -5,6 +5,7 @@ import { deliveryMethods, orders } from '@/lib/db/schema'
 import { getAdminUserWithPermission } from '@/lib/session'
 import { novaPoshtaPrintUrl } from '@/lib/delivery/ttn'
 import { parsePositiveInt } from '@/lib/api/helpers'
+import { decryptSecret } from '@/lib/secrets'
 
 /**
  * Proxies Nova Poshta printDocument PDF so the API key never lands in the
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     .where(eq(deliveryMethods.code, 'nova_poshta'))
     .limit(1)
   const cfg = ((row?.config as Record<string, string>) ?? {}) as Record<string, string>
-  const apiKey = (cfg.apiKey || process.env.NOVA_POSHTA_API_KEY || '').trim()
+  const apiKey = (decryptSecret(cfg.apiKey) || process.env.NOVA_POSHTA_API_KEY || '').trim()
   if (!apiKey) return new NextResponse('No API key', { status: 400 })
 
   const upstream = await fetch(novaPoshtaPrintUrl(apiKey, ttn), {

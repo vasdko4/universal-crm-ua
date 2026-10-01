@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { deliveryMethods } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
+import { decryptSecret, encryptConfigSecrets, DELIVERY_CONFIG_SECRET_KEYS } from '@/lib/secrets'
 
 const NP_URL = 'https://api.novaposhta.ua/v2.0/json/'
 
@@ -23,7 +24,7 @@ async function getApiKey(): Promise<string | null> {
     .where(eq(deliveryMethods.code, 'nova_poshta'))
     .limit(1)
   const config = (row?.config as Record<string, unknown>) ?? {}
-  return (config.apiKey as string) || process.env.NOVA_POSHTA_API_KEY || null
+  return decryptSecret(config.apiKey) || process.env.NOVA_POSHTA_API_KEY || null
 }
 
 async function npRequest(modelName: string, calledMethod: string, methodProperties: Record<string, unknown>) {
@@ -85,16 +86,20 @@ export async function loadNovaPoshtaSender(apiKeyFromForm?: string): Promise<
   const config = ((row?.config as Record<string, unknown>) ?? {}) as Record<string, unknown>
   await db
     .update(deliveryMethods)
+    // SECURITY: the Nova Poshta API key is encrypted at rest — lib/secrets.ts.
     .set({
-      config: {
-        ...config,
-        ...(typed ? { apiKey: typed } : {}),
-        senderCityRef: fetched.refs.senderCityRef,
-        senderRef: fetched.refs.senderRef,
-        senderAddressRef: fetched.refs.senderAddressRef,
-        contactSenderRef: fetched.refs.contactSenderRef,
-        senderPhone: fetched.refs.senderPhone || String(config.senderPhone ?? ''),
-      },
+      config: encryptConfigSecrets(
+        {
+          ...config,
+          ...(typed ? { apiKey: typed } : {}),
+          senderCityRef: fetched.refs.senderCityRef,
+          senderRef: fetched.refs.senderRef,
+          senderAddressRef: fetched.refs.senderAddressRef,
+          contactSenderRef: fetched.refs.contactSenderRef,
+          senderPhone: fetched.refs.senderPhone || String(config.senderPhone ?? ''),
+        },
+        DELIVERY_CONFIG_SECRET_KEYS,
+      ),
       updatedAt: new Date(),
     })
     .where(eq(deliveryMethods.code, 'nova_poshta'))

@@ -146,6 +146,10 @@ function variantLive(v: FeedVariant, isPreorder: boolean): boolean {
 
 /** One Merchant row per purchasable offer (parent, or each in-stock variant). */
 export function expandFeedOffers(p: FeedProduct): MerchantOffer[] {
+  // Google rejects items with an empty <title>; a product whose name did not
+  // survive the Prom.ua import (blank name_uk/name_ru) must never reach the
+  // feed — it would only burn the Merchant Center error quota.
+  if (!p.name?.trim()) return []
   const base = {
     slug: p.slug,
     description: p.description,
@@ -200,6 +204,9 @@ export function buildItemXml(
   locale: Locale,
   merchant: MerchantFeedSettings,
 ): string {
+  if (!offer.name?.trim()) return ''
+  if (!(offer.price > 0)) return ''
+  if (!offer.id && !offer.slug?.trim()) return ''
   const abs = (path: string) => toAbsolute(siteUrl, path)
   const link = abs(localizedPath(`/product/${offer.slug || offer.id}`, locale))
   const image = offer.image ? storefrontMediaUrl(siteUrl, offer.image) : null

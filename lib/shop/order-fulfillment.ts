@@ -192,6 +192,29 @@ export async function restoreStockOnce(orderId: number, client?: PoolClient): Pr
   return true
 }
 
+export type OversoldItem = { name: string; variantLabel: string | null; requested: number }
+
+/**
+ * Thrown by applyOrderFulfillment in strict mode when the atomic
+ * `UPDATE ... WHERE quantity >= $1` reservation fails for at least one line.
+ * Callers running inside the order-creation transaction let this propagate so
+ * the whole order rolls back — a lost stock race then surfaces as a clean
+ * "items unavailable" failure instead of a committed order with no stock
+ * behind it.
+ */
+export class InsufficientStockError extends Error {
+  items: OversoldItem[]
+  constructor(items: OversoldItem[]) {
+    super(
+      `Insufficient stock: ${items
+        .map((o) => `«${o.name}»${o.variantLabel ? ` (${o.variantLabel})` : ''} × ${o.requested}`)
+        .join(', ')}`,
+    )
+    this.name = 'InsufficientStockError'
+    this.items = items
+  }
+}
+
 /**
  * Applies the real-world side effects of a placed order exactly once:
  * decrements inventory, updates customer stats, records promo usage, and logs
@@ -203,8 +226,18 @@ export async function restoreStockOnce(orderId: number, client?: PoolClient): Pr
  *
  * Pass `client` when the caller already holds a transaction (checkout) so
  * stock writes roll back with the order row.
+ *
+ * Pass `{ strictStock: true }` when the caller runs inside the order-creation
+ * transaction: a failed reservation then throws InsufficientStockError and
+ * aborts the whole order instead of leaving an oversold order behind.
+ * finalizePaidOrder (money already captured) intentionally stays non-strict —
+ * there the order is flagged for manual reconciliation instead.
  */
-export async function applyOrderFulfillment(orderId: number, client?: PoolClient): Promise<void> {
+export async function applyOrderFulfillment(
+  orderId: number,
+  client?: PoolClient,
+  opts?: { strictStock?: boolean },
+): Promise<void> {
   const q = exec(client)
   const tx = client ? dbForClient(client) : db
 
@@ -218,12 +251,12 @@ export async function applyOrderFulfillment(orderId: number, client?: PoolClient
   // RACE CONDITION NOTE: the availability check at checkout (createStorefrontOrder)
   // and this decrement happen at different times, so two concurrent checkouts for
   // the last unit(s) of a product can both pass the earlier check and both land
-  // here. The UPDATE is now conditional (`quantity >= $1`) so it can never take
-  // stock negative and never silently double-fulfills more than what's on hand —
-  // but that means the *second* order to arrive here may genuinely not have real
-  // stock behind it. Rather than fail the (already-placed, possibly already-paid)
-  // order, we flag it clearly for the admin to reconcile manually instead of
-  // silently shipping/promising stock that doesn't exist.
+  // here. The UPDATE is conditional (`quantity >= $1`) so it can never take stock
+  // negative and never silently double-fulfills more than what's on hand. In
+  // strict mode (order-creation transaction) the loser of the race throws
+  // InsufficientStockError and the whole order rolls back; in non-strict mode
+  // (finalizePaidOrder, money already captured) the order is flagged for the
+  // admin to reconcile manually instead of silently promising missing stock.
   const oversold: { name: string; variantLabel: string | null; requested: number }[] = []
   const variantProductIds = new Set<number>()
   const productOrderBumps = new Map<number, number>()
@@ -301,6 +334,11 @@ export async function applyOrderFulfillment(orderId: number, client?: PoolClient
   }
 
   if (oversold.length > 0) {
+    if (opts?.strictStock) {
+      // Inside the order-creation transaction: abort everything so no
+      // oversold order is ever committed.
+      throw new InsufficientStockError(oversold)
+    }
     const details = oversold
       .map((o) => `«${o.name}»${o.variantLabel ? ` (${o.variantLabel})` : ''} × ${o.requested}`)
       .join(', ')

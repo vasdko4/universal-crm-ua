@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { useSetupLocale } from '@/lib/i18n/setup-locale'
+import { useSetupToken } from '@/components/setup/use-setup-token'
 import { looksLikeEmail } from '@/lib/text'
 import { fillTemplate } from '@/lib/i18n/dictionaries'
 import type { SetupDictionary } from '@/lib/i18n/setup'
@@ -53,7 +54,10 @@ export function SetupWizard() {
   const [storeName, setStoreName] = useState('')
   const [storeDescription, setStoreDescription] = useState('')
   const [novaPoshtaApiKey, setNovaPoshtaApiKey] = useState('')
-  const [setupToken, setSetupToken] = useState('')
+  // One-shot token from ?token= or sessionStorage, read as an external store
+  // (no mount effect with setState needed). The effect below only performs the
+  // one-shot *writes*: persisting the token and scrubbing it from the URL.
+  const setupToken = useSetupToken()
 
   const [templateId, setTemplateId] = useState<TemplateId>('classic')
 
@@ -75,20 +79,17 @@ export function SetupWizard() {
   }, [t.pageTitle])
 
   useEffect(() => {
+    // One-shot writes only — the read side lives in useSetupToken().
     try {
       const params = new URLSearchParams(window.location.search)
       const fromUrl = params.get('token') ?? ''
-      const fromStore = sessionStorage.getItem('setup-token') ?? ''
       if (fromUrl) {
-        setSetupToken(fromUrl)
         sessionStorage.setItem('setup-token', fromUrl)
         // Drop the one-shot secret from the address bar so it is not left in
         // history, access logs of later navigations, or a leaked Referer.
         params.delete('token')
         const qs = params.toString()
         window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`)
-      } else if (fromStore) {
-        setSetupToken(fromStore)
       }
     } catch {
       /* ignore */

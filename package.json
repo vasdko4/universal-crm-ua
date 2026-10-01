@@ -17,7 +17,9 @@
     "db:dump": "node --env-file=.env.local scripts/dump-db.mjs",
     "db:restore": "node --env-file=.env.local scripts/db-restore.mjs --reset",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "secrets:encrypt": "node scripts/encrypt-secrets.mjs",
+    "secrets:encrypt:dry": "node scripts/encrypt-secrets.mjs --dry-run"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.16",

@@ -7,6 +7,7 @@ import { getCanonicalSiteUrl } from '@/lib/seo'
 import { headers } from 'next/headers'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary } from '@/lib/i18n/dictionaries'
+import Script from 'next/script'
 import './globals.css'
 
 const OG_LOCALE: Record<'uk' | 'ru', string> = { uk: 'uk_UA', ru: 'ru_RU' }
@@ -101,9 +102,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} className="bg-background">
       <body className="font-sans antialiased">
-        <script src="/dom-patch.js" nonce={nonce} />
+        <Script src="/dom-patch.js" nonce={nonce} strategy="beforeInteractive" />
         {process.env.NODE_ENV === 'development' && (
-          <script src="/dev-perf-patch.js" nonce={nonce} />
+          <Script src="/dev-perf-patch.js" nonce={nonce} strategy="beforeInteractive" />
         )}
         {children}
         {/* On mobile Sonner ignores `position` and always renders toasts
