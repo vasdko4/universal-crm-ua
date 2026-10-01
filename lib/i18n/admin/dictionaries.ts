@@ -677,6 +677,22 @@ export type AdminDictionary = {
     updateErrorTitle: string
     updateErrorDesc: string
     updaterNotConfigured: string
+    dbSchemaTitle: string
+    dbSchemaDesc: string
+    dbChecking: string
+    dbCheckButton: string
+    dbVersionLabel: string
+    dbAppliedAtLabel: string
+    dbNeverApplied: string
+    dbUpToDate: string
+    dbUpdateAvailable: string
+    dbApplyButton: string
+    dbApplying: string
+    dbAppliedTitle: string
+    dbAppliedDesc: string
+    dbCheckError: string
+    dbApplyErrorTitle: string
+    dbApplyErrorDesc: string
   }
   delivery: {
     pageTitle: string
@@ -842,6 +858,7 @@ export type AdminDictionary = {
     toastDeactivated: string
     toastDeleted: string
     toastCodeCopied: string
+    toastCodeCopyFailed: string
     targetAll: string
     targetGroups: string
     targetProducts: string
@@ -2451,6 +2468,22 @@ const uk: AdminDictionary = {
     updateErrorTitle: 'Не вдалося запустити оновлення',
     updateErrorDesc: 'Спробуйте ще раз або оновіть вручну на сервері.',
     updaterNotConfigured: 'Оновлення одним кліком працює лише на Docker-сервері (sidecar UPDATER_URL). На Vercel деплой іде з GitHub — підтягніть main і зачекайте білд, або оновіть вручну.',
+    dbSchemaTitle: 'База даних',
+    dbSchemaDesc: 'Перевірте та застосуйте актуальну схему бази даних.',
+    dbChecking: 'Перевірка версії бази даних…',
+    dbCheckButton: 'Перевірити версію БД',
+    dbVersionLabel: 'Версія в застосунку',
+    dbAppliedAtLabel: 'Останнє застосування',
+    dbNeverApplied: 'Ще не застосовано через адмінку',
+    dbUpToDate: 'Схема бази даних актуальна',
+    dbUpdateAvailable: 'Доступна міграція бази даних',
+    dbApplyButton: 'Застосувати міграцію',
+    dbApplying: 'Застосування…',
+    dbAppliedTitle: 'Міграцію застосовано',
+    dbAppliedDesc: 'Схему бази даних оновлено.',
+    dbCheckError: 'Не вдалося перевірити схему бази даних.',
+    dbApplyErrorTitle: 'Не вдалося застосувати міграцію',
+    dbApplyErrorDesc: 'Перевірте підключення до бази даних і спробуйте ще раз.',
   },
   delivery: {
     pageTitle: 'Методи доставки',
@@ -2617,6 +2650,7 @@ const uk: AdminDictionary = {
     toastDeactivated: 'Акцію вимкнено',
     toastDeleted: 'Акцію видалено',
     toastCodeCopied: 'Промокод скопійовано',
+    toastCodeCopyFailed: 'Не вдалося скопіювати промокод',
     targetAll: 'Усі товари',
     targetGroups: 'Обрані групи',
     targetProducts: 'Конкретні позиції',
@@ -4233,6 +4267,22 @@ const ru: AdminDictionary = {
     updateErrorTitle: 'Не удалось запустить обновление',
     updateErrorDesc: 'Попробуйте ещё раз или обновите вручную на сервере.',
     updaterNotConfigured: 'Обновление одним кликом работает только на Docker-сервере (sidecar UPDATER_URL). На Vercel деплой идёт с GitHub — подтяните main и дождитесь сборки, или обновите вручную.',
+    dbSchemaTitle: 'База данных',
+    dbSchemaDesc: 'Проверьте и примените актуальную схему базы данных.',
+    dbChecking: 'Проверка версии базы данных…',
+    dbCheckButton: 'Проверить версию БД',
+    dbVersionLabel: 'Версия в приложении',
+    dbAppliedAtLabel: 'Последнее применение',
+    dbNeverApplied: 'Ещё не применено через админку',
+    dbUpToDate: 'Схема базы данных актуальна',
+    dbUpdateAvailable: 'Доступна миграция базы данных',
+    dbApplyButton: 'Применить миграцию',
+    dbApplying: 'Применение…',
+    dbAppliedTitle: 'Миграция применена',
+    dbAppliedDesc: 'Схема базы данных обновлена.',
+    dbCheckError: 'Не удалось проверить схему базы данных.',
+    dbApplyErrorTitle: 'Не удалось применить миграцию',
+    dbApplyErrorDesc: 'Проверьте подключение к базе данных и попробуйте снова.',
   },
   delivery: {
     pageTitle: 'Методы доставки',
@@ -4399,6 +4449,7 @@ const ru: AdminDictionary = {
     toastDeactivated: 'Акция отключена',
     toastDeleted: 'Акция удалена',
     toastCodeCopied: 'Промокод скопирован',
+    toastCodeCopyFailed: 'Не удалось скопировать промокод',
     targetAll: 'Все товары',
     targetGroups: 'Выбранные группы',
     targetProducts: 'Конкретные позиции',

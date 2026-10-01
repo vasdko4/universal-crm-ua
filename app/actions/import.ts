@@ -73,7 +73,7 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
         quantity = Math.min(999_999, Math.trunc(q))
       }
       const oldPriceRaw = (row.old_price ?? '').toString().trim()
-      const oldPriceNum = oldPriceRaw ? Number(oldPriceRaw) : NaN
+      const oldPriceNum = oldPriceRaw ? Number(oldPriceRaw) : Number.NaN
       const oldPrice =
         oldPriceRaw && Number.isFinite(oldPriceNum) && oldPriceNum >= 0 ? row.old_price : null
       const sku = row.sku?.trim() || null

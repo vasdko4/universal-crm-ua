@@ -8,6 +8,7 @@ import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { isNewerVersion } from '@/lib/version'
 import { Button } from '@/components/ui/button'
 import { triggerSelfUpdate } from '@/app/actions/system-update'
+import { DbSchemaPanel } from '@/components/updates/db-schema-panel'
 
 export function UpdatesPanel({
   currentVersion,
@@ -134,6 +135,8 @@ export function UpdatesPanel({
           )}
         </div>
       </div>
+
+      <DbSchemaPanel />
     </div>
   )
 }

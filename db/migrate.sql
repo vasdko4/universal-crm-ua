@@ -9,6 +9,14 @@
 
 SET search_path TO public;
 
+-- Hash marker used by the admin migration checker.
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+  id integer PRIMARY KEY,
+  migrate_sql_sha256 varchar(64) NOT NULL,
+  applied_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT schema_migrations_single_row CHECK (id = 1)
+);
+
 -- ---------- Аналитика (нужна для /api/track) ----------
 CREATE TABLE IF NOT EXISTS "analytics_events" (
   "id" serial NOT NULL,
