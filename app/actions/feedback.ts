@@ -4,8 +4,10 @@ import { db } from '@/lib/db'
 import { productReviews, productQuestions, products } from '@/lib/db/schema'
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
+import { headers } from 'next/headers'
 import { CACHE_TAGS } from '@/lib/shop/queries'
 import { assertPermission, assertWritePermission } from '@/lib/session'
+import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 
 type Status = 'pending' | 'approved' | 'rejected'
 
@@ -117,6 +119,11 @@ export async function createReview(input: {
   pros?: string
   cons?: string
 }) {
+  // BUGFIX: public action with no rate limit — mass spam of pending reviews.
+  const ip = clientIpFromHeaders(await headers())
+  if (await isRateLimited('feedback-create', ip, 10, 600_000)) {
+    return { success: false, error: 'Забагато спроб. Спробуйте пізніше.' }
+  }
   const product = await requireExistingProduct(input.productId)
   if (!product.ok) return { success: false, error: product.error }
   if (!input.authorName?.trim()) return { success: false, error: 'Имя обязательно' }
@@ -235,6 +242,11 @@ export async function createQuestion(input: {
   authorEmail?: string
   question: string
 }) {
+  // BUGFIX: public action with no rate limit — mass spam of pending questions.
+  const ip = clientIpFromHeaders(await headers())
+  if (await isRateLimited('feedback-create', ip, 10, 600_000)) {
+    return { success: false, error: 'Забагато спроб. Спробуйте пізніше.' }
+  }
   const product = await requireExistingProduct(input.productId)
   if (!product.ok) return { success: false, error: product.error }
   if (!input.authorName?.trim()) return { success: false, error: 'Имя обязательно' }

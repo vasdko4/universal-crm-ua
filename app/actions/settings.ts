@@ -6,7 +6,7 @@ import { asc, eq } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/shop/queries'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-import { decryptSecret } from '@/lib/secrets'
+import { decryptSecret, encryptConfigSecrets, DELIVERY_CONFIG_SECRET_KEYS } from '@/lib/secrets'
 import { searchCities, searchWarehouses, type NpCity, type NpWarehouse } from '@/lib/delivery/nova-poshta'
 
 type ActionResult = { ok: boolean; message: string }
@@ -43,7 +43,11 @@ export async function updateDeliveryMethod(
 
     await db
       .update(deliveryMethods)
-      .set({ isActive, config: data.config, updatedAt: new Date() })
+      // BUGFIX: the Nova Poshta apiKey used to be stored in plaintext,
+      // contradicting the app's at-rest encryption policy (lib/secrets.ts).
+      // Read paths already decrypt (getNovaPoshtaKey, nova-poshta.ts), and
+      // encryptConfigSecrets is idempotent, so this is a safe migration.
+      .set({ isActive, config: encryptConfigSecrets(data.config, DELIVERY_CONFIG_SECRET_KEYS), updatedAt: new Date() })
       .where(eq(deliveryMethods.code, code))
     revalidatePath('/admin/delivery')
     revalidateTag(CACHE_TAGS.checkout, 'max')
@@ -67,6 +71,9 @@ async function getNovaPoshtaKey(): Promise<string> {
 export async function npSearchCities(
   query: string,
 ): Promise<{ ok: boolean; demo: boolean; cities: NpCity[]; message?: string }> {
+  // BUGFIX: this used to be callable by anyone — it proxies the PAID Nova
+  // Poshta API at the shop's expense. It's only used from the admin panel.
+  await assertPermission('delivery')
   try {
     const apiKey = await getNovaPoshtaKey()
     const cities = await searchCities(apiKey, query)
@@ -82,6 +89,8 @@ export async function npSearchWarehouses(params: {
   query: string
   type: 'branch' | 'postomat'
 }): Promise<{ ok: boolean; demo: boolean; items: NpWarehouse[]; message?: string }> {
+  // BUGFIX: same as npSearchCities — paid API proxy, admin-only.
+  await assertPermission('delivery')
   try {
     const apiKey = await getNovaPoshtaKey()
     const { demo, items } = await searchWarehouses(apiKey, params)

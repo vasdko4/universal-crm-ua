@@ -113,6 +113,7 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
     defaultLocale: merged.defaultLocale,
     localePromptMode: merged.localePromptMode === 'modal' ? 'modal' : 'browser',
     activeTemplate: merged.activeTemplate,
+    adminTheme: merged.adminTheme,
     seo: merged.seo,
     social: merged.social,
     googleAds: merged.googleAds,
@@ -171,7 +172,7 @@ export async function updateStoreSettings(data: Partial<StoreSettingsData>) {
   return result
 }
 
-export async function updateAppearance(data: { activeTemplate?: string; defaultLocale?: string }) {
+export async function updateAppearance(data: { activeTemplate?: string; defaultLocale?: string; adminTheme?: string }) {
   return updateStoreSettings(data)
 }
 

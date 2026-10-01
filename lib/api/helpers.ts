@@ -26,6 +26,21 @@ export function parsePage(value: string | number | null | undefined, fallback = 
   return parsePositiveInt(value) ?? fallback
 }
 
+/**
+ * Clamp a dashboard `days` window. In Postgres `LIMIT -1` means "no limit"
+ * and huge intervals turn chart queries into full-table scans, so bound both.
+ */
+export function normDays(days: unknown): number {
+  const n = typeof days === 'number' && Number.isFinite(days) ? Math.floor(days) : 30
+  return Math.min(730, Math.max(1, n))
+}
+
+/** Clamp a dashboard `limit` (1..100). */
+export function normLimit(limit: unknown, fallback = 10): number {
+  const n = typeof limit === 'number' && Number.isFinite(limit) ? Math.floor(limit) : fallback
+  return Math.min(100, Math.max(1, n))
+}
+
 /** Strip NUL / other C0 controls so Postgres LIKE/ilike cannot 500. */
 export function sanitizeSearch(raw: string): string {
   return raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 200)

@@ -31,7 +31,8 @@ import {
   EyeOff,
   LayoutTemplate,
 } from 'lucide-react'
-import { TEMPLATES } from '@/lib/shop/templates'
+import { TEMPLATES, type TemplatePreset } from '@/lib/shop/templates'
+import { ADMIN_THEMES } from '@/lib/admin/admin-themes'
 import { cn } from '@/lib/utils'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
@@ -61,6 +62,8 @@ import type { SectionProps } from './settings-types'
 
 export function DesignSection({ data, setData, t }: SectionProps) {
   const { locale } = useAdminI18n()
+  const nicheTemplates = TEMPLATES.filter((tpl) => tpl.niche)
+  const baseTemplates = TEMPLATES.filter((tpl) => !tpl.niche)
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4">
@@ -68,14 +71,39 @@ export function DesignSection({ data, setData, t }: SectionProps) {
           <h2 className="text-base font-semibold text-foreground">{t.templateTitle}</h2>
           <p className="text-sm text-muted-foreground">{t.templateDesc}</p>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {TEMPLATES.map((tpl) => {
-            const active = data.activeTemplate === tpl.id
+        {nicheTemplates.length > 0 && (
+          <TemplateGroup
+            title={t.nicheTemplatesTitle}
+            templates={nicheTemplates}
+            activeId={data.activeTemplate}
+            locale={locale}
+            premiumBadge={t.premiumBadge}
+            onSelect={(id) => setData((d) => ({ ...d, activeTemplate: id }))}
+          />
+        )}
+        <TemplateGroup
+          title={t.baseTemplatesTitle}
+          templates={baseTemplates}
+          activeId={data.activeTemplate}
+          locale={locale}
+          premiumBadge={t.premiumBadge}
+          onSelect={(id) => setData((d) => ({ ...d, activeTemplate: id }))}
+        />
+      </div>
+
+      <div className="flex flex-col gap-4 border-t border-border pt-6">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">{t.adminThemeTitle}</h2>
+          <p className="text-sm text-muted-foreground">{t.adminThemeDesc}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {ADMIN_THEMES.map((tpl) => {
+            const active = data.adminTheme === tpl.id
             return (
               <button
                 key={tpl.id}
                 type="button"
-                onClick={() => setData((d) => ({ ...d, activeTemplate: tpl.id }))}
+                onClick={() => setData((d) => ({ ...d, adminTheme: tpl.id }))}
                 aria-pressed={active}
                 className={cn(
                   'group relative flex flex-col gap-3 overflow-hidden rounded-xl border-2 p-3 text-left transition-colors',
@@ -87,56 +115,26 @@ export function DesignSection({ data, setData, t }: SectionProps) {
                     <Check className="size-4" />
                   </span>
                 )}
-                {tpl.premium && (
-                  <span className="absolute left-2 top-2 z-10 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-background">
-                    {t.premiumBadge}
-                  </span>
-                )}
-                {/* Mini storefront preview */}
-                <div
-                  className="flex flex-col gap-2 rounded-lg p-3"
-                  style={{ backgroundColor: tpl.swatches.bg, borderRadius: tpl.radius }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="h-2 w-14 rounded-full"
+                {/* Mini admin preview: sidebar + topbar + content */}
+                <div className="flex h-20 overflow-hidden rounded-lg border border-border">
+                  <div className="w-7 shrink-0" style={{ backgroundColor: tpl.swatches.sidebar }}>
+                    <div
+                      className="mx-auto mt-2 h-1.5 w-4 rounded-full"
                       style={{ backgroundColor: tpl.swatches.primary }}
                     />
-                    <span
-                      className="h-2 w-6 rounded-full"
-                      style={{ backgroundColor: tpl.swatches.accent }}
-                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[0, 1].map((i) => (
-                      <div
-                        key={i}
-                        className="flex flex-col gap-1.5 p-2"
-                        style={{
-                          backgroundColor: tpl.swatches.card,
-                          borderRadius: `calc(${tpl.radius} * 0.6)`,
-                        }}
-                      >
-                        <span
-                          className="h-6 w-full"
-                          style={{
-                            backgroundColor: tpl.swatches.accent,
-                            borderRadius: `calc(${tpl.radius} * 0.4)`,
-                          }}
-                        />
-                        <span
-                          className="h-1.5 w-3/4 rounded-full"
-                          style={{ backgroundColor: tpl.swatches.primary, opacity: 0.7 }}
-                        />
-                        <span
-                          className="h-4 w-full"
-                          style={{
-                            backgroundColor: tpl.swatches.primary,
-                            borderRadius: `calc(${tpl.radius} * 0.4)`,
-                          }}
-                        />
-                      </div>
-                    ))}
+                  <div
+                    className="flex min-w-0 flex-1 flex-col"
+                    style={{ backgroundColor: tpl.swatches.surface }}
+                  >
+                    <div className="h-3 shrink-0 border-b border-border/60" />
+                    <div className="flex flex-1 items-center gap-1.5 p-2">
+                      <span
+                        className="h-4 w-9 shrink-0 rounded"
+                        style={{ backgroundColor: tpl.swatches.primary }}
+                      />
+                      <span className="h-1.5 w-full rounded-full bg-foreground/15" />
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -190,6 +188,112 @@ export function DesignSection({ data, setData, t }: SectionProps) {
             <SelectItem value="modal">{t.localePromptModal}</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+    </div>
+  )
+}
+
+/** One group of template cards (niche or base) with mini storefront previews. */
+function TemplateGroup({
+  title,
+  templates,
+  activeId,
+  locale,
+  premiumBadge,
+  onSelect,
+}: {
+  title: string
+  templates: TemplatePreset[]
+  activeId: string
+  locale: string
+  premiumBadge: string
+  onSelect: (id: string) => void
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {templates.map((tpl) => {
+          const active = activeId === tpl.id
+          return (
+            <button
+              key={tpl.id}
+              type="button"
+              onClick={() => onSelect(tpl.id)}
+              aria-pressed={active}
+              className={cn(
+                'group relative flex flex-col gap-3 overflow-hidden rounded-xl border-2 p-3 text-left transition-colors',
+                active ? 'border-primary' : 'border-border hover:border-primary/40',
+              )}
+            >
+              {active && (
+                <span className="absolute right-2 top-2 z-10 flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Check className="size-4" />
+                </span>
+              )}
+              {tpl.premium && (
+                <span className="absolute left-2 top-2 z-10 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-background">
+                  {premiumBadge}
+                </span>
+              )}
+              {/* Mini storefront preview */}
+              <div
+                className="flex flex-col gap-2 rounded-lg p-3"
+                style={{ backgroundColor: tpl.swatches.bg, borderRadius: tpl.radius }}
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className="h-2 w-14 rounded-full"
+                    style={{ backgroundColor: tpl.swatches.primary }}
+                  />
+                  <span
+                    className="h-2 w-6 rounded-full"
+                    style={{ backgroundColor: tpl.swatches.accent }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[0, 1].map((i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-1.5 p-2"
+                      style={{
+                        backgroundColor: tpl.swatches.card,
+                        borderRadius: `calc(${tpl.radius} * 0.6)`,
+                      }}
+                    >
+                      <span
+                        className="h-6 w-full"
+                        style={{
+                          backgroundColor: tpl.swatches.accent,
+                          borderRadius: `calc(${tpl.radius} * 0.4)`,
+                        }}
+                      />
+                      <span
+                        className="h-1.5 w-3/4 rounded-full"
+                        style={{ backgroundColor: tpl.swatches.primary, opacity: 0.7 }}
+                      />
+                      <span
+                        className="h-4 w-full"
+                        style={{
+                          backgroundColor: tpl.swatches.primary,
+                          borderRadius: `calc(${tpl.radius} * 0.4)`,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {locale === 'ru' ? tpl.nameRu : tpl.name}
+                </p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {locale === 'ru' ? tpl.descriptionRu : tpl.description}
+                </p>
+              </div>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

@@ -133,7 +133,28 @@ export async function setUserActive(userId: string, isActive: boolean) {
 export async function deleteUser(userId: string) {
   const me = await requireAdminGuard()
   if (me.id === userId) return { success: false, error: getAdminDictionary(me.locale).users.cannotDeleteSelf }
-  await pool.query(`DELETE FROM "user" WHERE id = $1`, [userId])
+  // BUGFIX: the bare DELETE used to leave orphaned Better Auth sessions and
+  // accounts behind — a "deleted" user's session token stayed valid and they
+  // could keep acting. Remove everything that belongs to the user atomically.
+  // (admin_logs are intentionally kept as an audit trail; verification rows
+  // expire on their own.)
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(`DELETE FROM session WHERE "userId" = $1`, [userId])
+    await client.query(`DELETE FROM account WHERE "userId" = $1`, [userId])
+    // user_favorites / user_addresses have ON DELETE CASCADE; the explicit
+    // deletes are harmless and keep the intent visible.
+    await client.query(`DELETE FROM user_favorites WHERE user_id = $1`, [userId])
+    await client.query(`DELETE FROM user_addresses WHERE user_id = $1`, [userId])
+    await client.query(`DELETE FROM "user" WHERE id = $1`, [userId])
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'delete', entity: 'user', entityId: userId,

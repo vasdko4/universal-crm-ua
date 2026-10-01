@@ -49,6 +49,8 @@ type PromImportState = {
   capped: boolean
   /** Size-range siblings already imported as one product (name-based families). */
   sizeFamilies?: Record<string, SizeFamilyState>
+  /** Batch claimed but not yet fully processed — re-queued on resume after a crash. */
+  processing?: PromListItem[]
 }
 
 
@@ -433,15 +435,24 @@ export async function continuePromImport(taskId: number) {
       return { success: false as const, error: 'Повреждённое состояние задачи импорта' }
     }
     state = row.state
-    batch = state.pending.slice(0, BATCH_SIZE)
-    rest = state.pending.slice(BATCH_SIZE)
+    // BUGFIX: crash recovery. The claim below commits before the batch is
+    // processed, so a worker that dies mid-batch (tab closed, deploy, OOM)
+    // used to lose those items forever — they were neither in `pending` nor
+    // counted. Keep the claimed batch in state.processing; a leftover from a
+    // dead worker is re-queued at the front on the next claim. Re-import is
+    // idempotent (matches by promId/SKU, updates in place), so reprocessing
+    // is safe.
+    const leftover = Array.isArray(state.processing) ? (state.processing as PromListItem[]) : []
+    const queue = [...leftover, ...state.pending]
+    batch = queue.slice(0, BATCH_SIZE)
+    rest = queue.slice(BATCH_SIZE)
     processedBase = row.processed_items ?? 0
     successBase = row.success_items ?? 0
     failedBase = row.failed_items ?? 0
     totalItems = row.total_items ?? 0
     await client.query(
       `UPDATE import_tasks SET state = $2, updated_at = NOW() WHERE id = $1`,
-      [taskId, { ...state, pending: rest }],
+      [taskId, { ...state, pending: rest, processing: batch }],
     )
     await client.query('COMMIT')
   } catch (e) {
@@ -667,7 +678,8 @@ export async function continuePromImport(taskId: number) {
   //
   // Increment counters in SQL and merge size-family additions into the live
   // JSON state. The UPDATE is atomic, so parallel polls cannot lose counters
-  // or resurrect already-claimed products.
+  // or resurrect already-claimed products. `processing` is cleared — the
+  // batch completed, so a later resume must not re-queue it.
   const newErrors = errors.length > 0 ? errors.join('\n') : null
   const updated = await pool.query<{
     status: 'processing' | 'completed'
@@ -685,9 +697,14 @@ export async function continuePromImport(taskId: number) {
               ELSE right(error_log || E'\\n' || $5::text, 10000)
             END,
             state = jsonb_set(
-              COALESCE(state, '{}'::jsonb),
-              '{sizeFamilies}',
-              COALESCE(state->'sizeFamilies', '{}'::jsonb) || $6::jsonb,
+              jsonb_set(
+                COALESCE(state, '{}'::jsonb),
+                '{sizeFamilies}',
+                COALESCE(state->'sizeFamilies', '{}'::jsonb) || $6::jsonb,
+                true
+              ),
+              '{processing}',
+              '[]'::jsonb,
               true
             ),
             status = CASE

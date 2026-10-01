@@ -1,6 +1,6 @@
 'use server'
 
-import { db } from '@/lib/db'
+import { db, dbForClient, withDbClient } from '@/lib/db'
 import { customers, customerContacts } from '@/lib/db/schema'
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
@@ -178,31 +178,37 @@ export async function updateCustomer(id: number, input: CustomerInput) {
   const error = validate(input)
   if (error) return { success: false, error }
 
+  // BUGFIX: the UPDATE + DELETE + INSERT below used to run as three separate
+  // statements. If the INSERT failed, the customer's contacts were already
+  // deleted — unrecoverable data loss. Run atomically in one transaction.
   try {
-    await db
-      .update(customers)
-      .set({
-        firstName: input.firstName.trim(),
-        lastName: input.lastName?.trim() || null,
-        phone: input.phone.trim(),
-        email: input.email?.trim() || null,
-        reliabilityScore: input.reliabilityScore ?? 100,
-        note: input.note?.trim() || null,
-        updatedAt: new Date(),
-      })
-      .where(eq(customers.id, id))
+    await withDbClient(async (client) => {
+      const tx = dbForClient(client)
+      await tx
+        .update(customers)
+        .set({
+          firstName: input.firstName.trim(),
+          lastName: input.lastName?.trim() || null,
+          phone: input.phone.trim(),
+          email: input.email?.trim() || null,
+          reliabilityScore: input.reliabilityScore ?? 100,
+          note: input.note?.trim() || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(customers.id, id))
+
+      // Пересобираем дополнительные контакты
+      await tx.delete(customerContacts).where(eq(customerContacts.customerId, id))
+      const contacts = cleanContacts(input.contacts)
+      if (contacts.length) {
+        await tx.insert(customerContacts).values(
+          contacts.map((c) => ({ ...c, customerId: id })),
+        )
+      }
+    })
   } catch (e) {
     if (isUniqueViolation(e)) return { success: false, error: 'Клиент с таким телефоном уже есть' }
     throw e
-  }
-
-  // Пересобираем дополнительные контакты
-  await db.delete(customerContacts).where(eq(customerContacts.customerId, id))
-  const contacts = cleanContacts(input.contacts)
-  if (contacts.length) {
-    await db.insert(customerContacts).values(
-      contacts.map((c) => ({ ...c, customerId: id })),
-    )
   }
 
   revalidatePath('/admin/customers')

@@ -55,6 +55,21 @@ async function assertUniquePromoCode(code: string | null | undefined, exceptId?:
   return dup ? 'Промокод уже используется другой акцией' : null
 }
 
+// BUGFIX: assertUniquePromoCode above is an app-level pre-check — two
+// parallel creates/updates with the same code could both pass it, and the
+// loser would hit the DB unique index (promotions_promo_code_unique) as an
+// unhandled 500. Convert that into the same friendly error.
+function isUniqueViolation(e: unknown): boolean {
+  let cur: unknown = e
+  for (let i = 0; i < 4 && cur && typeof cur === 'object'; i++) {
+    if ('code' in cur && (cur as { code: unknown }).code === '23505') return true
+    cur = 'cause' in cur ? (cur as { cause: unknown }).cause : undefined
+  }
+  return false
+}
+
+const DUP_CODE_ERROR = 'Промокод уже используется другой акцией'
+
 function validate(input: PromotionInput): string | null {
   if (!input.name?.trim()) return 'Название акции обязательно'
   if (!(input.discountValue > 0)) return 'Размер скидки должен быть больше нуля'
@@ -142,37 +157,8 @@ export async function createPromotion(input: PromotionInput) {
   const dup = await assertUniquePromoCode(input.type === 'promocode' ? input.promoCode : null)
   if (dup) return { success: false, error: dup }
 
-  await db.insert(promotions).values({
-    type: input.type,
-    name: input.name.trim(),
-    discountType: input.discountType,
-    discountValue: String(input.discountValue),
-    promoCode: input.type === 'promocode' ? input.promoCode?.trim().toUpperCase() || null : null,
-    targetType: input.targetType,
-    targetGroupIds: input.targetType === 'groups' ? input.targetGroupIds ?? [] : [],
-    targetProductIds: input.targetType === 'products' ? input.targetProductIds ?? [] : [],
-    usageLimit: input.usageLimit ?? null,
-    minOrderAmount: input.minOrderAmount != null ? String(input.minOrderAmount) : null,
-    noStacking: input.noStacking ?? false,
-    excludeWholesale: input.excludeWholesale ?? false,
-    startsAt: new Date(input.startsAt),
-    endsAt: input.endsAt ? new Date(input.endsAt) : null,
-    isActive: input.isActive ?? true,
-  })
-  revalidatePath('/admin/promotions')
-  return { success: true }
-}
-
-export async function updatePromotion(id: number, input: PromotionInput) {
-  await assertWritePermission('promotions')
-  const error = validate(input)
-  if (error) return { success: false, error }
-  const dup = await assertUniquePromoCode(input.type === 'promocode' ? input.promoCode : null, id)
-  if (dup) return { success: false, error: dup }
-
-  await db
-    .update(promotions)
-    .set({
+  try {
+    await db.insert(promotions).values({
       type: input.type,
       name: input.name.trim(),
       discountType: input.discountType,
@@ -188,9 +174,48 @@ export async function updatePromotion(id: number, input: PromotionInput) {
       startsAt: new Date(input.startsAt),
       endsAt: input.endsAt ? new Date(input.endsAt) : null,
       isActive: input.isActive ?? true,
-      updatedAt: new Date(),
     })
-    .where(eq(promotions.id, id))
+  } catch (e) {
+    if (isUniqueViolation(e)) return { success: false, error: DUP_CODE_ERROR }
+    throw e
+  }
+  revalidatePath('/admin/promotions')
+  return { success: true }
+}
+
+export async function updatePromotion(id: number, input: PromotionInput) {
+  await assertWritePermission('promotions')
+  const error = validate(input)
+  if (error) return { success: false, error }
+  const dup = await assertUniquePromoCode(input.type === 'promocode' ? input.promoCode : null, id)
+  if (dup) return { success: false, error: dup }
+
+  try {
+    await db
+      .update(promotions)
+      .set({
+        type: input.type,
+        name: input.name.trim(),
+        discountType: input.discountType,
+        discountValue: String(input.discountValue),
+        promoCode: input.type === 'promocode' ? input.promoCode?.trim().toUpperCase() || null : null,
+        targetType: input.targetType,
+        targetGroupIds: input.targetType === 'groups' ? input.targetGroupIds ?? [] : [],
+        targetProductIds: input.targetType === 'products' ? input.targetProductIds ?? [] : [],
+        usageLimit: input.usageLimit ?? null,
+        minOrderAmount: input.minOrderAmount != null ? String(input.minOrderAmount) : null,
+        noStacking: input.noStacking ?? false,
+        excludeWholesale: input.excludeWholesale ?? false,
+        startsAt: new Date(input.startsAt),
+        endsAt: input.endsAt ? new Date(input.endsAt) : null,
+        isActive: input.isActive ?? true,
+        updatedAt: new Date(),
+      })
+      .where(eq(promotions.id, id))
+  } catch (e) {
+    if (isUniqueViolation(e)) return { success: false, error: DUP_CODE_ERROR }
+    throw e
+  }
   revalidatePath('/admin/promotions')
   revalidatePath(`/admin/promotions/${id}/edit`)
   return { success: true }
@@ -425,6 +450,12 @@ export async function findBestAutomaticDiscount(lines: PromoCartLine[]): Promise
 // against the current cart, so it can be shown to the shopper before they
 // place the order (createStorefrontOrder re-evaluates authoritatively).
 export async function previewAutomaticDiscount(lines: PromoCartLine[]): Promise<PromoEvaluation> {
+  // BUGFIX: public action (fired on every cart change, 3 SELECTs per call)
+  // with no rate limit, unlike evaluatePromoCode right below.
+  const ip = clientIpFromHeaders(await headers())
+  if (await isRateLimited('promo-preview', ip, 30)) {
+    return { ok: false, error: '' }
+  }
   const safeLines = (lines ?? []).map((l) => ({
     productId: l.productId,
     price: Math.max(0, Number(l.price) || 0),

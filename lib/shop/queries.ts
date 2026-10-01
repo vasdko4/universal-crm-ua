@@ -486,7 +486,11 @@ export function getCatalogProducts(params: CatalogParams = {}) {
 }
 
 async function _getCatalogProducts(params: CatalogParams = {}) {
-  const page = Math.min(50, Math.max(1, params.page ?? 1))
+  // BUGFIX: the old Math.min(50, page) silently made every product past page
+  // 50 unreachable — requesting page 51 returned page 50's items again
+  // (duplicates in "load more"). Deep offsets are bounded by the perPage cap,
+  // so no artificial page ceiling is needed.
+  const page = Math.max(1, params.page ?? 1)
   const perPage = Math.min(48, Math.max(1, params.perPage ?? 12))
   const productSelect = buildProductSelect(params.locale ?? 'uk')
   const conditions = [params.hideOutOfStock ? homeWhere : baseWhere]
@@ -565,6 +569,11 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
     outOfStockLast,
     ...(search ? [asc(searchRelevanceOrder(search))] : []),
     ...primaryOrderBy,
+    // BUGFIX: deterministic tiebreaker. Sorts like `popular`
+    // (ordersCount+purchasesBoost) or `new` (createdAt) tie constantly; without
+    // a unique trailing key, "load more" pagination showed duplicates and
+    // skipped products between pages.
+    asc(products.id),
   ]
 
   const [rows, countRes] = await Promise.all([

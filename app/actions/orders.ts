@@ -306,6 +306,17 @@ export async function createOrder(input: {
   tags?: string[]
 }) {
   const me = await assertWritePermission('orders')
+  // BUGFIX: quantities were never validated. A line with quantity = -5 passed
+  // `applyOrderFulfillment`'s `quantity >= -5` check and INFLATED warehouse
+  // stock (quantity - (-5)); quantity = 0 created junk lines. Reject early.
+  for (const item of input.items) {
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+      return { success: false, error: `Некоректна кількість для позиції «${item.name ?? '?'}»: ${item.quantity}` }
+    }
+    if (!Number.isFinite(item.price) || item.price < 0) {
+      return { success: false, error: `Некоректна ціна для позиції «${item.name ?? '?'}` }
+    }
+  }
   const itemsTotal = input.items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const { deliveryCost, total } = computeOrderTotals({
     itemsTotal,
@@ -411,6 +422,7 @@ export async function updateOrderStatus(id: number, status: string) {
 
   // Lock the row so a parallel cancel+reopen cannot restore stock and then
   // write `new` without a matching deduction (FIX-15).
+  const promoReleased: string[] = []
   const result = await withDbClient(async (client) => {
     const tx = dbForClient(client)
     const locked = await client.query<{
@@ -418,7 +430,15 @@ export async function updateOrderStatus(id: number, status: string) {
       status: string
       tracking_number: string | null
       order_number: string
-    }>(`SELECT id, status, tracking_number, order_number FROM orders WHERE id = $1 FOR UPDATE`, [id])
+      promo_code: string | null
+      auto_discount_id: number | null
+      auto_discount_amount: string | null
+      discount_total: string | null
+      total: string | null
+      customer_name: string | null
+    }>(`SELECT id, status, tracking_number, order_number, promo_code, auto_discount_id,
+              auto_discount_amount, discount_total, total, customer_name
+         FROM orders WHERE id = $1 FOR UPDATE`, [id])
     const current = locked.rows[0]
     if (!current) return { success: false as const, error: 'Заказ не найден' }
     if (current.status === status) {
@@ -435,9 +455,40 @@ export async function updateOrderStatus(id: number, status: string) {
 
     if (status === 'cancelled' && current.status !== 'cancelled') {
       await restoreStockOnce(id, client)
+      // BUGFIX: cancelling an order never released its promo usage — the code
+      // stayed "used up" against usageLimit forever. Release it idempotently
+      // on the same locked connection as the status change.
+      const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
+      const { released } = await releasePromotionUsageForOrder(current.order_number, client)
+      promoReleased.push(...released.map((r) => r.promoCode ?? `#${r.promotionId}`))
     } else if (status !== 'cancelled' && current.status === 'cancelled') {
       if (await claimStockRededuct(id, client)) {
         await adjustStockForOrder(id, -1, client)
+      }
+      // The earlier cancel released the promo usage — re-claim it so a
+      // reopened order keeps counting against the limit, mirroring the
+      // stock restore/re-deduct above. Best-effort: the limit may have been
+      // taken meanwhile; then the order keeps its discount without a slot.
+      // Guard against pre-fix rows so a legacy cancelled order can't be
+      // double-counted on reopen.
+      const { recordPromoUsageForOrder } = await import('@/lib/shop/promo-usage')
+      const alreadyCounted = await client.query(`SELECT 1 FROM promotion_usages WHERE order_reference = $1 LIMIT 1`, [
+        current.order_number,
+      ])
+      if (alreadyCounted.rowCount === 0) {
+        await recordPromoUsageForOrder(
+          {
+            orderId: id,
+            orderNumber: current.order_number,
+            customerName: current.customer_name,
+            promoCode: current.promo_code,
+            discountTotal: current.discount_total,
+            autoDiscountId: current.auto_discount_id,
+            autoDiscountAmount: current.auto_discount_amount,
+            total: current.total,
+          },
+          client,
+        )
       }
     }
 
@@ -452,6 +503,9 @@ export async function updateOrderStatus(id: number, status: string) {
   if (!result.success) return result
   if (result.unchanged) return { success: true }
 
+  if (promoReleased.length > 0) {
+    await addHistory(id, 'note', `Использование промокода освобождено (отмена заказа): ${promoReleased.join(', ')}`)
+  }
   const label = getOrderStatusLabel(status, user.locale)
   const t = getAdminDictionary(user.locale).auditLog
   await addHistory(id, 'status', fillAuditTemplate(t.orderStatusChanged, { label }))
@@ -470,12 +524,40 @@ export async function updateOrderStatus(id: number, status: string) {
   return { success: true }
 }
 
-export async function updateOrderPayment(id: number, paymentStatus: string) {
+export async function updateOrderPayment(id: number, paymentStatus: string): Promise<{ success: boolean; error?: string }> {
   const user = await assertWritePermission('orders')
   if (!PAYMENT_STATUSES.some((s) => s.value === paymentStatus)) {
     return { success: false, error: 'Невідомий статус оплати' }
   }
+  const [current] = await db
+    .select({ orderNumber: orders.orderNumber, status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, id))
+    .limit(1)
   await db.update(orders).set({ paymentStatus, updatedAt: new Date() }).where(eq(orders.id, id))
+  // BUGFIX: manually marking an order 'paid' used to leave an online order
+  // stuck in 'pending_payment' — stock never deducted, promo usage never
+  // counted, notification never sent, and the order hidden from the shop
+  // account ("paid but doesn't exist"). finalizePaidOrder is idempotent: it
+  // only acts when the status is still pending_payment.
+  if (paymentStatus === 'paid' && current?.status === 'pending_payment') {
+    const { finalizePaidOrder } = await import('@/lib/shop/order-fulfillment')
+    await finalizePaidOrder(current.orderNumber)
+  }
+  // BUGFIX: a manually marked full refund voids the sale — release the promo
+  // usage like the gateway refund path does. Idempotent: already-released
+  // orders are a no-op.
+  if (paymentStatus === 'refunded' && current) {
+    const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
+    const { released } = await releasePromotionUsageForOrder(current.orderNumber)
+    if (released.length > 0) {
+      await addHistory(
+        id,
+        'note',
+        `Использование промокода освобождено (возврат): ${released.map((r) => r.promoCode ?? `#${r.promotionId}`).join(', ')}`,
+      )
+    }
+  }
   const label = getPaymentStatusLabel(paymentStatus, user.locale)
   await addHistory(
     id,
@@ -498,7 +580,7 @@ export async function updateOrderDelivery(
     deliveryStatus?: string
     deliveryCost?: number
   },
-) {
+): Promise<{ success: boolean; error?: string }> {
   const user = await assertWritePermission('orders')
   const [current] = await db.select({ trackingNumber: orders.trackingNumber, status: orders.status }).from(orders).where(eq(orders.id, id)).limit(1)
   const set: Record<string, unknown> = { updatedAt: new Date() }
@@ -508,7 +590,14 @@ export async function updateOrderDelivery(
   if (data.deliveryAddress !== undefined) set.deliveryAddress = data.deliveryAddress
   if (data.trackingNumber !== undefined) {
     set.trackingNumber = data.trackingNumber
-    if (data.trackingNumber.trim() && current && current.status !== 'shipped' && current.status !== 'done' && current.status !== 'cancelled') {
+    // BUGFIX: never auto-ship an unpaid online order ('pending_payment').
+    // Entering a TTN used to flip pending_payment -> shipped, which skipped
+    // applyOrderFulfillment/finalizePaidOrder entirely (no stock deduction,
+    // no promo accounting). When the payment later arrived, finalizePaidOrder
+    // no-op'd on the status mismatch and the warehouse ledger diverged from
+    // reality forever. An unpaid order keeps its status; the TTN is still saved.
+    const nonShippable = new Set(['shipped', 'done', 'cancelled', 'pending_payment'])
+    if (data.trackingNumber.trim() && current && !nonShippable.has(current.status)) {
       set.status = 'shipped'
     }
   }
@@ -533,7 +622,7 @@ export async function updateOrderDelivery(
   return { success: true }
 }
 
-export async function updateOrderNote(id: number, note: string) {
+export async function updateOrderNote(id: number, note: string): Promise<{ success: boolean; error?: string }> {
   await assertWritePermission('orders')
   await db.update(orders).set({ note, updatedAt: new Date() }).where(eq(orders.id, id))
   revalidatePath(`/admin/orders/${id}`)

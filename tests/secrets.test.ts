@@ -82,4 +82,18 @@ describe('secrets encryption', () => {
     // decrypting an already-plain config is a no-op
     expect(decryptSecret(decryptConfigSecrets(cfg, ['token']).token)).toBe('tok123')
   })
+
+  it('encrypts the delivery apiKey (REGRESSION: was stored in plaintext)', async () => {
+    const { encryptConfigSecrets, decryptConfigSecrets, DELIVERY_CONFIG_SECRET_KEYS } = await loadSecrets()
+    const cfg = { apiKey: 'live_np_key_123', senderCityRef: 'city-ref', other: 'x' }
+    const enc = encryptConfigSecrets(cfg, DELIVERY_CONFIG_SECRET_KEYS)
+    expect(enc.apiKey).not.toBe('live_np_key_123')
+    expect(enc.apiKey.startsWith('enc:v1:')).toBe(true)
+    expect(enc.senderCityRef).toBe('city-ref')
+    expect(enc.other).toBe('x')
+    // read path (getNovaPoshtaKey) recovers the key; legacy plaintext rows pass through
+    const dec = decryptConfigSecrets(enc, DELIVERY_CONFIG_SECRET_KEYS)
+    expect(dec.apiKey).toBe('live_np_key_123')
+    expect(decryptConfigSecrets(cfg, DELIVERY_CONFIG_SECRET_KEYS).apiKey).toBe('live_np_key_123')
+  })
 })

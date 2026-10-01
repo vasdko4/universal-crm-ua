@@ -5,7 +5,8 @@ import { pool } from '@/lib/db'
 import { getShopUser } from '@/lib/session'
 import { sendMail } from '@/lib/mailer'
 import { normalizeUaPhone } from '@/lib/shop/phone'
-import { isRateLimited } from '@/lib/api/rate-limit'
+import { isRateLimited, clientIpFromHeaders } from '@/lib/api/rate-limit'
+import { headers } from 'next/headers'
 import { looksLikeEmail } from '@/lib/text'
 import { hashPassword } from 'better-auth/crypto'
 import { getLocale } from '@/lib/i18n/server'
@@ -58,6 +59,12 @@ async function isGoogleLinked(userId: string): Promise<boolean> {
 // Pre-registration check used by the sign-up form BEFORE creating the account,
 // so we never end up with an account that has a duplicate phone.
 export async function checkPhoneAvailable(phone: string) {
+  // BUGFIX: this unauthenticated action used to be a rate-limit-free oracle
+  // for enumerating registered phone numbers (PII). Throttle per IP.
+  const ip = clientIpFromHeaders(await headers())
+  if (await isRateLimited('phone-available', ip, 10, 600_000)) {
+    return { available: false, error: 'Забагато спроб. Спробуйте пізніше.' }
+  }
   const norm = normalizeUaPhone(phone ?? '')
   if (!norm) return { available: false, error: 'Введите корректный номер телефона' }
   if (await phoneTakenByOther(norm)) {

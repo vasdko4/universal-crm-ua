@@ -452,7 +452,13 @@ export async function duplicateProduct(id: number) {
   const source = await getProduct(id)
   if (!source) return { success: false, error: 'Товар не найден' }
 
-  const { id: _id, createdAt, updatedAt, deletedAt, categoryIds, groupIds, characteristics, viewsCount, ordersCount, ...rest } = source
+  const { id: _id, createdAt, updatedAt, deletedAt, categoryIds, groupIds, characteristics, viewsCount, ordersCount,
+    // BUGFIX: slug is UNIQUE — copying it verbatim made every duplication of a
+    // product with a slug crash with a unique-violation (unhandled 500).
+    // promId must not be copied either: the Prom.ua importer matches on it,
+    // and a duplicate promId would make the next import overwrite the copy
+    // (or pick nondeterministically between the two rows).
+    slug: _slug, promId: _promId, ...rest } = source
 
   const created = await withDbClient(async (client) => {
     const tx = dbForClient(client)
@@ -460,6 +466,8 @@ export async function duplicateProduct(id: number) {
       .insert(products)
       .values({
         ...rest,
+        slug: null,
+        promId: null,
         nameRu: rest.nameRu ? `${rest.nameRu} (копия)` : null,
         nameUk: rest.nameUk ? `${rest.nameUk} (копія)` : null,
         sku: rest.sku ? `${rest.sku}-COPY` : null,
