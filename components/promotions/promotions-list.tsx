@@ -309,7 +309,6 @@ function PromotionCard({
       toast.error(t.promotions.toastCodeCopyFailed)
     }
   }
-
   const isPromo = p.type === 'promocode'
   const discount =
     p.discountType === 'percentage'

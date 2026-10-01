@@ -11,6 +11,7 @@ import {
   type MigrationStatus,
 } from '@/app/actions/db-migrate'
 
+
 export function DbSchemaPanel() {
   const { dict: t, locale } = useAdminI18n()
   const [status, setStatus] = useState<MigrationStatus | null>(null)

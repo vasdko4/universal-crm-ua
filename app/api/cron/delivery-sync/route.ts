@@ -36,6 +36,8 @@ export async function GET(req: NextRequest) {
     const result = await syncNovaPoshtaTracking()
     return NextResponse.json(result, { status: result.ok ? 200 : 422 })
   } catch (e) {
+    // A dead delivery-sync cron means TTNs silently stop updating —
+    // ping the admin, not just the logs.
     void reportError('cron.delivery-sync', e, { alertAdmin: true })
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
   }

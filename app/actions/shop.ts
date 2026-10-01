@@ -531,26 +531,34 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       // Real gateway flow: create an invoice and send the shopper to the gateway.
       const serviceUrl = `${baseUrl}/api/payments/${gateway.code}/callback`
       const returnUrl = `${baseUrl}${localizedPath('/checkout/return', locale)}?orderReference=${encodeURIComponent(orderNumber)}`
-      const result =
-        gateway.code === 'wayforpay'
-          ? await wayforpayCreateInvoice(gateway.config, {
-              orderReference: orderNumber,
-              amount: total,
-              currency: 'UAH',
-              productName: `Заказ №${orderNumber}`,
-              clientEmail: input.email?.trim(),
-              clientPhone: input.phone.trim(),
-              serviceUrl,
-              returnUrl,
-            })
-          : await monobankCreateInvoice(gateway.config, {
-              orderReference: orderNumber,
-              amount: total,
-              currency: 'UAH',
-              description: `Заказ №${orderNumber}`,
-              redirectUrl: returnUrl,
-              webHookUrl: serviceUrl,
-            })
+      // Invoice creation can throw (network, gateway timeout). Convert the
+      // throw into a gateway failure so the order is cancelled, the admin
+      // is alerted and the shopper gets a clear error — same as a bad token.
+      let result
+      try {
+        result =
+          gateway.code === 'wayforpay'
+            ? await wayforpayCreateInvoice(gateway.config, {
+                orderReference: orderNumber,
+                amount: total,
+                currency: 'UAH',
+                productName: `Заказ №${orderNumber}`,
+                clientEmail: input.email?.trim(),
+                clientPhone: input.phone.trim(),
+                serviceUrl,
+                returnUrl,
+              })
+            : await monobankCreateInvoice(gateway.config, {
+                orderReference: orderNumber,
+                amount: total,
+                currency: 'UAH',
+                description: `Заказ №${orderNumber}`,
+                redirectUrl: returnUrl,
+                webHookUrl: serviceUrl,
+              })
+      } catch (e) {
+        result = { ok: false as const, message: (e as Error).message }
+      }
 
       if (result.ok && result.paymentUrl) {
         try {
@@ -582,7 +590,9 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         // gateway outage, ...). Never fall through to the demo payment page in
         // this case — the shopper could "pay" without any real charge. Cancel
         // the order and surface the error so it can be retried or fixed.
-        void reportError('payment.gateway-invoice', new Error('Gateway invoice creation failed'), {
+        // Critical money-flow failure — ping the admin, not just the logs.
+        // NOTE: reportError context only accepts { gateway, status } (PII-safe).
+        void reportError('payment.gateway-invoice', new Error(result.message ?? 'unknown error'), {
           alertAdmin: true,
           context: { gateway: gateway.code },
         })

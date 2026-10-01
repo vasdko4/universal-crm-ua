@@ -1,4 +1,5 @@
 import 'server-only'
+import { after } from 'next/server'
 import { pool } from '@/lib/db'
 import { revalidateStorefront } from '@/lib/shop/cache'
 
@@ -110,7 +111,9 @@ async function run(): Promise<void> {
     await pool.query(BACKFILL_SQL)
     // Catalog listings are cached; bust them after the one-shot backfill even
     // when rowCount is 0 (column already filled on a previous instance).
-    revalidateStorefront()
+    // This module runs inside the shop layout's render, where revalidateTag
+    // is unsupported — defer it past the response with `after()`.
+    after(() => revalidateStorefront())
   } catch (err) {
     console.error('[backfill-product-sizes]', err instanceof Error ? err.message : err)
   }

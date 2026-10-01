@@ -15,6 +15,7 @@ import {
   emailVerificationMail,
   isSixDigitCode,
 } from '@/lib/shop/email-verification'
+import { getStoreSettingsInternal } from '@/lib/store-settings'
 
 // The phone number is the stable customer identifier: it must be unique
 // across accounts. Comparison uses the last 9 digits (operator + subscriber),
@@ -130,8 +131,14 @@ export async function sendEmailVerification() {
   )
 
   const locale = await getLocale().catch(() => 'uk' as const)
-  const mail = emailVerificationMail(locale === 'ru' ? 'ru' : 'uk', code)
-  await sendMail({ to: email, subject: mail.subject, text: mail.text })
+  const settings = await getStoreSettingsInternal().catch(() => null)
+  const mail = emailVerificationMail(locale === 'ru' ? 'ru' : 'uk', code, {
+    storeName: settings?.storeName,
+    siteUrl: settings?.seo?.siteUrl,
+    logoUrl: settings?.logoUrl,
+    supportEmail: (settings?.emailSettings?.fromEmail as string) || null,
+  })
+  await sendMail({ to: email, subject: mail.subject, text: mail.text, html: mail.html })
   return { success: true as const, alreadyVerified: false as const }
 }
 

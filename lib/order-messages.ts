@@ -262,6 +262,7 @@ ${L.footer}`
 <html lang="${loc}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(heading)}</title></head>
 <body style="margin:0;padding:0;background:#f4f4f2">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${esc(intro)} ${esc(storeName)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f2;padding:24px 12px">
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a">

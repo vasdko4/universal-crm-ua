@@ -1,3 +1,23 @@
+/**
+ * Centralized server-side error reporting.
+ *
+ * Problem it solves: failures in background/critical paths (payment gateway,
+ * delivery-sync cron, OTP mail, notifications) were only written to
+ * `console.log('[v0] …')` — invisible in production unless someone happened
+ * to watch the logs. Now every failure goes through `reportError`, which:
+ *
+ * 1. Always writes a structured `console.error` line (JSON with a stable
+ *    `tag`) — visible in Vercel Runtime Logs and any log drain.
+ * 2. Optionally pings the admin Telegram chat for critical failures
+ *    (`alertAdmin: true`) — the same bot/chat the order alerts use.
+ *
+ * Safety rules (do not break them):
+ * - `reportError` never throws — logging/alerting failures are swallowed.
+ * - It never reports its own failures — no recursion.
+ * - The Telegram sender is self-contained on purpose: this module must not
+ *   import `lib/notifications` (which imports this module).
+ * - Context is PII-safe by type: only { gateway, status } are accepted.
+ */
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 
 export type ReportErrorOptions = {
@@ -11,6 +31,10 @@ export type ReportErrorOptions = {
   context?: {
     gateway?: string
     status?: number
+    productId?: number
+    orderId?: number
+    reason?: string
+    subject?: string
   }
 }
 
@@ -18,15 +42,31 @@ function safeTag(tag: string): string {
   return /^[a-z0-9._-]{1,80}$/i.test(tag) ? tag : 'server.error'
 }
 
+function safeText(value: unknown, maxLen: number): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const t = value.trim()
+  return t.length > 0 && t.length <= maxLen ? t : undefined
+}
+
 function safeContext(context: ReportErrorOptions['context']) {
   if (!context) return {}
-  const safe: { gateway?: string; status?: number } = {}
+  const safe: NonNullable<ReportErrorOptions['context']> = {}
   if (typeof context.gateway === 'string' && /^[a-z0-9_-]{1,40}$/i.test(context.gateway)) {
     safe.gateway = context.gateway
   }
   if (Number.isInteger(context.status) && context.status! >= 100 && context.status! <= 599) {
     safe.status = context.status
   }
+  if (Number.isInteger(context.productId) && context.productId! >= 0) {
+    safe.productId = context.productId
+  }
+  if (Number.isInteger(context.orderId) && context.orderId! >= 0) {
+    safe.orderId = context.orderId
+  }
+  const reason = safeText(context.reason, 60)
+  if (reason) safe.reason = reason
+  const subject = safeText(context.subject, 120)
+  if (subject) safe.subject = subject
   return safe
 }
 

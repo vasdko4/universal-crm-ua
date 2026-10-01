@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg'
 import { pool } from '@/lib/db'
 
 /**
@@ -7,17 +8,32 @@ import { pool } from '@/lib/db'
  * 1. Hide the six demo SKUs so they stop sitting next to imported cards.
  * 2. Move products off Prom's "Техніка та електроніка" root onto the
  *    seeded "Електроніка" category (same parent), then hide the duplicate.
+ *
+ * Runs under a Postgres advisory lock so concurrent cold starts (Vercel
+ * spins up many instances at once) don't run it against each other, and
+ * retries on deadlock (40P01) when it collides with live shop traffic.
  */
 const DEMO_SKUS = ['IPH15P-128', 'CASE-15P-SIL', 'JBL-CH5', 'LOG-G502', 'KEY-K2', 'APP-2023-001']
 
-export async function runCatalogHygiene(): Promise<void> {
+// Stable two-part advisory-lock key for this job.
+const HYGIENE_LOCK_KEY = [20261001, 7] as const
+const MAX_ATTEMPTS = 3
+const DEADLOCK_CODE = '40P01'
+
+function isDeadlock(err: unknown): boolean {
+  return (err as { code?: string } | null)?.code === DEADLOCK_CODE
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+async function runOnce(client: Pick<PoolClient, 'query'>): Promise<void> {
   // Fresh / CI seeds only have the demo SKUs — leave them visible so e2e
   // and empty shops still have a catalog. Hide them once a Prom import exists.
-  const { rows: imported } = await pool.query<{ n: string }>(
+  const { rows: imported } = await client.query<{ n: string }>(
     `SELECT count(*)::text AS n FROM products WHERE deleted_at IS NULL AND prom_id IS NOT NULL`,
   )
   if (Number(imported[0]?.n ?? 0) > 0) {
-    await pool.query(
+    await client.query(
       `UPDATE products
        SET is_visible = false, updated_at = NOW()
        WHERE deleted_at IS NULL
@@ -30,7 +46,7 @@ export async function runCatalogHygiene(): Promise<void> {
 
   // Drop Prom.ua's doubled strike-through (exactly 2×) so the storefront
   // stops showing a fake −50% on almost every imported card.
-  await pool.query(`
+  await client.query(`
     UPDATE products
     SET old_price = NULL, updated_at = NOW()
     WHERE deleted_at IS NULL
@@ -41,7 +57,7 @@ export async function runCatalogHygiene(): Promise<void> {
   `)
 
   // Prom titles use both pipes and colons ("…, ціна 2125 ₴: купити на Prom.ua | Україна, Київ").
-  await pool.query(`
+  await client.query(`
     UPDATE products
     SET
       meta_title_uk = NULLIF(trim(both FROM regexp_replace(
@@ -67,7 +83,7 @@ export async function runCatalogHygiene(): Promise<void> {
       )
   `)
 
-  await pool.query(`
+  await client.query(`
     WITH alias_map AS (
       SELECT c.id AS from_id, t.id AS to_id
       FROM categories c
@@ -92,7 +108,7 @@ export async function runCatalogHygiene(): Promise<void> {
     )
   `)
 
-  await pool.query(`
+  await client.query(`
     WITH alias_map AS (
       SELECT c.id AS from_id, t.id AS to_id
       FROM categories c
@@ -108,7 +124,7 @@ export async function runCatalogHygiene(): Promise<void> {
     WHERE child.parent_id = m.from_id
   `)
 
-  await pool.query(`
+  await client.query(`
     WITH alias_ids AS (
       SELECT c.id
       FROM categories c
@@ -124,7 +140,7 @@ export async function runCatalogHygiene(): Promise<void> {
     DELETE FROM product_category WHERE category_id IN (SELECT id FROM alias_ids)
   `)
 
-  await pool.query(`
+  await client.query(`
     UPDATE categories c
     SET is_visible = false, updated_at = NOW()
     FROM categories t
@@ -139,7 +155,7 @@ export async function runCatalogHygiene(): Promise<void> {
   // Prom products land in "Електроніка". Hide them so the catalog chips
   // don't show 0-item categories. Leave them visible on a seed-only shop.
   if (Number(imported[0]?.n ?? 0) > 0) {
-    await pool.query(`
+    await client.query(`
       UPDATE categories
       SET is_visible = false, updated_at = NOW()
       WHERE parent_id IS NULL
@@ -154,5 +170,37 @@ export async function runCatalogHygiene(): Promise<void> {
             AND p.is_visible IS DISTINCT FROM false
         )
     `)
+  }
+}
+
+/**
+ * Entry point used by `instrumentation.ts` on boot. Takes a session-level
+ * advisory lock so only one instance runs the cleanup at a time; a second
+ * concurrent cold start simply skips it. Deadlocks against live traffic are
+ * retried with backoff — every statement above is idempotent.
+ */
+export async function runCatalogHygiene(): Promise<void> {
+  const client = await pool.connect()
+  try {
+    const { rows } = await client.query<{ ok: boolean }>(
+      'SELECT pg_try_advisory_lock($1, $2) AS ok',
+      [...HYGIENE_LOCK_KEY],
+    )
+    if (!rows[0]?.ok) return
+    try {
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await runOnce(client)
+          return
+        } catch (err) {
+          if (!isDeadlock(err) || attempt >= MAX_ATTEMPTS) throw err
+          await sleep(250 * attempt)
+        }
+      }
+    } finally {
+      await client.query('SELECT pg_advisory_unlock($1, $2)', [...HYGIENE_LOCK_KEY])
+    }
+  } finally {
+    client.release()
   }
 }
