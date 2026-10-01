@@ -3,6 +3,7 @@ import 'server-only'
 import { headers } from 'next/headers'
 import { pool } from '@/lib/db'
 import { clientIpFromHeaders } from '@/lib/api/rate-limit'
+import { reportError } from '@/lib/server-errors'
 
 export type AuditAction = 'login' | 'create' | 'update' | 'delete' | 'toggle' | 'settings' | 'security'
 
@@ -54,6 +55,6 @@ export async function auditLog(entry: AuditEntry): Promise<void> {
       ],
     )
   } catch (e) {
-    console.log('[v0] audit log write failed:', (e as Error).message)
+    void reportError('audit-log.write', e)
   }
 }

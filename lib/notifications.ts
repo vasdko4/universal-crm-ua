@@ -1,6 +1,7 @@
 import { pool } from '@/lib/db'
 import type { Order, OrderItem } from '@/lib/db/schema'
 import { sendMail } from '@/lib/mailer'
+import { reportError } from '@/lib/server-errors'
 import { buildOrderMessage } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getProductSlugMap } from '@/lib/shop/queries'
@@ -30,13 +31,14 @@ export async function sendTelegramMessage(
       signal: AbortSignal.timeout(10_000),
     })
     if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      console.log('[v0] Telegram send failed:', res.status, body.slice(0, 200))
+      void reportError('telegram.send', new Error('Telegram API request failed'), {
+        context: { status: res.status },
+      })
       return false
     }
     return true
   } catch (e) {
-    console.log('[v0] Telegram send error:', (e as Error).message)
+    void reportError('telegram.send', e)
     return false
   }
 }
@@ -64,13 +66,14 @@ export async function sendTelegramPhoto(
       signal: AbortSignal.timeout(15_000),
     })
     if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      console.log('[v0] Telegram photo failed:', res.status, body.slice(0, 200))
+      void reportError('telegram.photo', new Error('Telegram API request failed'), {
+        context: { status: res.status },
+      })
       return false
     }
     return true
   } catch (e) {
-    console.log('[v0] Telegram photo error:', (e as Error).message)
+    void reportError('telegram.photo', e)
     return false
   }
 }
@@ -231,7 +234,9 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
       const msg = buildOrderMessage('confirmation', o, items, storeCtx, productSlugs)
       jobs.push(
         sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html }).catch(
-          (e) => console.log('[v0] customer email failed:', (e as Error).message),
+          (e) => {
+            void reportError('notify.customer-email', e)
+          },
         ),
       )
     }
@@ -245,7 +250,9 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
           to: adminTo,
           subject: `Новый заказ №${o.orderNumber} — ${money(o.total, o.currency, 'uk')}`,
           text,
-        }).catch((e) => console.log('[v0] admin email failed:', (e as Error).message)),
+        }).catch((e) => {
+          void reportError('notify.admin-email', e)
+        }),
       )
     }
 
@@ -275,7 +282,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
 
     await Promise.allSettled(jobs)
   } catch (e) {
-    console.log('[v0] notifyNewOrder failed:', (e as Error).message)
+    void reportError('notify.new-order', e)
   }
 }
 
@@ -345,6 +352,6 @@ export async function notifyShippedOrder(orderId: number): Promise<void> {
     const msg = buildOrderMessage('shipped', o, items, storeCtx, productSlugs)
     await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
   } catch (e) {
-    console.log('[v0] notifyShippedOrder failed:', (e as Error).message)
+    void reportError('notify.shipped-order', e)
   }
 }
