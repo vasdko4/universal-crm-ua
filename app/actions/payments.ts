@@ -181,7 +181,11 @@ export async function createPayment(input: {
   if (!input.amount || input.amount <= 0) return { ok: false, message: 'Укажите корректную сумму' }
 
   const orderReference = genOrderRef()
-  const config = (gateway.config ?? {}) as Record<string, string>
+  // BUGFIX: gateway secrets are stored encrypted (updateGateway encrypts
+  // them). Every other caller decrypts via decryptConfigSecrets — createPayment
+  // used to pass the ciphertext (enc:v1:...) straight to the provider, so
+  // manual invoice creation broke with an auth error after any settings save.
+  const config = decryptConfigSecrets((gateway.config ?? {}) as Record<string, string>, GATEWAY_SECRET_KEYS)
   const origin = process.env.V0_RUNTIME_URL || process.env.VERCEL_URL || ''
   const baseUrl = origin.startsWith('http') ? origin : origin ? `https://${origin}` : ''
 

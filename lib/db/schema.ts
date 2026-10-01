@@ -689,6 +689,10 @@ export const analyticsEvents = pgTable('analytics_events', {
   orderId: integer('order_id'),
   amount: numeric('amount', { precision: 12, scale: 2 }),
   sessionId: varchar('session_id', { length: 80 }),
+  // BUGFIX: the column exists in db/schema.sql + migrations/004 (varchar 300)
+  // and trackEvent writes it, but the Drizzle model was missing it — the only
+  // such drift in the whole schema.
+  referrer: varchar('referrer', { length: 300 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 

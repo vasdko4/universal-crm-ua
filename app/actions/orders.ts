@@ -306,6 +306,17 @@ export async function createOrder(input: {
   tags?: string[]
 }) {
   const me = await assertWritePermission('orders')
+  // BUGFIX: quantities were never validated. A line with quantity = -5 passed
+  // `applyOrderFulfillment`'s `quantity >= -5` check and INFLATED warehouse
+  // stock (quantity - (-5)); quantity = 0 created junk lines. Reject early.
+  for (const item of input.items) {
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+      return { success: false, error: `Некоректна кількість для позиції «${item.name ?? '?'}»: ${item.quantity}` }
+    }
+    if (!Number.isFinite(item.price) || item.price < 0) {
+      return { success: false, error: `Некоректна ціна для позиції «${item.name ?? '?'}` }
+    }
+  }
   const itemsTotal = input.items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const { deliveryCost, total } = computeOrderTotals({
     itemsTotal,
@@ -470,12 +481,26 @@ export async function updateOrderStatus(id: number, status: string) {
   return { success: true }
 }
 
-export async function updateOrderPayment(id: number, paymentStatus: string) {
+export async function updateOrderPayment(id: number, paymentStatus: string): Promise<{ success: boolean; error?: string }> {
   const user = await assertWritePermission('orders')
   if (!PAYMENT_STATUSES.some((s) => s.value === paymentStatus)) {
     return { success: false, error: 'Невідомий статус оплати' }
   }
+  const [current] = await db
+    .select({ orderNumber: orders.orderNumber, status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, id))
+    .limit(1)
   await db.update(orders).set({ paymentStatus, updatedAt: new Date() }).where(eq(orders.id, id))
+  // BUGFIX: manually marking an order 'paid' used to leave an online order
+  // stuck in 'pending_payment' — stock never deducted, promo usage never
+  // counted, notification never sent, and the order hidden from the shop
+  // account ("paid but doesn't exist"). finalizePaidOrder is idempotent: it
+  // only acts when the status is still pending_payment.
+  if (paymentStatus === 'paid' && current?.status === 'pending_payment') {
+    const { finalizePaidOrder } = await import('@/lib/shop/order-fulfillment')
+    await finalizePaidOrder(current.orderNumber)
+  }
   const label = getPaymentStatusLabel(paymentStatus, user.locale)
   await addHistory(
     id,
@@ -498,7 +523,7 @@ export async function updateOrderDelivery(
     deliveryStatus?: string
     deliveryCost?: number
   },
-) {
+): Promise<{ success: boolean; error?: string }> {
   const user = await assertWritePermission('orders')
   const [current] = await db.select({ trackingNumber: orders.trackingNumber, status: orders.status }).from(orders).where(eq(orders.id, id)).limit(1)
   const set: Record<string, unknown> = { updatedAt: new Date() }
@@ -508,7 +533,14 @@ export async function updateOrderDelivery(
   if (data.deliveryAddress !== undefined) set.deliveryAddress = data.deliveryAddress
   if (data.trackingNumber !== undefined) {
     set.trackingNumber = data.trackingNumber
-    if (data.trackingNumber.trim() && current && current.status !== 'shipped' && current.status !== 'done' && current.status !== 'cancelled') {
+    // BUGFIX: never auto-ship an unpaid online order ('pending_payment').
+    // Entering a TTN used to flip pending_payment -> shipped, which skipped
+    // applyOrderFulfillment/finalizePaidOrder entirely (no stock deduction,
+    // no promo accounting). When the payment later arrived, finalizePaidOrder
+    // no-op'd on the status mismatch and the warehouse ledger diverged from
+    // reality forever. An unpaid order keeps its status; the TTN is still saved.
+    const nonShippable = new Set(['shipped', 'done', 'cancelled', 'pending_payment'])
+    if (data.trackingNumber.trim() && current && !nonShippable.has(current.status)) {
       set.status = 'shipped'
     }
   }
@@ -533,7 +565,7 @@ export async function updateOrderDelivery(
   return { success: true }
 }
 
-export async function updateOrderNote(id: number, note: string) {
+export async function updateOrderNote(id: number, note: string): Promise<{ success: boolean; error?: string }> {
   await assertWritePermission('orders')
   await db.update(orders).set({ note, updatedAt: new Date() }).where(eq(orders.id, id))
   revalidatePath(`/admin/orders/${id}`)

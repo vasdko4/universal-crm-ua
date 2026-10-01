@@ -47,6 +47,7 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
   let failed = 0
   const errors: string[] = []
 
+  try {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     try {
@@ -54,11 +55,27 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       const nameUk = row.name_uk?.trim()
       if (!nameRu && !nameUk) throw new Error('нет названия')
 
-      const price = Number(row.price ?? 0)
-      if (Number.isNaN(price) || price < 0) throw new Error('некорректная цена')
+      // BUGFIX: price/quantity validation. An empty or malformed price cell
+      // used to become price 0 silently (Number('') === 0), zeroing out a
+      // product's price on feed re-imports; negative quantities were silently
+      // clamped to 0. Fail the row with a clear message instead.
+      const priceRaw = (row.price ?? '').toString().trim()
+      if (!priceRaw) throw new Error('некорректная цена: пустое значение')
+      const price = Number(priceRaw)
+      if (!Number.isFinite(price) || price < 0) throw new Error('некорректная цена')
 
-      const quantity = Math.max(0, Math.trunc(Number(row.quantity ?? 0) || 0))
-      const oldPrice = row.old_price && !Number.isNaN(Number(row.old_price)) ? row.old_price : null
+      const quantityRaw = (row.quantity ?? '').toString().trim()
+      let quantity = 0
+      if (quantityRaw) {
+        const q = Number(quantityRaw)
+        if (!Number.isFinite(q)) throw new Error('некорректное количество')
+        if (q < 0) throw new Error('отрицательное количество')
+        quantity = Math.min(999_999, Math.trunc(q))
+      }
+      const oldPriceRaw = (row.old_price ?? '').toString().trim()
+      const oldPriceNum = oldPriceRaw ? Number(oldPriceRaw) : NaN
+      const oldPrice =
+        oldPriceRaw && Number.isFinite(oldPriceNum) && oldPriceNum >= 0 ? row.old_price : null
       const sku = row.sku?.trim() || null
 
       // Re-importing the same supplier feed (price/stock updates) is the
@@ -112,6 +129,23 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       failed++
       errors.push(`Строка ${i + 1}: ${e instanceof Error ? e.message : 'ошибка'}`)
     }
+  }
+  } catch (e) {
+    // BUGFIX: an unexpected failure (e.g. lost DB connection mid-import) used
+    // to leave the task stuck in 'processing' forever. Mark it failed.
+    await db
+      .update(importTasks)
+      .set({
+        status: 'failed',
+        processedItems: rows.length,
+        successItems: success,
+        failedItems: failed,
+        errorLog: `Импорт прерван: ${e instanceof Error ? e.message : 'внутренняя ошибка'}`,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(importTasks.id, task.id))
+    throw e
   }
 
   await db

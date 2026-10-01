@@ -105,6 +105,16 @@ async function bumpProductStock(
 ) {
   const { productId, variantId, qty, sign, orderId } = input
   if (variantId != null) {
+    // BUGFIX: the ledger must record the ACTUAL stock change, not the
+    // requested one. The UPDATE below clamps at 0 via GREATEST(0, ...), but
+    // the ledger used to record the full requested qty — a later restore
+    // then returned more units than were ever taken (phantom stock).
+    const beforeVar = await q.query<{ quantity: string }>(
+      `SELECT quantity FROM product_variants WHERE id = $1`,
+      [variantId],
+    )
+    const beforeVarQty = Math.max(0, Number(beforeVar.rows[0]?.quantity ?? 0))
+    const actualQty = sign === -1 ? Math.min(qty, beforeVarQty) : qty
     await q.query(
       `UPDATE product_variants
           SET quantity = GREATEST(0, quantity + $1::int * $2::int),
@@ -123,7 +133,7 @@ async function bumpProductStock(
       {
         productId,
         variantId,
-        delta: sign * qty,
+        delta: sign * actualQty,
         quantityAfter: Number(res.rows[0]?.quantity),
         reason: sign === 1 ? 'cancel' : 'sale',
         orderId,
@@ -133,6 +143,12 @@ async function bumpProductStock(
     )
     return
   }
+  const beforeProd = await q.query<{ quantity: string }>(
+    `SELECT quantity FROM products WHERE id = $1`,
+    [productId],
+  )
+  const beforeProdQty = Math.max(0, Number(beforeProd.rows[0]?.quantity ?? 0))
+  const actualProdQty = sign === -1 ? Math.min(qty, beforeProdQty) : qty
   const res = await q.query(
     `UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int),
         is_in_stock = GREATEST(0, quantity + $1::int * $2::int) > 0 WHERE id = $3 RETURNING quantity`,
@@ -142,7 +158,7 @@ async function bumpProductStock(
     {
       productId,
       variantId: null,
-      delta: sign * qty,
+      delta: sign * actualProdQty,
       quantityAfter: Number(res.rows[0]?.quantity),
       reason: sign === 1 ? 'cancel' : 'sale',
       orderId,

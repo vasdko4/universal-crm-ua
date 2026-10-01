@@ -2,7 +2,7 @@
 
 import { eq, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { db } from '@/lib/db'
+import { db, pool } from '@/lib/db'
 import { deliveryMethods, orders, orderItems, products } from '@/lib/db/schema'
 import { assertWritePermission } from '@/lib/session'
 import { fillAuditTemplate } from '@/lib/audit-log'
@@ -73,7 +73,14 @@ export async function createTtnForOrder(
     senderPhone: cfg.senderPhone || '',
   }
   if (!sender.senderCityRef || !sender.senderRef || !sender.senderAddressRef || !sender.contactSenderRef) {
-    const fetched = await fetchSenderProfile(apiKey)
+    // BUGFIX: network failures / non-2xx used to throw straight through as an
+    // unhandled 500. Convert to a normal {ok:false} result.
+    let fetched: Awaited<ReturnType<typeof fetchSenderProfile>>
+    try {
+      fetched = await fetchSenderProfile(apiKey)
+    } catch (e) {
+      return { ok: false, error: (e as Error).message || 'Помилка зʼєднання з Новою Поштою' }
+    }
     if (!fetched.ok) {
       return {
         ok: false,
@@ -137,8 +144,50 @@ export async function createTtnForOrder(
     },
   })
 
-  const saved = await saveInternetDocument(apiKey, props)
+  // BUGFIX: idempotency. The trackingNumber guard at the top of this function
+  // doesn't protect against two parallel clicks — and every
+  // saveInternetDocument() creates a REAL consignment in Nova Poshta's
+  // system. Re-check right before the NP call: a duplicate invocation reuses
+  // the existing TTN instead of creating a second (orphaned) one.
+  const [fresh] = await db
+    .select({ trackingNumber: orders.trackingNumber })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+  const existingTtn = (fresh?.trackingNumber || '').trim()
+  if (existingTtn) {
+    return { ok: true, ttn: existingTtn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
+  }
+
+  let saved: Awaited<ReturnType<typeof saveInternetDocument>>
+  try {
+    saved = await saveInternetDocument(apiKey, props)
+  } catch (e) {
+    // BUGFIX: network failures / non-2xx used to throw as an unhandled 500
+    // after the order was already read — the admin got no actionable error.
+    return { ok: false, error: (e as Error).message || 'Помилка зʼєднання з Новою Поштою' }
+  }
   if (!saved.ok || !saved.ttn) return { ok: false, error: saved.error || 'Не вдалося створити ТТН' }
+
+  // Claim the write atomically: only the first concurrent caller wins. The
+  // loser re-reads and returns the winner's TTN instead of overwriting it
+  // with its own orphan consignment.
+  const claim = await pool.query(
+    `UPDATE orders
+        SET tracking_number = $2, updated_at = NOW()
+      WHERE id = $1 AND (tracking_number IS NULL OR tracking_number = '')
+      RETURNING id`,
+    [orderId, saved.ttn],
+  )
+  if (!claim.rowCount) {
+    const [winner] = await db
+      .select({ trackingNumber: orders.trackingNumber })
+      .from(orders)
+      .where(eq(orders.id, orderId))
+      .limit(1)
+    const winnerTtn = (winner?.trackingNumber || '').trim() || saved.ttn
+    return { ok: true, ttn: winnerTtn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
+  }
 
   await updateOrderDelivery(orderId, {
     trackingNumber: saved.ttn,

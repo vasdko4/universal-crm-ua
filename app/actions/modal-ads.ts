@@ -4,7 +4,9 @@ import { db } from '@/lib/db'
 import { modalAds } from '@/lib/db/schema'
 import { and, count, desc, eq, ilike, lte, or, isNull, gte, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { assertPermission, assertWritePermission } from '@/lib/session'
+import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { sanitizeSearch } from '@/lib/api/helpers'
@@ -245,6 +247,12 @@ const AD_EVENTS = new Set(['view', 'click', 'close'])
 
 // Storefront analytics: bump the denormalized counter for a campaign.
 export async function trackModalAdEvent(id: number, event: 'view' | 'click' | 'close') {
+  // BUGFIX: public action with no rate limit — counters (views/clicks/closes)
+  // could be inflated at will.
+  const ip = clientIpFromHeaders(await headers())
+  if (await isRateLimited('modal-ad-track', ip, 60)) {
+    return { success: false }
+  }
   if (!Number.isInteger(id) || id <= 0 || !AD_EVENTS.has(event)) return { success: false }
   const column =
     event === 'view' ? modalAds.viewsCount : event === 'click' ? modalAds.clicksCount : modalAds.closesCount

@@ -2,10 +2,13 @@
 
 import { pool } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { assertPermission, assertWritePermission, getAdminUser } from '@/lib/session'
+import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { hasPermission } from '@/lib/permissions'
 import type { Locale } from '@/lib/i18n/config'
 import { buildFunnel, type SalesFunnel } from '@/lib/analytics/funnel'
+import { normDays, normLimit } from '@/lib/api/helpers'
 
 async function adminLocale(): Promise<Locale> {
   const user = await getAdminUser()
@@ -51,6 +54,7 @@ export type BestsellerRow = {
 // Real bestsellers computed from paid/completed order items, enriched with the
 // product record so we can show image, price and the "top sale" flag.
 export async function getBestsellers(limit = 20): Promise<BestsellerRow[]> {
+  limit = normLimit(limit, 20)
   await assertPermission('bestsellers')
   const locale = await adminLocale()
   const res = await pool.query(
@@ -140,6 +144,7 @@ function trend(current: number, previous: number): number | null {
 }
 
 export async function getStatsSummary(days = 30): Promise<StatsSummary> {
+  days = normDays(days)
   await assertDashboardOrStatistics()
   // Traffic counters (pageviews/product views/add-to-cart/visitors) come from
   // analytics_events, which client-side tracking actually writes to.
@@ -267,6 +272,8 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
 
 // Where visitors come from: normalized referrer hosts ("direct" if none).
 export async function getTopReferrers(days = 30, limit = 8): Promise<ReferrerRow[]> {
+  days = normDays(days)
+  limit = normLimit(limit, 8)
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT
@@ -284,6 +291,7 @@ export async function getTopReferrers(days = 30, limit = 8): Promise<ReferrerRow
 }
 
 export async function getTimeseries(days = 30): Promise<TimeseriesPoint[]> {
+  days = normDays(days)
   await assertPermission('statistics')
   // Pageviews/visitors from analytics_events (actually tracked); orders from
   // the real `orders` table — analytics_events never gets an 'order' event
@@ -333,6 +341,8 @@ export async function getTimeseries(days = 30): Promise<TimeseriesPoint[]> {
 }
 
 export async function getTopPaths(days = 30, limit = 8): Promise<TopPathRow[]> {
+  days = normDays(days)
+  limit = normLimit(limit, 8)
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT path, COUNT(*)::int AS views
@@ -360,6 +370,12 @@ export async function trackEvent(input: {
   sessionId?: string
   referrer?: string
 }) {
+  // BUGFIX: public action with no rate limit — anyone could flood
+  // analytics_events with INSERTs and inflate products.views_count.
+  const ip = clientIpFromHeaders(await headers())
+  if (await isRateLimited('analytics-track', ip, 120)) {
+    return { success: false, error: 'Too many requests' }
+  }
   if (!ALLOWED_EVENT_TYPES.has(input.type)) {
     return { success: false, error: 'Неизвестный тип события' }
   }
@@ -390,6 +406,7 @@ export type RevenuePoint = { date: string; revenue: number; profit: number; orde
 
 // Daily revenue/profit/orders from real orders (not analytics events).
 export async function getRevenueTimeseries(days = 30): Promise<RevenuePoint[]> {
+  days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT
@@ -426,6 +443,7 @@ export async function getRevenueTimeseries(days = 30): Promise<RevenuePoint[]> {
 export type OrderStatusRow = { status: string; count: number; total: number }
 
 export async function getOrderStatusBreakdown(days = 30): Promise<OrderStatusRow[]> {
+  days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT status, COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
@@ -441,6 +459,7 @@ export async function getOrderStatusBreakdown(days = 30): Promise<OrderStatusRow
 export type MethodBreakdownRow = { method: string; count: number; total: number }
 
 export async function getDeliveryBreakdown(days = 30): Promise<MethodBreakdownRow[]> {
+  days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT COALESCE(NULLIF(delivery_method, ''), 'unspecified') AS method,
@@ -455,6 +474,7 @@ export async function getDeliveryBreakdown(days = 30): Promise<MethodBreakdownRo
 }
 
 export async function getPaymentBreakdown(days = 30): Promise<MethodBreakdownRow[]> {
+  days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT COALESCE(NULLIF(payment_method, ''), 'unspecified') AS method,
@@ -479,6 +499,8 @@ export type TopProductRow = {
 
 // Top products by revenue for the selected period.
 export async function getTopProductsPeriod(days = 30, limit = 10): Promise<TopProductRow[]> {
+  days = normDays(days)
+  limit = normLimit(limit, 10)
   await assertPermission('statistics')
   const locale = await adminLocale()
   const res = await pool.query(
@@ -514,6 +536,8 @@ export type CategorySalesRow = { name: string; unitsSold: number; revenue: numbe
 // Revenue per category over the period (products may sit in multiple categories —
 // we attribute the sale to each linked category once).
 export async function getCategorySales(days = 30, limit = 8): Promise<CategorySalesRow[]> {
+  days = normDays(days)
+  limit = normLimit(limit, 8)
   await assertPermission('statistics')
   const locale = await adminLocale()
   const res = await pool.query(
@@ -546,6 +570,7 @@ export type CustomerInsights = {
 }
 
 export async function getCustomerInsights(days = 30): Promise<CustomerInsights> {
+  days = normDays(days)
   await assertPermission('statistics')
   const [agg, top] = await Promise.all([
     pool.query(
@@ -604,6 +629,7 @@ export type WeekdayRow = { weekday: number; orders: number; revenue: number }
 
 // Orders per day of week (1 = Monday ... 7 = Sunday).
 export async function getWeekdayActivity(days = 30): Promise<WeekdayRow[]> {
+  days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT EXTRACT(ISODOW FROM created_at)::int AS weekday,
@@ -624,6 +650,7 @@ export async function getWeekdayActivity(days = 30): Promise<WeekdayRow[]> {
 export type AbandonedCartStats = { count: number; total: number }
 
 export async function getAbandonedCartStats(days = 30): Promise<AbandonedCartStats> {
+  days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
     `SELECT COUNT(*)::int AS count, COALESCE(SUM(items_total), 0)::float AS total
@@ -648,6 +675,7 @@ export type ProductAnalytics = {
 
 // Aggregated funnel for a single product over the given period (days).
 export async function getProductAnalytics(productId: number, days = 30): Promise<ProductAnalytics> {
+  days = normDays(days)
   await assertPermission('products')
   const [events, sales] = await Promise.all([
     pool.query(
@@ -692,6 +720,7 @@ export async function getProductViewCounts(
   productIds: number[],
   days = 30,
 ): Promise<Record<number, number>> {
+  days = normDays(days)
   await assertPermission('products')
   if (!productIds.length) return {}
   const res = await pool.query(

@@ -1,14 +1,8 @@
 import { pool } from '@/lib/db'
 import { getAdminUserWithPermission } from '@/lib/session'
+import { csvCell } from '@/lib/csv'
 
 export const dynamic = 'force-dynamic'
-
-// Escape a value for CSV: wrap in quotes and double any inner quotes.
-function csvCell(value: unknown): string {
-  if (value === null || value === undefined) return '""'
-  const s = String(value).replace(/"/g, '""')
-  return `"${s}"`
-}
 
 export async function GET() {
   const user = await getAdminUserWithPermission('products')
