@@ -88,8 +88,16 @@ export function PayForm({
   async function handlePay() {
     setProcessing(true)
     try {
-      await markOrderPaid(orderNumber)
-      setSuccess(true)
+      // BUGFIX: markOrderPaid is a fail-closed stub — it always returns
+      // {success:false}. The old code ignored the result and showed the
+      // success screen (and cleared the cart) even though the order was NOT
+      // paid. Honor the result instead.
+      const res = await markOrderPaid(orderNumber)
+      if (res.success) {
+        setSuccess(true)
+      } else {
+        toast.error(res.error ?? t.statusFailed)
+      }
     } finally {
       setProcessing(false)
     }

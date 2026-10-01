@@ -98,6 +98,7 @@ export function OrderDetail({
   const [sending, setSending] = useState<string | null>(null)
   const [refundAmount, setRefundAmount] = useState('')
   const [refundDialog, setRefundDialog] = useState<'full' | 'partial' | null>(null)
+  const [refunding, setRefunding] = useState(false)
 
   const orderStatuses = getOrderStatusOptions(locale)
   const paymentStatuses = getPaymentStatusOptions(locale)
@@ -122,7 +123,12 @@ export function OrderDetail({
   function changePayment(status: string) {
     startTransition(async () => {
       try {
-        await updateOrderPayment(order.id, status)
+        // BUGFIX: the result used to be ignored — failures showed "updated".
+        const res = await updateOrderPayment(order.id, status)
+        if (!res.success) {
+          toast.error(res.error ?? t.toastError)
+          return
+        }
         toast.success(t.toastPaymentUpdated)
         router.refresh()
       } catch {
@@ -163,10 +169,16 @@ export function OrderDetail({
   }
 
   function refundViaGateway(partial?: boolean) {
+    // BUGFIX: guard against double-clicks — the confirm button lives in a
+    // controlled AlertDialog (no auto-close), so two fast clicks used to fire
+    // two parallel refundOrder calls.
+    if (refunding) return
+    setRefunding(true)
     startTransition(async () => {
       const amount = partial ? parsedRefundAmount() ?? undefined : undefined
       if (partial && amount == null) {
         toast.error(t.refundInvalidAmount)
+        setRefunding(false)
         return
       }
       try {
@@ -181,6 +193,8 @@ export function OrderDetail({
         router.refresh()
       } catch {
         toast.error(t.toastError)
+      } finally {
+        setRefunding(false)
       }
     })
   }
@@ -199,21 +213,39 @@ export function OrderDetail({
 
   function saveTracking() {
     startTransition(async () => {
-      const trimmed = tracking.trim()
-      await updateOrderDelivery(order.id, {
-        trackingNumber: trimmed,
-        ...(trimmed ? { deliveryStatus: 'В пути' } : {}),
-      })
-      toast.success(t.toastTrackingSaved)
-      router.refresh()
+      try {
+        // BUGFIX: the result used to be ignored — failures showed "saved".
+        const trimmed = tracking.trim()
+        const res = await updateOrderDelivery(order.id, {
+          trackingNumber: trimmed,
+          ...(trimmed ? { deliveryStatus: 'В пути' } : {}),
+        })
+        if (!res.success) {
+          toast.error(res.error ?? t.toastError)
+          return
+        }
+        toast.success(t.toastTrackingSaved)
+        router.refresh()
+      } catch {
+        toast.error(t.toastError)
+      }
     })
   }
 
   function saveNote() {
     startTransition(async () => {
-      await updateOrderNote(order.id, note)
-      toast.success(t.toastNoteSaved)
-      router.refresh()
+      try {
+        // BUGFIX: the result used to be ignored — failures showed "saved".
+        const res = await updateOrderNote(order.id, note)
+        if (!res.success) {
+          toast.error(res.error ?? t.toastError)
+          return
+        }
+        toast.success(t.toastNoteSaved)
+        router.refresh()
+      } catch {
+        toast.error(t.toastError)
+      }
     })
   }
 
@@ -657,6 +689,7 @@ export function OrderDetail({
             <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={refunding}
               onClick={() => refundViaGateway(refundDialog === 'partial')}
             >
               {t.refundConfirmAction}

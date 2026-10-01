@@ -1,7 +1,7 @@
 import { db, pool, dbForClient } from '@/lib/db'
-import { orders, orderItems, orderHistory, promotions } from '@/lib/db/schema'
-import { asc, eq, sql } from 'drizzle-orm'
-import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
+import { orders, orderItems, orderHistory } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { recordPromoUsageForOrder } from '@/lib/shop/promo-usage'
 import { recordStockMovement, type QueryExecutor } from '@/lib/shop/stock-ledger'
 import type { PoolClient } from 'pg'
 
@@ -105,6 +105,16 @@ async function bumpProductStock(
 ) {
   const { productId, variantId, qty, sign, orderId } = input
   if (variantId != null) {
+    // BUGFIX: the ledger must record the ACTUAL stock change, not the
+    // requested one. The UPDATE below clamps at 0 via GREATEST(0, ...), but
+    // the ledger used to record the full requested qty — a later restore
+    // then returned more units than were ever taken (phantom stock).
+    const beforeVar = await q.query<{ quantity: string }>(
+      `SELECT quantity FROM product_variants WHERE id = $1`,
+      [variantId],
+    )
+    const beforeVarQty = Math.max(0, Number(beforeVar.rows[0]?.quantity ?? 0))
+    const actualQty = sign === -1 ? Math.min(qty, beforeVarQty) : qty
     await q.query(
       `UPDATE product_variants
           SET quantity = GREATEST(0, quantity + $1::int * $2::int),
@@ -123,7 +133,7 @@ async function bumpProductStock(
       {
         productId,
         variantId,
-        delta: sign * qty,
+        delta: sign * actualQty,
         quantityAfter: Number(res.rows[0]?.quantity),
         reason: sign === 1 ? 'cancel' : 'sale',
         orderId,
@@ -133,6 +143,12 @@ async function bumpProductStock(
     )
     return
   }
+  const beforeProd = await q.query<{ quantity: string }>(
+    `SELECT quantity FROM products WHERE id = $1`,
+    [productId],
+  )
+  const beforeProdQty = Math.max(0, Number(beforeProd.rows[0]?.quantity ?? 0))
+  const actualProdQty = sign === -1 ? Math.min(qty, beforeProdQty) : qty
   const res = await q.query(
     `UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int),
         is_in_stock = GREATEST(0, quantity + $1::int * $2::int) > 0 WHERE id = $3 RETURNING quantity`,
@@ -142,7 +158,7 @@ async function bumpProductStock(
     {
       productId,
       variantId: null,
-      delta: sign * qty,
+      delta: sign * actualProdQty,
       quantityAfter: Number(res.rows[0]?.quantity),
       reason: sign === 1 ? 'cancel' : 'sale',
       orderId,
@@ -349,61 +365,28 @@ export async function applyOrderFulfillment(
     )
   }
 
-  const total = Number(order.total)
-
   // Promo usage on the same connection as the order (FIX-11). Cash checkout
-  // aborts if the limit is already taken. Online (no client) already claimed
-  // pending_payment → new, so a missed increment is logged, not rolled back.
-  const totalDiscount = Number(order.discountTotal)
-  const autoAmount = Number(order.autoDiscountAmount || 0)
-  const manualAmount = Math.max(0, totalDiscount - autoAmount)
-
-  if (order.promoCode && manualAmount > 0) {
-    const [promo] = await tx
-      .select({ id: promotions.id })
-      .from(promotions)
-      .where(
-        sql`UPPER(${promotions.promoCode}) = ${order.promoCode.toUpperCase()} AND ${promotions.type} = 'promocode'`,
-      )
-      .orderBy(asc(promotions.id))
-      .limit(1)
-    if (promo) {
-      const usage = await recordPromotionUsageInternal(
-        {
-          promotionId: promo.id,
-          orderReference: order.orderNumber,
-          orderAmount: total,
-          discountAmount: manualAmount,
-        },
-        client,
-      )
-      if (!usage.counted && client) throw new Error('promo-limit')
-      await q.query(
-        `INSERT INTO order_history (order_id, type, message, actor) VALUES ($1, 'note', $2, $3)`,
-        [orderId, `Промокод ${order.promoCode} — ${manualAmount.toFixed(2)} ₴`, order.customerName ?? 'System'],
-      )
-    }
-  }
-
-  if (order.autoDiscountId && autoAmount > 0) {
-    const usage = await recordPromotionUsageInternal(
-      {
-        promotionId: Number(order.autoDiscountId),
-        orderReference: order.orderNumber,
-        orderAmount: total,
-        discountAmount: autoAmount,
-      },
-      client,
-    )
-    if (!usage.counted && client) throw new Error('promo-limit')
-    await q.query(
-      `INSERT INTO order_history (order_id, type, message, actor) VALUES ($1, 'note', $2, $3)`,
-      [orderId, `Автознижка — ${autoAmount.toFixed(2)} ₴`, order.customerName ?? 'System'],
-    )
-  }
+  // aborts if the limit is already taken (strict). Online (no client)
+  // already claimed pending_payment → new, so a missed increment is logged,
+  // not rolled back.
+  await recordPromoUsageForOrder(
+    {
+      orderId,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      promoCode: order.promoCode,
+      discountTotal: order.discountTotal,
+      autoDiscountId: order.autoDiscountId,
+      autoDiscountAmount: order.autoDiscountAmount,
+      total: order.total,
+    },
+    client,
+    { strict: client != null },
+  )
 
   // Customer stats / analytics on the pool, not the checkout client — a
   // missing column or transient error must not abort the order (FIX-12).
+  const total = Number(order.total)
   if (order.customerId) {
     await pool
       .query(

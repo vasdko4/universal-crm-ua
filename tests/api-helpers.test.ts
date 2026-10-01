@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsePositiveInt, parseListParams, readJson } from '@/lib/api/helpers'
+import { parsePositiveInt, parseListParams, readJson, normDays, normLimit } from '@/lib/api/helpers'
 
 describe('parsePositiveInt', () => {
   it('accepts 1+', () => {
@@ -90,5 +90,27 @@ describe('readJson', () => {
       body: '{"ok":true}',
     })
     expect(await readJson(req, 64 * 1024)).toBeNull()
+  })
+})
+
+describe('normDays', () => {
+  it('clamps to 1..730 and floors', () => {
+    expect(normDays(30)).toBe(30)
+    expect(normDays(0)).toBe(1)
+    expect(normDays(-5)).toBe(1)
+    expect(normDays(10000)).toBe(730)
+    expect(normDays(7.9)).toBe(7)
+    expect(normDays(NaN)).toBe(30)
+    expect(normDays('30' as unknown as number)).toBe(30)
+  })
+})
+
+describe('normLimit', () => {
+  it('clamps to 1..100 (REGRESSION: LIMIT -1 = unlimited in Postgres)', () => {
+    expect(normLimit(8)).toBe(8)
+    expect(normLimit(-1)).toBe(1)
+    expect(normLimit(0)).toBe(1)
+    expect(normLimit(1000)).toBe(100)
+    expect(normLimit(NaN, 20)).toBe(20)
   })
 })

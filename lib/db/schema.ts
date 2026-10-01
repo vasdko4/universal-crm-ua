@@ -354,6 +354,8 @@ export const modalAds = pgTable('modal_ads', {
   frequencyDays: integer('frequency_days').notNull().default(7),
   // Visual size of the modal: small | medium | large
   size: varchar('size', { length: 20 }).notNull().default('medium'),
+  // Visual theme of the popup: classic | gradient | split | minimal | dark | ticket
+  theme: varchar('theme', { length: 20 }).notNull().default('classic'),
   startsAt: timestamp('starts_at', { withTimezone: true }).notNull().defaultNow(),
   endsAt: timestamp('ends_at', { withTimezone: true }),
   isActive: boolean('is_active').notNull().default(true),
@@ -689,6 +691,10 @@ export const analyticsEvents = pgTable('analytics_events', {
   orderId: integer('order_id'),
   amount: numeric('amount', { precision: 12, scale: 2 }),
   sessionId: varchar('session_id', { length: 80 }),
+  // BUGFIX: the column exists in db/schema.sql + migrations/004 (varchar 300)
+  // and trackEvent writes it, but the Drizzle model was missing it — the only
+  // such drift in the whole schema.
+  referrer: varchar('referrer', { length: 300 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 

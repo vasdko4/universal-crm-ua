@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -83,6 +83,8 @@ export function OrderBuilder() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ProductResult[]>([])
   const [searching, setSearching] = useState(false)
+  const searchSeq = useRef(0)
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const itemsTotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
   const itemsCount = items.reduce((s, i) => s + i.quantity, 0)
@@ -91,13 +93,25 @@ export function OrderBuilder() {
   async function runSearch(q: string) {
     setQuery(q)
     if (q.trim().length < 2) {
+      searchSeq.current++
+      if (debounceTimer.current) clearTimeout(debounceTimer.current)
       setResults([])
       return
     }
-    setSearching(true)
-    const res = await searchProductsForOrder(q)
-    setResults(res as ProductResult[])
-    setSearching(false)
+    // BUGFIX: every keystroke used to fire a server action immediately, and a
+    // slow earlier response could overwrite newer results. Debounce + ignore
+    // stale responses.
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    const seq = ++searchSeq.current
+    debounceTimer.current = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await searchProductsForOrder(q)
+        if (searchSeq.current === seq) setResults(res as ProductResult[])
+      } finally {
+        if (searchSeq.current === seq) setSearching(false)
+      }
+    }, 300)
   }
 
   function addProduct(p: ProductResult) {

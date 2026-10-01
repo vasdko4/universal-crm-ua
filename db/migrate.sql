@@ -197,9 +197,13 @@ UPDATE "articles" SET
 WHERE "slug" = 'keyboard-care' AND "title_ru" IS NULL;
 
 -- Staff TOTP (admin 2FA).
-ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(64);
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_secret" varchar(255);
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_enabled" boolean NOT NULL DEFAULT false;
-ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_pending_secret" varchar(64);
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_pending_secret" varchar(255);
+-- Widen TOTP secret columns: secrets are now encrypted at rest (enc:v1: + base64),
+-- which no longer fits in varchar(64). Plaintext rows keep working (decrypt passes them through).
+ALTER TABLE "user" ALTER COLUMN "two_factor_secret" TYPE varchar(255);
+ALTER TABLE "user" ALTER COLUMN "two_factor_pending_secret" TYPE varchar(255);
 
 -- Nova Poshta refs on orders + stock ledger.
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "delivery_city_ref" varchar(64);
@@ -488,3 +492,6 @@ UPDATE customers
 CREATE UNIQUE INDEX IF NOT EXISTS customers_phone_live_unique
   ON customers (phone)
   WHERE deleted_at IS NULL;
+
+-- Modal ads: visual theme of the popup (classic | gradient | split | minimal | dark | ticket)
+ALTER TABLE public.modal_ads ADD COLUMN IF NOT EXISTS theme varchar(20) NOT NULL DEFAULT 'classic';

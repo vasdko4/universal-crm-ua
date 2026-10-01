@@ -540,6 +540,7 @@ CREATE TABLE IF NOT EXISTS "modal_ads" (
   "frequency" varchar(20) DEFAULT 'session'::character varying NOT NULL,
   "frequency_days" integer DEFAULT 7 NOT NULL,
   "size" varchar(20) DEFAULT 'medium'::character varying NOT NULL,
+  "theme" varchar(20) DEFAULT 'classic'::character varying NOT NULL,
   "starts_at" timestamptz DEFAULT now() NOT NULL,
   "ends_at" timestamptz,
   "is_active" boolean DEFAULT true NOT NULL,
@@ -670,9 +671,9 @@ CREATE TABLE IF NOT EXISTS "user" (
   "updatedAt" timestamptz DEFAULT now() NOT NULL,
   "phone" varchar(50),
   "locale" varchar(5) DEFAULT 'uk'::character varying NOT NULL,
-  "two_factor_secret" varchar(64),
+  "two_factor_secret" varchar(255),
   "two_factor_enabled" boolean DEFAULT false NOT NULL,
-  "two_factor_pending_secret" varchar(64),
+  "two_factor_pending_secret" varchar(255),
   PRIMARY KEY ("id")
 );
 
@@ -789,6 +790,7 @@ ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS notifications jsonb N
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS home_hero jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE public.store_settings ADD COLUMN IF NOT EXISTS home_benefits jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE public.modal_ads ADD COLUMN IF NOT EXISTS button_color varchar(20) NOT NULL DEFAULT '';
+ALTER TABLE public.modal_ads ADD COLUMN IF NOT EXISTS theme varchar(20) NOT NULL DEFAULT 'classic';
 
 -- Abandoned carts: visitors who started checkout but never placed the order
 CREATE TABLE IF NOT EXISTS "abandoned_carts" (

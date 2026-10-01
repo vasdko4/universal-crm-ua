@@ -11,6 +11,7 @@ import {
 } from '@/lib/staff-2fa'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { isRateLimited } from '@/lib/api/rate-limit'
+import { decryptSecret, encryptSecret } from '@/lib/secrets'
 
 const COOKIE = 'staff_2fa'
 const MAX_AGE = 60 * 60 * 24 * 14
@@ -72,8 +73,10 @@ export async function beginStaffTwoFactor(): Promise<
       return { ok: false, error: 'Спочатку підтвердіть поточний код 2FA' }
     }
     const secret = generateTotpSecret()
+    // BUGFIX: TOTP secrets used to be stored in plaintext. Encrypt at rest;
+    // decryptSecret passes legacy plaintext rows through, so no data migration needed.
     await pool.query(`UPDATE "user" SET two_factor_pending_secret = $1, "updatedAt" = NOW() WHERE id = $2`, [
-      secret,
+      encryptSecret(secret),
       me.id,
     ])
     const settings = await getStoreSettingsInternal().catch(() => null)
@@ -97,12 +100,12 @@ export async function confirmStaffTwoFactor(code: string): Promise<{ ok: boolean
       `SELECT two_factor_pending_secret FROM "user" WHERE id = $1`,
       [me.id],
     )
-    const secret = rows[0]?.two_factor_pending_secret
+    const secret = decryptSecret(rows[0]?.two_factor_pending_secret)
     if (!secret) return { ok: false, error: 'Спочатку згенеруйте секрет' }
     if (!verifyTotp(secret, code)) return { ok: false, error: 'Невірний код' }
     await pool.query(
       `UPDATE "user" SET two_factor_secret = $1, two_factor_enabled = true, two_factor_pending_secret = NULL, "updatedAt" = NOW() WHERE id = $2`,
-      [secret, me.id],
+      [encryptSecret(secret), me.id],
     )
     await setTwoFactorCookie(me.id)
     return { ok: true }
@@ -122,7 +125,7 @@ export async function disableStaffTwoFactor(code: string): Promise<{ ok: boolean
     `SELECT two_factor_secret FROM "user" WHERE id = $1`,
     [me.id],
   )
-  const secret = rows[0]?.two_factor_secret
+  const secret = decryptSecret(rows[0]?.two_factor_secret)
   if (secret && !verifyTotp(secret, code)) return { ok: false, error: 'Невірний код' }
   await pool.query(
     `UPDATE "user" SET two_factor_secret = NULL, two_factor_enabled = false, two_factor_pending_secret = NULL, "updatedAt" = NOW() WHERE id = $1`,
@@ -145,7 +148,7 @@ export async function verifyStaffTwoFactorLogin(code: string): Promise<{ ok: boo
   )
   const row = rows[0]
   if (!row?.two_factor_enabled || !row.two_factor_secret) return { ok: false, error: '2FA не увімкнено' }
-  if (!verifyTotp(row.two_factor_secret, code)) return { ok: false, error: 'Невірний код' }
+  if (!verifyTotp(decryptSecret(row.two_factor_secret), code)) return { ok: false, error: 'Невірний код' }
   try {
     await setTwoFactorCookie(me.id)
   } catch {

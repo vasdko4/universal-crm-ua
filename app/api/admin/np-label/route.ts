@@ -37,10 +37,15 @@ export async function GET(req: NextRequest) {
   })
   if (!upstream.ok) return new NextResponse('Upstream error', { status: 502 })
 
-  const contentType = upstream.headers.get('content-type') ?? 'application/pdf'
+  // BUGFIX: never reflect the upstream Content-Type. This response is served
+  // from the shop's own origin with `inline` disposition — if Nova Poshta
+  // ever answered 200 with text/html (error page / compromised upstream),
+  // that HTML would render in the admin's session (stored-XSS vector).
+  // A shipping label is always a PDF; force it and add nosniff.
   return new NextResponse(upstream.body, {
     headers: {
-      'Content-Type': contentType,
+      'Content-Type': 'application/pdf',
+      'X-Content-Type-Options': 'nosniff',
       'Content-Disposition': `inline; filename="ttn-${ttn}.pdf"`,
       'Cache-Control': 'private, no-store',
     },

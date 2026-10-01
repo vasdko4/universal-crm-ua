@@ -4,10 +4,13 @@ import { db } from '@/lib/db'
 import { modalAds } from '@/lib/db/schema'
 import { and, count, desc, eq, ilike, lte, or, isNull, gte, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { assertPermission, assertWritePermission } from '@/lib/session'
+import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { sanitizeSearch } from '@/lib/api/helpers'
+import { normalizeModalAdTheme, type ModalAdTheme } from '@/lib/shop/modal-ad-themes'
 
 export type ModalAdTargetPage = 'all' | 'home' | 'catalog' | 'product' | 'cart'
 export type ModalAdTrigger = 'delay' | 'scroll' | 'exit'
@@ -22,6 +25,7 @@ export type ModalAdInput = {
   buttonText?: string | null
   buttonUrl?: string | null
   buttonColor?: string | null
+  theme?: ModalAdTheme | string | null
   targetPages: ModalAdTargetPage[]
   triggerType: ModalAdTrigger
   triggerValue: number
@@ -74,6 +78,7 @@ function toValues(input: ModalAdInput) {
     buttonText: input.buttonText?.trim() || null,
     buttonUrl: input.buttonUrl?.trim() || null,
     buttonColor: input.buttonColor?.trim() || '',
+    theme: normalizeModalAdTheme(input.theme),
     targetPages: input.targetPages.includes('all') ? ['all'] : input.targetPages,
     triggerType: input.triggerType,
     triggerValue: Math.round(input.triggerValue),
@@ -192,6 +197,7 @@ export type PublicModalAd = {
   buttonText: string | null
   buttonUrl: string | null
   buttonColor: string
+  theme: ModalAdTheme
   targetPages: ModalAdTargetPage[]
   triggerType: ModalAdTrigger
   triggerValue: number
@@ -232,6 +238,7 @@ export async function getActiveModalAds(): Promise<PublicModalAd[]> {
     buttonText: r.buttonText,
     buttonUrl: r.buttonUrl,
     buttonColor: r.buttonColor ?? '',
+    theme: normalizeModalAdTheme(r.theme),
     targetPages: (r.targetPages as ModalAdTargetPage[]) ?? ['all'],
     triggerType: r.triggerType as ModalAdTrigger,
     triggerValue: r.triggerValue,
@@ -245,6 +252,12 @@ const AD_EVENTS = new Set(['view', 'click', 'close'])
 
 // Storefront analytics: bump the denormalized counter for a campaign.
 export async function trackModalAdEvent(id: number, event: 'view' | 'click' | 'close') {
+  // BUGFIX: public action with no rate limit — counters (views/clicks/closes)
+  // could be inflated at will.
+  const ip = clientIpFromHeaders(await headers())
+  if (await isRateLimited('modal-ad-track', ip, 60)) {
+    return { success: false }
+  }
   if (!Number.isInteger(id) || id <= 0 || !AD_EVENTS.has(event)) return { success: false }
   const column =
     event === 'view' ? modalAds.viewsCount : event === 'click' ? modalAds.clicksCount : modalAds.closesCount
