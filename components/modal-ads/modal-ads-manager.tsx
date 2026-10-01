@@ -63,6 +63,12 @@ import {
   LogOut,
 } from 'lucide-react'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
+import {
+  MODAL_AD_THEMES,
+  normalizeModalAdTheme,
+  type ModalAdTheme,
+} from '@/lib/shop/modal-ad-themes'
+import { ModalAdVisual } from '@/components/shop/modal-ad'
 
 type Data = {
   items: ModalAd[]
@@ -74,17 +80,6 @@ type Data = {
 
 // '' = theme primary color; anything else is a hex applied inline.
 const BUTTON_COLOR_KEYS = ['', '#e11d48', '#ea580c', '#16a34a', '#2563eb', '#111111'] as const
-
-// Readable text (black/white) for an arbitrary hex background.
-function contrastText(hex: string): string {
-  const m = /^#([0-9a-fA-F]{6})$/.exec(hex)
-  if (!m) return '#ffffff'
-  const n = Number.parseInt(m[1], 16)
-  const r = (n >> 16) & 255
-  const g = (n >> 8) & 255
-  const b = n & 255
-  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#111111' : '#ffffff'
-}
 
 function formatDate(d: Date | string | null, locale: string = 'uk') {
   if (!d) return null
@@ -112,6 +107,7 @@ type FormState = {
   buttonText: string
   buttonUrl: string
   buttonColor: string
+  theme: ModalAdTheme
   targetPages: ModalAdTargetPage[]
   triggerType: 'delay' | 'scroll' | 'exit'
   triggerValue: string
@@ -131,6 +127,7 @@ const emptyForm = (): FormState => ({
   buttonText: '',
   buttonUrl: '',
   buttonColor: '',
+  theme: 'classic' as ModalAdTheme,
   targetPages: ['all'],
   triggerType: 'delay',
   triggerValue: '12',
@@ -150,6 +147,7 @@ const fromAd = (ad: ModalAd): FormState => ({
   buttonText: ad.buttonText ?? '',
   buttonUrl: ad.buttonUrl ?? '',
   buttonColor: ad.buttonColor ?? '',
+  theme: normalizeModalAdTheme(ad.theme),
   targetPages: (ad.targetPages as ModalAdTargetPage[]) ?? ['all'],
   triggerType: ad.triggerType as FormState['triggerType'],
   triggerValue: String(ad.triggerValue),
@@ -264,6 +262,7 @@ export function ModalAdsManager({
       buttonText: form.buttonText || null,
       buttonUrl: form.buttonUrl || null,
       buttonColor: form.buttonColor || null,
+      theme: form.theme,
       targetPages: form.targetPages,
       triggerType: form.triggerType,
       triggerValue: Number(form.triggerValue) || 0,
@@ -414,6 +413,9 @@ export function ModalAdsManager({
                         <Badge variant={ad.isActive ? 'default' : 'secondary'}>
                           {ad.isActive ? t.active : t.inactive}
                         </Badge>
+                        <Badge variant="outline" className="font-normal">
+                          {t.themeNames[normalizeModalAdTheme(ad.theme)]}
+                        </Badge>
                       </div>
                       <p className="mt-0.5 truncate text-sm text-muted-foreground">«{ad.title}»</p>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -559,6 +561,43 @@ export function ModalAdsManager({
                   </div>
                 </div>
               </div>
+            </section>
+
+            <section className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-foreground">{t.sectionDesign}</h3>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {MODAL_AD_THEMES.map((key) => {
+                  const active = form.theme === key
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setForm({ ...form, theme: key })}
+                      className={
+                        'group flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all ' +
+                        (active
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-border hover:border-muted-foreground/50')
+                      }
+                    >
+                      <span className="block overflow-hidden rounded-lg border border-border/60">
+                        <ThemeSwatch theme={key} />
+                      </span>
+                      <span
+                        className={
+                          'px-0.5 text-xs ' +
+                          (active ? 'font-semibold text-foreground' : 'text-muted-foreground group-hover:text-foreground')
+                        }
+                      >
+                        {t.themeNames[key]}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+
+            <section className="flex flex-col gap-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="ma-btn-text">{t.buttonTextLabel}</Label>
@@ -618,21 +657,24 @@ export function ModalAdsManager({
                     {t.customColorLabel}
                   </label>
                 </div>
-                {form.buttonText && (
-                  <div className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-border p-3">
-                    <span className="text-xs text-muted-foreground">{t.previewLabel}</span>
-                    <span
-                      className="inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold"
-                      style={
-                        form.buttonColor
-                          ? { backgroundColor: form.buttonColor, color: contrastText(form.buttonColor) }
-                          : { backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }
-                      }
-                    >
-                      {form.buttonText}
-                    </span>
+                <div className="flex flex-col gap-2">
+                  <Label>{t.livePreviewLabel}</Label>
+                  <div className="mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-border shadow-xl">
+                    <ModalAdVisual
+                      ad={{
+                        title: form.title.trim() || t.bannerTitlePlaceholder,
+                        body: form.body.trim() || null,
+                        imageUrl: form.imageUrl || null,
+                        buttonText: form.buttonText.trim() || null,
+                        buttonColor: form.buttonColor || null,
+                        theme: form.theme,
+                      }}
+                      action={form.buttonText.trim() ? { kind: 'button' } : null}
+                      dismissLabel={t.previewDismiss}
+                    />
                   </div>
-                )}
+                  <p className="text-center text-xs text-muted-foreground">{t.livePreviewHint}</p>
+                </div>
               </div>
             </section>
 
@@ -824,4 +866,70 @@ function AdStat({ label, value }: { label: string; value: string }) {
       <dd className="font-medium text-foreground">{value}</dd>
     </div>
   )
+}
+
+// Abstract CSS-only miniature of a popup theme (decorative).
+function ThemeSwatch({ theme }: { theme: ModalAdTheme }) {
+  switch (theme) {
+    case 'gradient':
+      return (
+        <span aria-hidden className="flex h-20 flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-violet-600 via-fuchsia-500 to-orange-400 p-2">
+          <span className="h-1.5 w-2/3 rounded-full bg-white/90" />
+          <span className="h-1 w-1/2 rounded-full bg-white/60" />
+          <span className="mt-1 h-4 w-3/4 rounded-full bg-white" />
+        </span>
+      )
+    case 'split':
+      return (
+        <span aria-hidden className="flex h-20 bg-white">
+          <span className="w-2/5 bg-gradient-to-br from-violet-500 to-fuchsia-600" />
+          <span className="flex flex-1 flex-col justify-center gap-1 p-2">
+            <span className="h-1.5 w-4/5 rounded-full bg-zinc-300" />
+            <span className="h-1 w-3/5 rounded-full bg-zinc-200" />
+            <span className="mt-1 h-4 w-full rounded bg-violet-500" />
+          </span>
+        </span>
+      )
+    case 'minimal':
+      return (
+        <span aria-hidden className="flex h-20 flex-col items-center justify-center gap-1.5 bg-white p-2">
+          <span className="h-1.5 w-1/2 rounded-full bg-zinc-800" />
+          <span className="h-px w-8 bg-zinc-300" />
+          <span className="h-1 w-2/3 rounded-full bg-zinc-300" />
+          <span className="mt-1 h-4 w-3/4 rounded-full bg-zinc-900" />
+        </span>
+      )
+    case 'dark':
+      return (
+        <span aria-hidden className="flex h-20 flex-col items-center justify-center gap-1.5 bg-zinc-950 p-2">
+          <span className="size-4 rounded-full bg-amber-400/80" />
+          <span className="h-1.5 w-2/3 rounded-full bg-zinc-200" />
+          <span className="h-1 w-1/2 rounded-full bg-zinc-600" />
+          <span className="mt-1 h-4 w-3/4 rounded bg-amber-400" />
+        </span>
+      )
+    case 'ticket':
+      return (
+        <span aria-hidden className="flex h-20 flex-col bg-white">
+          <span className="flex h-8 items-center justify-center bg-gradient-to-r from-rose-600 to-orange-500">
+            <span className="h-1.5 w-1/2 rounded-full bg-white/90" />
+          </span>
+          <span className="border-t-2 border-dashed border-zinc-300" />
+          <span className="flex flex-1 flex-col items-center justify-center gap-1 p-1.5">
+            <span className="h-1 w-2/3 rounded-full bg-zinc-300" />
+            <span className="h-4 w-3/4 rounded bg-rose-600" />
+          </span>
+        </span>
+      )
+    case 'classic':
+    default:
+      return (
+        <span aria-hidden className="flex h-20 flex-col bg-white">
+          <span className="h-8 bg-zinc-200" />
+          <span className="mx-auto mt-1.5 h-1.5 w-2/3 rounded-full bg-zinc-300" />
+          <span className="mx-auto mt-1 h-1 w-1/2 rounded-full bg-zinc-200" />
+          <span className="mx-2 mb-1.5 mt-auto h-4 rounded bg-violet-600" />
+        </span>
+      )
+  }
 }

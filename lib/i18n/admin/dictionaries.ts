@@ -525,6 +525,10 @@ export type AdminDictionary = {
     templateTitle: string
     templateDesc: string
     premiumBadge: string
+    nicheTemplatesTitle: string
+    baseTemplatesTitle: string
+    adminThemeTitle: string
+    adminThemeDesc: string
     defaultLangTitle: string
     defaultLangDesc: string
     localePromptTitle: string
@@ -673,6 +677,22 @@ export type AdminDictionary = {
     updateErrorTitle: string
     updateErrorDesc: string
     updaterNotConfigured: string
+    dbSchemaTitle: string
+    dbSchemaDesc: string
+    dbCheckButton: string
+    dbChecking: string
+    dbUpToDate: string
+    dbUpdateAvailable: string
+    dbApplyButton: string
+    dbApplying: string
+    dbAppliedTitle: string
+    dbAppliedDesc: string
+    dbApplyErrorTitle: string
+    dbApplyErrorDesc: string
+    dbVersionLabel: string
+    dbAppliedAtLabel: string
+    dbNeverApplied: string
+    dbCheckError: string
   }
   delivery: {
     pageTitle: string
@@ -829,12 +849,16 @@ export type AdminDictionary = {
     pageTitle: string
     pageSubtitle: string
     noResults: string
+    statTotal: string
+    previewBuyerTitle: string
+    previewBuyerHint: string
     deleteDialogTitle: string
     deleteDialogDesc: string
     toastActivated: string
     toastDeactivated: string
     toastDeleted: string
     toastCodeCopied: string
+    toastCodeCopyFailed: string
     targetAll: string
     targetGroups: string
     targetProducts: string
@@ -1500,7 +1524,18 @@ export type AdminDictionary = {
     colorBlack: string
     customColorLabel: string
     customColorAria: string
-    previewLabel: string
+    sectionDesign: string
+    themeNames: {
+      classic: string
+      gradient: string
+      split: string
+      minimal: string
+      dark: string
+      ticket: string
+    }
+    livePreviewLabel: string
+    livePreviewHint: string
+    previewDismiss: string
     sectionWhereToShow: string
     pageAll: string
     pageHome: string
@@ -2267,6 +2302,10 @@ const uk: AdminDictionary = {
     templateTitle: 'Шаблон вітрини',
     templateDesc: 'Виберіть оформлення магазину. Зміни застосовуються до всієї вітрини після збереження.',
     premiumBadge: 'Преміум',
+    nicheTemplatesTitle: 'Нішеві теми',
+    baseTemplatesTitle: 'Базові теми',
+    adminThemeTitle: 'Тема адмін-панелі',
+    adminThemeDesc: 'Кольорове оформлення самої адмін-панелі. Застосовується одразу після збереження.',
     defaultLangTitle: 'Мова за замовчуванням',
     defaultLangDesc: 'Мова, яка пропонується новим відвідувачам під час першого входу.',
     localePromptTitle: 'Перший вибір мови',
@@ -2429,6 +2468,22 @@ const uk: AdminDictionary = {
     updateErrorTitle: 'Не вдалося запустити оновлення',
     updateErrorDesc: 'Спробуйте ще раз або оновіть вручну на сервері.',
     updaterNotConfigured: 'Оновлення одним кліком працює лише на Docker-сервері (sidecar UPDATER_URL). На Vercel деплой іде з GitHub — підтягніть main і зачекайте білд, або оновіть вручну.',
+    dbSchemaTitle: 'База даних',
+    dbSchemaDesc: 'Перевірка схеми бази даних та застосування міграцій',
+    dbCheckButton: 'Перевірити версію БД',
+    dbChecking: 'Перевірка…',
+    dbUpToDate: 'Схема бази даних актуальна',
+    dbUpdateAvailable: 'Доступна міграція бази даних',
+    dbApplyButton: 'Застосувати міграцію',
+    dbApplying: 'Застосування…',
+    dbAppliedTitle: 'Міграцію застосовано',
+    dbAppliedDesc: 'Схема бази даних оновлена',
+    dbApplyErrorTitle: 'Не вдалося застосувати міграцію',
+    dbApplyErrorDesc: 'Спробуйте ще раз або застосуйте db/migrate.sql вручну.',
+    dbVersionLabel: 'Версія схеми',
+    dbAppliedAtLabel: 'Застосовано',
+    dbNeverApplied: 'ще не застосовано',
+    dbCheckError: 'Не вдалося перевірити схему бази даних',
   },
   delivery: {
     pageTitle: 'Методи доставки',
@@ -2586,12 +2641,16 @@ const uk: AdminDictionary = {
     pageTitle: 'Акції та промокоди',
     pageSubtitle: 'Керування знижками, промокодами та таргетингом',
     noResults: 'За вашим запитом нічого не знайдено.',
+    statTotal: 'Усього акцій',
+    previewBuyerTitle: 'Як побачить покупець',
+    previewBuyerHint: 'Бейдж знижки у картці товару та кошику',
     deleteDialogTitle: 'Видалити акцію?',
     deleteDialogDesc: 'Дію не можна скасувати. Статистику використання також буде видалено.',
     toastActivated: 'Акцію активовано',
     toastDeactivated: 'Акцію вимкнено',
     toastDeleted: 'Акцію видалено',
     toastCodeCopied: 'Промокод скопійовано',
+    toastCodeCopyFailed: 'Не вдалося скопіювати промокод',
     targetAll: 'Усі товари',
     targetGroups: 'Обрані групи',
     targetProducts: 'Конкретні позиції',
@@ -3258,7 +3317,18 @@ const uk: AdminDictionary = {
     colorBlack: 'Чорний',
     customColorLabel: 'Свій колір',
     customColorAria: 'Свій колір кнопки',
-    previewLabel: 'Перегляд:',
+    sectionDesign: 'Дизайн',
+    themeNames: {
+      classic: 'Класика',
+      gradient: 'Градієнт',
+      split: 'Спліт',
+      minimal: 'Мінімалізм',
+      dark: 'Темна',
+      ticket: 'Купон',
+    },
+    livePreviewLabel: 'Живий перегляд',
+    livePreviewHint: 'Так банер виглядатиме на вітрині',
+    previewDismiss: 'Не зараз, дякую',
     sectionWhereToShow: 'Де показувати',
     pageAll: 'Усі сторінки',
     pageHome: 'Головна',
@@ -4031,6 +4101,10 @@ const ru: AdminDictionary = {
     templateTitle: 'Шаблон витрины',
     templateDesc: 'Выберите оформление магазина. Изменения применяются ко всей витрине после сохранения.',
     premiumBadge: 'Премиум',
+    nicheTemplatesTitle: 'Нишевые темы',
+    baseTemplatesTitle: 'Базовые темы',
+    adminThemeTitle: 'Тема админ-панели',
+    adminThemeDesc: 'Цветовое оформление самой админ-панели. Применяется сразу после сохранения.',
     defaultLangTitle: 'Язык по умолчанию',
     defaultLangDesc: 'Язык, предлагаемый новым посетителям при первом входе.',
     localePromptTitle: 'Первый выбор языка',
@@ -4193,6 +4267,22 @@ const ru: AdminDictionary = {
     updateErrorTitle: 'Не удалось запустить обновление',
     updateErrorDesc: 'Попробуйте ещё раз или обновите вручную на сервере.',
     updaterNotConfigured: 'Обновление одним кликом работает только на Docker-сервере (sidecar UPDATER_URL). На Vercel деплой идёт с GitHub — подтяните main и дождитесь сборки, или обновите вручную.',
+    dbSchemaTitle: 'База данных',
+    dbSchemaDesc: 'Проверка схемы базы данных и применение миграций',
+    dbCheckButton: 'Проверить версию БД',
+    dbChecking: 'Проверка…',
+    dbUpToDate: 'Схема базы данных актуальна',
+    dbUpdateAvailable: 'Доступна миграция базы данных',
+    dbApplyButton: 'Применить миграцию',
+    dbApplying: 'Применение…',
+    dbAppliedTitle: 'Миграция применена',
+    dbAppliedDesc: 'Схема базы данных обновлена',
+    dbApplyErrorTitle: 'Не удалось применить миграцию',
+    dbApplyErrorDesc: 'Попробуйте ещё раз или примените db/migrate.sql вручную.',
+    dbVersionLabel: 'Версия схемы',
+    dbAppliedAtLabel: 'Применено',
+    dbNeverApplied: 'ещё не применено',
+    dbCheckError: 'Не удалось проверить схему базы данных',
   },
   delivery: {
     pageTitle: 'Методы доставки',
@@ -4350,12 +4440,16 @@ const ru: AdminDictionary = {
     pageTitle: 'Акции и промокоды',
     pageSubtitle: 'Управление скидками, промокодами и таргетингом',
     noResults: 'По вашему запросу ничего не найдено.',
+    statTotal: 'Всего акций',
+    previewBuyerTitle: 'Как увидит покупатель',
+    previewBuyerHint: 'Бейдж скидки в карточке товара и корзине',
     deleteDialogTitle: 'Удалить акцию?',
     deleteDialogDesc: 'Действие нельзя отменить. Статистика использования также будет удалена.',
     toastActivated: 'Акция активирована',
     toastDeactivated: 'Акция отключена',
     toastDeleted: 'Акция удалена',
     toastCodeCopied: 'Промокод скопирован',
+    toastCodeCopyFailed: 'Не удалось скопировать промокод',
     targetAll: 'Все товары',
     targetGroups: 'Выбранные группы',
     targetProducts: 'Конкретные позиции',
@@ -5022,7 +5116,18 @@ const ru: AdminDictionary = {
     colorBlack: 'Чёрный',
     customColorLabel: 'Свой цвет',
     customColorAria: 'Свой цвет кнопки',
-    previewLabel: 'Превью:',
+    sectionDesign: 'Дизайн',
+    themeNames: {
+      classic: 'Классика',
+      gradient: 'Градиент',
+      split: 'Сплит',
+      minimal: 'Минимализм',
+      dark: 'Тёмная',
+      ticket: 'Купон',
+    },
+    livePreviewLabel: 'Живой предпросмотр',
+    livePreviewHint: 'Так баннер будет выглядеть на витрине',
+    previewDismiss: 'Не сейчас, спасибо',
     sectionWhereToShow: 'Где показывать',
     pageAll: 'Все страницы',
     pageHome: 'Главная',

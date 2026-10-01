@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { syncNovaPoshtaTracking } from '@/lib/delivery/sync-tracking'
 import { authorizeCronRequest } from '@/lib/cron-auth'
+import { reportError } from '@/lib/server-errors'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -35,7 +36,9 @@ export async function GET(req: NextRequest) {
     const result = await syncNovaPoshtaTracking()
     return NextResponse.json(result, { status: result.ok ? 200 : 422 })
   } catch (e) {
-    console.log('[v0] delivery-sync cron failed:', (e as Error).message)
+    // A dead delivery-sync cron means TTNs silently stop updating —
+    // ping the admin, not just the logs.
+    void reportError('cron.delivery-sync', e, { alertAdmin: true })
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
   }
 }

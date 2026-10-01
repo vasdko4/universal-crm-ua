@@ -144,8 +144,6 @@ export async function sendCartReminder(id: number): Promise<{ success: boolean; 
   const items = (cart.items as AbandonedCartItem[]) ?? []
   const loc = settings.defaultLocale === 'ru' ? 'ru' : 'uk'
   const tag = loc === 'ru' ? 'ru-RU' : 'uk-UA'
-  const lines = items.map((i) => `• ${i.name} — ${i.quantity} шт.`).join('\n')
-  const total = Number(cart.itemsTotal).toLocaleString(tag).replace(/\u00a0/g, ' ')
   const copy = loc === 'ru'
     ? {
         hello: 'Здравствуйте',
@@ -176,36 +174,87 @@ export async function sendCartReminder(id: number): Promise<{ success: boolean; 
         qty: 'шт.',
       }
 
+  const fmtMoney = (v: number) => `${Number(v).toLocaleString(tag).replace(/\u00a0/g, ' ')} ₴`
+  const lines = items
+    .map((i) => `• ${i.name} — ${i.quantity} ${copy.qty} × ${fmtMoney(i.price)} = ${fmtMoney(i.price * i.quantity)}`)
+    .join('\n')
+  const total = fmtMoney(Number(cart.itemsTotal))
+
   const text = `${copy.hello}${cart.customerName ? `, ${cart.customerName}` : ''}!
 
 ${copy.left} «${settings.storeName}»:
 
 ${lines}
 
-${copy.sum}: ${total} ₴
+${copy.sum}: ${total}
 
 ${copy.wait}${siteUrl ? `\n${copy.back}: ${siteUrl}/cart` : ''}
 
 ${copy.regards}, ${settings.storeName}`
 
-  const html = `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;color:#1e293b">
-  <h2 style="margin:0 0 8px">${copy.htmlTitle}</h2>
-  <p>${copy.hello}${cart.customerName ? `, ${esc(cart.customerName)}` : ''}!</p>
-  <p>${loc === 'ru' ? 'В магазине' : 'У магазині'} «${esc(settings.storeName)}» ${copy.htmlWait}:</p>
-  <table style="width:100%;border-collapse:collapse;margin:16px 0">
-    ${items
-      .map(
-        (i) => `<tr style="border-bottom:1px solid #e2e8f0">
-      <td style="padding:8px 0">${esc(i.name)}</td>
-      <td style="padding:8px 0;text-align:right;white-space:nowrap">${i.quantity} ${copy.qty}</td>
-    </tr>`,
-      )
-      .join('')}
-  </table>
-  <p style="font-size:18px">${copy.sum}: <strong>${total} ₴</strong></p>
-  ${siteUrl ? `<p><a href="${esc(siteUrl)}/cart" style="display:inline-block;background:#1e293b;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">${copy.htmlCta}</a></p>` : ''}
-  <p style="color:#64748b;font-size:13px;margin-top:16px">${copy.htmlStock}</p>
-</div>`
+  // Branded like the order emails: header with logo, item rows with
+  // thumbnails and line totals, CTA button, footer with contacts.
+  const logoHtml = settings.logoUrl
+    ? `<img src="${esc(settings.logoUrl)}" height="36" alt="${esc(settings.storeName)}" style="display:block;max-height:36px;width:auto" />`
+    : `<span style="font-size:20px;font-weight:700;color:#1a1a1a;letter-spacing:-0.02em">${esc(settings.storeName)}</span>`
+  const phone = settings.contact?.phones?.find(Boolean) ?? null
+  const itemImg = (src: string | null): string => {
+    if (!src) return ''
+    return src.startsWith('http') ? src : siteUrl ? `${siteUrl}${src}` : ''
+  }
+  const rowsHtml = items
+    .map((i) => {
+      const img = itemImg(i.image)
+      const thumb = img
+        ? `<img src="${esc(img)}" width="64" height="64" alt="" style="display:block;width:64px;height:64px;object-fit:contain;border-radius:8px;background:#f4f4f2" />`
+        : `<div style="width:64px;height:64px;border-radius:8px;background:#f4f4f2"></div>`
+      return `<tr>
+        <td style="padding:12px 0;border-bottom:1px solid #ececea;width:76px;vertical-align:top">${thumb}</td>
+        <td style="padding:12px 12px;border-bottom:1px solid #ececea;vertical-align:top">
+          <div style="font-weight:600">${esc(i.name)}</div>
+          <div style="font-size:13px;color:#6b6b68;margin-top:4px">${i.quantity} ${copy.qty} × ${fmtMoney(i.price)}</div>
+        </td>
+        <td style="padding:12px 0;border-bottom:1px solid #ececea;text-align:right;vertical-align:top;white-space:nowrap;font-weight:600">${fmtMoney(i.price * i.quantity)}</td>
+      </tr>`
+    })
+    .join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="${loc}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(copy.subject)}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f2">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">${esc(copy.htmlTitle)} — ${esc(settings.storeName)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f2;padding:24px 12px">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a">
+  <tr><td style="padding:24px 28px;border-bottom:1px solid #ececea">
+    ${siteUrl ? `<a href="${esc(siteUrl)}" style="text-decoration:none">${logoHtml}</a>` : logoHtml}
+  </td></tr>
+  <tr><td style="padding:28px 28px 8px">
+    <h1 style="margin:0 0 8px;font-size:22px;line-height:1.3;color:#1a1a1a">${esc(copy.htmlTitle)}</h1>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#4a4a47">${esc(copy.hello)}${cart.customerName ? `, ${esc(cart.customerName)}` : ''}! ${loc === 'ru' ? 'В магазине' : 'У магазині'} «${esc(settings.storeName)}» ${esc(copy.htmlWait)}:</p>
+  </td></tr>
+  <tr><td style="padding:8px 28px 4px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px">
+      ${rowsHtml}
+    </table>
+  </td></tr>
+  <tr><td style="padding:12px 28px 24px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px">
+      <tr><td style="padding:10px 0 0;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${esc(copy.sum)}</td><td style="padding:10px 0 0;text-align:right;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${esc(total)}</td></tr>
+    </table>
+    ${siteUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr><td style="border-radius:8px;background:#1a1a1a"><a href="${esc(siteUrl)}/cart" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">${esc(copy.htmlCta)}</a></td></tr></table>` : ''}
+    <p style="font-size:13px;color:#9a9a97;margin-top:16px">${esc(copy.htmlStock)}</p>
+  </td></tr>
+  <tr><td style="padding:20px 28px;background:#fafaf8;border-top:1px solid #ececea">
+    <p style="margin:0 0 4px;font-size:13px;color:#6b6b68">${esc(copy.regards)}, <strong style="color:#1a1a1a">${esc(settings.storeName)}</strong></p>
+    ${phone ? `<p style="margin:0;font-size:13px;color:#6b6b68">Телефон: <a href="tel:${esc(phone.replace(/[^+\d]/g, ''))}" style="color:#6b6b68">${esc(phone)}</a></p>` : ''}
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
 
   const result = await sendMail({
     to: cart.customerEmail,

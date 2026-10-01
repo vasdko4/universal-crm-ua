@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import nodemailer from 'nodemailer'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { reportError } from '@/lib/server-errors'
 
 export type MailPayload = {
   to: string
@@ -20,9 +21,19 @@ export async function sendMail(payload: MailPayload): Promise<{ sent: boolean; f
 
   const configured = Boolean(email.smtpHost && email.smtpUser && (email.enabled || email.smtpPassword))
   if (!configured) {
-    console.log(
-      `[v0] Email not configured — fallback log.\nTo: ${payload.to}\nSubject: ${payload.subject}\n${payload.text}`,
-    )
+    if (process.env.NODE_ENV === 'production') {
+      // Never dump message bodies to production logs — they can contain
+      // password-recovery codes. Structured signal instead (no PII).
+      await reportError('email.not-configured', new Error('SMTP not configured — email dropped'), {
+        context: { subject: payload.subject },
+      })
+    } else {
+      // Dev/preview only: keep the full dump so flows like password
+      // recovery stay testable without an SMTP server.
+      console.log(
+        `[mailer] Email not configured — fallback log.\nTo: ${payload.to}\nSubject: ${payload.subject}\n${payload.text}`,
+      )
+    }
     return { sent: false, fallback: true }
   }
 

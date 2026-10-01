@@ -9,6 +9,7 @@ import { AdminHeader } from '@/components/admin-header'
 import { permissionForPath, hasPermission, NAV_SECTIONS } from '@/lib/permissions'
 import { AdminLocaleProvider } from '@/lib/i18n/admin/context'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { getAdminTheme } from '@/lib/admin/admin-themes'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,10 +52,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const settings = await getStoreSettingsInternal().catch(() => null)
   const dict = getAdminDictionary(user.locale)
+  // Admin panel color theme (Настройки → Дизайн). Validated against the registry.
+  const adminTheme = getAdminTheme(settings?.adminTheme ?? 'teal').id
 
   return (
     <AdminLocaleProvider locale={user.locale}>
-      <div className="flex min-h-screen bg-muted/30">
+      <div className="flex min-h-screen bg-muted/30" data-admin-theme={adminTheme}>
         <AdminSidebar
           user={{ name: user.name, email: user.email, role: user.role, permissions: user.permissions }}
           storeName={settings?.storeName ?? dict.sidebar.adminCenter}

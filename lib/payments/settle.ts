@@ -236,6 +236,21 @@ export async function settlePayment(
             [payment.id],
           )
           await restoreStockOnce(order.id)
+          // BUGFIX: a full refund from the gateway cabinet voids the sale —
+          // free the promo-code slot just like the admin refund path does.
+          // Partial refunds keep the usage.
+          const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
+          const { released } = await releasePromotionUsageForOrder(orderReference)
+          if (released.length > 0) {
+            await pool.query(
+              `INSERT INTO order_history (order_id, type, message, actor) VALUES ($1, 'note', $2, $3)`,
+              [
+                order.id,
+                `Использование промокода освобождено (полный возврат): ${released.map((r) => r.promoCode ?? `#${r.promotionId}`).join(', ')}`,
+                'Платёжный шлюз',
+              ],
+            )
+          }
         }
       } else {
         await restoreStockOnce(order.id)

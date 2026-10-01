@@ -1,4 +1,7 @@
--- ============================================================
+// GENERATED FILE — do not edit by hand.
+// Source: db/migrate.sql
+// Regenerate with: node scripts/sync-migrate-bundle.mjs (pnpm db:sync-migrate)
+export const MIGRATE_SQL: string = `-- ============================================================
 -- Безопасная миграция существующей продакшен-базы до актуальной
 -- схемы. НЕ удаляет и НЕ перезаписывает данные — только добавляет
 -- недостающие таблицы, колонки и индексы. Можно запускать повторно.
@@ -117,13 +120,13 @@ ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "availability_mode" varchar(20) 
 DO $$ BEGIN RAISE NOTICE 'Миграция применена успешно.'; END $$;
 
 -- ---------- Товары: человекочитаемые URL (slug) ----------
--- Раньше страница товара была только `/product/<numeric id>` — нечитаемо,
+-- Раньше страница товара была только \`/product/<numeric id>\` — нечитаемо,
 -- не даёт SEO-сигнала и одинаково выглядит в рекламе/письмах для любого
--- товара. Добавляем `slug` (транслитерация названия латиницей, тот же
+-- товара. Добавляем \`slug\` (транслитерация названия латиницей, тот же
 -- алфавит, что lib/slug.ts), используемый теперь во всех ссылках на товар
 -- (карточки, письма, sitemap, Google Merchant feed, JSON-LD). Числовой
--- `/product/<id>` продолжает работать и делает 301-редирект на новый
--- `/product/<slug>` — старые закладки/индексация не ломаются.
+-- \`/product/<id>\` продолжает работать и делает 301-редирект на новый
+-- \`/product/<slug>\` — старые закладки/индексация не ломаются.
 ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "slug" varchar(255);
 
 WITH base AS (
@@ -276,8 +279,8 @@ WHERE c.id <> t.id
   AND lower(trim(c.name_uk)) IN ('техніка та електроніка', 'техника и электроника')
   AND lower(trim(t.name_uk)) IN ('електроніка', 'электроника');
 
--- Older installs created `orders` without fulfillment `status` /
--- `payment_status`. CREATE TABLE IF NOT EXISTS never adds columns to an
+-- Older installs created \`orders\` without fulfillment \`status\` /
+-- \`payment_status\`. CREATE TABLE IF NOT EXISTS never adds columns to an
 -- existing table, so admin order lists crash with:
 --   error: column "status" does not exist
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "status" varchar(20) DEFAULT 'new'::character varying NOT NULL;
@@ -310,9 +313,9 @@ WHERE COALESCE(variants_enabled, false) = false
   AND deleted_at IS NULL
   AND id IN (SELECT DISTINCT product_id FROM product_variants);
 
--- Listing cards read `sizes`, not `options` / characteristics. Older Prom
+-- Listing cards read \`sizes\`, not \`options\` / characteristics. Older Prom
 -- imports stored the size axis only on those other columns, so «Обрати розмір»
--- stayed hidden until a full re-import. Fill empty `sizes` in place.
+-- stayed hidden until a full re-import. Fill empty \`sizes\` in place.
 CREATE TABLE IF NOT EXISTS "product_characteristics" (
   "id" serial NOT NULL,
   "product_id" integer NOT NULL,
@@ -498,3 +501,4 @@ ALTER TABLE public.modal_ads ADD COLUMN IF NOT EXISTS theme varchar(20) NOT NULL
 
 -- Admin panel color theme (teal | blue | violet | emerald | amber | rose | slate | midnight)
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "admin_theme" varchar(20) NOT NULL DEFAULT 'teal';
+`;

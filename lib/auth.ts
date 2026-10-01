@@ -7,6 +7,9 @@ import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR } from '@/lib/shop/email-domai
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { authRateLimitStorage } from '@/lib/auth-rate-limit-storage'
 import { decryptSecret } from '@/lib/secrets'
+import { reportError } from '@/lib/server-errors'
+import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { buildPasswordResetMail } from '@/lib/shop/auth-emails'
 
 function trustedAuthProxies(): string[] {
   const raw = process.env.TRUSTED_PROXIES?.trim()
@@ -76,17 +79,20 @@ function buildAuth(google: GoogleCreds) {
           )
           const providers = linked.rows.map((r: { providerId: string }) => r.providerId)
           if (providers.includes('google') && !providers.includes('credential')) return
-          const subject = 'Код восстановления пароля'
-          const text = `Ваш код для восстановления пароля: ${otp}\n\nКод действует 15 минут. Если вы не запрашивали восстановление — просто проигнорируйте это письмо.`
-          const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
-          <h2 style="color:#111">Восстановление пароля</h2>
-          <p>Используйте этот код, чтобы задать новый пароль. Он действует <b>15 минут</b>.</p>
-          <div style="font-size:32px;font-weight:700;letter-spacing:8px;background:#f4f4f5;border-radius:12px;padding:16px;text-align:center;margin:16px 0">${otp}</div>
-          <p style="color:#71717a;font-size:13px">Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.</p>
-        </div>`
-          await sendMail({ to: email, subject, text, html }).catch((e) =>
-            console.log('[v0] OTP email error:', (e as Error).message),
-          )
+          // Branded, localized OTP mail — same visual language as order emails.
+          const settings = await getStoreSettingsInternal().catch(() => null)
+          const locale = settings?.defaultLocale === 'ru' ? 'ru' : 'uk'
+          const mail = buildPasswordResetMail(locale, otp, {
+            storeName: settings?.storeName,
+            siteUrl: settings?.seo?.siteUrl,
+            logoUrl: settings?.logoUrl,
+            supportEmail: (settings?.emailSettings?.fromEmail as string) || null,
+          })
+          await sendMail({ to: email, subject: mail.subject, text: mail.text, html: mail.html }).catch((e) => {
+            // Broken SMTP = broken password recovery — ping the admin.
+            // No PII in the alert: the address stays out of the message.
+            void reportError('auth.otp-email', e, { alertAdmin: true })
+          })
         },
       }),
     ],
@@ -262,7 +268,7 @@ function buildAuth(google: GoogleCreds) {
                 )
               }
             } catch (e) {
-              console.log('[v0] login audit failed:', (e as Error).message)
+              void reportError('auth.login-audit', e)
             }
           },
         },

@@ -28,6 +28,7 @@ import { getProductSlugMap } from '@/lib/shop/queries'
 import { evaluatePromoCode, findBestAutomaticDiscount } from '@/app/actions/promotions'
 import { applyOrderFulfillment, finalizePaidOrder, InsufficientStockError } from '@/lib/shop/order-fulfillment'
 import { notifyNewOrder } from '@/lib/notifications'
+import { reportError } from '@/lib/server-errors'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { mergeCheckoutItems, validateCheckoutInput } from '@/lib/shop/checkout-validation'
@@ -530,26 +531,34 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       // Real gateway flow: create an invoice and send the shopper to the gateway.
       const serviceUrl = `${baseUrl}/api/payments/${gateway.code}/callback`
       const returnUrl = `${baseUrl}${localizedPath('/checkout/return', locale)}?orderReference=${encodeURIComponent(orderNumber)}`
-      const result =
-        gateway.code === 'wayforpay'
-          ? await wayforpayCreateInvoice(gateway.config, {
-              orderReference: orderNumber,
-              amount: total,
-              currency: 'UAH',
-              productName: `Заказ №${orderNumber}`,
-              clientEmail: input.email?.trim(),
-              clientPhone: input.phone.trim(),
-              serviceUrl,
-              returnUrl,
-            })
-          : await monobankCreateInvoice(gateway.config, {
-              orderReference: orderNumber,
-              amount: total,
-              currency: 'UAH',
-              description: `Заказ №${orderNumber}`,
-              redirectUrl: returnUrl,
-              webHookUrl: serviceUrl,
-            })
+      // Invoice creation can throw (network, gateway timeout). Convert the
+      // throw into a gateway failure so the order is cancelled, the admin
+      // is alerted and the shopper gets a clear error — same as a bad token.
+      let result
+      try {
+        result =
+          gateway.code === 'wayforpay'
+            ? await wayforpayCreateInvoice(gateway.config, {
+                orderReference: orderNumber,
+                amount: total,
+                currency: 'UAH',
+                productName: `Заказ №${orderNumber}`,
+                clientEmail: input.email?.trim(),
+                clientPhone: input.phone.trim(),
+                serviceUrl,
+                returnUrl,
+              })
+            : await monobankCreateInvoice(gateway.config, {
+                orderReference: orderNumber,
+                amount: total,
+                currency: 'UAH',
+                description: `Заказ №${orderNumber}`,
+                redirectUrl: returnUrl,
+                webHookUrl: serviceUrl,
+              })
+      } catch (e) {
+        result = { ok: false as const, message: (e as Error).message }
+      }
 
       if (result.ok && result.paymentUrl) {
         try {
@@ -581,7 +590,11 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         // gateway outage, ...). Never fall through to the demo payment page in
         // this case — the shopper could "pay" without any real charge. Cancel
         // the order and surface the error so it can be retried or fixed.
-        console.log('[v0] Gateway invoice failed:', gateway.code, result.message)
+        // Critical money-flow failure — ping the admin, not just the logs.
+        void reportError('payment.gateway-invoice', new Error(result.message ?? 'unknown error'), {
+          alertAdmin: true,
+          context: { gateway: gateway.code, orderId: order.id },
+        })
         await pool.query(
           `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`,
           [`Ошибка шлюза ${gateway.code}: ${result.message ?? 'неизвестная ошибка'}`, order.id],

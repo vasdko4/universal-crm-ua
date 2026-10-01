@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from '@/lib/http'
+
 const NP_ENDPOINT = 'https://api.novaposhta.ua/v2.0/json/'
 
 // Справочные Ref'ы типов отделений Нова Пошта
@@ -40,11 +42,15 @@ async function npRequest<T>(
   calledMethod: string,
   methodProperties: Record<string, unknown>,
 ): Promise<NpResponse<T>> {
-  const res = await fetch(NP_ENDPOINT, {
+  // Nova Poshta feeds checkout (city/warehouse pickers) — a hung API must
+  // not hang the shopper. 10s hard timeout.
+  const res = await fetchWithTimeout(NP_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ apiKey, modelName, calledMethod, methodProperties }),
     cache: 'no-store',
+    timeoutMs: 10_000,
+    label: 'Nova Poshta API',
   })
   if (!res.ok) throw new Error(`Nova Poshta API вернул статус ${res.status}`)
   return (await res.json()) as NpResponse<T>

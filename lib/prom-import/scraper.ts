@@ -15,6 +15,7 @@
 //    (characteristics) — the listing summary doesn't include these.
 
 import { decodeHtmlEntities } from '@/lib/html-entities'
+import { fetchWithTimeout } from '@/lib/http'
 import { stripEdgeDashes, stripTrailingChars } from '@/lib/text'
 
 const USER_AGENT =
@@ -113,9 +114,12 @@ async function fetchHtml(url: string, lang = 'uk,ru;q=0.9'): Promise<{ html: str
         const safeUrl = sanitizePromUrl(currentUrl)
         if (!safeUrl) return null
 
-        const res = await fetch(safeUrl, {
+        // 20s per attempt — a hung page must not stall the whole import.
+        const res = await fetchWithTimeout(safeUrl, {
           headers: { 'user-agent': USER_AGENT, 'accept-language': lang },
           redirect: 'manual',
+          timeoutMs: 20_000,
+          label: 'Prom import fetch',
         })
 
         if (res.status >= 300 && res.status < 400) {

@@ -22,6 +22,7 @@ import {
   CalendarDays,
   BarChart3,
   Check,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
@@ -218,7 +219,7 @@ export function PromotionForm({
           form="promo-form"
           type="submit"
           disabled={isPending}
-          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-violet-600/25 transition-all hover:shadow-lg hover:brightness-110 disabled:opacity-60"
         >
           {isPending ? t.promotions.saveButtonSaving : t.promotions.saveButtonDefault}
         </button>
@@ -482,6 +483,40 @@ export function PromotionForm({
 
         {/* Правая колонка */}
         <aside className="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
+          <section className={cardClass}>
+            <h2 className={cardTitleClass}>
+              <Sparkles className="size-4 text-violet-600" />
+              {t.promotions.previewBuyerTitle}
+            </h2>
+            <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+              <div className="relative bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 px-4 py-5 text-center">
+                <div aria-hidden className="pointer-events-none absolute -right-6 -top-6 size-24 rounded-full bg-white/10 blur-xl" />
+                <p className="relative text-3xl font-extrabold tracking-tight text-white">
+                  {discountValue && Number(discountValue) > 0
+                    ? discountType === 'percentage'
+                      ? `−${discountValue}%`
+                      : `−${discountValue} ₴`
+                    : '− %'}
+                </p>
+                <p className="relative mt-1 truncate text-xs font-medium text-white/80">
+                  {name.trim() || t.promotions.namePlaceholder}
+                </p>
+              </div>
+              <div className="bg-white px-4 py-3 text-center">
+                {type === 'promocode' ? (
+                  <span className="inline-block rounded-lg border-2 border-dashed border-violet-300 bg-violet-50 px-4 py-1.5 font-mono text-sm font-bold tracking-widest text-violet-700">
+                    {promoCode.trim() || 'PROMO'}
+                  </span>
+                ) : (
+                  <span className="inline-block rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    {t.promotions.summaryTypeDiscount}
+                  </span>
+                )}
+              </div>
+            </div>
+            <p className="mt-2 text-center text-xs text-slate-400">{t.promotions.previewBuyerHint}</p>
+          </section>
+
           <section className={cardClass}>
             <h2 className={cardTitleClass}>
               <ListChecks className="size-4 text-violet-600" />

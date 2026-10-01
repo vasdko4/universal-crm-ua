@@ -1,6 +1,7 @@
 import { pool } from '@/lib/db'
 import type { Order, OrderItem } from '@/lib/db/schema'
 import { sendMail } from '@/lib/mailer'
+import { reportError } from '@/lib/server-errors'
 import { buildOrderMessage } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getProductSlugMap } from '@/lib/shop/queries'
@@ -31,12 +32,14 @@ export async function sendTelegramMessage(
     })
     if (!res.ok) {
       const body = await res.text().catch(() => '')
-      console.log('[v0] Telegram send failed:', res.status, body.slice(0, 200))
+      // Pinging the admin about Telegram being down via Telegram is pointless —
+      // structured log only, no alertAdmin.
+      void reportError('telegram.send', new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`))
       return false
     }
     return true
   } catch (e) {
-    console.log('[v0] Telegram send error:', (e as Error).message)
+    void reportError('telegram.send', e)
     return false
   }
 }
@@ -65,12 +68,12 @@ export async function sendTelegramPhoto(
     })
     if (!res.ok) {
       const body = await res.text().catch(() => '')
-      console.log('[v0] Telegram photo failed:', res.status, body.slice(0, 200))
+      void reportError('telegram.photo', new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`))
       return false
     }
     return true
   } catch (e) {
-    console.log('[v0] Telegram photo error:', (e as Error).message)
+    void reportError('telegram.photo', e)
     return false
   }
 }
@@ -168,6 +171,97 @@ export function buildAdminOrderTelegramHtml(
 }
 
 /**
+ * Rich HTML version of the admin new-order alert: customer block, items with
+ * thumbnails, totals, payment badge, delivery and a CTA into the admin order.
+ * Mirrors buildAdminOrderTelegramHtml so both channels show the same data.
+ */
+export function buildAdminOrderHtml(
+  order: Order,
+  items: OrderItem[],
+  siteUrl: string,
+  productSlugs: Record<number, string> = {},
+): string {
+  const itemImg = (src: string | null | undefined): string => {
+    if (!src) return ''
+    return src.startsWith('http') ? src : siteUrl ? `${siteUrl}${src}` : ''
+  }
+  const rowsHtml = items
+    .map((i) => {
+      const img = itemImg(i.image)
+      const thumb = img
+        ? `<img src="${escHtml(img)}" width="56" height="56" alt="" style="display:block;width:56px;height:56px;object-fit:contain;border-radius:8px;background:#f4f4f2" />`
+        : `<div style="width:56px;height:56px;border-radius:8px;background:#f4f4f2"></div>`
+      const name = `${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''}`
+      const productUrl =
+        siteUrl && i.productId ? `${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}` : ''
+      const nameHtml = productUrl
+        ? `<a href="${escHtml(productUrl)}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${escHtml(name)}</a>`
+        : `<span style="font-weight:600">${escHtml(name)}</span>`
+      return `<tr>
+        <td style="padding:10px 0;border-bottom:1px solid #ececea;width:68px;vertical-align:top">${thumb}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #ececea;vertical-align:top">
+          ${nameHtml}
+          <div style="font-size:13px;color:#6b6b68;margin-top:4px">${i.quantity} шт. × ${money(i.price, order.currency, 'uk')}</div>
+        </td>
+        <td style="padding:10px 0;border-bottom:1px solid #ececea;text-align:right;vertical-align:top;white-space:nowrap;font-weight:600">${money(i.total ?? Number(i.price) * i.quantity, order.currency, 'uk')}</td>
+      </tr>`
+    })
+    .join('')
+  const delivery = [
+    order.deliveryMethod ? CARRIER_LABELS[order.deliveryMethod] : null,
+    order.deliveryCity,
+    order.deliveryBranch,
+    order.deliveryAddress,
+  ]
+    .filter(Boolean)
+    .join(', ')
+  const payLabel = PAYMENT_LABELS[order.paymentMethod ?? ''] ?? order.paymentMethod ?? '—'
+  const paid = order.paymentStatus === 'paid'
+  const paidBadge = paid ? '✅ Оплачен' : '⏳ Не оплачен'
+  const comment = splitOrderNote(order.note).comment
+  const adminUrl = siteUrl ? `${siteUrl}/admin/orders/${order.id}` : ''
+
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Новый заказ №${escHtml(String(order.orderNumber))}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f2">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Новый заказ №${escHtml(String(order.orderNumber))} — ${money(order.total, order.currency, 'uk')}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f2;padding:24px 12px">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a">
+  <tr><td style="padding:24px 28px;border-bottom:1px solid #ececea">
+    <div style="font-size:20px;font-weight:800;color:#1a1a1a">🛒 Новый заказ №${escHtml(String(order.orderNumber))}</div>
+    <div style="font-size:13px;color:#6b6b68;margin-top:4px">${escHtml(new Date().toLocaleString('ru-RU'))}</div>
+  </td></tr>
+  <tr><td style="padding:20px 28px 4px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#4a4a47">
+      <tr><td style="padding:3px 0;color:#6b6b68">Покупатель</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#1a1a1a">${escHtml(order.customerName ?? '—')}</td></tr>
+      <tr><td style="padding:3px 0;color:#6b6b68">Телефон</td><td style="padding:3px 0;text-align:right"><a href="tel:${escHtml((order.customerPhone ?? '').replace(/[^+\d]/g, ''))}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${escHtml(order.customerPhone ?? '—')}</a></td></tr>
+      ${order.customerEmail ? `<tr><td style="padding:3px 0;color:#6b6b68">Email</td><td style="padding:3px 0;text-align:right"><a href="mailto:${escHtml(order.customerEmail)}" style="color:#1a1a1a">${escHtml(order.customerEmail)}</a></td></tr>` : ''}
+      <tr><td style="padding:3px 0;color:#6b6b68">Оплата</td><td style="padding:3px 0;text-align:right">${escHtml(payLabel)} — ${paidBadge}</td></tr>
+      ${delivery ? `<tr><td style="padding:3px 0;color:#6b6b68">Доставка</td><td style="padding:3px 0;text-align:right">${escHtml(delivery)}</td></tr>` : ''}
+      ${comment ? `<tr><td style="padding:3px 0;color:#6b6b68">Комментарий</td><td style="padding:3px 0;text-align:right">${escHtml(comment)}</td></tr>` : ''}
+    </table>
+  </td></tr>
+  <tr><td style="padding:12px 28px 4px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px">
+      ${rowsHtml}
+    </table>
+  </td></tr>
+  <tr><td style="padding:12px 28px 24px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px">
+      <tr><td style="padding:10px 0 0;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">Итого</td><td style="padding:10px 0 0;text-align:right;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${money(order.total, order.currency, 'uk')}</td></tr>
+    </table>
+    ${adminUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr><td style="border-radius:8px;background:#1a1a1a"><a href="${escHtml(adminUrl)}" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">Открыть заказ в админке</a></td></tr></table>` : ''}
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+}
+
+/**
  * Fire-and-forget notifications for a newly placed order: confirmation email
  * to the customer, alert email + Telegram message to the admin. Every channel
  * is best-effort — a notification failure must never break checkout.
@@ -231,21 +325,27 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
       const msg = buildOrderMessage('confirmation', o, items, storeCtx, productSlugs)
       jobs.push(
         sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html }).catch(
-          (e) => console.log('[v0] customer email failed:', (e as Error).message),
+          (e) => {
+            void reportError('notify.customer-email', e, { context: { orderId } })
+          },
         ),
       )
     }
 
-    // 2) Admin alert email.
+    // 2) Admin alert email (text + rich HTML).
     const adminTo = n.adminEmail || settings.emailSettings.smtpUser
     if (n.adminEmailEnabled && adminTo) {
       const text = buildAdminOrderText(o, items, siteUrl)
+      const html = buildAdminOrderHtml(o, items, siteUrl, productSlugs)
       jobs.push(
         sendMail({
           to: adminTo,
           subject: `Новый заказ №${o.orderNumber} — ${money(o.total, o.currency, 'uk')}`,
           text,
-        }).catch((e) => console.log('[v0] admin email failed:', (e as Error).message)),
+          html,
+        }).catch((e) => {
+          void reportError('notify.admin-email', e, { context: { orderId } })
+        }),
       )
     }
 
@@ -275,7 +375,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
 
     await Promise.allSettled(jobs)
   } catch (e) {
-    console.log('[v0] notifyNewOrder failed:', (e as Error).message)
+    void reportError('notify.new-order', e, { context: { orderId } })
   }
 }
 
@@ -345,6 +445,6 @@ export async function notifyShippedOrder(orderId: number): Promise<void> {
     const msg = buildOrderMessage('shipped', o, items, storeCtx, productSlugs)
     await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
   } catch (e) {
-    console.log('[v0] notifyShippedOrder failed:', (e as Error).message)
+    void reportError('notify.shipped-order', e, { context: { orderId } })
   }
 }

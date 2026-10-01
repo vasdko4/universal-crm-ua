@@ -1,4 +1,5 @@
 import { pool } from '@/lib/db'
+import { reportError } from '@/lib/server-errors'
 import type { PoolClient } from 'pg'
 
 export type StockReason = 'sale' | 'cancel' | 'adjust' | 'bulk' | 'import' | 'restore'
@@ -34,6 +35,14 @@ export async function recordStockMovement(
       ],
     )
   } catch (e) {
-    console.log('[stock] ledger write failed:', (e as Error).message)
+    // The ledger is the audit trail for stock — a failed write must be
+    // visible in production logs, not buried in console.log.
+    await reportError('stock.ledger-write-failed', e, {
+      context: {
+        productId: input.productId,
+        reason: input.reason,
+        orderId: input.orderId ?? undefined,
+      },
+    })
   }
 }

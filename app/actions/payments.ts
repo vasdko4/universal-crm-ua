@@ -398,6 +398,19 @@ export async function refundPayment(
     })
     if (fullyRefunded && linked.status !== 'cancelled') {
       await restoreStockOnce(linked.id)
+      // BUGFIX: a full refund voids the sale but used to keep the promo usage
+      // counted against usageLimit. Release it so the code can be reused.
+      // Partial refunds keep the usage: the order is still active.
+      const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
+      const { released } = await releasePromotionUsageForOrder(payment.orderReference)
+      if (released.length > 0) {
+        await db.insert(orderHistory).values({
+          orderId: linked.id,
+          type: 'note',
+          message: `Использование промокода освобождено (полный возврат): ${released.map((r) => r.promoCode ?? `#${r.promotionId}`).join(', ')}`,
+          actor: 'Платёжный шлюз',
+        })
+      }
     }
   }
   return {

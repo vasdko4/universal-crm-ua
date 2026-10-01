@@ -21,6 +21,7 @@ import {
   Calendar,
   TrendingUp,
   Pencil,
+  Sparkles,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -38,6 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
@@ -124,22 +126,25 @@ export function PromotionsList({
   if (totalCount === 0) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <Header />
-        <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
-          <div className="relative mb-6 size-48">
-            <Image
-              src="/promotions-empty.png"
-              alt=""
-              fill
-              className="object-contain"
-              priority
-            />
+        <Hero totalCount={0} />
+        <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
+          <div className="relative mb-6">
+            <div aria-hidden className="absolute inset-0 -m-6 rounded-full bg-gradient-to-br from-violet-200 via-fuchsia-100 to-orange-100 blur-2xl" />
+            <div className="relative size-48">
+              <Image
+                src="/promotions-empty.png"
+                alt=""
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
           </div>
-          <h2 className="text-xl font-semibold text-slate-900">{t.promotions.emptyTitle}</h2>
+          <h2 className="text-xl font-bold text-slate-900">{t.promotions.emptyTitle}</h2>
           <p className="mt-2 max-w-sm text-sm text-slate-500">{t.promotions.emptyDesc}</p>
           <Link
             href="/admin/promotions/new"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition-all hover:shadow-xl hover:shadow-violet-600/30 hover:brightness-110"
           >
             <Plus className="size-4" />
             {t.promotions.addButton}
@@ -151,20 +156,20 @@ export function PromotionsList({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Header />
+      <Hero totalCount={totalCount} />
 
-      <div className="px-6 py-6">
+      <div className="px-4 py-6 sm:px-6">
         {/* Панель поиска и фильтров */}
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
             {statusTabs(t).map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => pushParams({ status: tab.key, page: 1 })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
                   status === tab.key
-                    ? 'bg-violet-600 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? 'bg-white text-violet-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {tab.label}
@@ -184,14 +189,14 @@ export function PromotionsList({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t.promotions.searchPlaceholder}
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
             />
           </form>
         </div>
 
         {/* Список */}
         {data.items.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white py-16 text-center shadow-sm">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 py-16 text-center">
             <p className="text-sm text-slate-500">{t.promotions.noResults}</p>
           </div>
         ) : (
@@ -210,15 +215,15 @@ export function PromotionsList({
 
         {/* Пагинация */}
         {data.totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-1">
+          <div className="mt-6 flex items-center justify-center gap-1.5">
             {Array.from({ length: data.totalPages }, (_, i) => i + 1).map((n) => (
               <button
                 key={n}
                 onClick={() => pushParams({ page: n })}
-                className={`size-9 rounded-lg text-sm font-medium transition-colors ${
+                className={`size-9 rounded-xl text-sm font-medium transition-all ${
                   n === data.page
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 hover:bg-slate-100'
+                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md shadow-violet-600/25'
+                    : 'bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 hover:ring-violet-300'
                 }`}
               >
                 {n}
@@ -249,21 +254,37 @@ export function PromotionsList({
   )
 }
 
-function Header() {
+function Hero({ totalCount }: { totalCount: number }) {
   const { dict: t } = useAdminI18n()
   return (
-    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-900">{t.promotions.pageTitle}</h1>
-        <p className="text-sm text-slate-500">{t.promotions.pageSubtitle}</p>
+    <header className="relative overflow-hidden bg-gradient-to-r from-violet-700 via-purple-700 to-fuchsia-700">
+      <div aria-hidden className="pointer-events-none absolute -left-20 -top-24 size-72 rounded-full bg-white/10 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-28 right-10 size-80 rounded-full bg-fuchsia-400/20 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute right-1/4 top-0 size-40 rounded-full bg-orange-300/10 blur-2xl" />
+      <div className="relative flex flex-wrap items-center justify-between gap-4 px-4 py-7 sm:px-6 sm:py-8">
+        <div className="flex items-center gap-4">
+          <span className="hidden size-12 items-center justify-center rounded-2xl bg-white/15 text-white shadow-inner backdrop-blur-sm sm:flex">
+            <Sparkles className="size-6" />
+          </span>
+          <div>
+            <h1 className="text-xl font-bold text-white sm:text-2xl">{t.promotions.pageTitle}</h1>
+            <p className="mt-0.5 text-sm text-white/75">{t.promotions.pageSubtitle}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-2 rounded-xl bg-white/10 px-4 py-2 backdrop-blur-sm sm:flex">
+            <span className="text-2xl font-bold text-white">{totalCount}</span>
+            <span className="text-xs leading-tight text-white/70">{t.promotions.statTotal}</span>
+          </div>
+          <Link
+            href="/admin/promotions/new"
+            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-700 shadow-lg transition-all hover:bg-violet-50 hover:shadow-xl"
+          >
+            <Plus className="size-4" />
+            {t.promotions.addButton}
+          </Link>
+        </div>
       </div>
-      <Link
-        href="/admin/promotions/new"
-        className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700"
-      >
-        <Plus className="size-4" />
-        {t.promotions.addButton}
-      </Link>
     </header>
   )
 }
@@ -280,6 +301,7 @@ function PromotionCard({
   onDelete: () => void
 }) {
   const { dict: t, locale } = useAdminI18n()
+  const isPromo = p.type === 'promocode'
   const discount =
     p.discountType === 'percentage'
       ? `${Number(p.discountValue)}%`
@@ -292,32 +314,85 @@ function PromotionCard({
         : t.promotions.targetProducts
   const start = formatDate(p.startsAt, locale)
   const end = formatDate(p.endsAt, locale)
+  const usagePct =
+    p.usageLimit && p.usageLimit > 0
+      ? Math.min(100, Math.round(((p.usedCount ?? 0) / p.usageLimit) * 100))
+      : null
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
-        {p.type === 'promocode' ? <Ticket className="size-6" /> : <Tag className="size-6" />}
+    <div
+      className={`group relative flex items-center gap-4 overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-600/5 ${
+        p.isActive ? 'border-slate-200' : 'border-slate-200 opacity-75'
+      }`}
+    >
+      <span
+        aria-hidden
+        className={`absolute inset-y-0 left-0 w-1 ${
+          isPromo
+            ? 'bg-gradient-to-b from-violet-500 to-fuchsia-500'
+            : 'bg-gradient-to-b from-amber-400 to-orange-500'
+        }`}
+      />
+
+      <div
+        className={`flex size-13 shrink-0 items-center justify-center rounded-2xl text-white shadow-md ${
+          isPromo
+            ? 'bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-violet-500/25'
+            : 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-orange-500/25'
+        }`}
+      >
+        {isPromo ? <Ticket className="size-6" /> : <Tag className="size-6" />}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/admin/promotions/${p.id}/edit`}
-            className="truncate font-semibold text-slate-900 hover:text-violet-700"
+            className="truncate font-bold text-slate-900 hover:text-violet-700"
           >
             {p.name}
           </Link>
-          <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold text-white shadow-sm ${
+              isPromo
+                ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600'
+                : 'bg-gradient-to-r from-amber-500 to-orange-500'
+            }`}
+          >
             <Percent className="size-3" />
             {discount}
           </span>
           {p.promoCode && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-700">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(p.promoCode!)
+                  toast.success(t.promotions.toastCodeCopied)
+                } catch {
+                  toast.error(t.promotions.toastCodeCopyFailed)
+                }
+              }}
+              title={t.promotions.copyCodeAction}
+              className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-200 transition-colors hover:bg-violet-50 hover:text-violet-700 hover:ring-violet-200"
+            >
+              <Copy className="size-3 opacity-60" />
               {p.promoCode}
-            </span>
+            </button>
           )}
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              p.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            <span
+              className={`size-1.5 rounded-full ${p.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}
+            />
+            {p.isActive ? t.promotions.tabActive : t.promotions.tabInactive}
+          </span>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
           <span>{targetLabel}</span>
           <span className="inline-flex items-center gap-1">
             <Calendar className="size-3" />
@@ -330,58 +405,75 @@ function PromotionCard({
             {p.usageLimit ? ` / ${p.usageLimit}` : ''}
           </span>
         </div>
+
+        {usagePct != null && (
+          <div className="mt-2 flex max-w-xs items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  usagePct >= 90
+                    ? 'bg-gradient-to-r from-red-500 to-orange-500'
+                    : 'bg-gradient-to-r from-violet-500 to-fuchsia-500'
+                }`}
+                style={{ width: `${usagePct}%` }}
+              />
+            </div>
+            <span className="text-[11px] font-medium text-slate-400">{usagePct}%</span>
+          </div>
+        )}
       </div>
 
-      <div className="hidden shrink-0 text-right md:block">
-        <p className="text-xs text-slate-400">{t.promotions.totalDiscountLabel}</p>
-        <p className="font-semibold text-slate-900">{formatMoney(Number(p.totalDiscountAmount), locale)} ₴</p>
+      <div className="hidden shrink-0 text-right lg:block">
+        <p className="text-[11px] uppercase tracking-wide text-slate-400">{t.promotions.totalDiscountLabel}</p>
+        <p className="font-bold text-slate-900">{formatMoney(Number(p.totalDiscountAmount), locale)} ₴</p>
       </div>
 
-      <label className="flex shrink-0 cursor-pointer items-center gap-2">
-        <span className="sr-only">{t.promotions.statusSr}</span>
-        <input
-          type="checkbox"
+      <div className="flex shrink-0 items-center gap-1">
+        <Switch
           checked={!!p.isActive}
           disabled={busy}
-          onChange={(e) => onToggle(p.id, e.target.checked)}
-          className="peer sr-only"
+          onCheckedChange={(v) => onToggle(p.id, v)}
+          aria-label={t.promotions.statusSr}
+          className="data-[state=checked]:bg-violet-600"
         />
-        <span className="relative h-5 w-9 rounded-full bg-slate-300 transition-colors peer-checked:bg-violet-600 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4" />
-      </label>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            aria-label={t.promotions.actionsAria}
-          >
-            <MoreVertical className="size-4" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link href={`/admin/promotions/${p.id}/edit`}>
-              <Pencil className="size-4" />
-              {t.common.edit}
-            </Link>
-          </DropdownMenuItem>
-          {p.promoCode && (
-            <DropdownMenuItem
-              onClick={() => {
-                navigator.clipboard.writeText(p.promoCode!)
-                toast.success(t.promotions.toastCodeCopied)
-              }}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              aria-label={t.promotions.actionsAria}
             >
-              <Copy className="size-4" />
-              {t.promotions.copyCodeAction}
+              <MoreVertical className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/promotions/${p.id}/edit`}>
+                <Pencil className="size-4" />
+                {t.common.edit}
+              </Link>
             </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600">
-            <Trash2 className="size-4" />
-            {t.common.delete}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            {p.promoCode && (
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(p.promoCode!)
+                    toast.success(t.promotions.toastCodeCopied)
+                  } catch {
+                    toast.error(t.promotions.toastCodeCopyFailed)
+                  }
+                }}
+              >
+                <Copy className="size-4" />
+                {t.promotions.copyCodeAction}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600">
+              <Trash2 className="size-4" />
+              {t.common.delete}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   )
 }

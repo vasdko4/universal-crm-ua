@@ -10,6 +10,7 @@ import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { sanitizeSearch } from '@/lib/api/helpers'
+import { normalizeModalAdTheme, type ModalAdTheme } from '@/lib/shop/modal-ad-themes'
 
 export type ModalAdTargetPage = 'all' | 'home' | 'catalog' | 'product' | 'cart'
 export type ModalAdTrigger = 'delay' | 'scroll' | 'exit'
@@ -24,6 +25,7 @@ export type ModalAdInput = {
   buttonText?: string | null
   buttonUrl?: string | null
   buttonColor?: string | null
+  theme?: ModalAdTheme | string | null
   targetPages: ModalAdTargetPage[]
   triggerType: ModalAdTrigger
   triggerValue: number
@@ -76,6 +78,7 @@ function toValues(input: ModalAdInput) {
     buttonText: input.buttonText?.trim() || null,
     buttonUrl: input.buttonUrl?.trim() || null,
     buttonColor: input.buttonColor?.trim() || '',
+    theme: normalizeModalAdTheme(input.theme),
     targetPages: input.targetPages.includes('all') ? ['all'] : input.targetPages,
     triggerType: input.triggerType,
     triggerValue: Math.round(input.triggerValue),
@@ -194,6 +197,7 @@ export type PublicModalAd = {
   buttonText: string | null
   buttonUrl: string | null
   buttonColor: string
+  theme: ModalAdTheme
   targetPages: ModalAdTargetPage[]
   triggerType: ModalAdTrigger
   triggerValue: number
@@ -234,6 +238,7 @@ export async function getActiveModalAds(): Promise<PublicModalAd[]> {
     buttonText: r.buttonText,
     buttonUrl: r.buttonUrl,
     buttonColor: r.buttonColor ?? '',
+    theme: normalizeModalAdTheme(r.theme),
     targetPages: (r.targetPages as ModalAdTargetPage[]) ?? ['all'],
     triggerType: r.triggerType as ModalAdTrigger,
     triggerValue: r.triggerValue,

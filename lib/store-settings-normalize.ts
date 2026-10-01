@@ -104,6 +104,7 @@ export type StoreSettingsData = {
   defaultLocale: string
   localePromptMode: 'modal' | 'browser'
   activeTemplate: string
+  adminTheme: string
   seo: SeoSettings
   social: {
     instagram: SocialLink
@@ -154,6 +155,7 @@ export const DEFAULTS: StoreSettingsData = {
   defaultLocale: 'uk',
   localePromptMode: 'browser',
   activeTemplate: 'classic',
+  adminTheme: 'teal',
   seo: {
     siteUrl: '',
     metaTitle: '',
@@ -423,6 +425,7 @@ export function normalizeStoreSettingsRow(row: unknown): StoreSettingsData {
     defaultLocale: asString(col(src, 'defaultLocale', 'default_locale'), DEFAULTS.defaultLocale) || 'uk',
     localePromptMode: col(src, 'localePromptMode', 'locale_prompt_mode') === 'modal' ? 'modal' : 'browser',
     activeTemplate: asString(col(src, 'activeTemplate', 'active_template'), DEFAULTS.activeTemplate) || 'classic',
+    adminTheme: asString(col(src, 'adminTheme', 'admin_theme'), DEFAULTS.adminTheme) || 'teal',
     seo: mergeObject(DEFAULTS.seo, col(src, 'seo', 'seo')),
     social: mergeSocial(col(src, 'social', 'social')),
     googleAds: mergeObject(DEFAULTS.googleAds, col(src, 'googleAds', 'google_ads')),

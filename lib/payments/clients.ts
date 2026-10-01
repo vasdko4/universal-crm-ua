@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { fetchWithTimeout } from '@/lib/http'
 
 /** True when the gateway row is active AND has real credentials (not seed placeholders). */
 export function isGatewayConfigured(code: string, config: unknown): boolean {
@@ -66,10 +67,14 @@ function wfpSignature(secret: string, fields: (string | number)[]): string {
 }
 
 async function wfpRequest(body: Record<string, unknown>): Promise<any> {
-  const res = await fetch(WFP_API, {
+  // A hung gateway must not hang checkout: 15s hard timeout, the caller
+  // turns a throw into a gateway-failure (order cancelled, admin alerted).
+  const res = await fetchWithTimeout(WFP_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    timeoutMs: 15_000,
+    label: 'WayForPay API',
   })
   return res.json()
 }
@@ -282,13 +287,15 @@ async function monoRequest(
   method: 'GET' | 'POST',
   body?: Record<string, unknown>,
 ): Promise<{ ok: boolean; data: any; httpStatus: number }> {
-  const res = await fetch(`${MONO_API}${path}`, {
+  const res = await fetchWithTimeout(`${MONO_API}${path}`, {
     method,
     headers: {
       'X-Token': token,
       'Content-Type': 'application/json',
     },
     body: body ? JSON.stringify(body) : undefined,
+    timeoutMs: 15_000,
+    label: 'Monobank API',
   })
   const data = await res.json().catch(() => ({}))
   return { ok: res.ok, data, httpStatus: res.status }

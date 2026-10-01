@@ -1,7 +1,7 @@
 import { db, pool, dbForClient } from '@/lib/db'
-import { orders, orderItems, orderHistory, promotions } from '@/lib/db/schema'
-import { asc, eq, sql } from 'drizzle-orm'
-import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
+import { orders, orderItems, orderHistory } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { recordPromoUsageForOrder } from '@/lib/shop/promo-usage'
 import { recordStockMovement, type QueryExecutor } from '@/lib/shop/stock-ledger'
 import type { PoolClient } from 'pg'
 
@@ -365,61 +365,28 @@ export async function applyOrderFulfillment(
     )
   }
 
-  const total = Number(order.total)
-
   // Promo usage on the same connection as the order (FIX-11). Cash checkout
-  // aborts if the limit is already taken. Online (no client) already claimed
-  // pending_payment → new, so a missed increment is logged, not rolled back.
-  const totalDiscount = Number(order.discountTotal)
-  const autoAmount = Number(order.autoDiscountAmount || 0)
-  const manualAmount = Math.max(0, totalDiscount - autoAmount)
-
-  if (order.promoCode && manualAmount > 0) {
-    const [promo] = await tx
-      .select({ id: promotions.id })
-      .from(promotions)
-      .where(
-        sql`UPPER(${promotions.promoCode}) = ${order.promoCode.toUpperCase()} AND ${promotions.type} = 'promocode'`,
-      )
-      .orderBy(asc(promotions.id))
-      .limit(1)
-    if (promo) {
-      const usage = await recordPromotionUsageInternal(
-        {
-          promotionId: promo.id,
-          orderReference: order.orderNumber,
-          orderAmount: total,
-          discountAmount: manualAmount,
-        },
-        client,
-      )
-      if (!usage.counted && client) throw new Error('promo-limit')
-      await q.query(
-        `INSERT INTO order_history (order_id, type, message, actor) VALUES ($1, 'note', $2, $3)`,
-        [orderId, `Промокод ${order.promoCode} — ${manualAmount.toFixed(2)} ₴`, order.customerName ?? 'System'],
-      )
-    }
-  }
-
-  if (order.autoDiscountId && autoAmount > 0) {
-    const usage = await recordPromotionUsageInternal(
-      {
-        promotionId: Number(order.autoDiscountId),
-        orderReference: order.orderNumber,
-        orderAmount: total,
-        discountAmount: autoAmount,
-      },
-      client,
-    )
-    if (!usage.counted && client) throw new Error('promo-limit')
-    await q.query(
-      `INSERT INTO order_history (order_id, type, message, actor) VALUES ($1, 'note', $2, $3)`,
-      [orderId, `Автознижка — ${autoAmount.toFixed(2)} ₴`, order.customerName ?? 'System'],
-    )
-  }
+  // aborts if the limit is already taken (strict). Online (no client)
+  // already claimed pending_payment → new, so a missed increment is logged,
+  // not rolled back.
+  await recordPromoUsageForOrder(
+    {
+      orderId,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      promoCode: order.promoCode,
+      discountTotal: order.discountTotal,
+      autoDiscountId: order.autoDiscountId,
+      autoDiscountAmount: order.autoDiscountAmount,
+      total: order.total,
+    },
+    client,
+    { strict: client != null },
+  )
 
   // Customer stats / analytics on the pool, not the checkout client — a
   // missing column or transient error must not abort the order (FIX-12).
+  const total = Number(order.total)
   if (order.customerId) {
     await pool
       .query(
