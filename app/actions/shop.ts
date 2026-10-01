@@ -28,6 +28,7 @@ import { getProductSlugMap } from '@/lib/shop/queries'
 import { evaluatePromoCode, findBestAutomaticDiscount } from '@/app/actions/promotions'
 import { applyOrderFulfillment, finalizePaidOrder, InsufficientStockError } from '@/lib/shop/order-fulfillment'
 import { notifyNewOrder } from '@/lib/notifications'
+import { reportError } from '@/lib/server-errors'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { mergeCheckoutItems, validateCheckoutInput } from '@/lib/shop/checkout-validation'
@@ -581,7 +582,10 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         // gateway outage, ...). Never fall through to the demo payment page in
         // this case — the shopper could "pay" without any real charge. Cancel
         // the order and surface the error so it can be retried or fixed.
-        console.log('[v0] Gateway invoice failed:', gateway.code, result.message)
+        void reportError('payment.gateway-invoice', new Error('Gateway invoice creation failed'), {
+          alertAdmin: true,
+          context: { gateway: gateway.code },
+        })
         await pool.query(
           `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`,
           [`Ошибка шлюза ${gateway.code}: ${result.message ?? 'неизвестная ошибка'}`, order.id],

@@ -7,6 +7,7 @@ import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR } from '@/lib/shop/email-domai
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { authRateLimitStorage } from '@/lib/auth-rate-limit-storage'
 import { decryptSecret } from '@/lib/secrets'
+import { reportError } from '@/lib/server-errors'
 
 function trustedAuthProxies(): string[] {
   const raw = process.env.TRUSTED_PROXIES?.trim()
@@ -84,9 +85,9 @@ function buildAuth(google: GoogleCreds) {
           <div style="font-size:32px;font-weight:700;letter-spacing:8px;background:#f4f4f5;border-radius:12px;padding:16px;text-align:center;margin:16px 0">${otp}</div>
           <p style="color:#71717a;font-size:13px">Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.</p>
         </div>`
-          await sendMail({ to: email, subject, text, html }).catch((e) =>
-            console.log('[v0] OTP email error:', (e as Error).message),
-          )
+          await sendMail({ to: email, subject, text, html }).catch((e) => {
+            void reportError('auth.otp-email', e, { alertAdmin: true })
+          })
         },
       }),
     ],
@@ -262,7 +263,7 @@ function buildAuth(google: GoogleCreds) {
                 )
               }
             } catch (e) {
-              console.log('[v0] login audit failed:', (e as Error).message)
+              void reportError('auth.login-audit', e)
             }
           },
         },
