@@ -59,18 +59,33 @@ export function getConfiguredSetupToken(): string | null {
   return null
 }
 
-/** Create and persist a token if none is configured. Safe to call on every boot. */
+/** Create a token if none is configured. Safe to call on every boot. */
 export function ensureSetupToken(): { token: string; generated: boolean } {
   const existing = getConfiguredSetupToken()
   if (existing) return { token: existing, generated: false }
   const token = randomBytes(24).toString('base64url')
+  process.env.SETUP_TOKEN = token
+  persistSetupToken(token)
+  return { token, generated: true }
+}
+
+let persistWarningLogged = false
+
+/**
+ * Best-effort persistence so the token survives restarts and the admin can
+ * find it in `.setup-token`. Skipped on read-only hosts (Vercel mounts
+ * /var/task read-only): there the token lives only in this instance's
+ * memory, so a fresh hosted install must set SETUP_TOKEN explicitly.
+ * Logs at most once per instance instead of on every cold start.
+ */
+function persistSetupToken(token: string): void {
+  if (persistWarningLogged || process.env.VERCEL) return
+  persistWarningLogged = true
   try {
     writeFileSync(TOKEN_FILE, `${token}\n`, { encoding: 'utf8', mode: 0o600 })
   } catch (e) {
     console.error('[setup] could not persist .setup-token:', (e as Error).message)
   }
-  process.env.SETUP_TOKEN = token
-  return { token, generated: true }
 }
 
 export function authorizeSetupToken(provided: string | null | undefined): boolean {

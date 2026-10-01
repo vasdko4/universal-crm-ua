@@ -5,7 +5,9 @@ export async function register() {
       const { generated } = ensureSetupToken()
       if (generated) {
         console.log(
-          '[setup] one-time install token written to .setup-token — open /setup and paste it. Do not put the token in URLs or logs.',
+          process.env.VERCEL
+            ? '[setup] one-time install token generated for this instance only — set the SETUP_TOKEN env var for /setup on a fresh install. Do not put the token in URLs or logs.'
+            : '[setup] one-time install token written to .setup-token — open /setup and paste it. Do not put the token in URLs or logs.',
         )
       }
     } catch (e) {
