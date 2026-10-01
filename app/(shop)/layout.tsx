@@ -2,6 +2,7 @@ import type React from 'react'
 import { redirect } from 'next/navigation'
 import { CartProvider } from '@/lib/shop/cart-context'
 import { FavoritesProvider } from '@/lib/shop/favorites-context'
+import { CompareProvider } from '@/lib/shop/compare-context'
 import { SiteHeader, type HeaderCategory } from '@/components/shop/site-header'
 import { SiteFooter } from '@/components/shop/site-footer'
 import { ContactWidgetButton } from '@/components/shop/contact-widget'
@@ -74,6 +75,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         openCartAfterAdd={settings?.openCartAfterAdd ?? true}
       >
         <FavoritesProvider>
+          <CompareProvider>
           <AuthDialogProvider googleEnabled={googleAuthEnabled}>
           <div data-template={template} className="flex min-h-screen flex-col bg-background text-foreground">
             <AnalyticsTracker gaId={settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined} />
@@ -120,6 +122,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             <CookieConsentBanner />
           )}
           </AuthDialogProvider>
+          </CompareProvider>
         </FavoritesProvider>
       </CartProvider>
     </LocaleProvider>

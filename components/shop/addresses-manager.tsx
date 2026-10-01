@@ -15,6 +15,7 @@ import {
 } from '@/app/actions/addresses'
 import { cn } from '@/lib/utils'
 import { formatUaPhoneInput } from '@/lib/shop/phone'
+import { SectionHeader, EmptyState } from '@/components/shop/account/account-ui'
 
 type FormState = {
   id?: number
@@ -124,17 +125,17 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">{t.addressesTitle}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t.addressesDescription}</p>
-        </div>
-        {!editing && (
-          <Button onClick={startAdd} className="shrink-0 gap-1">
-            <Plus className="size-4" /> {t.addAddress}
-          </Button>
-        )}
-      </div>
+      <SectionHeader
+        title={t.addressesTitle}
+        description={t.addressesDescription}
+        action={
+          !editing ? (
+            <Button onClick={startAdd} className="shrink-0 gap-1">
+              <Plus className="size-4" /> {t.addAddress}
+            </Button>
+          ) : undefined
+        }
+      />
 
       {editing && (
         <div className="rounded-2xl border border-border bg-card p-5">
@@ -251,12 +252,15 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
       )}
 
       {!editing && initialAddresses.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card px-6 py-16 text-center">
-          <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-            <MapPin className="size-7 text-muted-foreground" />
-          </div>
-          <p className="mt-4 text-sm text-muted-foreground">{t.addressesEmpty}</p>
-        </div>
+        <EmptyState
+          icon={MapPin}
+          title={t.addressesEmpty}
+          action={
+            <Button onClick={startAdd} className="gap-1">
+              <Plus className="size-4" /> {t.addAddress}
+            </Button>
+          }
+        />
       )}
 
       {!editing && initialAddresses.length > 0 && (

@@ -509,3 +509,27 @@ ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "admin_theme" varchar(20) 
 
 -- Manual ad spend for the ROAS report (Admin → Campaigns & ROAS), see lib/analytics/roas.ts
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "ads_spend" jsonb NOT NULL DEFAULT '{}';
+
+-- Full-text product search (Block C): pg_trgm for typo tolerance + a
+-- DB-maintained tsvector over the bilingual names, SKU and descriptions.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS search_vector tsvector
+  GENERATED ALWAYS AS (
+    to_tsvector('simple',
+      coalesce(name_uk, '') || ' ' ||
+      coalesce(name_ru, '') || ' ' ||
+      coalesce(sku, '') || ' ' ||
+      coalesce(description_uk, '') || ' ' ||
+      coalesce(description_ru, ''))
+  ) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_products_search_vector
+  ON products USING GIN (search_vector);
+
+CREATE INDEX IF NOT EXISTS idx_products_name_uk_trgm
+  ON products USING GIN ((coalesce(name_uk, '')) gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_products_name_ru_trgm
+  ON products USING GIN ((coalesce(name_ru, '')) gin_trgm_ops);

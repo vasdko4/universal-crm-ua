@@ -4,12 +4,14 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, User, Phone, Mail, Truck, MapPin, Package } from 'lucide-react'
 import { getMyOrderDetail } from '@/app/actions/shop'
 import { formatPrice } from '@/lib/shop/format'
-import { getOrderStatusLabel, getPaymentStatusLabel, getDeliveryMethodLabel } from '@/lib/order-status'
+import { getDeliveryMethodLabel } from '@/lib/order-status'
 import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { parsePositiveInt } from '@/lib/api/helpers'
 import { requisitesBody } from '@/lib/payments/public-requisites'
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/shop/account/order-status-badge'
+import { formatKyivDateTime } from '@/components/shop/account/utils'
 
 function InfoRow({
   icon: Icon,
@@ -51,8 +53,8 @@ export default async function MyOrderDetailPage({
   const dict = getDictionary(locale)
   const t = dict.account
 
-  const status = getOrderStatusLabel(order.status, locale)
-  const pay = getPaymentStatusLabel(order.paymentStatus, locale)
+  const status = order.status
+  const payStatus = order.paymentStatus
   const deliveryLabel = getDeliveryMethodLabel(order.deliveryMethod, locale)
 
   return (
@@ -70,17 +72,13 @@ export default async function MyOrderDetailPage({
             {t.orderHeading}
             {order.orderNumber}
           </h2>
-          <div className="flex gap-2 text-xs">
-            <span className="rounded-full bg-muted px-3 py-1 font-medium text-muted-foreground">
-              {status}
-            </span>
-            <span className="rounded-full bg-muted px-3 py-1 font-medium text-muted-foreground">
-              {pay}
-            </span>
+          <div className="flex flex-wrap gap-2">
+            <OrderStatusBadge status={status} locale={locale} />
+            <PaymentStatusBadge status={payStatus} locale={locale} />
           </div>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          {order.createdAt ? new Date(order.createdAt).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA') : ''}
+          {formatKyivDateTime(order.createdAt, locale)}
         </p>
       </div>
 

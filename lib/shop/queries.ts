@@ -54,10 +54,18 @@ function likePattern(token: string): string {
 }
 
 /**
- * Name, SKU, barcode, option JSON, and Prom characteristics.
- * Each token must match at least one of those fields (AND across tokens).
+ * Full-text search needs at least this many characters to be useful;
+ * shorter queries (e.g. "24") keep the legacy ILIKE matching.
  */
-function productSearchCondition(search: string): SQL | undefined {
+const FULLTEXT_MIN_QUERY_LENGTH = 3
+
+/**
+ * Name, SKU, barcode, option JSON, and Prom characteristics — the legacy
+ * ILIKE matcher, kept verbatim for short queries (<3 chars) where
+ * full-text search is useless. Each token must match at least one of those
+ * fields (AND across tokens).
+ */
+function legacyProductSearchCondition(search: string): SQL | undefined {
   const tokens = searchTokens(search)
   if (tokens.length === 0) return undefined
   const parts = tokens.map((token) => {
@@ -76,6 +84,37 @@ function productSearchCondition(search: string): SQL | undefined {
     )!
   })
   return parts.length === 1 ? parts[0] : and(...parts)
+}
+
+/**
+ * Product search: full-text over products.search_vector
+ * (websearch_to_tsquery('simple', q), ranked with ts_rank() — see
+ * searchRelevanceOrder) plus a pg_trgm similarity() fallback for typos
+ * (similarity(name, q) > 0.3, GIN-indexed). Barcode, option JSON and Prom
+ * characteristics keep ILIKE matching — short structured values, not prose.
+ * Queries shorter than 3 characters use the legacy ILIKE path above.
+ */
+export function productSearchCondition(search: string): SQL | undefined {
+  const tokens = searchTokens(search)
+  if (tokens.length === 0) return undefined
+  const q = tokens.join(' ')
+  if (q.length < FULLTEXT_MIN_QUERY_LENGTH) return legacyProductSearchCondition(search)
+  const like = likePattern(q)
+  return or(
+    // Full-text hit — ranking is handled by searchRelevanceOrder() via ts_rank().
+    sql`${products.searchVector} @@ websearch_to_tsquery('simple', ${q})`,
+    // Typo-tolerant fallback: trigram similarity against the bilingual names.
+    sql`similarity(coalesce(${products.nameUk}, ''), ${q}) > 0.3`,
+    sql`similarity(coalesce(${products.nameRu}, ''), ${q}) > 0.3`,
+    // Barcode / options JSON / characteristics: legacy ILIKE matching.
+    ilike(products.barcode, like),
+    sql`CAST(${products.options} AS text) ILIKE ${like}`,
+    sql`EXISTS (
+      SELECT 1 FROM product_characteristics pc
+      WHERE pc.product_id = ${products.id}
+        AND (pc.value ILIKE ${like} OR pc.name ILIKE ${like})
+    )`,
+  )!
 }
 
 
@@ -107,14 +146,25 @@ function characteristicFilterCondition(filters: CharFilter[] | undefined): SQL |
   return parts.length === 1 ? parts[0] : and(...parts)
 }
 
-function searchRelevanceOrder(search: string): SQL {
+/**
+ * Relevance ordering for search results. Full-text queries are ranked with
+ * ts_rank() (higher = more relevant — rows that matched only via the
+ * trigram/ILIKE fallback score 0 and sink below real full-text hits).
+ * Short queries keep the legacy CASE ordering. The sort direction is
+ * embedded in the fragment, so callers must NOT wrap it in asc()/desc().
+ */
+export function searchRelevanceOrder(search: string): SQL {
   const tokens = searchTokens(search)
+  const q = tokens.join(' ')
+  if (q.length >= FULLTEXT_MIN_QUERY_LENGTH) {
+    return sql`ts_rank(${products.searchVector}, websearch_to_tsquery('simple', ${q})) DESC`
+  }
   const first = tokens[0] ? likePattern(tokens[0]) : '%\u0000%'
   return sql`CASE
     WHEN ${products.nameUk} ILIKE ${first} OR ${products.nameRu} ILIKE ${first} THEN 0
     WHEN ${products.sku} ILIKE ${first} THEN 1
     ELSE 2
-  END`
+  END ASC`
 }
 
 /** Root-ish category so inverters cluster separately from rollers on page 1. */
@@ -567,7 +617,7 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
               ]
   const orderBy = [
     outOfStockLast,
-    ...(search ? [asc(searchRelevanceOrder(search))] : []),
+    ...(search ? [searchRelevanceOrder(search)] : []),
     ...primaryOrderBy,
     // BUGFIX: deterministic tiebreaker. Sorts like `popular`
     // (ordersCount+purchasesBoost) or `new` (createdAt) tie constantly; without

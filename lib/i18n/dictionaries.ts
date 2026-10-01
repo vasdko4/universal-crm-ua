@@ -169,12 +169,41 @@ export type Dictionary = {
     answer: string
     error: string
   }
+  oneClick: {
+    button: string
+    title: string
+    nameLabel: string
+    namePlaceholder: string
+    phoneLabel: string
+    phonePlaceholder: string
+    paymentNote: string
+    submit: string
+    submitting: string
+    invalidName: string
+    invalidPhone: string
+    successTitle: string
+    successOrderNumber: string
+    successHint: string
+    close: string
+  }
   favorites: {
     title: string
     empty: string
     emptyDesc: string
     toCatalog: string
     signInHint: string
+  }
+  compare: {
+    title: string
+    add: string
+    inCompare: string
+    maxReached: string
+    addedToast: string
+    empty: string
+    emptyDesc: string
+    toCatalog: string
+    remove: string
+    sku: string
   }
   cart: {
     title: string
@@ -410,6 +439,16 @@ export type Dictionary = {
     ordersDescription: string
     addressesDescription: string
     promosDescription: string
+    // Account dashboard (app/(shop)/account/(protected)/page.tsx)
+    navDashboard: string
+    statOrders: string
+    statTotalSpent: string
+    statActivePromos: string
+    recentOrdersTitle: string
+    viewAllOrders: string
+    quickAccessTitle: string
+    editProfile: string
+    notSpecified: string
   }
   // Order receipt (components/orders/order-receipt.tsx)
   receipt: {
@@ -755,12 +794,41 @@ const uk: Dictionary = {
     answer: 'Відповідь:',
     error: 'Помилка',
   },
+  oneClick: {
+    button: 'Купити в 1 клік',
+    title: 'Швидке замовлення',
+    nameLabel: "Ім'я",
+    namePlaceholder: "Ваше ім'я",
+    phoneLabel: 'Телефон',
+    phonePlaceholder: '+380 __ ___ __ __',
+    paymentNote: 'Оплата: накладений платіж або за дзвінком менеджера. Деталі доставки уточнить менеджер.',
+    submit: 'Замовити',
+    submitting: 'Оформлення...',
+    invalidName: "Вкажіть ім'я",
+    invalidPhone: 'Вкажіть коректний номер телефону',
+    successTitle: 'Замовлення оформлено!',
+    successOrderNumber: 'Номер вашого замовлення:',
+    successHint: "Дякуємо! Менеджер зв'яжеться з вами найближчим часом для підтвердження.",
+    close: 'Закрити',
+  },
   favorites: {
     title: 'Обране',
     empty: 'У вас немає обраних товарів',
     emptyDesc: 'Натискайте на сердечко на товарах, щоб зберегти їх тут.',
     toCatalog: 'До каталогу',
     signInHint: 'Увійдіть, щоб обране зберігалося у вашому акаунті.',
+  },
+  compare: {
+    title: 'Порівняння',
+    add: 'Порівняти',
+    inCompare: 'У порівнянні',
+    maxReached: 'У порівнянні може бути не більше 4 товарів',
+    addedToast: 'Додано до порівняння',
+    empty: 'Немає товарів для порівняння',
+    emptyDesc: 'Натискайте «Порівняти» на картках товарів, щоб додати їх сюди.',
+    toCatalog: 'До каталогу',
+    remove: 'Прибрати з порівняння',
+    sku: 'Артикул',
   },
   cart: {
     title: 'Кошик',
@@ -996,6 +1064,15 @@ const uk: Dictionary = {
     ordersDescription: 'Історія ваших покупок і статус доставки.',
     addressesDescription: 'Збережені адреси для швидкого оформлення замовлень.',
     promosDescription: 'Персональні коди знижок, доступні у вашому кабінеті.',
+    navDashboard: 'Головна',
+    statOrders: 'Замовлення',
+    statTotalSpent: 'Сума покупок',
+    statActivePromos: 'Активні промокоди',
+    recentOrdersTitle: 'Останні замовлення',
+    viewAllOrders: 'Всі замовлення',
+    quickAccessTitle: 'Швидкий доступ',
+    editProfile: 'Редагувати профіль',
+    notSpecified: 'Не вказано',
   },
   receipt: {
     sectionTitle: 'Чек замовлення',
@@ -1340,12 +1417,41 @@ const ru: Dictionary = {
     answer: 'Ответ:',
     error: 'Ошибка',
   },
+  oneClick: {
+    button: 'Купить в 1 клик',
+    title: 'Быстрый заказ',
+    nameLabel: 'Имя',
+    namePlaceholder: 'Ваше имя',
+    phoneLabel: 'Телефон',
+    phonePlaceholder: '+380 __ ___ __ __',
+    paymentNote: 'Оплата: наложенный платёж или по звонку менеджера. Детали доставки уточнит менеджер.',
+    submit: 'Заказать',
+    submitting: 'Оформление...',
+    invalidName: 'Укажите имя',
+    invalidPhone: 'Укажите корректный номер телефона',
+    successTitle: 'Заказ оформлен!',
+    successOrderNumber: 'Номер вашего заказа:',
+    successHint: 'Спасибо! Менеджер свяжется с вами в ближайшее время для подтверждения.',
+    close: 'Закрыть',
+  },
   favorites: {
     title: 'Избранное',
     empty: 'У вас нет избранных товаров',
     emptyDesc: 'Нажимайте на сердечко на товарах, чтобы сохранить их здесь.',
     toCatalog: 'В каталог',
     signInHint: 'Войдите, чтобы избранное сохранялось в вашем аккаунте.',
+  },
+  compare: {
+    title: 'Сравнение',
+    add: 'Сравнить',
+    inCompare: 'В сравнении',
+    maxReached: 'В сравнении может быть не более 4 товаров',
+    addedToast: 'Добавлено к сравнению',
+    empty: 'Нет товаров для сравнения',
+    emptyDesc: 'Нажимайте «Сравнить» на карточках товаров, чтобы добавить их сюда.',
+    toCatalog: 'В каталог',
+    remove: 'Убрать из сравнения',
+    sku: 'Артикул',
   },
   cart: {
     title: 'Корзина',
@@ -1581,6 +1687,15 @@ const ru: Dictionary = {
     ordersDescription: 'История ваших покупок и статус доставки.',
     addressesDescription: 'Сохранённые адреса для быстрого оформления заказов.',
     promosDescription: 'Персональные коды скидок, доступные в вашем кабинете.',
+    navDashboard: 'Главная',
+    statOrders: 'Заказы',
+    statTotalSpent: 'Сумма покупок',
+    statActivePromos: 'Активные промокоды',
+    recentOrdersTitle: 'Последние заказы',
+    viewAllOrders: 'Все заказы',
+    quickAccessTitle: 'Быстрый доступ',
+    editProfile: 'Редактировать профиль',
+    notSpecified: 'Не указано',
   },
   receipt: {
     sectionTitle: 'Чек заказа',

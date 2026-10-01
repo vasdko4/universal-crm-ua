@@ -32,6 +32,7 @@ import { reportError } from '@/lib/server-errors'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { mergeCheckoutItems, validateCheckoutInput } from '@/lib/shop/checkout-validation'
+import { resolveOneClickLine, validateOneClickInput } from '@/lib/shop/one-click'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -636,6 +637,244 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     paymentMethod: input.paymentMethod,
     paymentUrl,
     requisites,
+  }
+}
+
+export type OneClickOrderInput = {
+  productId: number
+  variantId?: number
+  name: string
+  phone: string
+}
+
+export type OneClickOrderResult =
+  | { success: false; error: string }
+  | {
+      success: true
+      orderId: number
+      orderNumber: string
+      total: number
+      itemsTotal: number
+    }
+
+// One-click ("Купити в 1 клік") order: name + phone only, no cart, no promo,
+// no online payment — the manager calls back and confirms delivery details,
+// so the order starts as `new` with payment method `cod` and is finalized
+// (stock reserved, customer linked, admin notified) right away, exactly like
+// a cash/requisite checkout. The price is recomputed from the DB rows — the
+// client never sends a price — using the same product/variant rules as
+// createStorefrontOrder (see resolveOneClickLine in lib/shop/one-click.ts).
+export async function createOneClickOrder(input: OneClickOrderInput): Promise<OneClickOrderResult> {
+  const locale = await getLocale()
+  const t = getDictionary(locale).serverErrors
+
+  // SECURITY: public, unauthenticated server action — same two-bucket
+  // per-IP rate limit as the checkout (own scope, so the two don't eat each
+  // other's burst budget).
+  const ip = await actionClientIp()
+  if (
+    (await isRateLimited('one-click', ip, 5)) ||
+    (await isRateLimited('one-click-hourly', ip, 30, 3_600_000))
+  ) {
+    return { success: false, error: t.rateLimitOrders }
+  }
+
+  // Strict validation of hostile input: name is capped, the phone must pass
+  // the checkout's UA normalization (never stored raw), product/variant ids
+  // must be positive integers. See lib/shop/one-click.ts.
+  const validated = validateOneClickInput(input, locale)
+  if (!validated.ok) return { success: false, error: validated.error }
+  const { productId, variantId, name, phone } = validated.value
+
+  // Load the real product to compute the authoritative price and check
+  // availability — never trust client data for either.
+  const productRow = await db
+    .select({
+      id: products.id,
+      name: sql<string>`COALESCE(${products.nameRu}, ${products.nameUk})`,
+      sku: products.sku,
+      price: products.price,
+      costPrice: products.costPrice,
+      image: products.image,
+      quantity: products.quantity,
+      isInStockFlag: products.isInStock,
+      variantsEnabled: products.variantsEnabled,
+      salesType: products.salesType,
+    })
+    .from(products)
+    .where(and(eq(products.id, productId), sql`${products.deletedAt} IS NULL`))
+  const first = productRow[0]
+  if (!first) return { success: false, error: t.someItemsUnavailable }
+  // Same storefront rule as lib/shop/queries.ts toShopProduct: genuinely out
+  // of stock when the admin flag is off or quantity is 0. (Pre-order products
+  // stay purchasable at 0 on the storefront, but the checkout's own stock
+  // pre-check rejects them too — mirrored here.)
+  const p = { ...first, inStock: Boolean(first.isInStockFlag) && first.quantity > 0 }
+
+  // Load the variant referenced by the shopper (if any) to validate
+  // per-variant stock/price — same rule as the checkout.
+  let variantRow: {
+    id: number
+    productId: number
+    price: string | number | null
+    quantity: number
+    isInStock: boolean
+    sku: string | null
+    image: string | null
+    options: Record<string, unknown> | null
+  } | null = null
+  if (variantId != null && p.variantsEnabled) {
+    const [v] = await db.select().from(productVariants).where(eq(productVariants.id, variantId))
+    variantRow = v
+      ? {
+          id: v.id,
+          productId: v.productId,
+          price: v.price,
+          quantity: v.quantity,
+          isInStock: Boolean(v.isInStock),
+          sku: v.sku,
+          image: v.image,
+          options: (v.options ?? null) as Record<string, unknown> | null,
+        }
+      : null
+  }
+
+  const line = resolveOneClickLine(p, variantRow, locale)
+  if (!line.ok) return { success: false, error: line.error }
+  const item = line.line
+
+  const itemsTotal = item.price
+
+  // Minimum order amount (Настройки → Общие), same server-side check as the
+  // checkout — the one-click UI never shows it, so enforce it here.
+  const { minOrder } = await getStoreSettingsInternal()
+  if (minOrder.enabled && minOrder.amount > 0 && itemsTotal < minOrder.amount) {
+    const dict = getDictionary(locale)
+    return {
+      success: false,
+      error: `${dict.checkout.minOrderPrefix} ${formatPrice(minOrder.amount, 'UAH', locale)}. ${dict.checkout.minOrderAddMore} ${formatPrice(minOrder.amount - itemsTotal, 'UAH', locale)}.`,
+    }
+  }
+
+  const { total } = computeOrderTotals({ itemsTotal, discount: 0, deliveryCost: 0 })
+  const orderNumber = await generateUniqueOrderNumber()
+  const shopUser = await getShopUser()
+  const customerEmail = shopUser?.email?.trim() || null
+  const utm = await readUtmAttribution()
+
+  let order: { id: number }
+  try {
+    order = await withDbClient(async (client) => {
+      const tx = dbForClient(client)
+
+      // Upsert a customer record by phone — the same pattern as the checkout.
+      let customerId: number | undefined
+      const [existingCustomer] = await tx
+        .select()
+        .from(customers)
+        .where(and(eq(customers.phone, phone), isNull(customers.deletedAt)))
+        .limit(1)
+      if (existingCustomer) {
+        customerId = existingCustomer.id
+      } else {
+        try {
+          const [c] = await tx
+            .insert(customers)
+            .values({
+              firstName: name,
+              lastName: null,
+              phone,
+              email: customerEmail,
+            })
+            .returning()
+          customerId = c.id
+        } catch {
+          const [again] = await tx
+            .select()
+            .from(customers)
+            .where(and(eq(customers.phone, phone), isNull(customers.deletedAt)))
+            .limit(1)
+          customerId = again?.id
+        }
+      }
+
+      const [created] = await tx
+        .insert(orders)
+        .values({
+          orderNumber,
+          status: 'new',
+          ...utm,
+          customerId,
+          customerName: name,
+          customerPhone: phone,
+          customerEmail,
+          // Delivery details are confirmed by the manager on the call-back,
+          // so no delivery method is chosen up front.
+          deliveryMethod: null,
+          paymentMethod: 'cod',
+          paymentStatus: 'unpaid',
+          itemsTotal: itemsTotal.toFixed(2),
+          deliveryCost: '0',
+          discountTotal: '0',
+          total: total.toFixed(2),
+          itemsCount: 1,
+          currency: 'UAH',
+          note: 'Швидке замовлення (1 клік): менеджер уточнить доставку та деталі.',
+          createdBy: shopUser ? shopUser.id : null,
+          userId: shopUser ? shopUser.id : null,
+        })
+        .returning()
+
+      await tx.insert(orderItems).values({
+        orderId: created.id,
+        productId: item.productId,
+        variantId: item.variantId,
+        variantLabel: item.variantLabel,
+        name: item.name,
+        sku: item.sku,
+        image: item.image,
+        price: item.price.toFixed(2),
+        costPrice: item.costPrice != null ? item.costPrice.toFixed(2) : null,
+        quantity: 1,
+        total: item.price.toFixed(2),
+      })
+
+      await tx.insert(orderHistory).values({
+        orderId: created.id,
+        type: 'status',
+        message: `Замовлення в 1 клік оформлено через сайт (№${orderNumber})`,
+        actor: name,
+      })
+
+      // COD-equivalent: finalized right away like cash/requisite orders
+      // (stock reservation, promo usage, analytics side effects). Strict
+      // stock mode: a lost stock race rolls the whole transaction back.
+      await applyOrderFulfillment(created.id, client, { strictStock: true })
+
+      return { id: created.id }
+    })
+  } catch (e) {
+    // Lost a stock race between the availability pre-check and the atomic
+    // reservation: the transaction rolled back, tell the shopper plainly.
+    if (e instanceof InsufficientStockError) {
+      return { success: false, error: t.someItemsUnavailable }
+    }
+    console.error('[one-click] order write failed:', (e as Error).message)
+    return { success: false, error: t.paymentInvoiceFailed }
+  }
+
+  void notifyNewOrder(order.id)
+
+  // Guest confirmation page treats the order number as a capability — bind it
+  // to this browser so /order/[n] isn't a public lookup of PII.
+  await rememberLastOrder(orderNumber)
+
+  return {
+    success: true,
+    orderId: order.id,
+    orderNumber,
+    total,
+    itemsTotal,
   }
 }
 

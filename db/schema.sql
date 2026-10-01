@@ -1,6 +1,8 @@
 -- Universal Magazine — full schema (auto-generated)
 -- Postgres 15+
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE IF NOT EXISTS "account" (
   "id" text NOT NULL,
   "accountId" text NOT NULL,
@@ -447,6 +449,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   "slug" varchar(255),
   "description_uk" text,
   "description_ru" text,
+  "search_vector" tsvector GENERATED ALWAYS AS (to_tsvector('simple', coalesce("name_uk", '') || ' ' || coalesce("name_ru", '') || ' ' || coalesce("sku", '') || ' ' || coalesce("description_uk", '') || ' ' || coalesce("description_ru", ''))) STORED,
   "private_notes" text,
   "sales_type" varchar(20) DEFAULT 'retail'::character varying,
   "sku" varchar(100),
@@ -490,6 +493,12 @@ CREATE TABLE IF NOT EXISTS "products" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON public.products ("slug");
+
+-- Full-text search (Block C): GIN over the generated tsvector + trigram
+-- indexes on the bilingual names for the typo-tolerant similarity() fallback.
+CREATE INDEX IF NOT EXISTS idx_products_search_vector ON public.products USING GIN ("search_vector");
+CREATE INDEX IF NOT EXISTS idx_products_name_uk_trgm ON public.products USING GIN ((coalesce("name_uk", '')) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_products_name_ru_trgm ON public.products USING GIN ((coalesce("name_ru", '')) gin_trgm_ops);
 
 CREATE TABLE IF NOT EXISTS "product_variants" (
   "id" serial NOT NULL,

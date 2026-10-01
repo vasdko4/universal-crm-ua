@@ -2,18 +2,12 @@ import { getShopUser, getAdminUser } from '@/lib/session'
 import { AccountNav } from '@/components/shop/account-nav'
 import { SessionExpiredRedirect } from '@/components/shop/session-expired-redirect'
 import { EmailVerifyBanner } from '@/components/shop/auth/email-verify-banner'
+import { initials } from '@/components/shop/account/utils'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { fillTemplate } from '@/lib/i18n/dictionaries'
 
 export const dynamic = 'force-dynamic'
-
-function initials(name: string, email: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-  if (parts[0]) return parts[0].slice(0, 2).toUpperCase()
-  return email.slice(0, 2).toUpperCase()
-}
 
 export default async function AccountLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale()

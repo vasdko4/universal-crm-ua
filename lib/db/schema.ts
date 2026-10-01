@@ -11,6 +11,7 @@ import {
   timestamp,
   jsonb,
   check,
+  customType,
 } from 'drizzle-orm/pg-core'
 
 /** A choice axis on a product, e.g. Цвет / Размер / Память. */
@@ -25,6 +26,14 @@ export type ProductOption = {
 /** A selected combination for a variant, e.g. { "Цвет": "Blue", "Память": "256 ГБ" }. */
 export type VariantOptions = Record<string, string>
 
+/** Postgres tsvector — drizzle has no built-in type for it. The products
+ *  search_vector column is GENERATED ALWAYS AS (...) STORED on the DB side
+ *  (see db/migrate.sql), so the app never writes it; drizzle simply omits it
+ *  from inserts/updates when left undefined. */
+const tsvector = customType<{ data: string }>({
+  dataType: () => 'tsvector',
+})
+
 export const products = pgTable('products', {
   id: serial('id').primaryKey(),
   nameUk: varchar('name_uk', { length: 255 }),
@@ -37,6 +46,10 @@ export const products = pgTable('products', {
   slug: varchar('slug', { length: 255 }).unique(),
   descriptionUk: text('description_uk'),
   descriptionRu: text('description_ru'),
+  // Full-text search vector over name_uk/name_ru/sku/descriptions, maintained
+  // by Postgres itself (GENERATED ALWAYS AS ... STORED, see db/migrate.sql).
+  // Read by lib/shop/queries.ts productSearchCondition / searchRelevanceOrder.
+  searchVector: tsvector('search_vector'),
   privateNotes: text('private_notes'),
   salesType: varchar('sales_type', { length: 20 }).default('retail'),
   sku: varchar('sku', { length: 100 }),

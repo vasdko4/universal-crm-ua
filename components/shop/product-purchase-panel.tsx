@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { ProductGallery } from '@/components/shop/product-gallery'
 import { ProductVariantSelector } from '@/components/shop/product-variant-selector'
 import { FavoriteButton } from '@/components/shop/favorite-button'
+import { OneClickBuyButton } from '@/components/shop/one-click-buy'
+import { CompareToggleButton } from '@/components/shop/compare-toggle'
 import { PaymentDeliveryBadges, type SafeMethod } from '@/components/shop/payment-delivery-badges'
 import { PromoTimer } from '@/components/shop/promo-timer'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
@@ -284,6 +286,12 @@ export function ProductPurchasePanel({
               >
                 <Zap className="size-4" /> {tp.buyNow}
               </button>
+              <OneClickBuyButton
+                product={product}
+                variantId={selectedVariant?.id}
+                className="h-10 rounded-full lg:h-11"
+              />
+              <CompareToggleButton product={product} className="h-10 rounded-full lg:h-11" />
             </div>
           </div>
         ) : (

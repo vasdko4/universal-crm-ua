@@ -16,7 +16,9 @@ const _geistSans = Geist({ subsets: ['latin', 'cyrillic'] })
 const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
 export const viewport: Viewport = {
-  themeColor: '#ffffff',
+  // Matches the storefront's primary brand color (classic template) so the
+  // browser chrome matches the app when it is installed / launched as a PWA.
+  themeColor: '#00706b',
   width: 'device-width',
   initialScale: 1,
 }
@@ -56,6 +58,16 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     applicationName: name,
+    // Installable PWA: no service worker (avoids breaking checkout caching).
+    manifest: '/manifest.webmanifest',
+    appleWebApp: {
+      capable: true,
+      title: name,
+      statusBarStyle: 'default',
+    },
+    formatDetection: {
+      telephone: false,
+    },
     keywords,
     alternates: {
       canonical: locale === 'ru' ? '/ru' : '/',
@@ -64,7 +76,11 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       icon: s?.faviconUrl?.trim() || '/icon.png',
       shortcut: s?.faviconUrl?.trim() || '/icon.png',
-      apple: s?.faviconUrl?.trim() || '/icon.png',
+      apple: [
+        { url: s?.faviconUrl?.trim() || '/icon.png' },
+        // Touch icon for "Add to Home Screen" (PWA icon set).
+        { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      ],
     },
     verification: seo?.googleVerification?.trim()
       ? { google: seo.googleVerification.trim() }

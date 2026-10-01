@@ -7,6 +7,8 @@ import { useI18n } from '@/lib/i18n/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/shop/format'
+import { SectionHeader, EmptyState } from '@/components/shop/account/account-ui'
+import { cn } from '@/lib/utils'
 
 function formatDate(iso: string, locale: string) {
   return new Date(iso).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'ru-RU', {
@@ -33,28 +35,27 @@ export function PromoList({ promos }: { promos: CustomerPromo[] }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">{t.promosTitle}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t.promosDescription}</p>
-      </div>
+    <div className="space-y-4 sm:space-y-5">
+      <SectionHeader title={t.promosTitle} description={t.promosDescription} />
       {promos.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card px-6 py-16 text-center">
-          <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-            <TicketPercent className="size-7 text-muted-foreground" />
-          </div>
-          <p className="text-sm text-muted-foreground">{t.promosEmpty}</p>
-        </div>
+        <EmptyState icon={TicketPercent} title={t.promosEmpty} />
       ) : (
         <ul className="flex flex-col gap-3">
           {promos.map((p) => (
             <li
               key={p.id}
-              className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+              className={cn(
+                'relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between',
+                p.usedByMe && 'opacity-70',
+              )}
             >
-              <div className="flex min-w-0 flex-col gap-1">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-primary/70 to-primary/20"
+              />
+              <div className="flex min-w-0 flex-col gap-1.5 pl-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-base font-bold tracking-wide text-foreground">
+                  <span className="rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2.5 py-1 font-mono text-base font-bold tracking-widest text-foreground">
                     {p.code}
                   </span>
                   <Badge variant="secondary">
