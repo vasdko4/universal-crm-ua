@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   pgTable,
   serial,
@@ -9,6 +10,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  check,
 } from 'drizzle-orm/pg-core'
 
 /** A choice axis on a product, e.g. Цвет / Размер / Память. */
@@ -699,6 +701,16 @@ export const analyticsEvents = pgTable('analytics_events', {
   referrer: varchar('referrer', { length: 300 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
+
+export const schemaMigrations = pgTable(
+  'schema_migrations',
+  {
+    id: integer('id').primaryKey(),
+    migrateSqlSha256: varchar('migrate_sql_sha256', { length: 64 }).notNull(),
+    appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check('schema_migrations_single_row', sql`${table.id} = 1`)],
+)
 
 export type Role = typeof roles.$inferSelect
 export type Order = typeof orders.$inferSelect

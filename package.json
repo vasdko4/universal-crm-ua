@@ -16,6 +16,7 @@
     "db:reset": "node --env-file=.env.local scripts/db-setup.mjs --reset",
     "db:dump": "node --env-file=.env.local scripts/dump-db.mjs",
     "db:restore": "node --env-file=.env.local scripts/db-restore.mjs --reset",
+    "db:sync-migrate": "node scripts/sync-migrate-bundle.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "secrets:encrypt": "node scripts/encrypt-secrets.mjs",

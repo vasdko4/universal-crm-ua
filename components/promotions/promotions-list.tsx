@@ -301,6 +301,15 @@ function PromotionCard({
   onDelete: () => void
 }) {
   const { dict: t, locale } = useAdminI18n()
+  async function copyPromoCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code)
+      toast.success(t.promotions.toastCodeCopied)
+    } catch {
+      toast.error(t.promotions.toastCodeCopyFailed)
+    }
+  }
+
   const isPromo = p.type === 'promocode'
   const discount =
     p.discountType === 'percentage'
@@ -365,10 +374,7 @@ function PromotionCard({
           {p.promoCode && (
             <button
               type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(p.promoCode!)
-                toast.success(t.promotions.toastCodeCopied)
-              }}
+              onClick={() => copyPromoCode(p.promoCode!)}
               title={t.promotions.copyCodeAction}
               className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-200 transition-colors hover:bg-violet-50 hover:text-violet-700 hover:ring-violet-200"
             >
@@ -450,10 +456,7 @@ function PromotionCard({
             </DropdownMenuItem>
             {p.promoCode && (
               <DropdownMenuItem
-                onClick={() => {
-                  navigator.clipboard.writeText(p.promoCode!)
-                  toast.success(t.promotions.toastCodeCopied)
-                }}
+                onClick={() => copyPromoCode(p.promoCode!)}
               >
                 <Copy className="size-4" />
                 {t.promotions.copyCodeAction}
