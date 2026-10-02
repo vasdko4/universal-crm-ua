@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useTransition } from "react"
+import { useRef, useState, useTransition, Fragment } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Upload, FileSpreadsheet, FileCode, CheckCircle2, XCircle, Loader2, Link2, Play } from "lucide-react"
@@ -291,6 +291,7 @@ export function ImportManager({
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<{ fileName: string; type: "csv" | "xml"; rows: ImportRow[] } | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [expandedLogId, setExpandedLogId] = useState<number | null>(null)
   const STATUS = statusConfig(t)
 
   async function handleFile(file: File) {
@@ -440,8 +441,10 @@ export function ImportManager({
               ) : (
                 tasks.map((tk) => {
                   const st = STATUS[tk.status ?? "pending"] ?? STATUS.pending
+                  const logExpanded = expandedLogId === tk.id
                   return (
-                    <TableRow key={tk.id}>
+                    <Fragment key={tk.id}>
+                    <TableRow>
                       <TableCell className="font-medium">{tk.fileName}</TableCell>
                       <TableCell className="uppercase text-muted-foreground">{tk.sourceType}</TableCell>
                       <TableCell>
@@ -463,8 +466,29 @@ export function ImportManager({
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {tk.createdAt ? new Date(tk.createdAt).toLocaleString(locale === "ru" ? "ru-RU" : "uk-UA", { timeZone: "Europe/Kyiv" }) : "—"}
+                        {tk.errorLog ? (
+                          <div>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-xs"
+                              onClick={() => setExpandedLogId(logExpanded ? null : tk.id)}
+                            >
+                              {logExpanded ? t.import.logHide : t.import.logShow}
+                            </Button>
+                          </div>
+                        ) : null}
                       </TableCell>
                     </TableRow>
+                    {logExpanded && tk.errorLog ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="bg-muted/40">
+                          <div className="mb-1 text-xs font-medium text-muted-foreground">{t.import.logTitle}</div>
+                          <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono text-xs">{tk.errorLog}</pre>
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                    </Fragment>
                   )
                 })
               )}

@@ -31,6 +31,7 @@ import {
   familyKeyFromParts,
   type SizeFamilyState,
 } from '@/lib/prom-import/size-families'
+import { cleanUkrainianDescription, findCapacityMismatch } from '@/lib/prom-import/hygiene'
 
 // Safety cap: a Prom.ua shop can have thousands of listings. Importing that
 // many product pages one at a time (2 fetches each, for uk+ru) would take
@@ -464,6 +465,9 @@ export async function continuePromImport(taskId: number) {
   let success = 0
   let failed = 0
   const errors: string[] = []
+  // Non-fatal hygiene flags (e.g. title/body capacity contradiction): the
+  // product still imports, but the warning lands in the task log for review.
+  const warnings: string[] = []
 
   for (const item of batch) {
     try {
@@ -471,6 +475,21 @@ export async function continuePromImport(taskId: number) {
       await new Promise((r) => setTimeout(r, 400))
       const p = await fetchProduct(state.origin, item)
       if (!p) throw new Error('не удалось загрузить страницу товара')
+
+      // Prom.ua listings are frequently written in Russian or mixed language.
+      // Fix unambiguous standalone Russian words in the Ukrainian description
+      // at import time instead of scrubbing the catalog by hand afterwards.
+      // Specs themselves are never auto-changed: a title/body capacity
+      // contradiction is only flagged for human review.
+      if (p.descriptionUk) {
+        p.descriptionUk = cleanUkrainianDescription(p.descriptionUk).html
+        const mismatch = findCapacityMismatch(p.nameUk, p.descriptionUk)
+        if (mismatch) {
+          warnings.push(
+            `⚠ ${item.urlText}: ємність у назві ${mismatch.titleMah} мА·год, а в описі — ${mismatch.bodyMah.join(', ')}`,
+          )
+        }
+      }
 
       // Some Prom.ua shops publish each size/color choice as its own
       // standalone product page instead of one page with a selector —
@@ -680,7 +699,9 @@ export async function continuePromImport(taskId: number) {
   // JSON state. The UPDATE is atomic, so parallel polls cannot lose counters
   // or resurrect already-claimed products. `processing` is cleared — the
   // batch completed, so a later resume must not re-queue it.
-  const newErrors = errors.length > 0 ? errors.join('\n') : null
+  // Warnings (hygiene flags) and errors share the task's error_log; warnings
+  // are prefixed with ⚠ so they read as "review me", not "failed".
+  const newLog = [...warnings, ...errors].join('\n') || null
   const updated = await pool.query<{
     status: 'processing' | 'completed'
     processed_items: number
@@ -720,7 +741,7 @@ export async function continuePromImport(taskId: number) {
             updated_at = NOW()
       WHERE id = $1
       RETURNING status, processed_items, success_items, failed_items`,
-    [taskId, batch.length, success, failed, newErrors, JSON.stringify(state.sizeFamilies ?? {})],
+    [taskId, batch.length, success, failed, newLog, JSON.stringify(state.sizeFamilies ?? {})],
   )
   const result = updated.rows[0]
   const done = result?.status === 'completed'

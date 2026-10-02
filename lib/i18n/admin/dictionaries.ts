@@ -1112,6 +1112,9 @@ export type AdminDictionary = {
     tableFailed: string
     tableDate: string
     noImportsYet: string
+    logShow: string
+    logHide: string
+    logTitle: string
     statusCompleted: string
     statusProcessing: string
     statusFailed: string
@@ -2980,6 +2983,9 @@ const uk: AdminDictionary = {
     tableFailed: 'Помилок',
     tableDate: 'Дата',
     noImportsYet: 'Імпортів ще не було',
+    logShow: 'Показати журнал',
+    logHide: 'Сховати журнал',
+    logTitle: 'Журнал імпорту',
     statusCompleted: 'Завершено',
     statusProcessing: 'Обробка',
     statusFailed: 'Помилка',
@@ -4855,6 +4861,9 @@ const ru: AdminDictionary = {
     tableFailed: 'Ошибок',
     tableDate: 'Дата',
     noImportsYet: 'Импортов ещё не было',
+    logShow: 'Показать журнал',
+    logHide: 'Скрыть журнал',
+    logTitle: 'Журнал импорта',
     statusCompleted: 'Завершён',
     statusProcessing: 'Обработка',
     statusFailed: 'Ошибка',
