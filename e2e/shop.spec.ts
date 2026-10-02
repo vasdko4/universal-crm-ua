@@ -143,7 +143,7 @@ test('e2e admin can open the storefront cabinet', async ({ page }) => {
   const profileNav = accountNav.getByRole('link', { name: 'Профіль' })
   await expect(profileNav).toBeVisible()
   await profileNav.click()
-  await expect(page.getByRole('heading', { name: 'Особисті дані' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Особисті дані', level: 2 })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Змінити пошту' })).toBeVisible()
   const ordersNav = accountNav.getByRole('link', { name: 'Мої замовлення' })
   await expect(ordersNav).toBeVisible()
