@@ -12,8 +12,11 @@ import {
   bulkSetProductPrice,
   bulkAdjustProductStock,
   bulkSetProductCategory,
+  updateProductPrice,
+  updateProductStock,
   type ProductFilters,
 } from '@/app/actions/products'
+import { InlineEditCell, parsePriceInput, parseStockInput } from '@/components/products/inline-edit-cell'
 import type { Product, Category } from '@/lib/db/schema'
 import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { Button } from '@/components/ui/button'
@@ -125,6 +128,8 @@ export function ProductsTable({
   const [bulkCategory, setBulkCategory] = useState('')
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkAction, setBulkAction] = useState<BulkAction>('price')
+  // Optimistic overrides for inline price/stock edits (server data arrives via router.refresh()).
+  const [overrides, setOverrides] = useState<Record<number, { price?: string; quantity?: number }>>({})
   const { visible: visibleCols, toggle: toggleCol } = useColumnVisibility(
     'admin:cols:products',
     TOGGLEABLE_COLUMNS,
@@ -517,14 +522,41 @@ export function ProductsTable({
                     )}
                     {showCol('price') && (
                       <TableCell className="text-right">
-                        <span className="font-medium tabular-nums">
-                          {formatPrice(product.price, product.currency ?? 'UAH', locale)}
-                        </span>
-                        {product.oldPrice && (
-                          <span className="ml-1.5 text-xs text-muted-foreground line-through tabular-nums">
-                            {formatPrice(product.oldPrice, product.currency ?? 'UAH', locale)}
-                          </span>
-                        )}
+                        <InlineEditCell
+                          display={
+                            <>
+                              <span className="font-medium tabular-nums">
+                                {formatPrice(
+                                  overrides[product.id]?.price ?? product.price,
+                                  product.currency ?? 'UAH',
+                                  locale,
+                                )}
+                              </span>
+                              {product.oldPrice && (
+                                <span className="ml-1.5 text-xs text-muted-foreground line-through tabular-nums">
+                                  {formatPrice(product.oldPrice, product.currency ?? 'UAH', locale)}
+                                </span>
+                              )}
+                            </>
+                          }
+                          initial={overrides[product.id]?.price ?? product.price ?? ''}
+                          label={`${t.colPrice}: ${pickLocalized(locale, product.nameUk, product.nameRu)}`}
+                          hint={t.inlineEditHint}
+                          successMessage={t.toastPriceSet}
+                          errorMessage={t.toastGenericError}
+                          onSaved={() => router.refresh()}
+                          onSave={async (raw) => {
+                            const parsed = parsePriceInput(raw)
+                            const result = await updateProductPrice(product.id, parsed)
+                            if (result.success) {
+                              setOverrides((o) => ({
+                                ...o,
+                                [product.id]: { ...o[product.id], price: parsed.toFixed(2) },
+                              }))
+                            }
+                            return result
+                          }}
+                        />
                       </TableCell>
                     )}
                     {showCol('views') && (
@@ -534,9 +566,30 @@ export function ProductsTable({
                     )}
                     {showCol('stock') && (
                       <TableCell className="hidden text-right tabular-nums sm:table-cell">
-                        <span className={product.quantity === 0 ? 'text-destructive' : ''}>
-                          {product.quantity} {product.unit}
-                        </span>
+                        <InlineEditCell
+                          display={
+                            <span className={(overrides[product.id]?.quantity ?? product.quantity) === 0 ? 'text-destructive' : ''}>
+                              {overrides[product.id]?.quantity ?? product.quantity} {product.unit}
+                            </span>
+                          }
+                          initial={String(overrides[product.id]?.quantity ?? product.quantity)}
+                          label={`${t.colStock}: ${pickLocalized(locale, product.nameUk, product.nameRu)}`}
+                          hint={t.inlineEditHint}
+                          successMessage={t.toastStockAdjusted}
+                          errorMessage={t.toastGenericError}
+                          onSaved={() => router.refresh()}
+                          onSave={async (raw) => {
+                            const parsed = parseStockInput(raw)
+                            const result = await updateProductStock(product.id, parsed)
+                            if (result.success) {
+                              setOverrides((o) => ({
+                                ...o,
+                                [product.id]: { ...o[product.id], quantity: parsed },
+                              }))
+                            }
+                            return result
+                          }}
+                        />
                       </TableCell>
                     )}
                     {showCol('status') && (

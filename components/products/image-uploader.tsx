@@ -129,6 +129,19 @@ export function ImageUploader({
 /* Multiple images (product gallery)                                  */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Pure reorder helper for the gallery drag-and-drop: moves the item at
+ * `from` to position `to`, shifting the rest. Out-of-range or no-op moves
+ * return the array unchanged.
+ */
+export function reorderItems<T>(items: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return items
+  const next = [...items]
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
+}
+
 export function ImageGalleryUploader({
   value,
   onChange,
@@ -142,6 +155,10 @@ export function ImageGalleryUploader({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const images = useMemo(() => value ?? [], [value])
+  // HTML5 drag-and-drop reorder. dragIndex = item being dragged,
+  // dropIndex = item currently hovered as the drop target.
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
@@ -178,6 +195,11 @@ export function ImageGalleryUploader({
     onChange(next)
   }
 
+  function moveTo(from: number, to: number) {
+    const next = reorderItems(images, from, to)
+    if (next !== images) onChange(next)
+  }
+
   return (
     <div className="space-y-2">
       <input
@@ -192,7 +214,34 @@ export function ImageGalleryUploader({
         {images.map((url, i) => (
           <div
             key={url}
-            className="group relative size-24 overflow-hidden rounded-lg border border-border bg-muted"
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = 'move'
+              // Required for Firefox to start the drag.
+              e.dataTransfer.setData('text/plain', String(i))
+              setDragIndex(i)
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
+              if (dragIndex !== null && i !== dragIndex) setDropIndex(i)
+            }}
+            onDragLeave={() => setDropIndex((d) => (d === i ? null : d))}
+            onDrop={(e) => {
+              e.preventDefault()
+              if (dragIndex !== null) moveTo(dragIndex, i)
+              setDragIndex(null)
+              setDropIndex(null)
+            }}
+            onDragEnd={() => {
+              setDragIndex(null)
+              setDropIndex(null)
+            }}
+            className={cn(
+              'group relative size-24 cursor-grab overflow-hidden rounded-lg border border-border bg-muted active:cursor-grabbing',
+              dragIndex === i && 'opacity-40',
+              dropIndex === i && 'ring-2 ring-primary ring-offset-2',
+            )}
           >
             <Image src={url || '/placeholder.svg'} alt={`${t.photoAlt} ${i + 1}`} fill sizes="96px" unoptimized={isProxiedMedia(url)} className="object-cover" />
             {i === 0 && (

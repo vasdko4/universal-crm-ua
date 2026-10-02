@@ -9,6 +9,7 @@ import {
   productVariants,
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
+import type { StockReason } from '@/lib/shop/stock-ledger'
 import { and, asc, desc, eq, inArray, isNull, isNotNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
@@ -608,6 +609,50 @@ async function splitVariantProducts(ids: number[]): Promise<{ plain: number[]; s
   return { plain: ids.filter((id) => !variantIds.has(id)), skipped: variantIds.size }
 }
 
+/** Inline price edit from the products table (single product, no variant matrix). */
+export async function updateProductPrice(id: number, price: number) {
+  const user = await assertWritePermission('products')
+  if (!Number.isInteger(id) || id <= 0) return { success: false, error: 'Некоректний товар' }
+  if (!Number.isFinite(price) || price < 0) return { success: false, error: 'Некоректна ціна' }
+  const { skipped } = await splitVariantProducts([id])
+  if (skipped)
+    return { success: false, error: 'Ціна береться з матриці варіантів — змініть у картці товару' }
+  await db
+    .update(products)
+    .set({ price: price.toFixed(2), updatedAt: new Date() })
+    .where(eq(products.id, id))
+  void auditLog({
+    userId: user.id,
+    userName: user.name,
+    userEmail: user.email,
+    action: 'update',
+    entity: 'product',
+    details: `Ціна ${price.toFixed(2)} для товару #${id} (швидке редагування)`,
+  })
+  revalidatePath('/admin/products')
+  revalidateStorefront()
+  return { success: true }
+}
+
+/** Inline stock edit from the products table (single product, absolute value). */
+export async function updateProductStock(id: number, quantity: number) {
+  await assertWritePermission('products')
+  if (!Number.isInteger(id) || id <= 0) return { success: false, error: 'Некоректний товар' }
+  const qty = Math.trunc(quantity)
+  if (!Number.isFinite(qty) || qty < 0) return { success: false, error: 'Некоректний залишок' }
+  const { skipped } = await splitVariantProducts([id])
+  if (skipped)
+    return { success: false, error: 'Залишок береться з матриці варіантів — змініть у картці товару' }
+  const [row] = await db
+    .select({ quantity: products.quantity })
+    .from(products)
+    .where(eq(products.id, id))
+  if (!row) return { success: false, error: 'Товар не знайдено' }
+  const delta = qty - Number(row.quantity)
+  if (delta === 0) return { success: true }
+  return bulkAdjustProductStock([id], delta, 'adjust')
+}
+
 export async function bulkSetProductPrice(ids: number[], price: number) {
   const user = await assertWritePermission('products')
   const unique = uniqueIds(ids)
@@ -633,7 +678,7 @@ export async function bulkSetProductPrice(ids: number[], price: number) {
   return { success: true, skipped }
 }
 
-export async function bulkAdjustProductStock(ids: number[], delta: number) {
+export async function bulkAdjustProductStock(ids: number[], delta: number, reason: StockReason = 'bulk') {
   const user = await assertWritePermission('products')
   const unique = uniqueIds(ids)
   if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
@@ -676,7 +721,7 @@ export async function bulkAdjustProductStock(ids: number[], delta: number) {
             productId: Number(row.id),
             delta: actualDelta,
             quantityAfter: Number(row.qty_after),
-            reason: 'bulk',
+            reason,
             actor: user.name,
           },
           client,

@@ -272,6 +272,7 @@ export type AdminDictionary = {
     applyCategory: string
     toastPriceSet: string
     toastStockAdjusted: string
+    inlineEditHint: string
     toastBulkSkippedVariants: string
     toastCategorySet: string
     stockHistory: string
@@ -2120,6 +2121,7 @@ const uk: AdminDictionary = {
     applyCategory: 'Категорія',
     toastPriceSet: 'Ціну оновлено',
     toastStockAdjusted: 'Залишок змінено',
+    inlineEditHint: 'Натисніть, щоб змінити',
     toastBulkSkippedVariants: 'Пропущено {n} з варіантами (ціна/залишок беруться з матриці варіантів)',
     toastCategorySet: 'Категорію оновлено',
     stockHistory: 'Рух складу',
@@ -3586,7 +3588,7 @@ const uk: AdminDictionary = {
     moveLeftAria: 'Перемістити ліворуч',
     moveRightAria: 'Перемістити праворуч',
     addPhoto: 'Додати',
-    galleryOrderHint: 'Перше фото — головне в галереї. Наведіть на фото, щоб змінити порядок або видалити.',
+    galleryOrderHint: 'Перше фото — головне в галереї. Порядок можна змінити перетягуванням або стрілками.',
     nameSectionTitle: 'Назва і опис',
     nameRuLabel: 'Назва (RU)',
     nameRuPlaceholder: 'Бездротові навушники…',
@@ -3998,6 +4000,7 @@ const ru: AdminDictionary = {
     applyCategory: 'Категория',
     toastPriceSet: 'Цена обновлена',
     toastStockAdjusted: 'Остаток изменён',
+    inlineEditHint: 'Нажмите, чтобы изменить',
     toastBulkSkippedVariants: 'Пропущено {n} с вариантами (цена/остаток берутся из матрицы вариантов)',
     toastCategorySet: 'Категория обновлена',
     stockHistory: 'Движение склада',
@@ -5464,7 +5467,7 @@ const ru: AdminDictionary = {
     moveLeftAria: 'Переместить влево',
     moveRightAria: 'Переместить вправо',
     addPhoto: 'Добавить',
-    galleryOrderHint: 'Первое фото — главное в галерее. Наведите на фото, чтобы изменить порядок или удалить.',
+    galleryOrderHint: 'Первое фото — главное в галерее. Порядок можно изменить перетаскиванием или стрелками.',
     nameSectionTitle: 'Название и описание',
     nameRuLabel: 'Название (RU)',
     nameRuPlaceholder: 'Беспроводные наушники…',
