@@ -375,7 +375,7 @@ async function mergeSizeIntoProduct(opts: {
       variantsEnabled: true,
       isInStock: anyInStock,
       quantity: anyInStock ? 1 : 0,
-      stockStatus: anyInStock ? 'В наличии' : 'Нет в наличии',
+      stockStatus: anyInStock ? 'В наявності' : 'Немає в наявності',
     })
     .where(eq(products.id, opts.productId))
   if (opts.duplicateProductId && opts.duplicateProductId !== opts.productId) {
@@ -614,7 +614,7 @@ export async function continuePromImport(taskId: number) {
         // Prom.ua doesn't expose exact stock counts, only in-stock/out-of-stock,
         // so 1 (not a made-up large number) is the honest quantity per variant.
         quantity: isInStock ? 1 : 0,
-        stockStatus: isInStock ? 'В наличии' : 'Нет в наличии',
+        stockStatus: isInStock ? 'В наявності' : 'Немає в наявності',
         isInStock,
         image: p.images[0] || null,
         images: p.images,

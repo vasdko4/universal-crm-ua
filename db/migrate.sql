@@ -539,3 +539,9 @@ CREATE INDEX IF NOT EXISTS idx_products_name_uk_trgm
 
 CREATE INDEX IF NOT EXISTS idx_products_name_ru_trgm
   ON products USING GIN ((coalesce(name_ru, '')) gin_trgm_ops);
+
+-- 2026-10-03: translate legacy Russian stock_status values to Ukrainian.
+UPDATE products SET stock_status = 'В наявності' WHERE stock_status = 'В наличии';
+UPDATE products SET stock_status = 'Немає в наявності' WHERE stock_status = 'Нет в наличии';
+UPDATE products SET stock_status = 'В наявності' WHERE stock_status IS NULL;
+ALTER TABLE products ALTER COLUMN stock_status SET DEFAULT 'В наявності';

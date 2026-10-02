@@ -277,7 +277,7 @@ function toProductRow(input: ProductInput) {
     unit: input.unit || 'шт',
     options,
     variantsEnabled,
-    stockStatus: aggQty > 0 ? input.stockStatus || 'В наличии' : 'Нет в наличии',
+    stockStatus: aggQty > 0 ? input.stockStatus || 'В наявності' : 'Немає в наявності',
     siteGroupId: input.siteGroupId ?? null,
     marketplaceCategoryId: input.marketplaceCategoryId ?? null,
     width: num(input.width),
@@ -612,11 +612,11 @@ async function splitVariantProducts(ids: number[]): Promise<{ plain: number[]; s
 /** Inline price edit from the products table (single product, no variant matrix). */
 export async function updateProductPrice(id: number, price: number) {
   const user = await assertWritePermission('products')
-  if (!Number.isInteger(id) || id <= 0) return { success: false, error: 'Некоректний товар' }
-  if (!Number.isFinite(price) || price < 0) return { success: false, error: 'Некоректна ціна' }
+  const t = getAdminDictionary(user.locale).products
+  if (!Number.isInteger(id) || id <= 0) return { success: false, error: t.errInvalidProduct }
+  if (!Number.isFinite(price) || price < 0) return { success: false, error: t.errInvalidPrice }
   const { skipped } = await splitVariantProducts([id])
-  if (skipped)
-    return { success: false, error: 'Ціна береться з матриці варіантів — змініть у картці товару' }
+  if (skipped) return { success: false, error: t.errVariantMatrixPrice }
   await db
     .update(products)
     .set({ price: price.toFixed(2), updatedAt: new Date() })
@@ -636,18 +636,18 @@ export async function updateProductPrice(id: number, price: number) {
 
 /** Inline stock edit from the products table (single product, absolute value). */
 export async function updateProductStock(id: number, quantity: number) {
-  await assertWritePermission('products')
-  if (!Number.isInteger(id) || id <= 0) return { success: false, error: 'Некоректний товар' }
+  const user = await assertWritePermission('products')
+  const t = getAdminDictionary(user.locale).products
+  if (!Number.isInteger(id) || id <= 0) return { success: false, error: t.errInvalidProduct }
   const qty = Math.trunc(quantity)
-  if (!Number.isFinite(qty) || qty < 0) return { success: false, error: 'Некоректний залишок' }
+  if (!Number.isFinite(qty) || qty < 0) return { success: false, error: t.errInvalidStock }
   const { skipped } = await splitVariantProducts([id])
-  if (skipped)
-    return { success: false, error: 'Залишок береться з матриці варіантів — змініть у картці товару' }
+  if (skipped) return { success: false, error: t.errVariantMatrixStock }
   const [row] = await db
     .select({ quantity: products.quantity })
     .from(products)
     .where(eq(products.id, id))
-  if (!row) return { success: false, error: 'Товар не знайдено' }
+  if (!row) return { success: false, error: t.errProductNotFound }
   const delta = qty - Number(row.quantity)
   if (delta === 0) return { success: true }
   return bulkAdjustProductStock([id], delta, 'adjust')
@@ -655,9 +655,10 @@ export async function updateProductStock(id: number, quantity: number) {
 
 export async function bulkSetProductPrice(ids: number[], price: number) {
   const user = await assertWritePermission('products')
+  const t = getAdminDictionary(user.locale).products
   const unique = uniqueIds(ids)
-  if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
-  if (!Number.isFinite(price) || price < 0) return { success: false, error: 'Некоректна ціна' }
+  if (!unique.length) return { success: false, error: t.errNothingSelected }
+  if (!Number.isFinite(price) || price < 0) return { success: false, error: t.errInvalidPrice }
   const { plain, skipped } = await splitVariantProducts(unique)
   if (plain.length > 0) {
     await db
@@ -680,10 +681,11 @@ export async function bulkSetProductPrice(ids: number[], price: number) {
 
 export async function bulkAdjustProductStock(ids: number[], delta: number, reason: StockReason = 'bulk') {
   const user = await assertWritePermission('products')
+  const t = getAdminDictionary(user.locale).products
   const unique = uniqueIds(ids)
-  if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
+  if (!unique.length) return { success: false, error: t.errNothingSelected }
   const d = Math.trunc(delta)
-  if (!d) return { success: false, error: 'Дельта не може бути 0' }
+  if (!d) return { success: false, error: t.errZeroDelta }
   const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
   const { withDbClient } = await import('@/lib/db')
   const { plain, skipped } = await splitVariantProducts(unique)
@@ -702,8 +704,8 @@ export async function bulkAdjustProductStock(ids: number[], delta: number, reaso
              quantity = GREATEST(0, p.quantity + $1),
              is_in_stock = GREATEST(0, p.quantity + $1) > 0,
              stock_status = CASE
-               WHEN GREATEST(0, p.quantity + $1) = 0 THEN 'Нет в наличии'
-               WHEN p.stock_status = 'Нет в наличии' THEN 'В наличии'
+               WHEN GREATEST(0, p.quantity + $1) = 0 THEN 'Немає в наявності'
+               WHEN p.stock_status = 'Немає в наявності' THEN 'В наявності'
                ELSE p.stock_status
              END,
              updated_at = NOW()

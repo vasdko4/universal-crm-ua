@@ -109,7 +109,7 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             oldPrice,
             quantity,
             unit: row.unit?.trim() || 'шт',
-            stockStatus: quantity > 0 ? 'В наличии' : 'Нет в наличии',
+            stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
             isInStock: quantity > 0,
             updatedAt: sql`now()`,
             ...(healSlug ? { slug: healSlug } : {}),
@@ -134,7 +134,7 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             oldPrice,
             quantity,
             unit: row.unit?.trim() || 'шт',
-            stockStatus: quantity > 0 ? 'В наличии' : 'Нет в наличии',
+            stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
             isInStock: quantity > 0,
           })
           .returning({ id: products.id })

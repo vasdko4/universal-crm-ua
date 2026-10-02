@@ -69,7 +69,7 @@ export const products = pgTable('products', {
   costPrice: numeric('cost_price', { precision: 10, scale: 2 }),
   quantity: integer('quantity').notNull().default(0),
   unit: varchar('unit', { length: 50 }).default('шт'),
-  stockStatus: varchar('stock_status', { length: 50 }).default('В наличии'),
+  stockStatus: varchar('stock_status', { length: 50 }).default('В наявності'),
   siteGroupId: integer('site_group_id'),
   marketplaceCategoryId: integer('marketplace_category_id'),
   width: numeric('width', { precision: 10, scale: 2 }),

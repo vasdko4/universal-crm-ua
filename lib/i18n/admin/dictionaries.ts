@@ -273,6 +273,14 @@ export type AdminDictionary = {
     toastPriceSet: string
     toastStockAdjusted: string
     inlineEditHint: string
+    errInvalidProduct: string
+    errInvalidPrice: string
+    errInvalidStock: string
+    errProductNotFound: string
+    errVariantMatrixPrice: string
+    errVariantMatrixStock: string
+    errNothingSelected: string
+    errZeroDelta: string
     toastBulkSkippedVariants: string
     toastCategorySet: string
     stockHistory: string
@@ -2122,6 +2130,14 @@ const uk: AdminDictionary = {
     toastPriceSet: 'Ціну оновлено',
     toastStockAdjusted: 'Залишок змінено',
     inlineEditHint: 'Натисніть, щоб змінити',
+    errInvalidProduct: 'Некоректний товар',
+    errInvalidPrice: 'Некоректна ціна',
+    errInvalidStock: 'Некоректний залишок',
+    errProductNotFound: 'Товар не знайдено',
+    errVariantMatrixPrice: 'Ціна береться з матриці варіантів — змініть у картці товару',
+    errVariantMatrixStock: 'Залишок береться з матриці варіантів — змініть у картці товару',
+    errNothingSelected: 'Нічого не вибрано',
+    errZeroDelta: 'Дельта не може бути 0',
     toastBulkSkippedVariants: 'Пропущено {n} з варіантами (ціна/залишок беруться з матриці варіантів)',
     toastCategorySet: 'Категорію оновлено',
     stockHistory: 'Рух складу',
@@ -4001,6 +4017,14 @@ const ru: AdminDictionary = {
     toastPriceSet: 'Цена обновлена',
     toastStockAdjusted: 'Остаток изменён',
     inlineEditHint: 'Нажмите, чтобы изменить',
+    errInvalidProduct: 'Некорректный товар',
+    errInvalidPrice: 'Некорректная цена',
+    errInvalidStock: 'Некорректный остаток',
+    errProductNotFound: 'Товар не найден',
+    errVariantMatrixPrice: 'Цена берётся из матрицы вариантов — измените в карточке товара',
+    errVariantMatrixStock: 'Остаток берётся из матрицы вариантов — измените в карточке товара',
+    errNothingSelected: 'Ничего не выбрано',
+    errZeroDelta: 'Дельта не может быть 0',
     toastBulkSkippedVariants: 'Пропущено {n} с вариантами (цена/остаток берутся из матрицы вариантов)',
     toastCategorySet: 'Категория обновлена',
     stockHistory: 'Движение склада',

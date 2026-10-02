@@ -462,7 +462,7 @@ CREATE TABLE IF NOT EXISTS "products" (
   "cost_price" numeric(10,2),
   "quantity" integer DEFAULT 0 NOT NULL,
   "unit" varchar(50) DEFAULT 'шт'::character varying,
-  "stock_status" varchar(50) DEFAULT 'В наличии'::character varying,
+  "stock_status" varchar(50) DEFAULT 'В наявності'::character varying,
   "site_group_id" integer,
   "marketplace_category_id" integer,
   "width" numeric(10,2),
