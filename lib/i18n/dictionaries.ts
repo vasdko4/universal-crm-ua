@@ -120,6 +120,8 @@ export type Dictionary = {
     sku: string
     relatedProducts: string
     frequentlyBoughtTogether: string
+    thisItem: string
+    addSelectedToCart: string
     priceFrom: string
     writeReview: string
     askQuestion: string
@@ -734,6 +736,8 @@ const uk: Dictionary = {
     sku: 'Артикул',
     relatedProducts: 'Схожі товари',
     frequentlyBoughtTogether: 'Часто купують разом',
+    thisItem: 'Цей товар',
+    addSelectedToCart: 'Додати вибране до кошика',
     priceFrom: 'від',
     writeReview: 'Написати відгук',
     askQuestion: 'Поставити питання',
@@ -1346,6 +1350,8 @@ const ru: Dictionary = {
     sku: 'Артикул',
     relatedProducts: 'Похожие товары',
     frequentlyBoughtTogether: 'Часто покупают вместе',
+    thisItem: 'Этот товар',
+    addSelectedToCart: 'Добавить выбранное в корзину',
     priceFrom: 'от',
     writeReview: 'Написать отзыв',
     askQuestion: 'Задать вопрос',

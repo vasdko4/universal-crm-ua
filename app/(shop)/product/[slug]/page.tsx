@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ProductTabs } from '@/components/shop/product-tabs'
 import { ProductCard } from '@/components/shop/product-card'
+import { FrequentlyBoughtTogether } from '@/components/shop/frequently-bought-together'
 import { ProductPurchasePanel } from '@/components/shop/product-purchase-panel'
 import { RecentlyViewed } from '@/components/shop/recently-viewed'
 import { JsonLd } from '@/components/shop/json-ld'
@@ -279,18 +280,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         />
       </div>
 
-      {/* Frequently bought together — real co-purchase counts from order history */}
+      {/* Frequently bought together — bundle builder with real co-purchase data */}
       {boughtTogether.length > 0 && (
-        <section className="mt-8 lg:mt-14">
-          <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground lg:mb-5 lg:text-2xl">
-            {dict.product.frequentlyBoughtTogether}
-          </h2>
-          <div className="product-grid">
-            {boughtTogether.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        </section>
+        <FrequentlyBoughtTogether main={product} items={boughtTogether} />
       )}
 
       {/* Related */}
