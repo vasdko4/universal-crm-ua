@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import nodemailer from 'nodemailer'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { reportError } from '@/lib/server-errors'
 
 export type MailPayload = {
   to: string
@@ -20,9 +21,13 @@ export async function sendMail(payload: MailPayload): Promise<{ sent: boolean; f
 
   const configured = Boolean(email.smtpHost && email.smtpUser && (email.enabled || email.smtpPassword))
   if (!configured) {
-    console.log(
-      `[v0] Email not configured — fallback log.\nTo: ${payload.to}\nSubject: ${payload.subject}\n${payload.text}`,
-    )
+    if (process.env.NODE_ENV === 'production') {
+      await reportError('email.not-configured', new Error('SMTP not configured — email dropped'))
+    } else {
+      console.log(
+        `[mailer] Email not configured — fallback log.\nTo: ${payload.to}\nSubject: ${payload.subject}\n${payload.text}`,
+      )
+    }
     return { sent: false, fallback: true }
   }
 

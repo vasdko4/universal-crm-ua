@@ -1,4 +1,5 @@
 import { pool } from '@/lib/db'
+import { reportError } from '@/lib/server-errors'
 import type { PoolClient } from 'pg'
 
 export type StockReason = 'sale' | 'cancel' | 'adjust' | 'bulk' | 'import' | 'restore'
@@ -34,6 +35,6 @@ export async function recordStockMovement(
       ],
     )
   } catch (e) {
-    console.log('[stock] ledger write failed:', (e as Error).message)
+    await reportError('stock.ledger-write-failed', e)
   }
 }
