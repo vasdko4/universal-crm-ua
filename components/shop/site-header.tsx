@@ -119,15 +119,17 @@ export function SiteHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 py-1.5 lg:hidden">
-        <Link href={lp('/')} className="flex min-w-0 max-w-[30%] shrink-0 items-center gap-2">
-          {logoUrl ? (
-            <Image src={logoUrl || '/placeholder.svg'} alt={storeName} width={112} height={28} className="h-7 w-auto max-w-full object-contain" />
-          ) : (
-            <span className="truncate text-sm font-semibold tracking-[-0.03em] text-foreground">{storeName}</span>
-          )}
-        </Link>
-        <div className="min-w-0 flex-1">
+      <div className="lg:hidden">
+        <div className="flex items-center py-1.5">
+          <Link href={lp('/')} className="flex min-w-0 items-center gap-2">
+            {logoUrl ? (
+              <Image src={logoUrl || '/placeholder.svg'} alt={storeName} width={112} height={28} className="h-7 w-auto max-w-full object-contain" />
+            ) : (
+              <span className="truncate text-sm font-semibold tracking-[-0.03em] text-foreground">{storeName}</span>
+            )}
+          </Link>
+        </div>
+        <div className="pb-2">
           <SearchBox />
         </div>
       </div>
