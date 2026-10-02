@@ -48,7 +48,12 @@ export function saveDatabaseUrl(url: string) {
   env.DATABASE_URL = url
   const body =
     Object.entries(env)
-      .map(([k, v]) => (/\s|#|"/.test(v) ? `${k}="${v.replace(/"/g, '\\"')}"` : `${k}=${v}`))
+      .map(([k, v]) => {
+        // Strip CR/LF: a pasted value with a line break would otherwise
+        // inject extra keys into .env.local.
+        const clean = v.replace(/[\r\n]+/g, '')
+        return /\s|#|"/.test(clean) ? `${k}="${clean.replace(/"/g, '\\"')}"` : `${k}=${clean}`
+      })
       .join('\n') + '\n'
   writeFileSync(ENV_PATH, body, 'utf8')
   process.env.DATABASE_URL = url

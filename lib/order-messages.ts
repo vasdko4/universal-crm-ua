@@ -31,6 +31,19 @@ function esc(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+/**
+ * URL sanitizer for href/src attributes in email HTML. Only http(s) and
+ * same-origin relative URLs pass through — anything else (javascript:,
+ * data:, …) becomes an empty string so a hostile value can't break out
+ * of the attribute.
+ */
+function safeUrl(raw: string): string {
+  const v = raw.trim()
+  if (/^https?:\/\//i.test(v)) return v
+  if (v.startsWith('/')) return v
+  return ''
+}
+
 export type OrderMessageKind = 'confirmation' | 'shipped' | 'status' | 'instruction'
 
 // Store branding/context injected into every email so the template looks like
@@ -238,7 +251,7 @@ ${L.footer}`
     .join('')
 
   const logoHtml = store.logoUrl
-    ? `<img src="${store.logoUrl}" height="36" alt="${esc(storeName)}" style="display:block;max-height:36px;width:auto" />`
+    ? `<img src="${safeUrl(store.logoUrl)}" height="36" alt="${esc(storeName)}" style="display:block;max-height:36px;width:auto" />`
     : `<span style="font-size:20px;font-weight:700;color:#1a1a1a;letter-spacing:-0.02em">${esc(storeName)}</span>`
 
   const trackingHtml = order.trackingNumber
@@ -246,7 +259,7 @@ ${L.footer}`
         <div style="font-size:14px;color:#3d6b45;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">${esc(carrier?.label ?? L.carrier)} — ${esc(L.ttnBox)}</div>
         <div style="font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:0.06em;font-family:'Courier New',monospace">${esc(order.trackingNumber)}</div>
         ${order.deliveryStatus ? `<div style="font-size:14px;color:#3d6b45;margin-top:6px;font-weight:600">${esc(order.deliveryStatus)}</div>` : ''}
-        ${trackingUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:14px auto 0"><tr><td style="border-radius:8px;background:#4a8a55"><a href="${trackingUrl}" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">${esc(L.track)}</a></td></tr></table>` : ''}
+        ${trackingUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:14px auto 0"><tr><td style="border-radius:8px;background:#4a8a55"><a href="${safeUrl(trackingUrl)}" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">${esc(L.track)}</a></td></tr></table>` : ''}
       </div>`
     : ''
 

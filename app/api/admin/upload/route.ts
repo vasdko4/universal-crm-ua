@@ -30,6 +30,21 @@ function generatedFileName(ext: string): string {
   return `${Date.now()}-${randomBytes(6).toString('hex')}${ext}`
 }
 
+/**
+ * True only for URLs that actually live in our Vercel Blob store.
+ * A substring check (`includes`) would also match attacker-controlled URLs
+ * like `https://evil.com/.public.blob.vercel-storage.com/x`.
+ */
+function isOwnBlobUrl(raw: string): boolean {
+  let host: string
+  try {
+    host = new URL(raw).hostname.toLowerCase()
+  } catch {
+    return false
+  }
+  return host === 'blob.vercel-storage.com' || host.endsWith('.public.blob.vercel-storage.com')
+}
+
 async function storeLocally(body: Buffer, ext: string): Promise<string> {
   await mkdir(LOCAL_UPLOAD_DIR, { recursive: true })
   const fileName = generatedFileName(ext)
@@ -148,7 +163,7 @@ export async function DELETE(request: NextRequest) {
     if (!url) {
       return NextResponse.json({ error: 'URL не передан' }, { status: 400 })
     }
-    if (url.includes('.public.blob.vercel-storage.com')) {
+    if (isOwnBlobUrl(url)) {
       await del(url)
     } else if (url.startsWith(LOCAL_URL_PREFIX)) {
       const fileName = url.slice(LOCAL_URL_PREFIX.length)
