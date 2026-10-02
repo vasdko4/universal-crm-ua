@@ -60,6 +60,9 @@ export function MobileBottomNav({
   // would cause a hydration mismatch (server renders a link, client renders
   // the dialog trigger). Render the link until mounted, then switch.
   const mounted = useIsClient()
+  // Logged-in shoppers keep their favorites inside the account area so the
+  // heart never navigates them out of the cabinet; guests use /favorites.
+  const favoritesHref = mounted && isLoggedIn ? '/account/favorites' : '/favorites'
 
   // Compare against the un-prefixed pathname so /ru/... routes still match
   // the same (unprefixed) href patterns used below.
@@ -156,7 +159,7 @@ export function MobileBottomNav({
           <span>{dict.common.cart}</span>
         </button>
 
-        <Link href={lp('/favorites')} className={itemClass(isActive('/favorites'))}>
+        <Link href={lp(favoritesHref)} className={itemClass(isActive('/favorites') || isActive('/account/favorites'))}>
           <span className="relative">
             <Heart className="size-5" />
             {badge(favCount)}

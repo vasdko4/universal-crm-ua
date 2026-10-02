@@ -1,13 +1,15 @@
 /**
  * Short / legacy storefront URLs. Applied in proxy.ts as real redirects
  * (not rewrites) so the address bar matches the actual account routes.
+ *
+ * NOTE: /account/favorites used to redirect to /favorites because the
+ * account subpage didn't exist. It exists now — the redirect is gone.
  */
 const AUTH_SHORTCUTS: Record<string, string> = {
   '/login': '/account/login',
   '/register': '/account/register',
   '/signup': '/account/register',
-  '/account/favorites': '/favorites',
-  '/account/wishlist': '/favorites',
+  '/account/wishlist': '/account/favorites',
 }
 
 export function storefrontAuthShortcut(pathname: string): string | null {

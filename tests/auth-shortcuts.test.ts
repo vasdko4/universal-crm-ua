@@ -13,9 +13,12 @@ describe('storefrontAuthShortcut', () => {
     expect(storefrontAuthShortcut('/admin')).toBeNull()
   })
 
-  it('collapses missing account subpages onto live routes', () => {
-    expect(storefrontAuthShortcut('/account/favorites')).toBe('/favorites')
-    expect(storefrontAuthShortcut('/account/wishlist')).toBe('/favorites')
+  it('sends the legacy wishlist URL to the account favorites page', () => {
+    expect(storefrontAuthShortcut('/account/wishlist')).toBe('/account/favorites')
+  })
+
+  it('leaves the real account favorites page alone', () => {
+    expect(storefrontAuthShortcut('/account/favorites')).toBeNull()
   })
 
   it('leaves the real profile page alone', () => {

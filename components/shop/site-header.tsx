@@ -45,6 +45,9 @@ export function SiteHeader({
   // would cause a hydration mismatch (server renders a link, client renders
   // the dialog trigger). Render the link until mounted, then switch.
   const mounted = useIsClient()
+  // Logged-in shoppers keep their favorites inside the account area so the
+  // heart never navigates them out of the cabinet; guests use /favorites.
+  const favoritesHref = mounted && isLoggedIn ? '/account/favorites' : '/favorites'
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-card/95 backdrop-blur-xl">
@@ -72,7 +75,7 @@ export function SiteHeader({
         <div className="ml-auto flex shrink-0 items-center gap-0.5 lg:gap-1">
           <LocaleSwitcher />
           <Button variant="ghost" size="icon" className="relative hidden lg:inline-flex" asChild aria-label={dict.favorites.title}>
-            <Link href={lp('/favorites')}>
+            <Link href={lp(favoritesHref)}>
               <Heart className="size-5" />
               {favCount > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">

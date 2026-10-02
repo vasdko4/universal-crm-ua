@@ -34,7 +34,7 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
     { href: '/account/orders', label: dict.account.navOrders, icon: Package, exact: false },
     { href: '/account/addresses', label: dict.account.navAddresses, icon: MapPin, exact: false },
     { href: '/account/promocodes', label: dict.account.navPromos, icon: TicketPercent, exact: false },
-    { href: '/favorites', label: dict.account.navFavorites, icon: Heart, exact: false },
+    { href: '/account/favorites', label: dict.account.navFavorites, icon: Heart, exact: false },
   ]
 
   const current = stripLocalePrefix(pathname)

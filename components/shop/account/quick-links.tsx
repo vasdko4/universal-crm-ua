@@ -35,7 +35,7 @@ export function AccountQuickLinks({ locale }: { locale: Locale }) {
       iconClass: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
     },
     {
-      href: '/favorites',
+      href: '/account/favorites',
       label: t.navFavorites,
       icon: Heart,
       iconClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
