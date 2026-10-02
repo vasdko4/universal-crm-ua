@@ -193,18 +193,6 @@ export type Dictionary = {
     toCatalog: string
     signInHint: string
   }
-  compare: {
-    title: string
-    add: string
-    inCompare: string
-    maxReached: string
-    addedToast: string
-    empty: string
-    emptyDesc: string
-    toCatalog: string
-    remove: string
-    sku: string
-  }
   cart: {
     title: string
     empty: string
@@ -819,18 +807,6 @@ const uk: Dictionary = {
     toCatalog: 'До каталогу',
     signInHint: 'Увійдіть, щоб обране зберігалося у вашому акаунті.',
   },
-  compare: {
-    title: 'Порівняння',
-    add: 'Порівняти',
-    inCompare: 'У порівнянні',
-    maxReached: 'У порівнянні може бути не більше 4 товарів',
-    addedToast: 'Додано до порівняння',
-    empty: 'Немає товарів для порівняння',
-    emptyDesc: 'Натискайте «Порівняти» на картках товарів, щоб додати їх сюди.',
-    toCatalog: 'До каталогу',
-    remove: 'Прибрати з порівняння',
-    sku: 'Артикул',
-  },
   cart: {
     title: 'Кошик',
     empty: 'Ваш кошик порожній',
@@ -1442,18 +1418,6 @@ const ru: Dictionary = {
     emptyDesc: 'Нажимайте на сердечко на товарах, чтобы сохранить их здесь.',
     toCatalog: 'В каталог',
     signInHint: 'Войдите, чтобы избранное сохранялось в вашем аккаунте.',
-  },
-  compare: {
-    title: 'Сравнение',
-    add: 'Сравнить',
-    inCompare: 'В сравнении',
-    maxReached: 'В сравнении может быть не более 4 товаров',
-    addedToast: 'Добавлено к сравнению',
-    empty: 'Нет товаров для сравнения',
-    emptyDesc: 'Нажимайте «Сравнить» на карточках товаров, чтобы добавить их сюда.',
-    toCatalog: 'В каталог',
-    remove: 'Убрать из сравнения',
-    sku: 'Артикул',
   },
   cart: {
     title: 'Корзина',

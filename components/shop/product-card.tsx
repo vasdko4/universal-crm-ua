@@ -15,7 +15,6 @@ import { fillTemplate } from '@/lib/i18n/dictionaries'
 import { pluralize } from '@/lib/i18n/plural'
 import { FavoriteButton } from '@/components/shop/favorite-button'
 import { OneClickBuyButton } from '@/components/shop/one-click-buy'
-import { CompareToggleButton } from '@/components/shop/compare-toggle'
 import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { cn } from '@/lib/utils'
 
@@ -237,7 +236,6 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
             )}
           </Button>
           <OneClickBuyButton product={product} />
-          <CompareToggleButton product={product} />
         </div>
       </div>
     </article>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ShoppingCart, User, Heart, Scale } from 'lucide-react'
+import { ShoppingCart, User, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CartDrawer } from '@/components/shop/cart-drawer'
 import { SearchBox } from '@/components/shop/search-box'
@@ -12,7 +12,6 @@ import { AuthDialog } from '@/components/shop/auth/auth-dialog'
 import { useSession } from '@/lib/auth-client'
 import { useCart } from '@/lib/shop/cart-context'
 import { useFavorites } from '@/lib/shop/favorites-context'
-import { useCompare } from '@/lib/shop/compare-context'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 import { useIsClient } from '@/lib/hooks/use-client-only'
@@ -38,7 +37,6 @@ export function SiteHeader({
 }) {
   const { count } = useCart()
   const { count: favCount } = useFavorites()
-  const { count: compareCount } = useCompare()
   const { dict, locale } = useI18n()
   const lp = (p: string) => localizedPath(p, locale)
   const { data: session, isPending } = useSession()
@@ -96,16 +94,6 @@ export function SiteHeader({
               </Button>
             </AuthDialog>
           )}
-          <Button variant="ghost" size="icon" className="relative hidden lg:inline-flex" asChild aria-label={dict.compare.title}>
-            <Link href={lp('/compare')}>
-              <Scale className="size-5" />
-              {compareCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
-                  {compareCount}
-                </span>
-              )}
-            </Link>
-          </Button>
           <CartDrawer>
             <Button variant="ghost" size="icon" className="relative hidden lg:inline-flex" aria-label={dict.nav.cart}>
               <ShoppingCart className="size-5" />
