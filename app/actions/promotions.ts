@@ -12,6 +12,7 @@ import { getLocale } from '@/lib/i18n/server'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { escapeLikeWildcards, ilikeEscaped, sanitizeSearch } from '@/lib/api/helpers'
 import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
+import { isUniqueViolation } from '@/lib/db/errors'
 import { kyivDayBoundary } from '@/lib/shop/promo-dates'
 
 export type PromotionInput = {
@@ -60,14 +61,6 @@ async function assertUniquePromoCode(code: string | null | undefined, exceptId?:
 // parallel creates/updates with the same code could both pass it, and the
 // loser would hit the DB unique index (promotions_promo_code_unique) as an
 // unhandled 500. Convert that into the same friendly error.
-function isUniqueViolation(e: unknown): boolean {
-  let cur: unknown = e
-  for (let i = 0; i < 4 && cur && typeof cur === 'object'; i++) {
-    if ('code' in cur && (cur as { code: unknown }).code === '23505') return true
-    cur = 'cause' in cur ? (cur as { cause: unknown }).cause : undefined
-  }
-  return false
-}
 
 const DUP_CODE_ERROR = 'Промокод уже используется другой акцией'
 

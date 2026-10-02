@@ -31,6 +31,15 @@ const ENV_KEYS = [
 const savedEnv: Record<string, string | undefined> = {}
 let errSpy: ReturnType<typeof vi.spyOn>
 
+/** Strict OAuth-host check for the fetch mock router (no substring matching). */
+function isOAuthHost(url: string | URL): boolean {
+  try {
+    return new URL(String(url)).hostname === 'oauth2.googleapis.com'
+  } catch {
+    return false
+  }
+}
+
 function setCreds(overrides: Record<string, string> = {}) {
   for (const k of ENV_KEYS) delete process.env[k]
   Object.assign(process.env, {
@@ -187,8 +196,7 @@ describe('uploadOfflineConversion', () => {
   it('uploads via the token + uploadClickConversions endpoints on success', async () => {
     setCreds()
     const fetchSpy = vi.fn(async (url: string | URL) => {
-      const u = String(url)
-      if (u.includes('oauth2.googleapis.com')) {
+      if (isOAuthHost(url)) {
         return jsonResponse({ access_token: 'ya29.test' })
       }
       return jsonResponse({
@@ -247,7 +255,7 @@ describe('uploadOfflineConversion', () => {
   it('treats a failed upload request as a logged failure', async () => {
     setCreds()
     const fetchSpy = vi.fn(async (url: string | URL) =>
-      String(url).includes('oauth2.googleapis.com')
+      isOAuthHost(url)
         ? jsonResponse({ access_token: 'ya29.test' })
         : new Response('denied', { status: 403 }),
     )
@@ -261,7 +269,7 @@ describe('uploadOfflineConversion', () => {
   it('treats partialFailureError as a logged failure', async () => {
     setCreds()
     const fetchSpy = vi.fn(async (url: string | URL) =>
-      String(url).includes('oauth2.googleapis.com')
+      isOAuthHost(url)
         ? jsonResponse({ access_token: 'ya29.test' })
         : jsonResponse({
             results: [],

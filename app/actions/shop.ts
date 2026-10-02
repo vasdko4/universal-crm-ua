@@ -33,6 +33,7 @@ import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { mergeCheckoutItems, validateCheckoutInput } from '@/lib/shop/checkout-validation'
 import { resolveOneClickLine, validateOneClickInput } from '@/lib/shop/one-click'
+import { isUniqueViolation } from '@/lib/db/errors'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -645,6 +646,8 @@ export type OneClickOrderInput = {
   variantId?: number
   name: string
   phone: string
+  /** Client-generated UUID (one per modal open) — retried submits return the existing order. */
+  idempotencyKey?: string
 }
 
 export type OneClickOrderResult =
@@ -684,7 +687,27 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
   // must be positive integers. See lib/shop/one-click.ts.
   const validated = validateOneClickInput(input, locale)
   if (!validated.ok) return { success: false, error: validated.error }
-  const { productId, variantId, name, phone } = validated.value
+  const { productId, variantId, name, phone, idempotencyKey } = validated.value
+
+  // Idempotency: a retried submit (double-tap on slow network) carries the
+  // same key — return the already-created order instead of a duplicate.
+  if (idempotencyKey) {
+    const [existing] = await db
+      .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total, itemsTotal: orders.itemsTotal })
+      .from(orders)
+      .where(eq(orders.idempotencyKey, idempotencyKey))
+      .limit(1)
+    if (existing) {
+      await rememberLastOrder(existing.orderNumber)
+      return {
+        success: true,
+        orderId: existing.id,
+        orderNumber: existing.orderNumber,
+        total: Number(existing.total),
+        itemsTotal: Number(existing.itemsTotal),
+      }
+    }
+  }
 
   // Load the real product to compute the authoritative price and check
   // availability — never trust client data for either.
@@ -737,6 +760,15 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
           options: (v.options ?? null) as Record<string, unknown> | null,
         }
       : null
+  }
+
+  // A variant id that doesn't resolve to a real variant of THIS product is a
+  // validation error — never silently fall back to the base product.
+  if (variantId != null) {
+    if (!p.variantsEnabled) return { success: false, error: t.invalidVariant }
+    if (!variantRow || variantRow.productId !== productId) {
+      return { success: false, error: t.invalidVariant }
+    }
   }
 
   const line = resolveOneClickLine(p, variantRow, locale)
@@ -822,6 +854,7 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
           note: 'Швидке замовлення (1 клік): менеджер уточнить доставку та деталі.',
           createdBy: shopUser ? shopUser.id : null,
           userId: shopUser ? shopUser.id : null,
+          idempotencyKey: idempotencyKey ?? null,
         })
         .returning()
 
@@ -858,6 +891,25 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
     // reservation: the transaction rolled back, tell the shopper plainly.
     if (e instanceof InsufficientStockError) {
       return { success: false, error: t.someItemsUnavailable }
+    }
+    // Idempotency race: a parallel submit with the same key won the insert.
+    // Return the winner instead of an error.
+    if (idempotencyKey && isUniqueViolation(e)) {
+      const [winner] = await db
+        .select({ id: orders.id, orderNumber: orders.orderNumber, total: orders.total, itemsTotal: orders.itemsTotal })
+        .from(orders)
+        .where(eq(orders.idempotencyKey, idempotencyKey))
+        .limit(1)
+      if (winner) {
+        await rememberLastOrder(winner.orderNumber)
+        return {
+          success: true,
+          orderId: winner.id,
+          orderNumber: winner.orderNumber,
+          total: Number(winner.total),
+          itemsTotal: Number(winner.itemsTotal),
+        }
+      }
     }
     console.error('[one-click] order write failed:', (e as Error).message)
     return { success: false, error: t.paymentInvoiceFailed }
@@ -1092,7 +1144,31 @@ export async function getMyOrders() {
   }
 }
 
+/**
+ * Dashboard aggregates over ALL of the shopper's orders (no LIMIT): the real
+ * order count and lifetime spend. Cancelled and fully-refunded orders don't
+ * count as spend — the money came back. (Partial refunds keep the order total;
+ * per-line refund amounts aren't tracked.)
+ */
+export async function getMyOrderSummary(): Promise<{ ordersCount: number; totalSpent: number }> {
+  const user = await getShopUser()
+  if (!user) return { ordersCount: 0, totalSpent: 0 }
+  const ownership = orderOwnership(user.id, user.phone)
+  const [row] = await db
+    .select({
+      count: sql<number>`count(*)`,
+      total: sql<string | null>`sum(case when ${orders.status} not in ('cancelled', 'refunded') then ${orders.total} else 0 end)`,
+    })
+    .from(orders)
+    .where(and(ownership, ne(orders.status, 'pending_payment')))
+  return {
+    ordersCount: Number(row?.count ?? 0),
+    totalSpent: Number(row?.total ?? 0),
+  }
+}
+
 export async function getMyOrderDetail(orderId: number) {
+
   const user = await getShopUser()
   if (!user) return null
   try {

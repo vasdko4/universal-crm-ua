@@ -12,6 +12,7 @@ import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 import { getCompareProducts, type CompareProduct } from '@/app/actions/compare'
+import { variantLabel } from '@/components/shop/product-purchase-panel'
 import { buildSpecRows, diffRowFlags, type CompareSpecRow } from '@/lib/shop/compare'
 import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { cn } from '@/lib/utils'
@@ -37,7 +38,15 @@ export function CompareGrid() {
         if (cancelled) return
         // Preserve the tray order (most recently added last).
         const byId = new Map(res.map((p) => [p.product.id, p]))
-        setItems(ids.map((id) => byId.get(id)).filter((p): p is CompareProduct => !!p))
+        const found = ids.map((id) => byId.get(id)).filter((p): p is CompareProduct => !!p)
+        setItems(found)
+        // Drop ids of deleted products from the tray so the header badge and
+        // the table agree. remove() flows through the context's single write
+        // path (writeCompareIds), keeping state and localStorage in sync.
+        if (found.length !== ids.length) {
+          const foundIds = new Set(found.map((p) => p.product.id))
+          ids.filter((id) => !foundIds.has(id)).forEach(remove)
+        }
       })
       .catch(() => {
         if (!cancelled) setItems([])
@@ -74,14 +83,19 @@ export function CompareGrid() {
       router.push(lp(`/product/${product.slug}`))
       return
     }
+    // Single-variant product: add the variant itself (id, price, stock) —
+    // never the base product row at the aggregate price.
+    const variant = product.variants.length === 1 ? product.variants[0] : null
     add(
       {
         id: product.id,
         slug: product.slug,
         name: product.name,
-        price: product.price,
-        image: product.image,
-        maxQuantity: product.quantity,
+        price: variant?.price ?? product.price,
+        image: variant?.image ?? product.image,
+        maxQuantity: variant?.quantity ?? product.quantity,
+        variantId: variant?.id ?? null,
+        variantLabel: variant ? variantLabel(variant) : null,
       },
       1,
     )

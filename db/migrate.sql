@@ -67,6 +67,12 @@ CREATE INDEX IF NOT EXISTS idx_product_questions_status_created ON product_quest
 -- ---------- Заказы: флаг возврата остатков при отмене ----------
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "stock_restored" boolean DEFAULT false NOT NULL;
 
+-- ---------- 1-клик: идемпотентность создания заказа ----------
+-- Ключ генерирует клиент (модалка) один раз на открытие; повторный сабмит
+-- с тем же ключом возвращает уже созданный заказ вместо дубля.
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "idempotency_key" varchar(64);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key ON orders (idempotency_key) WHERE idempotency_key IS NOT NULL;
+
 -- ---------- Админ-центр: язык интерфейса на пользователя ----------
 -- Хранится в БД (user.locale), выбор не спрашивается повторно при входе.
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "locale" varchar(5) DEFAULT 'uk'::character varying NOT NULL;

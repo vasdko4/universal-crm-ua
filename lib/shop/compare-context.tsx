@@ -61,11 +61,12 @@ export function CompareProvider({ children }: { children: ReactNode }) {
   }, [ids, isReady])
 
   const toggle = useCallback((productId: number): ToggleResult => {
-    let result: ToggleResult = { ids, added: false, limitReached: false }
-    setIds((prev) => {
-      result = toggleCompare(prev, productId)
-      return result.ids
-    })
+    // Compute the result synchronously from the current state. The setIds
+    // updater runs asynchronously, so capturing the result inside it would
+    // always return the initial value — "added"/"limit reached" toasts would
+    // never fire and the 5th item would be silently ignored.
+    const result = toggleCompare(ids, productId)
+    setIds(result.ids)
     return result
   }, [ids])
 

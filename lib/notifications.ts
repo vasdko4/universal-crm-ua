@@ -6,6 +6,7 @@ import { buildOrderMessage } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getProductSlugMap } from '@/lib/shop/queries'
 import { noteLooksLikeRequisites, splitOrderNote } from '@/lib/payments/public-requisites'
+import { looksLikeEmail } from '@/lib/text'
 
 function money(v: string | number, currency = 'UAH', locale: string = 'uk') {
   const n = typeof v === 'string' ? Number.parseFloat(v) : v
@@ -91,7 +92,24 @@ const CARRIER_LABELS: Record<string, string> = {
 }
 
 function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * URL sanitizer for href/src attributes. Only http(s) and same-origin
+ * relative URLs pass through — anything else (javascript:, data:, …)
+ * becomes an empty string so a hostile value can't break out of the attribute.
+ */
+function safeUrl(raw: string): string {
+  const v = raw.trim()
+  if (/^https?:\/\//i.test(v)) return v
+  if (v.startsWith('/')) return v
+  return ''
 }
 
 /** Plain-text version for the admin alert email. */
@@ -134,7 +152,8 @@ export function buildAdminOrderHtml(
 ): string {
   const itemImg = (src: string | null | undefined): string => {
     if (!src) return ''
-    return src.startsWith('http') ? src : siteUrl ? `${siteUrl}${src}` : ''
+    const v = src.startsWith('http') ? src : siteUrl ? `${siteUrl}${src}` : ''
+    return safeUrl(v)
   }
   const rowsHtml = items
     .map((i) => {
@@ -144,7 +163,9 @@ export function buildAdminOrderHtml(
         : `<div style="width:56px;height:56px;border-radius:8px;background:#f4f4f2"></div>`
       const name = `${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''}`
       const productUrl =
-        siteUrl && i.productId ? `${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}` : ''
+        siteUrl && i.productId
+          ? safeUrl(`${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}`)
+          : ''
       const nameHtml = productUrl
         ? `<a href="${escHtml(productUrl)}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${escHtml(name)}</a>`
         : `<span style="font-weight:600">${escHtml(name)}</span>`
@@ -170,7 +191,15 @@ export function buildAdminOrderHtml(
   const paid = order.paymentStatus === 'paid'
   const paidBadge = paid ? '✅ Оплачен' : '⏳ Не оплачен'
   const comment = splitOrderNote(order.note).comment
-  const adminUrl = siteUrl ? `${siteUrl}/admin/orders/${order.id}` : ''
+  const adminUrl = siteUrl ? safeUrl(`${siteUrl}/admin/orders/${order.id}`) : ''
+  // tel: digits (and a leading +) only; render a link only when it looks dialable.
+  const telDigits = (order.customerPhone ?? '').replace(/[^+\d]/g, '')
+  const telHref = /^\+?\d+$/.test(telDigits) ? `tel:${telDigits}` : ''
+  // mailto: only for plausible emails, otherwise plain text.
+  const mailHref =
+    order.customerEmail && looksLikeEmail(order.customerEmail)
+      ? `mailto:${order.customerEmail}`
+      : ''
 
   return `<!DOCTYPE html>
 <html lang="ru">
@@ -187,8 +216,8 @@ export function buildAdminOrderHtml(
   <tr><td style="padding:20px 28px 4px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#4a4a47">
       <tr><td style="padding:3px 0;color:#6b6b68">Покупатель</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#1a1a1a">${escHtml(order.customerName ?? '—')}</td></tr>
-      <tr><td style="padding:3px 0;color:#6b6b68">Телефон</td><td style="padding:3px 0;text-align:right"><a href="tel:${escHtml((order.customerPhone ?? '').replace(/[^+\d]/g, ''))}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${escHtml(order.customerPhone ?? '—')}</a></td></tr>
-      ${order.customerEmail ? `<tr><td style="padding:3px 0;color:#6b6b68">Email</td><td style="padding:3px 0;text-align:right"><a href="mailto:${escHtml(order.customerEmail)}" style="color:#1a1a1a">${escHtml(order.customerEmail)}</a></td></tr>` : ''}
+      <tr><td style="padding:3px 0;color:#6b6b68">Телефон</td><td style="padding:3px 0;text-align:right">${telHref ? `<a href="${escHtml(telHref)}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${escHtml(order.customerPhone ?? '—')}</a>` : escHtml(order.customerPhone ?? '—')}</td></tr>
+      ${order.customerEmail ? `<tr><td style="padding:3px 0;color:#6b6b68">Email</td><td style="padding:3px 0;text-align:right">${mailHref ? `<a href="${escHtml(mailHref)}" style="color:#1a1a1a">${escHtml(order.customerEmail)}</a>` : escHtml(order.customerEmail)}</td></tr>` : ''}
       <tr><td style="padding:3px 0;color:#6b6b68">Оплата</td><td style="padding:3px 0;text-align:right">${escHtml(payLabel)} — ${paidBadge}</td></tr>
       ${delivery ? `<tr><td style="padding:3px 0;color:#6b6b68">Доставка</td><td style="padding:3px 0;text-align:right">${escHtml(delivery)}</td></tr>` : ''}
       ${comment ? `<tr><td style="padding:3px 0;color:#6b6b68">Комментарий</td><td style="padding:3px 0;text-align:right">${escHtml(comment)}</td></tr>` : ''}

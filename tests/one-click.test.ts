@@ -81,6 +81,20 @@ describe('validateOneClickInput', () => {
         .ok,
     ).toBe(false)
   })
+
+  it('accepts a well-formed idempotency key, rejects a malformed one', () => {
+    const key = '123e4567-e89b-12d3-a456-426614174000'
+    const ok = validateOneClickInput({ productId: 7, name: 'Олена', phone: '0671234567', idempotencyKey: key })
+    expect(ok.ok).toBe(true)
+    if (!ok.ok) return
+    expect(ok.value.idempotencyKey).toBe(key)
+    expect(
+      validateOneClickInput({ productId: 7, name: 'Олена', phone: '0671234567', idempotencyKey: 'not-a-uuid' }).ok,
+    ).toBe(false)
+    expect(
+      validateOneClickInput({ productId: 7, name: 'Олена', phone: '0671234567' }).ok,
+    ).toBe(true)
+  })
 })
 
 describe('resolveOneClickLine', () => {
@@ -115,6 +129,15 @@ describe('resolveOneClickLine', () => {
   it('rejects a variant that belongs to another product', () => {
     const r = resolveOneClickLine(product({ variantsEnabled: true }), variant({ productId: 999 }))
     expect(r.ok).toBe(false)
+  })
+
+  it('rejects zero, negative and non-numeric prices', () => {
+    expect(resolveOneClickLine(product({ price: '0' }), null).ok).toBe(false)
+    expect(resolveOneClickLine(product({ price: '-5' }), null).ok).toBe(false)
+    expect(resolveOneClickLine(product({ price: 'abc' }), null).ok).toBe(false)
+    expect(
+      resolveOneClickLine(product({ variantsEnabled: true }), variant({ price: '0' })).ok,
+    ).toBe(false)
   })
 
   it('rejects out-of-stock variants and products', () => {

@@ -547,6 +547,7 @@ export type Dictionary = {
     invalidCartItem: string
     invalidQuantity: string
     invalidVariant: string
+    invalidPrice: string
     nameAndPhoneRequired: string
     invalidPhone: string
     invalidEmail: string
@@ -1165,6 +1166,7 @@ const uk: Dictionary = {
     invalidCartItem: 'Некоректний товар у кошику',
     invalidQuantity: 'Некоректна кількість товару',
     invalidVariant: 'Некоректний варіант товару',
+    invalidPrice: 'Некоректна ціна товару',
     nameAndPhoneRequired: 'Вкажіть ім\u2019я та телефон',
     invalidPhone: 'Вкажіть коректний номер телефону',
     invalidEmail: 'Вкажіть коректний email',
@@ -1788,6 +1790,7 @@ const ru: Dictionary = {
     invalidCartItem: 'Некорректный товар в корзине',
     invalidQuantity: 'Некорректное количество товара',
     invalidVariant: 'Некорректный вариант товара',
+    invalidPrice: 'Некорректная цена товара',
     nameAndPhoneRequired: 'Укажите имя и телефон',
     invalidPhone: 'Укажите корректный номер телефона',
     invalidEmail: 'Укажите корректный email',

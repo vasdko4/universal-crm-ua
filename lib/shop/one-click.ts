@@ -18,10 +18,12 @@ export type OneClickInput = {
   variantId?: unknown
   name: unknown
   phone: unknown
+  /** Client-generated UUID (one per modal open) for order idempotency. */
+  idempotencyKey?: unknown
 }
 
 export type OneClickValidation =
-  | { ok: true; value: { productId: number; variantId?: number; name: string; phone: string } }
+  | { ok: true; value: { productId: number; variantId?: number; name: string; phone: string; idempotencyKey?: string } }
   | { ok: false; error: string }
 
 /** Positive-integer parser that never lets NaN/Infinity/floats through. */
@@ -29,6 +31,13 @@ function toInt(v: unknown): number | null {
   const n = typeof v === 'number' ? v : Number.NaN
   if (!Number.isInteger(n)) return null
   return n >= 1 && n <= 2_147_483_647 ? n : null
+}
+
+/** UUIDv4-shaped string check for the idempotency key. */
+function toUuid(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const s = v.trim().toLowerCase()
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(s) ? s : null
 }
 
 /**
@@ -55,9 +64,18 @@ export function validateOneClickInput(input: OneClickInput, locale: Locale = 'ru
     return { ok: false, error: s.invalidVariant }
   }
 
+  // Idempotency key is optional (old clients don't send it); when present it
+  // must be a well-formed UUID, otherwise the request is rejected.
+  let idempotencyKey: string | undefined
+  if (input?.idempotencyKey != null) {
+    const k = toUuid(input.idempotencyKey)
+    if (k == null) return { ok: false, error: s.invalidVariant }
+    idempotencyKey = k
+  }
+
   return {
     ok: true,
-    value: variantId != null ? { productId, variantId, name, phone } : { productId, name, phone },
+    value: { productId, variantId, name, phone, idempotencyKey },
   }
 }
 
@@ -128,6 +146,10 @@ export function resolveOneClickLine(
     if (!variant.isInStock || variant.quantity < 1) {
       return { ok: false, error: fillTemplate(s.variantOutOfStock, { name: product.name, label: label ?? '' }) }
     }
+    const price = Number(variant.price)
+    if (!Number.isFinite(price) || price <= 0) {
+      return { ok: false, error: s.invalidPrice }
+    }
     return {
       ok: true,
       line: {
@@ -137,7 +159,7 @@ export function resolveOneClickLine(
         name: product.name,
         sku: variant.sku ?? product.sku ?? null,
         image: variant.image ?? product.image ?? null,
-        price: Number(variant.price),
+        price,
         costPrice: product.costPrice != null ? Number(product.costPrice) : null,
         quantity: 1,
       },
@@ -146,6 +168,10 @@ export function resolveOneClickLine(
 
   if (!product.inStock || product.quantity < 1) {
     return { ok: false, error: fillTemplate(s.productOutOfStock, { name: product.name }) }
+  }
+  const price = Number(product.price)
+  if (!Number.isFinite(price) || price <= 0) {
+    return { ok: false, error: s.invalidPrice }
   }
   return {
     ok: true,
@@ -156,7 +182,7 @@ export function resolveOneClickLine(
       name: product.name,
       sku: product.sku ?? null,
       image: product.image ?? null,
-      price: Number(product.price),
+      price,
       costPrice: product.costPrice != null ? Number(product.costPrice) : null,
       quantity: 1,
     },

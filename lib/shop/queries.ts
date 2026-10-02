@@ -60,6 +60,15 @@ function likePattern(token: string): string {
 const FULLTEXT_MIN_QUERY_LENGTH = 3
 
 /**
+ * Strip websearch_to_tsquery operators from the query. Without this,
+ * "ABC-123" becomes `'abc' & !'123'` (hyphen = NOT) and never matches —
+ * SKUs with hyphens are unfindable. All values stay bound parameters.
+ */
+function tsQueryText(q: string): string {
+  return q.replace(/[-!&|():*]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
  * Name, SKU, barcode, option JSON, and Prom characteristics — the legacy
  * ILIKE matcher, kept verbatim for short queries (<3 chars) where
  * full-text search is useless. Each token must match at least one of those
@@ -100,12 +109,17 @@ export function productSearchCondition(search: string): SQL | undefined {
   const q = tokens.join(' ')
   if (q.length < FULLTEXT_MIN_QUERY_LENGTH) return legacyProductSearchCondition(search)
   const like = likePattern(q)
+  const tsq = tsQueryText(q)
   return or(
     // Full-text hit — ranking is handled by searchRelevanceOrder() via ts_rank().
-    sql`${products.searchVector} @@ websearch_to_tsquery('simple', ${q})`,
+    // tsq has tsquery operators stripped so hyphenated SKUs don't become NOT queries.
+    ...(tsq ? [sql`${products.searchVector} @@ websearch_to_tsquery('simple', ${tsq})`] : []),
     // Typo-tolerant fallback: trigram similarity against the bilingual names.
     sql`similarity(coalesce(${products.nameUk}, ''), ${q}) > 0.3`,
     sql`similarity(coalesce(${products.nameRu}, ''), ${q}) > 0.3`,
+    // SKU: exact-ish ILIKE so "ABC-123" finds the product even when the
+    // tsquery path can't express the hyphen.
+    ilike(products.sku, like),
     // Barcode / options JSON / characteristics: legacy ILIKE matching.
     ilike(products.barcode, like),
     sql`CAST(${products.options} AS text) ILIKE ${like}`,
@@ -157,7 +171,17 @@ export function searchRelevanceOrder(search: string): SQL {
   const tokens = searchTokens(search)
   const q = tokens.join(' ')
   if (q.length >= FULLTEXT_MIN_QUERY_LENGTH) {
-    return sql`ts_rank(${products.searchVector}, websearch_to_tsquery('simple', ${q})) DESC`
+    const tsq = tsQueryText(q)
+    // A query of only operators (e.g. "---") yields no tsquery — rank by SKU/name instead.
+    if (!tsq) {
+      const pat = likePattern(q)
+      return sql`CASE
+        WHEN ${products.sku} ILIKE ${pat} THEN 0
+        WHEN ${products.nameUk} ILIKE ${pat} OR ${products.nameRu} ILIKE ${pat} THEN 1
+        ELSE 2
+      END ASC`
+    }
+    return sql`ts_rank(${products.searchVector}, websearch_to_tsquery('simple', ${tsq})) DESC`
   }
   const first = tokens[0] ? likePattern(tokens[0]) : '%\u0000%'
   return sql`CASE

@@ -186,6 +186,20 @@ describe('buildSpecRows', () => {
     expect(rows).toEqual([{ name: 'Колір', values: ['Чорний, Білий'] }])
   })
 
+  it('merges characteristic names case-insensitively, keeping first spelling', () => {
+    const rows = buildSpecRows([
+      {
+        characteristics: [{ name: 'Діагональ', value: '6.1"' }],
+        options: [],
+      },
+      {
+        characteristics: [{ name: 'діагональ', value: '6.7"' }],
+        options: [],
+      },
+    ])
+    expect(rows).toEqual([{ name: 'Діагональ', values: ['6.1"', '6.7"'] }])
+  })
+
   it('appends option axes as rows', () => {
     const rows = buildSpecRows([
       { characteristics: [], options: [{ name: 'Розмір', values: ['S', 'M'] }] },

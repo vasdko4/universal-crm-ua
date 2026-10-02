@@ -126,6 +126,9 @@ function OneClickModal({
   // Guard object lives for the modal's lifetime — double clicks can never
   // slip two submissions past the disabled button.
   const [guard] = useState(createOneClickGuard)
+  // Server-side idempotency key: one UUID per modal open, so a retried
+  // submit (double-tap on slow network) returns the existing order.
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null)
 
   // Reset the form each time the modal opens. This is the React-endorsed
   // "adjust state during render" pattern — a setState-in-effect would trip
@@ -141,6 +144,7 @@ function OneClickModal({
       setSubmitting(false)
       setSuccess(null)
       guard.reset()
+      setIdempotencyKey(crypto.randomUUID())
     }
   }
 
@@ -195,6 +199,7 @@ function OneClickModal({
         variantId: selectedVariant?.id,
         name: trimmedName,
         phone: normalizedPhone,
+        idempotencyKey: idempotencyKey ?? undefined,
       })
       if (!res.success) {
         guard.reset()
@@ -202,6 +207,7 @@ function OneClickModal({
         setFieldError(res.error)
         return
       }
+      setSubmitting(false)
       setSuccess({ orderNumber: res.orderNumber, total: res.total })
     } catch {
       guard.reset()

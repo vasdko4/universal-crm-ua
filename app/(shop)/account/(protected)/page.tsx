@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Pencil } from 'lucide-react'
 import { getShopUser } from '@/lib/session'
-import { getMyOrders } from '@/app/actions/shop'
+import { getMyOrders, getMyOrderSummary } from '@/app/actions/shop'
 import { getMyPromocodes } from '@/app/actions/customer-promos'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -27,17 +27,14 @@ export default async function AccountDashboardPage() {
 
   let orders: Awaited<ReturnType<typeof getMyOrders>> = []
   let promos: Awaited<ReturnType<typeof getMyPromocodes>> = []
+  let summary = { ordersCount: 0, totalSpent: 0 }
   try {
-    ;[orders, promos] = await Promise.all([getMyOrders(), getMyPromocodes()])
+    ;[orders, promos, summary] = await Promise.all([getMyOrders(), getMyPromocodes(), getMyOrderSummary()])
   } catch (e) {
     console.error('[account] dashboard failed to load summary:', e)
   }
 
-  const ordersCount = orders.length
-  const totalSpent = orders.reduce(
-    (sum, o) => (o.status === 'cancelled' ? sum : sum + Number(o.total)),
-    0,
-  )
+  const { ordersCount, totalSpent } = summary
   const activePromos = promos.filter((p) => !p.usedByMe).length
 
   return (

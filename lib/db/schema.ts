@@ -605,6 +605,10 @@ export const orders = pgTable('orders', {
   note: text('note'),
   createdBy: text('created_by'),
   userId: text('user_id'),
+  // Idempotency key for one-click orders: the client generates one UUID per
+  // modal open; a retried submit with the same key returns the existing order
+  // instead of creating a duplicate. NULL for all other order types.
+  idempotencyKey: varchar('idempotency_key', { length: 64 }),
   // True once stock has been restored for this (cancelled) order, so
   // toggling the status back and forth never double-counts the restock.
   stockRestored: boolean('stock_restored').notNull().default(false),

@@ -131,21 +131,28 @@ export type SpecSource = {
  * merged into a single comma-joined value.
  */
 export function buildSpecRows(products: SpecSource[]): CompareSpecRow[] {
+  // Merge names case-insensitively ("Діагональ" vs "діагональ") while keeping
+  // the first-seen spelling for display; diffRowFlags already compares values
+  // case-insensitively.
+  const normName = (s: string) => s.trim().toLocaleLowerCase()
   const names: string[] = []
   const seen = new Set<string>()
   for (const p of products) {
     for (const c of p.characteristics) {
       const name = c.name.trim()
-      if (!name || seen.has(name)) continue
-      seen.add(name)
+      if (!name) continue
+      const key = normName(name)
+      if (seen.has(key)) continue
+      seen.add(key)
       names.push(name)
     }
   }
   const rows: CompareSpecRow[] = names.map((name) => ({
     name,
     values: products.map((p) => {
+      const key = normName(name)
       const matches = p.characteristics
-        .filter((c) => c.name.trim() === name)
+        .filter((c) => normName(c.name) === key)
         .map((c) => c.value.trim())
         .filter(Boolean)
       return matches.length > 0 ? matches.join(', ') : null

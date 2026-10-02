@@ -32,7 +32,7 @@ type Labels = {
 // "in stock: N" count. Real store data, not a fabricated countdown.
 const LOW_STOCK_THRESHOLD = 5
 
-function variantLabel(v: ProductVariant): string {
+export function variantLabel(v: ProductVariant): string {
   return Object.entries(v.options)
     .map(([k, val]) => `${k}: ${val}`)
     .join(' / ')
