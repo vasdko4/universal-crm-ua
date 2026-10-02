@@ -544,7 +544,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
                 orderReference: orderNumber,
                 amount: total,
                 currency: 'UAH',
-                productName: `Заказ №${orderNumber}`,
+                productName: `${locale === 'ru' ? 'Заказ' : 'Замовлення'} №${orderNumber}`,
                 clientEmail: input.email?.trim(),
                 clientPhone: input.phone.trim(),
                 serviceUrl,
@@ -554,7 +554,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
                 orderReference: orderNumber,
                 amount: total,
                 currency: 'UAH',
-                description: `Заказ №${orderNumber}`,
+                description: `${locale === 'ru' ? 'Заказ' : 'Замовлення'} №${orderNumber}`,
                 redirectUrl: returnUrl,
                 webHookUrl: serviceUrl,
               })
@@ -571,7 +571,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
             amount: total.toFixed(2),
             currency: 'UAH',
             status: 'pending',
-            description: `Оплата заказа №${orderNumber}`,
+            description: `${locale === 'ru' ? 'Оплата заказа' : 'Оплата замовлення'} №${orderNumber}`,
             customerName,
             customerEmail: input.email?.trim() || null,
             customerPhone: input.phone.trim(),
@@ -582,7 +582,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
           console.error('[checkout] payment row failed:', (e as Error).message)
           await pool.query(
             `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`,
-            ['Не удалось сохранить платёж после создания инвойса шлюза', order.id],
+            [locale === 'ru' ? 'Не удалось сохранить платёж после создания инвойса шлюза' : 'Не вдалося зберегти платіж після створення інвойса шлюзу', order.id],
           )
           return { success: false, error: t.paymentInvoiceFailed }
         }
@@ -600,7 +600,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         })
         await pool.query(
           `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`,
-          [`Ошибка шлюза ${gateway.code}: ${result.message ?? 'неизвестная ошибка'}`, order.id],
+          [`${locale === 'ru' ? 'Ошибка шлюза' : 'Помилка шлюзу'} ${gateway.code}: ${result.message ?? (locale === 'ru' ? 'неизвестная ошибка' : 'невідома помилка')}`, order.id],
         )
         return {
           success: false,
@@ -615,7 +615,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       // real charge. Cancel and ask them to pick another method.
       await pool.query(
         `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\\n', '') || $1 WHERE id = $2`,
-        ['Онлайн-оплата недоступна: нет живого шлюза', order.id],
+        [locale === 'ru' ? 'Онлайн-оплата недоступна: нет живого шлюза' : 'Онлайн-оплата недоступна: немає живого шлюзу', order.id],
       )
       return { success: false, error: t.paymentInvoiceFailed }
     }
