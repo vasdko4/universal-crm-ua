@@ -9,7 +9,7 @@ import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { parsePositiveInt } from '@/lib/api/helpers'
-import { requisitesBody } from '@/lib/payments/public-requisites'
+import { localizeRequisitesBody, requisitesBody } from '@/lib/payments/public-requisites'
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/shop/account/order-status-badge'
 import { formatKyivDateTime } from '@/components/shop/account/utils'
 
@@ -173,7 +173,10 @@ export default async function MyOrderDetailPage({
       </div>
 
       {order.paymentMethod === 'requisites' && requisitesBody(order.note) ? (
-        <CopyRequisites className="w-full text-left" text={requisitesBody(order.note)} />
+        <CopyRequisites
+          className="w-full text-left"
+          text={localizeRequisitesBody(requisitesBody(order.note), locale === 'ru' ? 'ru' : 'uk')}
+        />
       ) : null}
 
       <div className="rounded-2xl border border-border bg-card">

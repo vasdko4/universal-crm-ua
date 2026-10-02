@@ -3,6 +3,7 @@ import {
   composeCheckoutNote,
   formatRequisitesNote,
   formatRequisitesPreview,
+  localizeRequisitesBody,
   publicRequisitesFromConfig,
   requisitesBody,
   splitOrderNote,
@@ -62,6 +63,40 @@ describe('composeCheckoutNote / splitOrderNote', () => {
     expect(composeCheckoutNote(undefined, '  ')).toBeNull()
     expect(composeCheckoutNote('Реквізити для оплати:\nIBAN: UA1', null)).toBe(
       'Реквізити для оплати:\nIBAN: UA1',
+    )
+  })
+})
+
+describe('localizeRequisitesBody', () => {
+  const cfg = {
+    recipientName: 'ФОП Іваненко',
+    edrpou: '1234567890',
+    iban: 'UA123456789',
+    cardNumber: '4111 1111 1111 1111',
+  }
+  it('re-renders RU labels in Ukrainian without touching values', () => {
+    const ru = formatRequisitesPreview(cfg, { amount: 1500, locale: 'ru', orderNumber: '41' })
+    const uk = localizeRequisitesBody(ru, 'uk')
+    expect(uk).toContain('Отримувач: ФОП Іваненко')
+    expect(uk).toContain('ЄДРПОУ/ІПН: 1234567890')
+    expect(uk).toContain('IBAN: UA123456789')
+    expect(uk).toContain('Картка: 4111 1111 1111 1111')
+    expect(uk).toContain('Призначення платежу: оплата замовлення №41')
+    expect(uk).toContain('Сума: 1500 ₴')
+    expect(uk).not.toContain('Получатель')
+  })
+
+  it('re-renders UK labels in Russian', () => {
+    const uk = formatRequisitesPreview(cfg, { amount: 1500, locale: 'uk', orderNumber: '41' })
+    const ru = localizeRequisitesBody(uk, 'ru')
+    expect(ru).toContain('Получатель: ФОП Іваненко')
+    expect(ru).toContain('Назначение платежа: оплата заказа №41')
+    expect(ru).toContain('Сумма: 1500 ₴')
+  })
+
+  it('leaves unknown lines untouched', () => {
+    expect(localizeRequisitesBody('IBAN: UA1\nДовільний рядок без мітки', 'ru')).toBe(
+      'IBAN: UA1\nДовільний рядок без мітки',
     )
   })
 })

@@ -29,24 +29,86 @@ export function publicRequisitesFromConfig(
   return Object.keys(out).length > 0 ? out : null
 }
 
+/**
+ * Requisites labels for the customer-facing block, per locale. Single source
+ * of truth for both `formatRequisitesPreview` (write time) and
+ * `localizeRequisitesBody` (display time).
+ */
+export const REQUISITES_LABELS = {
+  uk: {
+    recipient: 'Отримувач',
+    edrpou: 'ЄДРПОУ/ІПН',
+    card: 'Картка',
+    cardHolder: 'Отримувач картки',
+    purpose: 'Призначення платежу',
+    amount: 'Сума',
+    payForOrder: 'оплата замовлення',
+  },
+  ru: {
+    recipient: 'Получатель',
+    edrpou: 'ЕГРПОУ/ИНН',
+    card: 'Карта',
+    cardHolder: 'Получатель карты',
+    purpose: 'Назначение платежа',
+    amount: 'Сумма',
+    payForOrder: 'оплата заказа',
+  },
+} as const
+
 export function formatRequisitesPreview(
   cfg: PublicRequisites,
   opts: { amount: number; locale: 'uk' | 'ru'; orderNumber?: string },
 ): string {
-  const uk = opts.locale !== 'ru'
+  const labels = REQUISITES_LABELS[opts.locale]
   const parts: string[] = []
-  if (cfg.recipientName) parts.push(`${uk ? 'Отримувач' : 'Получатель'}: ${cfg.recipientName}`)
-  if (cfg.edrpou) parts.push(`${uk ? 'ЄДРПОУ/ІПН' : 'ЕГРПОУ/ИНН'}: ${cfg.edrpou}`)
+  if (cfg.recipientName) parts.push(`${labels.recipient}: ${cfg.recipientName}`)
+  if (cfg.edrpou) parts.push(`${labels.edrpou}: ${cfg.edrpou}`)
   if (cfg.iban) parts.push(`IBAN: ${cfg.iban}`)
-  if (cfg.cardNumber) parts.push(`${uk ? 'Картка' : 'Карта'}: ${cfg.cardNumber}`)
-  if (cfg.cardHolder) parts.push(`${uk ? 'Отримувач картки' : 'Получатель карты'}: ${cfg.cardHolder}`)
+  if (cfg.cardNumber) parts.push(`${labels.card}: ${cfg.cardNumber}`)
+  if (cfg.cardHolder) parts.push(`${labels.cardHolder}: ${cfg.cardHolder}`)
   if (opts.orderNumber) {
-    parts.push(
-      `${uk ? 'Призначення платежу' : 'Назначение платежа'}: ${uk ? 'оплата замовлення' : 'оплата заказа'} №${opts.orderNumber}`,
-    )
+    parts.push(`${labels.purpose}: ${labels.payForOrder} №${opts.orderNumber}`)
   }
-  parts.push(`${uk ? 'Сума' : 'Сумма'}: ${opts.amount} ₴`)
+  parts.push(`${labels.amount}: ${opts.amount} ₴`)
   return parts.join('\n')
+}
+
+type RequisitesLabelKey = keyof (typeof REQUISITES_LABELS)['uk']
+
+/** Every known label spelling (uk + ru) → its canonical key. */
+const KNOWN_REQUISITES_LABELS = new Map<string, RequisitesLabelKey>()
+for (const loc of ['uk', 'ru'] as const) {
+  for (const [key, label] of Object.entries(REQUISITES_LABELS[loc])) {
+    if (key === 'payForOrder') continue
+    KNOWN_REQUISITES_LABELS.set(label, key as RequisitesLabelKey)
+  }
+}
+
+/**
+ * Re-render a persisted requisites block's labels in the viewer's locale.
+ *
+ * The block is frozen into `order.note` at checkout in the checkout locale,
+ * so a shopper who later switches language (or an order placed in `ru`)
+ * would otherwise see Russian labels under a Ukrainian UI. Values
+ * (names, IBAN, amounts) are never touched — only the known label prefixes.
+ * Unknown lines pass through unchanged.
+ */
+export function localizeRequisitesBody(body: string, locale: 'uk' | 'ru'): string {
+  const labels = REQUISITES_LABELS[locale]
+  return body
+    .split('\n')
+    .map((line) => {
+      const idx = line.indexOf(':')
+      if (idx === -1) return line
+      const key = KNOWN_REQUISITES_LABELS.get(line.slice(0, idx).trim())
+      if (!key) return line
+      let value = line.slice(idx + 1)
+      if (key === 'purpose') {
+        value = value.replace(/оплата замовлення|оплата заказа/, labels.payForOrder)
+      }
+      return `${labels[key]}:${value}`
+    })
+    .join('\n')
 }
 
 export const REQUISITES_NOTE_PREFIX_UK = 'Реквізити для оплати'
