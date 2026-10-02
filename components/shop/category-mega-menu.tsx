@@ -51,8 +51,10 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
       {open && (
         <div className="absolute left-0 top-full z-50 pt-2">
           <div className="flex rounded-xl border border-border bg-popover shadow-xl">
-            {/* Single column of top-level categories */}
-            <ul className="w-72 shrink-0 py-2">
+            {/* Single column of top-level categories. Capped at the viewport
+                height with its own scroll — a long category list used to
+                push the panel off-screen with no way to scroll it. */}
+            <ul className="max-h-[70vh] w-72 shrink-0 overflow-y-auto py-2">
               {/* Promotions highlight row */}
               <li className="mb-1 border-b border-border pb-1">
                 <Link
