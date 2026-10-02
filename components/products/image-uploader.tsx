@@ -6,6 +6,7 @@ import { Upload, X, Loader2, ImageIcon, Star, ArrowLeft, ArrowRight } from 'luci
 import { cn } from '@/lib/utils'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { isProxiedMedia } from '@/lib/shop/own-image-url'
+import { isOwnBlobUrl } from '@/lib/api/blob-url'
 
 async function uploadToBlob(file: File, fallbackError: string): Promise<string> {
   const fd = new FormData()
@@ -18,7 +19,7 @@ async function uploadToBlob(file: File, fallbackError: string): Promise<string> 
 
 // Best-effort remove from Blob storage. Never blocks the UI on failure.
 function deleteFromBlob(url: string) {
-  if (!url.includes('.public.blob.vercel-storage.com')) return
+  if (!isOwnBlobUrl(url)) return
   void fetch('/api/admin/upload', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },

@@ -7,6 +7,7 @@ import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { canWrite } from '@/lib/permissions'
 import { readJson } from '@/lib/api/helpers'
 import { detectImageKind, extForImageKind, mimeForImageKind } from '@/lib/api/image-kind'
+import { isOwnBlobUrl } from '@/lib/api/blob-url'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8 MB
 const MAX_DIMENSION = 1600
@@ -28,21 +29,6 @@ async function loadSharp(): Promise<(typeof import('sharp'))['default'] | null> 
 
 function generatedFileName(ext: string): string {
   return `${Date.now()}-${randomBytes(6).toString('hex')}${ext}`
-}
-
-/**
- * True only for URLs that actually live in our Vercel Blob store.
- * A substring check (`includes`) would also match attacker-controlled URLs
- * like `https://evil.com/.public.blob.vercel-storage.com/x`.
- */
-function isOwnBlobUrl(raw: string): boolean {
-  let host: string
-  try {
-    host = new URL(raw).hostname.toLowerCase()
-  } catch {
-    return false
-  }
-  return host === 'blob.vercel-storage.com' || host.endsWith('.public.blob.vercel-storage.com')
 }
 
 async function storeLocally(body: Buffer, ext: string): Promise<string> {

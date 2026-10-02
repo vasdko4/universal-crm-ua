@@ -50,9 +50,12 @@ export function saveDatabaseUrl(url: string) {
     Object.entries(env)
       .map(([k, v]) => {
         // Strip CR/LF: a pasted value with a line break would otherwise
-        // inject extra keys into .env.local.
+        // inject extra keys into .env.local. Escape backslashes before
+        // quotes — inside double-quoted .env values backslash is the
+        // escape character, so an unescaped one corrupts parsing.
         const clean = v.replace(/[\r\n]+/g, '')
-        return /\s|#|"/.test(clean) ? `${k}="${clean.replace(/"/g, '\\"')}"` : `${k}=${clean}`
+        const escaped = clean.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+        return /\s|#|"/.test(clean) ? `${k}="${escaped}"` : `${k}=${clean}`
       })
       .join('\n') + '\n'
   writeFileSync(ENV_PATH, body, 'utf8')
