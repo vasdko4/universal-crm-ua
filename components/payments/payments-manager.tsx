@@ -329,7 +329,7 @@ export function PaymentsManager({
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           <p className="font-medium">{money(p.amount, p.currency, locale)}</p>
-                          {refunded > 0 && (
+                          {refunded > 0 && refunded < Number(p.amount) && (
                             <p className="text-xs text-muted-foreground">
                               {t.payments.refundedPrefix} {money(refunded, p.currency, locale)}
                             </p>
