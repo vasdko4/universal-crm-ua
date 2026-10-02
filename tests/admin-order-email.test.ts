@@ -43,7 +43,7 @@ const items = [
 describe('buildAdminOrderHtml', () => {
   it('renders a rich admin alert with escaped customer data', () => {
     const html = buildAdminOrderHtml(order, items, 'https://shop.test', { 7: 'krosivky' })
-    expect(html).toContain('Новый заказ №A-1001')
+    expect(html).toContain('Нове замовлення №A-1001')
     expect(html).toContain('Іван &lt;b&gt;Петренко&lt;/b&gt;')
     expect(html).not.toContain('<b>Петренко</b>')
     expect(html).toContain('Кросівки &lt;script&gt;')
@@ -51,7 +51,7 @@ describe('buildAdminOrderHtml', () => {
     expect(html).toContain('https://shop.test/product/krosivky')
     expect(html).toContain('https://shop.test/admin/orders/42')
     expect(html).toContain('1 060 ₴')
-    expect(html).toContain('⏳ Не оплачен')
+    expect(html).toContain('⏳ Не оплачено')
     // hidden preheader for the inbox preview
     expect(html).toContain('display:none')
     expect(html).toContain('A-1001')
@@ -65,6 +65,6 @@ describe('buildAdminOrderHtml', () => {
     )
     expect(minimal).not.toContain('mailto:')
     expect(minimal).not.toContain('Доставка')
-    expect(minimal).toContain('Новый заказ №A-1001')
+    expect(minimal).toContain('Нове замовлення №A-1001')
   })
 })

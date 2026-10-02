@@ -80,10 +80,10 @@ export async function sendTelegramPhoto(
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
-  cod: 'Наложенный платеж',
-  requisites: 'Оплата по реквизитам',
+  cod: 'Накладений платіж',
+  requisites: 'Оплата за реквізитами',
   online: 'Онлайн-оплата',
-  cash: 'Наличные',
+  cash: 'Готівка',
 }
 
 const CARRIER_LABELS: Record<string, string> = {
@@ -125,19 +125,19 @@ function buildAdminOrderText(order: Order, items: OrderItem[], siteUrl: string):
   ]
     .filter(Boolean)
     .join(', ')
-  const paid = order.paymentStatus === 'paid' ? 'Оплачен' : 'Не оплачен'
+  const paid = order.paymentStatus === 'paid' ? 'Оплачено' : 'Не оплачено'
   const link = siteUrl ? `\n\n${siteUrl}/admin/orders/${order.id}` : ''
   const comment = splitOrderNote(order.note).comment
-  return `Новый заказ №${order.orderNumber}
+  return `Нове замовлення №${order.orderNumber}
 
-Покупатель: ${order.customerName ?? '—'}
+Покупець: ${order.customerName ?? '—'}
 Телефон: ${order.customerPhone ?? '—'}${order.customerEmail ? `\nEmail: ${order.customerEmail}` : ''}
 
-Товары:
+Товари:
 ${lines}
 
-Итого: ${money(order.total, order.currency, 'uk')}
-Оплата: ${PAYMENT_LABELS[order.paymentMethod ?? ''] ?? order.paymentMethod ?? '—'} (${paid})${delivery ? `\nДоставка: ${delivery}` : ''}${comment ? `\nКомментарий: ${comment}` : ''}${link}`
+Разом: ${money(order.total, order.currency, 'uk')}
+Оплата: ${PAYMENT_LABELS[order.paymentMethod ?? ''] ?? order.paymentMethod ?? '—'} (${paid})${delivery ? `\nДоставка: ${delivery}` : ''}${comment ? `\nКоментар: ${comment}` : ''}${link}`
 }
 
 /**
@@ -189,7 +189,7 @@ export function buildAdminOrderHtml(
     .join(', ')
   const payLabel = PAYMENT_LABELS[order.paymentMethod ?? ''] ?? order.paymentMethod ?? '—'
   const paid = order.paymentStatus === 'paid'
-  const paidBadge = paid ? '✅ Оплачен' : '⏳ Не оплачен'
+  const paidBadge = paid ? '✅ Оплачено' : '⏳ Не оплачено'
   const comment = splitOrderNote(order.note).comment
   const adminUrl = siteUrl ? safeUrl(`${siteUrl}/admin/orders/${order.id}`) : ''
   // tel: digits (and a leading +) only; render a link only when it looks dialable.
@@ -202,25 +202,25 @@ export function buildAdminOrderHtml(
       : ''
 
   return `<!DOCTYPE html>
-<html lang="ru">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Новый заказ №${escHtml(String(order.orderNumber))}</title></head>
+<html lang="uk">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Нове замовлення №${escHtml(String(order.orderNumber))}</title></head>
 <body style="margin:0;padding:0;background:#f4f4f2">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Новый заказ №${escHtml(String(order.orderNumber))} — ${money(order.total, order.currency, 'uk')}</div>
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">Нове замовлення №${escHtml(String(order.orderNumber))} — ${money(order.total, order.currency, 'uk')}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f2;padding:24px 12px">
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a">
   <tr><td style="padding:24px 28px;border-bottom:1px solid #ececea">
-    <div style="font-size:20px;font-weight:800;color:#1a1a1a">🛒 Новый заказ №${escHtml(String(order.orderNumber))}</div>
-    <div style="font-size:13px;color:#6b6b68;margin-top:4px">${escHtml(new Date().toLocaleString('ru-RU'))}</div>
+    <div style="font-size:20px;font-weight:800;color:#1a1a1a">🛒 Нове замовлення №${escHtml(String(order.orderNumber))}</div>
+    <div style="font-size:13px;color:#6b6b68;margin-top:4px">${escHtml(new Date().toLocaleString('uk-UA'))}</div>
   </td></tr>
   <tr><td style="padding:20px 28px 4px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#4a4a47">
-      <tr><td style="padding:3px 0;color:#6b6b68">Покупатель</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#1a1a1a">${escHtml(order.customerName ?? '—')}</td></tr>
+      <tr><td style="padding:3px 0;color:#6b6b68">Покупець</td><td style="padding:3px 0;text-align:right;font-weight:600;color:#1a1a1a">${escHtml(order.customerName ?? '—')}</td></tr>
       <tr><td style="padding:3px 0;color:#6b6b68">Телефон</td><td style="padding:3px 0;text-align:right">${telHref ? `<a href="${escHtml(telHref)}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${escHtml(order.customerPhone ?? '—')}</a>` : escHtml(order.customerPhone ?? '—')}</td></tr>
       ${order.customerEmail ? `<tr><td style="padding:3px 0;color:#6b6b68">Email</td><td style="padding:3px 0;text-align:right">${mailHref ? `<a href="${escHtml(mailHref)}" style="color:#1a1a1a">${escHtml(order.customerEmail)}</a>` : escHtml(order.customerEmail)}</td></tr>` : ''}
       <tr><td style="padding:3px 0;color:#6b6b68">Оплата</td><td style="padding:3px 0;text-align:right">${escHtml(payLabel)} — ${paidBadge}</td></tr>
       ${delivery ? `<tr><td style="padding:3px 0;color:#6b6b68">Доставка</td><td style="padding:3px 0;text-align:right">${escHtml(delivery)}</td></tr>` : ''}
-      ${comment ? `<tr><td style="padding:3px 0;color:#6b6b68">Комментарий</td><td style="padding:3px 0;text-align:right">${escHtml(comment)}</td></tr>` : ''}
+      ${comment ? `<tr><td style="padding:3px 0;color:#6b6b68">Коментар</td><td style="padding:3px 0;text-align:right">${escHtml(comment)}</td></tr>` : ''}
     </table>
   </td></tr>
   <tr><td style="padding:12px 28px 4px">
@@ -230,9 +230,9 @@ export function buildAdminOrderHtml(
   </td></tr>
   <tr><td style="padding:12px 28px 24px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px">
-      <tr><td style="padding:10px 0 0;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">Итого</td><td style="padding:10px 0 0;text-align:right;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${money(order.total, order.currency, 'uk')}</td></tr>
+      <tr><td style="padding:10px 0 0;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">Разом</td><td style="padding:10px 0 0;text-align:right;font-size:17px;font-weight:700;color:#1a1a1a;border-top:1px solid #ececea">${money(order.total, order.currency, 'uk')}</td></tr>
     </table>
-    ${adminUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr><td style="border-radius:8px;background:#1a1a1a"><a href="${escHtml(adminUrl)}" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">Открыть заказ в админке</a></td></tr></table>` : ''}
+    ${adminUrl ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr><td style="border-radius:8px;background:#1a1a1a"><a href="${escHtml(adminUrl)}" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">Відкрити замовлення в адмінці</a></td></tr></table>` : ''}
   </td></tr>
 </table>
 </td></tr>
@@ -266,22 +266,22 @@ export function buildAdminOrderTelegramHtml(
     .filter(Boolean)
     .join(', ')
   const payLabel = PAYMENT_LABELS[order.paymentMethod ?? ''] ?? order.paymentMethod ?? '—'
-  const paidBadge = order.paymentStatus === 'paid' ? '✅ Оплачен' : '⏳ Не оплачен'
+  const paidBadge = order.paymentStatus === 'paid' ? '✅ Оплачено' : '⏳ Не оплачено'
 
   const parts = [
-    `🛒 <b>Новый заказ №${order.orderNumber}</b>`,
+    `🛒 <b>Нове замовлення №${order.orderNumber}</b>`,
     '',
     `👤 <b>${escHtml(order.customerName ?? '—')}</b>`,
     `📞 ${escHtml(order.customerPhone ?? '—')}`,
   ]
   if (order.customerEmail) parts.push(`✉️ ${escHtml(order.customerEmail)}`)
-  parts.push('', `📦 <b>Товары (${items.length}):</b>`, lines, '')
-  parts.push(`💰 <b>Итого: ${money(order.total, order.currency, 'uk')}</b>`)
+  parts.push('', `📦 <b>Товари (${items.length}):</b>`, lines, '')
+  parts.push(`💰 <b>Разом: ${money(order.total, order.currency, 'uk')}</b>`)
   parts.push(`💳 ${escHtml(payLabel)} — ${paidBadge}`)
   if (delivery) parts.push(`🚚 ${escHtml(delivery)}`)
   const comment = splitOrderNote(order.note).comment
   if (comment) parts.push(`💬 ${escHtml(comment)}`)
-  if (siteUrl) parts.push('', `🔗 <a href="${siteUrl}/admin/orders/${order.id}">Открыть заказ в админке</a>`)
+  if (siteUrl) parts.push('', `🔗 <a href="${siteUrl}/admin/orders/${order.id}">Відкрити замовлення в адмінці</a>`)
   return parts.join('\n')
 }
 
@@ -364,7 +364,7 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
       jobs.push(
         sendMail({
           to: adminTo,
-          subject: `Новый заказ №${o.orderNumber} — ${money(o.total, o.currency, 'uk')}`,
+          subject: `Нове замовлення №${o.orderNumber} — ${money(o.total, o.currency, 'uk')}`,
           text,
           html,
         }).catch((e) => {
