@@ -58,7 +58,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
             startY.current = null
           }}
         >
-          <div className="relative aspect-[2/1] w-full sm:aspect-[16/10] lg:aspect-[21/9]">
+          <div className="relative aspect-[2/1] w-full sm:aspect-[16/8] lg:aspect-[21/7]">
             {slides.map((slide, i) => {
               const nearby = i === index || i === (index + 1) % n || i === (index - 1 + n) % n
               if (!nearby) return null
