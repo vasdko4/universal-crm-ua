@@ -223,17 +223,39 @@ export function ImportManager({
     setPreview({ fileName: file.name, type: isXml ? "xml" : "csv", rows })
   }
 
+  // Server Actions reject payloads over ~1MB — a catalog export with HTML
+  // descriptions is several MB, so rows go in small batches. Batching also
+  // keeps a single huge call from tripping the root error boundary.
+  const IMPORT_BATCH_SIZE = 25
+
   function handleImport() {
     if (!preview) return
+    const { fileName, type, rows } = preview
     startTransition(async () => {
-      const res = await runImport(preview.fileName, preview.type, preview.rows)
-      if (res.success) {
-        toast.success(tpl(t.import.importedResultTemplate, { imported: res.imported ?? 0, failed: res.failed ?? 0 }))
+      try {
+        let imported = 0
+        let failed = 0
+        let aborted = false
+        for (let i = 0; i < rows.length; i += IMPORT_BATCH_SIZE) {
+          const chunk = rows.slice(i, i + IMPORT_BATCH_SIZE)
+          const res = await runImport(fileName, type, chunk)
+          if (!res.success) {
+            failed += chunk.length
+            aborted = true
+            toast.error(res.error || t.import.errorGeneric)
+            break
+          }
+          imported += res.imported ?? 0
+          failed += res.failed ?? 0
+        }
+        if (!aborted && (imported > 0 || failed > 0)) {
+          toast.success(tpl(t.import.importedResultTemplate, { imported, failed }))
+        }
         setPreview(null)
         if (fileRef.current) fileRef.current.value = ""
         router.refresh()
-      } else {
-        toast.error(res.error || t.import.errorGeneric)
+      } catch {
+        toast.error(t.import.errorGeneric)
       }
     })
   }
