@@ -12,6 +12,7 @@ import { OneClickBuyButton } from '@/components/shop/one-click-buy'
 import { PaymentDeliveryBadges, type SafeMethod } from '@/components/shop/payment-delivery-badges'
 import { PromoTimer } from '@/components/shop/promo-timer'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
+import { galleryMediaPath, galleryMediaPathList } from '@/lib/shop/own-image-url'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 import { fillTemplate } from '@/lib/i18n/dictionaries'
@@ -88,8 +89,11 @@ export function ProductPurchasePanel({
   const displayPrice = price * qty
   const displayOldPrice = oldPrice ? oldPrice * qty : null
 
-  const galleryImages =
-    product.images.length > 0 ? product.images : [product.image].filter((v): v is string => Boolean(v))
+  // Галерея тянет 1000px-деривативы с CDN Prom (в БД лежат w700) —
+  // иначе фото на всю ширину карточки выглядят пиксельными.
+  const galleryImages = galleryMediaPathList(
+    product.images.length > 0 ? product.images : [product.image].filter((v): v is string => Boolean(v)),
+  )
 
   function handleSelect(optionName: string, value: string) {
     setSelected((prev) => ({ ...prev, [optionName]: value }))
@@ -144,7 +148,7 @@ export function ProductPurchasePanel({
         alt={product.name}
         discount={discount}
         noPhotoLabel={labels.noPhoto}
-        selectedImage={selectedVariant?.image ?? null}
+        selectedImage={selectedVariant?.image ? galleryMediaPath(selectedVariant.image) : null}
       />
 
       <div className="space-y-4 lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:p-5">
