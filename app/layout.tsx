@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
     ? seo.keywords.split(',').map((k) => k.trim()).filter(Boolean)
     : [sd.defaultKeyword, name]
   const indexable = seo?.indexingEnabled !== false
-  const ogImage = seo?.ogImageUrl?.trim() || '/hero-electronics.png'
+  const ogImage = seo?.ogImageUrl?.trim() || '/og-techno-store.png'
 
   return {
     metadataBase: new URL(siteUrl),
