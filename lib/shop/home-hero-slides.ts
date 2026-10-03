@@ -29,8 +29,8 @@ export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide
     return [
       {
         badge: 'Доставка',
-        title: 'Новая Почта и Укрпочта по всей Украине',
-        text: 'Отделение, почтомат или адрес. Выбираете перевозчика на оформлении — ТТН приходит в кабинет после сборки.',
+        title: 'Новая Почта по всей Украине',
+        text: 'Отделение, почтомат или адрес. ТТН приходит в кабинет после сборки.',
         href: catalog,
         cta: catalogCta,
         tone: 'delivery',
@@ -38,8 +38,8 @@ export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide
       },
       {
         badge: 'Оплата',
-        title: 'Картой онлайн или при получении',
-        text: 'Наложенный платёж или безопасная оплата картой на сайте — как удобнее.',
+        title: 'Оплата при получении или по реквизитам',
+        text: 'Наложенный платёж в отделении или оплата по реквизитам — как удобнее.',
         href: catalog,
         cta: catalogCta,
         tone: 'pay',
@@ -68,8 +68,8 @@ export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide
   return [
     {
       badge: 'Доставка',
-      title: 'Нова Пошта та Укрпошта по всій Україні',
-      text: 'Відділення, поштомат або адреса. Перевізника обираєте на оформленні — ТТН з’являється в кабінеті після збірки.',
+      title: 'Нова Пошта по всій Україні',
+      text: 'Відділення, поштомат або адреса. ТТН з’являється в кабінеті після збірки.',
       href: catalog,
       cta: catalogCta,
       tone: 'delivery',
@@ -77,8 +77,8 @@ export function defaultHeroSlides(locale: Locale, catalogCta: string): HeroSlide
     },
     {
       badge: 'Оплата',
-      title: 'Карткою онлайн або при отриманні',
-      text: 'Накладений платіж або безпечна оплата карткою на сайті — як зручніше.',
+      title: 'Оплата при отриманні або за реквізитами',
+      text: 'Накладений платіж у відділенні або оплата за реквізитами — як зручніше.',
       href: catalog,
       cta: catalogCta,
       tone: 'pay',
