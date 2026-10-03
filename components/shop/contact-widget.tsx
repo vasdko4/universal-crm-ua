@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Phone, Mail, X, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ContactWidget, WidgetChannelKey } from '@/app/actions/settings-store'
@@ -73,7 +73,30 @@ const ORDER: WidgetChannelKey[] = ['phone', 'whatsapp', 'telegram', 'viber', 'em
 
 export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
   const [open, setOpen] = useState(false)
+  const [hidden, setHidden] = useState(false)
   const { dict } = useI18n()
+
+  // Hide the floating button while scrolling down so it never covers content
+  // (e.g. the stock status on the product page); show again on scroll up.
+  // Never hides while the channel list is open.
+  useEffect(() => {
+    let lastY = window.scrollY
+    let ticking = false
+    const onScroll = () => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        const y = window.scrollY
+        const dy = y - lastY
+        if (dy > 10 && y > 400) setHidden(true)
+        else if (dy < -10 || y <= 400) setHidden(false)
+        lastY = y
+        ticking = false
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const channels = ORDER.map((key) => ({ key, ...widget.channels[key] })).filter(
     (c) => c.enabled && c.value.trim(),
@@ -82,7 +105,12 @@ export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
   if (!widget.enabled || channels.length === 0) return null
 
   return (
-    <div className="fixed bottom-[calc(9.25rem+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-3 lg:bottom-5 lg:right-5">
+    <div
+      className={cn(
+        'fixed bottom-[calc(9.25rem+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-3 transition-all duration-300 lg:bottom-5 lg:right-5',
+        hidden && !open && 'pointer-events-none translate-y-24 opacity-0',
+      )}
+    >
       {/* Channel list */}
       <div
         className={cn(
