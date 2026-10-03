@@ -12,6 +12,7 @@
  * Retention: backups older than BACKUP_RETENTION_DAYS (default 10) are
  * deleted from Vercel Blob, matched by backup filename date.
  */
+import { randomBytes } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import { put, del, list } from '@vercel/blob'
 import { pool } from '@/lib/db'
@@ -37,15 +38,18 @@ export interface BackupSummary {
   pruned: number
 }
 
-/** Filenames look like db-backups/2026-10-01-0030.jsonl.gz */
-export function backupPathFor(date: Date): string {
+/**
+ * Filenames look like db-backups/2026-10-01-0030.jsonl.gz, or
+ * db-backups/2026-10-01-0030-<secret>.jsonl.gz when a suffix is given.
+ */
+export function backupPathFor(date: Date, suffix?: string): string {
   const p = (n: number) => String(n).padStart(2, '0')
   const stamp = `${date.getUTCFullYear()}-${p(date.getUTCMonth() + 1)}-${p(date.getUTCDate())}-${p(date.getUTCHours())}${p(date.getUTCMinutes())}`
-  return `${BACKUP_BLOB_PREFIX}${stamp}.jsonl.gz`
+  return `${BACKUP_BLOB_PREFIX}${stamp}${suffix ? `-${suffix}` : ''}.jsonl.gz`
 }
 
 function parseBackupDate(pathname: string): Date | null {
-  const m = pathname.match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})\.jsonl\.gz$/)
+  const m = pathname.match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(?:-[a-z0-9]+)?\.jsonl\.gz$/)
   if (!m) return null
   const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]))
   return Number.isNaN(d.getTime()) ? null : d
@@ -83,7 +87,7 @@ function quoteIdent(name: string): string {
 }
 
 /**
- * Dumps every public table as gzipped NDJSON into Vercel Blob (private),
+ * Dumps every public table as gzipped NDJSON into Vercel Blob (public store, secret filename),
  * then prunes backups older than the retention window.
  * Runs inside one REPEATABLE READ transaction for a consistent snapshot.
  */
@@ -120,9 +124,11 @@ export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary
     const manifest: BackupManifest = { _manifest: true, dumpedAt, retentionDays: BACKUP_RETENTION_DAYS, tables: manifestTables }
     const body = gzipSync(JSON.stringify(manifest) + '\n' + lines.map((l) => l + '\n').join(''), { level: 6 })
 
-    const pathname = backupPathFor(now)
+    // The Blob store is public, so the dump URL must be unguessable:
+    // a 128-bit random segment in the filename acts as the access secret.
+    const pathname = backupPathFor(now, randomBytes(16).toString('hex'))
     await put(pathname, body, {
-      access: 'private',
+      access: 'public',
       contentType: 'application/gzip',
       addRandomSuffix: false,
       token,

@@ -11,6 +11,19 @@ describe('backupPathFor', () => {
     const d = new Date(Date.UTC(2026, 0, 5, 4, 7))
     expect(backupPathFor(d)).toBe('db-backups/2026-01-05-0407.jsonl.gz')
   })
+
+  it('appends the secret suffix before the extension', () => {
+    const d = new Date(Date.UTC(2026, 9, 1, 0, 30))
+    expect(backupPathFor(d, 'a1b2c3')).toBe('db-backups/2026-10-01-0030-a1b2c3.jsonl.gz')
+  })
+})
+
+describe('backupsToDelete with secret suffix', () => {
+  it('still parses the date from suffixed filenames', () => {
+    const now = new Date(Date.UTC(2026, 9, 11, 12, 0))
+    const names = ['db-backups/2026-09-30-0030-deadbeef00.jsonl.gz', 'db-backups/2026-10-10-0030-cafe1234.jsonl.gz']
+    expect(backupsToDelete(names, now, BACKUP_RETENTION_DAYS)).toEqual(['db-backups/2026-09-30-0030-deadbeef00.jsonl.gz'])
+  })
 })
 
 describe('BACKUP_RETENTION_DAYS', () => {
