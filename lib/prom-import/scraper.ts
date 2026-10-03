@@ -312,7 +312,10 @@ function splitTitleParts(s: string): string[] {
 
 export function stripPromMarketplaceCopy(text: string): string {
   let s = cutPromCta(text)
-  const junk = /prom\.ua|купити на|купить на|україна|украина|київ|киев/i
+  // Продавец: MR.VOLT / Продавець: MR.VOLT — подпись продавца с маркетплейса,
+  // встречается в импортированных meta description целым куском.
+  s = s.replace(/продаве[цц]ь?\s*:\s*[^|·•,;]+/gi, '')
+  const junk = /prom\.ua|mrvolt|купити на|купить на|україна|украина|київ|киев/i
   const parts = splitTitleParts(s)
     .map((p) => cutPromCta(p).trim())
     .filter((p) => p.length > 0 && !junk.test(p))

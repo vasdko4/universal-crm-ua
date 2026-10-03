@@ -22,4 +22,13 @@ describe('stripPromMarketplaceCopy', () => {
       ),
     ).toBe('Павербанк Hoco')
   })
+
+  it('removes the marketplace seller signature from descriptions', () => {
+    expect(
+      stripPromMarketplaceCopy('Надійний павербанк. Продавець: MR.VOLT | Швидка доставка'),
+    ).toBe('Надійний павербанк. Швидка доставка')
+    expect(
+      stripPromMarketplaceCopy('Хороший товар. Продавец: MR.VOLT'),
+    ).toBe('Хороший товар.')
+  })
 })
