@@ -53,7 +53,7 @@ export function ArticleCard({
     <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
       <div className="flex items-center gap-3">
         {date ? <span>{date}</span> : null}
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1 whitespace-nowrap">
           <Clock className="size-3.5" /> {article.readingMinutes} {minutesLabel}
         </span>
       </div>

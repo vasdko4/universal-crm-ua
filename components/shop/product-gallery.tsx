@@ -184,7 +184,7 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
         )}
 
         {discount > 0 && (
-          <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-destructive-foreground">
+          <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-destructive px-3 py-1 text-sm font-semibold text-destructive-foreground">
             −{discount}%
           </span>
         )}

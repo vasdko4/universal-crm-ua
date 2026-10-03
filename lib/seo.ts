@@ -95,7 +95,7 @@ export function resolveOgImageUrl(
   pageImage: string | null | undefined,
   storeOgImage: string | null | undefined,
 ): string {
-  return storefrontMediaUrl(siteOrigin, pageImage?.trim() || storeOgImage?.trim() || '/hero-electronics.png')
+  return storefrontMediaUrl(siteOrigin, pageImage?.trim() || storeOgImage?.trim() || '/og-techno-store.png')
 }
 
 export interface BreadcrumbLdItem {

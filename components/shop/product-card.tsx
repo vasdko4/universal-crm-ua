@@ -134,7 +134,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
           )}
         </Link>
 
-        <div className="absolute left-1.5 top-1.5 z-10 flex max-w-[72%] flex-col items-start gap-1">
+        <div className="absolute left-2.5 top-2.5 z-10 flex max-w-[72%] flex-col items-start gap-1">
           {discount > 0 && (
             <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-destructive-foreground">
               −{discount}%
