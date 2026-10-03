@@ -531,6 +531,8 @@ export type AdminDictionary = {
     minOrderAmountLabel: string
     heroTitle: string
     heroDesc: string
+    heroSlidesTitle: string
+    heroSlidesDesc: string
     localeUk: string
     localeRu: string
     heroBadgeLabel: string
@@ -2391,6 +2393,9 @@ const uk: AdminDictionary = {
     heroTitle: 'Hero-блок головної сторінки',
     heroDesc:
       'Великий банер угорі головної сторінки: бейдж, заголовок, опис, кнопка та картинка. Порожні поля показують стандартний текст. Тексти задаються окремо для кожної мови.',
+    heroSlidesTitle: 'Слайди hero-каруселі',
+    heroSlidesDesc:
+      'Карусель із 4 слайдів під головним банером: бейдж, заголовок, опис, кнопка та картинка. Порожні поля показують стандартний текст. Тексти задаються окремо для кожної мови.',
     localeUk: 'Українська',
     localeRu: 'Русский',
     heroBadgeLabel: 'Бейдж',
@@ -4278,6 +4283,9 @@ const ru: AdminDictionary = {
     heroTitle: 'Hero-блок главной страницы',
     heroDesc:
       'Большой баннер вверху главной страницы: бейдж, заголовок, описание, кнопка и картинка. Пустые поля показывают стандартный текст. Тексты задаются отдельно для каждого языка.',
+    heroSlidesTitle: 'Слайды hero-карусели',
+    heroSlidesDesc:
+      'Карусель из 4 слайдов под главным баннером: бейдж, заголовок, описание, кнопка и картинка. Пустые поля показывают стандартный текст. Тексты задаются отдельно для каждого языка.',
     localeUk: 'Українська',
     localeRu: 'Русский',
     heroBadgeLabel: 'Бейдж',

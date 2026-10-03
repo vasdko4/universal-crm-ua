@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { type HomeBenefitItem, type HomeHeroSlide } from '@/app/actions/settings-store'
+import { type HomeBenefitItem, type HomeHeroLocaleContent, type HomeHeroSlide } from '@/app/actions/settings-store'
 import type { SectionProps } from './settings-types'
 import { ImageField } from './image-field'
 
@@ -36,6 +36,15 @@ export function HomepageSection({ data, setData, t }: SectionProps) {
     patchSlide(i, { [locale]: { ...slide[locale], ...patch } })
   }
 
+  function patchHeroHeader(patch: Partial<HomeHeroLocaleContent>) {
+    setData((d) => ({
+      ...d,
+      homeHero: { ...d.homeHero, [locale]: { ...d.homeHero[locale], ...patch } },
+    }))
+  }
+
+  const heroHeader = data.homeHero[locale]
+
   return (
     <div className="flex max-w-xl flex-col gap-6">
       <div>
@@ -57,6 +66,56 @@ export function HomepageSection({ data, setData, t }: SectionProps) {
             {l === 'uk' ? t.localeUk : t.localeRu}
           </button>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-lg border border-border p-3">
+        <ImageField
+          t={t}
+          label={t.heroImageLabel}
+          hint={t.heroImageHint}
+          value={data.homeHero.imageUrl || null}
+          onChange={(v) =>
+            setData((d) => ({ ...d, homeHero: { ...d.homeHero, imageUrl: v ?? '' } }))
+          }
+          size={72}
+        />
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="hero-header-badge">{t.heroBadgeLabel}</Label>
+          <Input
+            id="hero-header-badge"
+            value={heroHeader.badge}
+            onChange={(e) => patchHeroHeader({ badge: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="hero-header-title">{t.heroTitleLabel}</Label>
+          <Input
+            id="hero-header-title"
+            value={heroHeader.title}
+            onChange={(e) => patchHeroHeader({ title: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="hero-header-text">{t.heroTextLabel}</Label>
+          <Input
+            id="hero-header-text"
+            value={heroHeader.text}
+            onChange={(e) => patchHeroHeader({ text: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="hero-header-button">{t.heroButtonLabel}</Label>
+          <Input
+            id="hero-header-button"
+            value={heroHeader.buttonText}
+            onChange={(e) => patchHeroHeader({ buttonText: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-base font-semibold text-foreground">{t.heroSlidesTitle}</h2>
+        <p className="text-sm text-muted-foreground">{t.heroSlidesDesc}</p>
       </div>
 
       {slides.map((slide, i) => (
