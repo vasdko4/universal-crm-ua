@@ -174,6 +174,7 @@ export type Dictionary = {
   oneClick: {
     button: string
     title: string
+    subtitle: string
     nameLabel: string
     namePlaceholder: string
     phoneLabel: string
@@ -790,6 +791,7 @@ const uk: Dictionary = {
   oneClick: {
     button: 'Купити в 1 клік',
     title: 'Швидке замовлення',
+    subtitle: "Залиште контакти — менеджер передзвонить для підтвердження",
     nameLabel: "Ім'я",
     namePlaceholder: "Ваше ім'я",
     phoneLabel: 'Телефон',
@@ -1404,6 +1406,7 @@ const ru: Dictionary = {
   oneClick: {
     button: 'Купить в 1 клик',
     title: 'Быстрый заказ',
+    subtitle: 'Оставьте контакты — менеджер перезвонит для подтверждения',
     nameLabel: 'Имя',
     namePlaceholder: 'Ваше имя',
     phoneLabel: 'Телефон',

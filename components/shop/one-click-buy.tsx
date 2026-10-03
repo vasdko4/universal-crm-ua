@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Zap } from 'lucide-react'
+import { CheckCircle2, Phone, User, Wallet, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 import { formatPrice } from '@/lib/shop/cart-context'
+import { galleryMediaPath } from '@/lib/shop/own-image-url'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { createOneClickGuard } from '@/lib/shop/one-click'
 import { createOneClickOrder } from '@/app/actions/shop'
@@ -154,6 +155,8 @@ function OneClickModal({
   )
 
   const price = selectedVariant?.price ?? product.price
+  const oldPrice = selectedVariant ? selectedVariant.oldPrice : product.oldPrice
+  const thumb = galleryMediaPath(selectedVariant?.image ?? product.image)
 
   // Google Ads purchase conversion: fired on the in-modal confirmation with
   // the same sessionStorage dedup (per order number) the order-confirmation
@@ -223,11 +226,19 @@ function OneClickModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-sm">
-        <DialogTitle>{t.title}</DialogTitle>
+      <DialogContent className="max-w-sm gap-0 overflow-hidden p-0">
+        <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-5 py-4">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+            <Zap className="size-5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <DialogTitle className="text-base leading-tight">{t.title}</DialogTitle>
+            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{t.subtitle}</p>
+          </div>
+        </div>
 
         {success ? (
-          <div className="flex flex-col items-center py-2 text-center">
+          <div className="flex flex-col items-center px-5 py-6 text-center">
             {gads && ((gads.enabled && gads.conversionId && gads.conversionLabel) || (gads.gaEnabled && gads.gaMeasurementId)) ? (
               <GoogleAdsPurchase
                 conversionId={gads.enabled ? gads.conversionId : undefined}
@@ -259,23 +270,40 @@ function OneClickModal({
               <span className="font-bold text-foreground">№{success.orderNumber}</span>
             </p>
             <p className="mt-1 max-w-xs text-sm text-muted-foreground">{t.successHint}</p>
-            <Button type="button" className="mt-5 w-full" onClick={() => onOpenChange(false)}>
+            <Button type="button" className="mt-5 h-11 w-full text-base" onClick={() => onOpenChange(false)}>
               {t.close}
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="rounded-lg bg-muted/60 p-3">
-              <p className="text-sm font-semibold text-foreground">{product.name}</p>
-              <div className="mt-1 flex items-center justify-between gap-2">
+          <div className="space-y-4 px-5 py-5">
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+              {thumb ? (
+                <img
+                  src={thumb}
+                  alt=""
+                  loading="lazy"
+                  className="size-16 shrink-0 rounded-lg border border-border object-cover"
+                />
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+                  {product.name}
+                </p>
                 {selectedVariant ? (
-                  <span className="truncate text-xs text-muted-foreground">{variantLabel(selectedVariant)}</span>
-                ) : (
-                  <span />
-                )}
-                <span className="text-base font-bold text-foreground">
-                  {formatPrice(price, product.currency, locale)}
-                </span>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {variantLabel(selectedVariant)}
+                  </p>
+                ) : null}
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-base font-bold text-foreground">
+                    {formatPrice(price, product.currency, locale)}
+                  </span>
+                  {oldPrice && oldPrice > price ? (
+                    <span className="text-xs text-muted-foreground line-through">
+                      {formatPrice(oldPrice, product.currency, locale)}
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </div>
 
@@ -288,41 +316,57 @@ function OneClickModal({
               />
             ) : null}
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="one-click-name">{t.nameLabel}</Label>
-              <Input
-                id="one-click-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t.namePlaceholder}
-                autoComplete="name"
-                maxLength={120}
-              />
+              <div className="relative">
+                <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="one-click-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t.namePlaceholder}
+                  autoComplete="name"
+                  maxLength={120}
+                  className="h-11 pl-9"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="one-click-phone">{t.phoneLabel}</Label>
-              <Input
-                id="one-click-phone"
-                value={phone}
-                onChange={(e) => setPhone(formatUaPhoneInput(e.target.value))}
-                placeholder={t.phonePlaceholder}
-                autoComplete="tel"
-                inputMode="tel"
-              />
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="one-click-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(formatUaPhoneInput(e.target.value))}
+                  placeholder={t.phonePlaceholder}
+                  autoComplete="tel"
+                  inputMode="tel"
+                  className="h-11 pl-9"
+                />
+              </div>
             </div>
 
-            {fieldError ? <p className="text-sm text-destructive">{fieldError}</p> : null}
+            {fieldError ? (
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                {fieldError}
+              </p>
+            ) : null}
 
-            <p className="text-xs text-muted-foreground">{t.paymentNote}</p>
+            <div className="flex items-start gap-2.5 rounded-xl bg-primary/5 px-3 py-2.5">
+              <Wallet className="mt-0.5 size-4 shrink-0 text-primary" />
+              <p className="text-xs leading-relaxed text-muted-foreground">{t.paymentNote}</p>
+            </div>
 
             <Button
               type="button"
-              className="w-full"
+              className="h-12 w-full text-base font-semibold"
               size="lg"
               disabled={submitting}
               onClick={handleSubmit}
               data-testid="one-click-submit"
             >
+              <Phone className="mr-1 size-5" />
               {submitting ? t.submitting : t.submit}
             </Button>
           </div>

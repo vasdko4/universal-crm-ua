@@ -1,8 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Minus, Plus, ShoppingCart, Zap, Star, ShieldCheck } from 'lucide-react'
+import { Minus, Plus, ShoppingCart, Star, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ProductGallery } from '@/components/shop/product-gallery'
@@ -14,7 +13,6 @@ import { PromoTimer } from '@/components/shop/promo-timer'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import { galleryMediaPath, galleryMediaPathList } from '@/lib/shop/own-image-url'
 import { useI18n } from '@/lib/i18n/client'
-import { localizedPath } from '@/lib/i18n/config'
 import { fillTemplate } from '@/lib/i18n/dictionaries'
 import { pluralize } from '@/lib/i18n/plural'
 import { cn } from '@/lib/utils'
@@ -63,8 +61,7 @@ export function ProductPurchasePanel({
   paymentMethods?: SafeMethod[]
   promo?: { name: string; endsAt: string } | null
 }) {
-  const router = useRouter()
-  const { add, startBuyNow } = useCart()
+  const { add } = useCart()
   const { dict, locale } = useI18n()
   const tp = dict.product
   const [qty, setQty] = useState(1)
@@ -131,14 +128,6 @@ export function ProductPurchasePanel({
     toast.success(
       selectedVariant ? `${tp.addedToCartVariant} (${variantLabel(selectedVariant)})` : tp.addedToCart,
     )
-  }
-
-  function buyNow() {
-    if (!ensureReady()) return
-    // Express purchase: independent of the cart, so it never merges with or
-    // affects items already in the cart.
-    startBuyNow(buildItem(), qty)
-    router.push(localizedPath('/checkout?buynow=1', locale))
   }
 
   return (
@@ -221,6 +210,11 @@ export function ProductPurchasePanel({
               {!selectedVariant && product.variants.length > 1 ? `${tp.priceFrom} ` : ''}
               {formatPrice(displayPrice, product.currency, locale)}
             </span>
+            {discount > 0 && (
+              <span className="mb-1 rounded-full bg-destructive px-2.5 py-1 text-xs font-bold text-destructive-foreground">
+                −{discount}%
+              </span>
+            )}
           </div>
           {qty > 1 && (
             <span className="text-sm text-muted-foreground">
@@ -275,24 +269,17 @@ export function ProductPurchasePanel({
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <div className="flex items-stretch gap-2 sm:gap-3">
-                <Button size="lg" className="h-10 min-w-0 flex-1 rounded-full lg:h-11" data-testid="add-to-cart" onClick={addToCart}>
+                <Button size="lg" className="h-11 min-w-0 flex-1 rounded-full text-base" data-testid="add-to-cart" onClick={addToCart}>
                   <ShoppingCart className="mr-1 size-5" /> {product.isPreorder ? tp.preorderCta : tp.addToCart}
                 </Button>
-                <FavoriteButton productId={product.id} size="lg" className="h-10 shrink-0 lg:h-11" />
+                <FavoriteButton productId={product.id} size="lg" className="h-11 shrink-0" />
               </div>
-              <button
-                type="button"
-                onClick={buyNow}
-                className="inline-flex items-center justify-center gap-1.5 py-1 text-sm font-medium text-primary hover:underline"
-              >
-                <Zap className="size-4" /> {tp.buyNow}
-              </button>
               <OneClickBuyButton
                 product={product}
                 variantId={selectedVariant?.id}
-                className="h-10 rounded-full lg:h-11"
+                className="h-11 w-full rounded-full border-primary/40 bg-primary/5 text-base text-primary hover:bg-primary/10 hover:text-primary"
               />
             </div>
           </div>
@@ -315,6 +302,11 @@ export function ProductPurchasePanel({
           <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-card/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
             <div className="flex items-center gap-2">
               <div className="min-w-0">
+                {displayOldPrice && (
+                  <p className="truncate text-xs leading-tight text-muted-foreground line-through">
+                    {formatPrice(displayOldPrice, product.currency, locale)}
+                  </p>
+                )}
                 <p className="truncate text-sm font-bold leading-tight text-foreground">
                   {formatPrice(displayPrice, product.currency, locale)}
                 </p>
@@ -327,13 +319,6 @@ export function ProductPurchasePanel({
               >
                 <ShoppingCart className="mr-1 size-4" /> {product.isPreorder ? tp.preorderCta : tp.addToCart}
               </Button>
-              <button
-                type="button"
-                onClick={buyNow}
-                className="shrink-0 px-1.5 text-xs font-semibold text-primary"
-              >
-                {tp.buyNow}
-              </button>
             </div>
           </div>
         </>
