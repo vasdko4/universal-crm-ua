@@ -474,7 +474,7 @@ export async function continuePromImport(taskId: number) {
       // Same politeness delay as the discovery loop / original scrape script.
       await new Promise((r) => setTimeout(r, 400))
       const p = await fetchProduct(state.origin, item)
-      if (!p) throw new Error('не удалось загрузить страницу товара')
+      if (!p) throw new Error('не вдалося завантажити сторінку товару')
 
       // Prom.ua listings are frequently written in Russian or mixed language.
       // Fix unambiguous standalone Russian words in the Ukrainian description

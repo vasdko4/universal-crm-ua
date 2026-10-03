@@ -48,7 +48,7 @@ async function assertDashboardOrStatistics() {
   const user = await getAdminUser()
   if (!user) throw new Error('Не авторизовано')
   if (!hasPermission(user.permissions, 'dashboard') && !hasPermission(user.permissions, 'statistics')) {
-    throw new Error('Нет прав доступа: dashboard/statistics')
+    throw new Error('Немає прав доступу: dashboard/statistics')
   }
   return user
 }

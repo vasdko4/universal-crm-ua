@@ -188,7 +188,7 @@ export async function assertPermission(key: PermissionKey): Promise<AdminUser> {
   const user = await getAdminUser()
   if (!user) throw new Error('Не авторизовано')
   if (!(await staffTwoFactorSatisfied(user.id))) throw new Error('Потрібен код 2FA')
-  if (!hasPermission(user.permissions, key)) throw new Error('Нет прав доступа: ' + key)
+  if (!hasPermission(user.permissions, key)) throw new Error('Немає прав доступу: ' + key)
   return user
 }
 

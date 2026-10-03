@@ -54,23 +54,23 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
     try {
       const nameRu = row.name_ru?.trim()
       const nameUk = row.name_uk?.trim()
-      if (!nameRu && !nameUk) throw new Error('нет названия')
+      if (!nameRu && !nameUk) throw new Error('немає назви')
 
       // BUGFIX: price/quantity validation. An empty or malformed price cell
       // used to become price 0 silently (Number('') === 0), zeroing out a
       // product's price on feed re-imports; negative quantities were silently
       // clamped to 0. Fail the row with a clear message instead.
       const priceRaw = (row.price ?? '').toString().trim()
-      if (!priceRaw) throw new Error('некорректная цена: пустое значение')
+      if (!priceRaw) throw new Error('некоректна ціна: порожнє значення')
       const price = Number(priceRaw)
-      if (!Number.isFinite(price) || price < 0) throw new Error('некорректная цена')
+      if (!Number.isFinite(price) || price < 0) throw new Error('некоректна ціна')
 
       const quantityRaw = (row.quantity ?? '').toString().trim()
       let quantity = 0
       if (quantityRaw) {
         const q = Number(quantityRaw)
-        if (!Number.isFinite(q)) throw new Error('некорректное количество')
-        if (q < 0) throw new Error('отрицательное количество')
+        if (!Number.isFinite(q)) throw new Error('некоректна кількість')
+        if (q < 0) throw new Error("від'ємна кількість")
         quantity = Math.min(999_999, Math.trunc(q))
       }
       const oldPriceRaw = (row.old_price ?? '').toString().trim()

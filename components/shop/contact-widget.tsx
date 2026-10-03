@@ -77,25 +77,44 @@ export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
   const { dict } = useI18n()
 
   // Hide the floating button while scrolling down so it never covers content
-  // (e.g. the stock status on the product page); show again on scroll up.
-  // Never hides while the channel list is open.
+  // (e.g. the stock status on the product page). On scroll up it reappears
+  // only after the scroll settles (1.2 s without scroll events) — so it does
+  // not pop over text the moment the user pauses mid-read. Never hides while
+  // the channel list is open.
   useEffect(() => {
     let lastY = window.scrollY
     let ticking = false
+    let showTimer: ReturnType<typeof setTimeout> | null = null
+    const clearShowTimer = () => {
+      if (showTimer) {
+        clearTimeout(showTimer)
+        showTimer = null
+      }
+    }
     const onScroll = () => {
       if (ticking) return
       ticking = true
       requestAnimationFrame(() => {
         const y = window.scrollY
         const dy = y - lastY
-        if (dy > 10 && y > 400) setHidden(true)
-        else if (dy < -10 || y <= 400) setHidden(false)
+        clearShowTimer()
+        if (dy > 10 && y > 400) {
+          setHidden(true)
+        } else if (y <= 400) {
+          setHidden(false)
+        } else if (dy < -10) {
+          // Wait for the scroll to settle before showing the button again.
+          showTimer = setTimeout(() => setHidden(false), 1200)
+        }
         lastY = y
         ticking = false
       })
     }
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      clearShowTimer()
+    }
   }, [])
 
   const channels = ORDER.map((key) => ({ key, ...widget.channels[key] })).filter(

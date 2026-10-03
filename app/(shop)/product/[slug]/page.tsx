@@ -285,8 +285,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <FrequentlyBoughtTogether main={product} items={boughtTogether} />
       )}
 
-      {/* Related */}
-      {related.length > 0 && (
+      {/* Related — hidden when fewer than 2 items: a single lonely card
+          looks broken, and the query deliberately has no "popular from the
+          whole shop" fallback (it mixed inverters with rollers). */}
+      {related.length >= 2 && (
         <section className="mt-8 lg:mt-14">
           <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground lg:mb-5 lg:text-2xl">{dict.product.relatedProducts}</h2>
           <div className="product-grid">
