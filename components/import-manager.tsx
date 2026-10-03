@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { runImport, type ImportRow } from "@/app/actions/import"
+import { parseCSV } from "@/lib/import-csv"
 import { startPromImport, continuePromImport } from "@/app/actions/prom-import"
 import { useAdminI18n } from "@/lib/i18n/admin/context"
 import type { AdminDictionary } from "@/lib/i18n/admin/dictionaries"
@@ -38,89 +39,6 @@ function tpl(template: string, values: Record<string, string | number>) {
     (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
     template,
   )
-}
-
-// Header aliases: accepts either the plain English keys documented in the UI
-// (a raw supplier feed) OR the human-readable Russian labels our own
-// "Экспорт" button produces (app/api/admin/products/export/route.ts) — so
-// export → edit in Excel → re-import round-trips instead of silently
-// failing every row with "нет названия".
-const CSV_HEADER_ALIASES: Record<string, keyof ImportRow> = {
-  name_ru: "name_ru",
-  "название (рус)": "name_ru",
-  name_uk: "name_uk",
-  "название (укр)": "name_uk",
-  sku: "sku",
-  "артикул": "sku",
-  price: "price",
-  "цена": "price",
-  old_price: "old_price",
-  "старая цена": "old_price",
-  quantity: "quantity",
-  "остаток": "quantity",
-  description_ru: "description_ru",
-  "описание (рус)": "description_ru",
-  description_uk: "description_uk",
-  "описание (укр)": "description_uk",
-  unit: "unit",
-}
-
-function parseCSV(text: string): ImportRow[] {
-  // Strip a UTF-8 BOM (our own export prepends one for Excel's benefit).
-  const clean = text.replace(/^\uFEFF/, "")
-  const lines = clean.split(/\r?\n/).filter((l) => l.trim())
-  if (lines.length < 2) return []
-
-  // Simple CSV parser with quoted field support. Delimiter is auto-detected
-  // (our export uses ";" — the Cyrillic-locale Excel default; a plain
-  // supplier feed typically uses ",") by checking which one appears more
-  // often, outside quotes, in the header line.
-  function countUnquoted(line: string, delimiter: string): number {
-    let count = 0
-    let inQuotes = false
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]
-      if (ch === '"') inQuotes = !inQuotes
-      else if (ch === delimiter && !inQuotes) count++
-    }
-    return count
-  }
-  const delimiter = countUnquoted(lines[0], ";") > countUnquoted(lines[0], ",") ? ";" : ","
-
-  function splitLine(line: string): string[] {
-    const result: string[] = []
-    let current = ""
-    let inQuotes = false
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]
-      if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"'
-          i++
-        } else {
-          inQuotes = !inQuotes
-        }
-      } else if (ch === delimiter && !inQuotes) {
-        result.push(current)
-        current = ""
-      } else {
-        current += ch
-      }
-    }
-    result.push(current)
-    return result.map((s) => s.trim())
-  }
-
-  const rawHeaders = splitLine(lines[0]).map((h) => h.toLowerCase())
-  const headers = rawHeaders.map((h) => CSV_HEADER_ALIASES[h] ?? h)
-  return lines.slice(1).map((line) => {
-    const values = splitLine(line)
-    const row: Record<string, string> = {}
-    headers.forEach((h, i) => {
-      row[h] = values[i] ?? ""
-    })
-    return row as ImportRow
-  })
 }
 
 function parseXML(text: string): ImportRow[] {
