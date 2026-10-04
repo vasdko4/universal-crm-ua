@@ -27,11 +27,13 @@ export type HeaderCategory = {
 export function SiteHeader({
   storeName,
   logoUrl,
+  faviconUrl,
   categories,
   googleAuthEnabled = false,
 }: {
   storeName: string
   logoUrl: string | null
+  faviconUrl: string | null
   categories: HeaderCategory[]
   googleAuthEnabled?: boolean
 }) {
@@ -110,19 +112,14 @@ export function SiteHeader({
         </div>
       </div>
 
-      <div className="lg:hidden">
-        <div className="flex items-center py-1.5">
-          <Link href={lp('/')} className="flex min-w-0 items-center gap-2">
-            {logoUrl ? (
-              <Image src={logoUrl || '/placeholder.svg'} alt={storeName} width={112} height={28} className="h-7 w-auto max-w-full object-contain" />
-            ) : (
-              <span className="truncate text-sm font-semibold tracking-[-0.03em] text-foreground">{storeName}</span>
-            )}
-          </Link>
-        </div>
-        <div className="pb-2">
-          <SearchBox />
-        </div>
+      {/* Mobile: no store name on top — the brand mark lives inside the
+          search field (Prom-style), the bar below covers navigation. */}
+      <div className="py-2 lg:hidden">
+        <SearchBox
+          leadingIcon={faviconUrl ?? logoUrl}
+          leadingIconHref={lp('/')}
+          leadingIconAlt={storeName}
+        />
       </div>
       </div>
 

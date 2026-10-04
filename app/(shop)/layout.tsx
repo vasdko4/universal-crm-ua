@@ -88,6 +88,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             <SiteHeader
               storeName={storeName}
               logoUrl={settings?.logoUrl ?? null}
+              faviconUrl={settings?.faviconUrl ?? null}
               categories={categories}
               googleAuthEnabled={googleAuthEnabled}
             />

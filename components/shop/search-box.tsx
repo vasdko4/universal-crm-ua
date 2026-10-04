@@ -27,7 +27,20 @@ type SearchResponse = { items: SearchItem[]; total: number }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json() as Promise<SearchResponse>)
 
-export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () => void; autoFocus?: boolean }) {
+export function SearchBox({
+  onNavigate,
+  autoFocus = false,
+  leadingIcon,
+  leadingIconHref,
+  leadingIconAlt = '',
+}: {
+  onNavigate?: () => void
+  autoFocus?: boolean
+  /** Small square brand mark rendered inside the input on the left (mobile, Prom-style). */
+  leadingIcon?: string | null
+  leadingIconHref?: string
+  leadingIconAlt?: string
+}) {
   const router = useRouter()
   const { dict, locale } = useI18n()
   const lp = (p: string) => localizedPath(p, locale)
@@ -87,6 +100,21 @@ export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () =
     <div ref={rootRef} className="relative w-full">
       <form onSubmit={onSubmit} role="search">
         <Search className="pointer-events-none absolute right-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground lg:left-3 lg:right-auto lg:size-4" />
+        {leadingIcon ? (
+          <Link
+            href={leadingIconHref ?? '/'}
+            aria-label={leadingIconAlt}
+            className="absolute left-3 top-1/2 -translate-y-1/2 lg:hidden"
+          >
+            <Image
+              src={leadingIcon}
+              alt=""
+              width={24}
+              height={24}
+              className="size-6 rounded-md object-contain"
+            />
+          </Link>
+        ) : null}
         <Input
           value={query}
           onChange={(e) => {
@@ -96,7 +124,9 @@ export function SearchBox({ onNavigate, autoFocus = false }: { onNavigate?: () =
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder={dict.nav.searchPlaceholder}
-          className="h-11 rounded-xl border-border bg-background pl-3.5 pr-11 shadow-none lg:rounded-full lg:bg-muted/40 lg:pl-9 lg:pr-4"
+          className={`h-11 rounded-xl border-border bg-background pr-11 shadow-none lg:rounded-full lg:bg-muted/40 lg:pl-9 lg:pr-4 ${
+            leadingIcon ? 'pl-11' : 'pl-3.5'
+          }`}
           aria-label={dict.common.search}
           aria-expanded={showDropdown}
           autoComplete="off"
