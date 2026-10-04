@@ -20,11 +20,14 @@ export function InfiniteProducts({
   initialItems,
   total,
   params,
+  gridClassName = 'product-grid',
 }: {
   initialItems: ShopProduct[]
   total: number
   // Query params WITHOUT `page` — the component manages paging internally.
   params: CatalogParams
+  /** Grid density modifier, e.g. 'product-grid product-grid-7'. */
+  gridClassName?: string
 }) {
   const { dict } = useI18n()
   const perPage = params.perPage ?? 24
@@ -57,7 +60,7 @@ export function InfiniteProducts({
 
   return (
     <div className="space-y-6">
-      <div className="product-grid">
+      <div className={gridClassName}>
         {items.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

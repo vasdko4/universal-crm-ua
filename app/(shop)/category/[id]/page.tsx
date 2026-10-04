@@ -167,6 +167,7 @@ export default async function CategoryPage({
           </div>
         ) : (
           <InfiniteProducts
+            gridClassName="product-grid product-grid-5"
             key={`${categoryId}|${catalogParams.sort}|${catalogParams.inStockOnly}|${catalogParams.discountOnly}|${catalogParams.minPrice ?? ''}|${catalogParams.maxPrice ?? ''}|${get('chars') ?? ''}`}
             initialItems={items}
             total={total}

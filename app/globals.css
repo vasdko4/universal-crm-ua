@@ -104,6 +104,41 @@
   }
 }
 
+/* Dense variants: `.product-grid-7` for homepage rows (7 per row on wide
+   screens), `.product-grid-5` for catalog/category pages (5 per row on
+   desktop instead of 4). Combine with `.product-grid` for the base. */
+.product-grid-7 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 640px) {
+  .product-grid-7 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .product-grid-7 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1280px) {
+  .product-grid-7 {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+.product-grid-5 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 640px) {
+  .product-grid-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .product-grid-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
 /* ============================================================
    Storefront templates (multi-theme)
    Applied on the shop wrapper via [data-template="..."].
