@@ -16,9 +16,9 @@ describe('resolveOgImageUrl', () => {
     )
   })
 
-  it('falls back to the stock hero when neither is set', () => {
+  it('falls back to the stock OG image when neither is set', () => {
     expect(resolveOgImageUrl(ORIGIN, null, null)).toBe(
-      'https://shop.example.com/hero-electronics.png',
+      'https://shop.example.com/og-techno-store.png',
     )
   })
 
