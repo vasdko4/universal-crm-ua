@@ -26,7 +26,7 @@ export function InfiniteProducts({
   total: number
   // Query params WITHOUT `page` — the component manages paging internally.
   params: CatalogParams
-  /** Grid density modifier, e.g. 'product-grid product-grid-7'. */
+  /** Full grid class list, e.g. Tailwind 'grid grid-cols-2 ... xl:grid-cols-7'. */
   gridClassName?: string
 }) {
   const { dict } = useI18n()

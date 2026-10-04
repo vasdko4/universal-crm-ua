@@ -140,7 +140,7 @@ export default async function CatalogPage({
           </div>
         ) : (
           <InfiniteProducts
-            gridClassName="product-grid product-grid-5"
+            gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4"
             key={`${params.search ?? ''}|${params.sort}|${params.inStockOnly}|${params.discountOnly}|${params.popularOnly}|${params.minPrice ?? ''}|${params.maxPrice ?? ''}|${JSON.stringify(params.charFilters ?? [])}`}
             initialItems={items}
             total={total}
