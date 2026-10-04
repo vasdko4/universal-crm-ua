@@ -1,4 +1,4 @@
-# Universal CRM UA
+# Universal CRM UA — self-hosted CRM и движок интернет-магазина для Украины
 
 [![CI](https://github.com/vasdko4/universal-crm-ua/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vasdko4/universal-crm-ua/actions/workflows/ci.yml)
 [![Playwright e2e](https://github.com/vasdko4/universal-crm-ua/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/vasdko4/universal-crm-ua/actions/workflows/e2e.yml)
@@ -7,11 +7,19 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GHCR](https://img.shields.io/badge/GHCR-universal--crm--ua-blue)](https://github.com/vasdko4/universal-crm-ua/pkgs/container/universal-crm-ua)
 
-Самохостинг-движок интернет-магазина + CRM для украинского рынка.
-Каталог, заказы, клиенты, Новая Почта, Monobank / WayForPay — на вашей машине,
-без SaaS и без обязательного облака.
+**Open-source CRM для интернет-магазина + движок витрины в одном репозитории.**
+Каталог товаров, заказы, клиенты, склад, промокоды, отзывы, статьи — и всё это
+на вашем сервере, без SaaS-подписок и комиссий маркетплейсов.
 
-**Version 3.0.0** · self-hosted Ukrainian e-commerce + CRM (storefront, admin, Nova Poshta, Monobank / WayForPay, Docker).
+Из коробки для украинского рынка: **Новая Почта** (отделения, трекинг, автосинхронизация
+статусов), оплата **Monobank** и **WayForPay**, двуязычная витрина UA/RU, SMS/email-уведомления.
+Ставится одной командой на чистый VPS — данные (PostgreSQL) и фото хранятся у вас.
+
+> **Self-hosted Ukrainian e-commerce + CRM (open source).** Storefront + admin panel in one
+> Next.js app: catalog, orders, customers, stock, promos, Nova Poshta delivery, Monobank /
+> WayForPay payments. One-command VPS install, Docker, no SaaS lock-in.
+
+**Version 3.0.0** · Next.js 16 · PostgreSQL · Docker · MIT
 
 **Демо:** https://magazine-test-ten.vercel.app — имя в вкладке берётся из `/admin` → Налаштування (`storeName`), не из кода.
 **Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/latest
@@ -26,6 +34,11 @@ curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/insta
   <img src="docs/screenshots/catalog.png" alt="Каталог" width="32%" />
   <img src="docs/screenshots/product.png" alt="Карточка товара" width="32%" />
 </p>
+
+**Кому подходит:** свой интернет-магазин с нуля без конструкторов и комиссий —
+альтернатива SaaS-витринам и маркетплейсам для малого и среднего бизнеса Украины.
+Бесплатная CRM-система для учёта заказов, клиентов и склада: вся аналитика продаж
+у вас, данные не уходят третьим лицам.
 
 ---
 
