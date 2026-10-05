@@ -105,4 +105,42 @@ describe('runCatalogHygiene', () => {
     expect(calls).toBe(1)
     expect(client.release).toHaveBeenCalledTimes(1)
   })
+
+  it('retries pool.connect() on transient connection timeout, then runs', async () => {
+    const timeoutError = () =>
+      Object.assign(new Error('Connection terminated due to connection timeout'), {
+        code: 'ECONNREFUSED',
+      })
+    const client = lockAndCount(() => ({ rows: [] }))
+    mockedConnect
+      .mockRejectedValueOnce(timeoutError())
+      .mockRejectedValueOnce(timeoutError())
+      .mockResolvedValue(client as never)
+    const { runCatalogHygiene } = await import('@/lib/shop/catalog-hygiene')
+    await runCatalogHygiene()
+    expect(mockedConnect).toHaveBeenCalledTimes(3)
+    expect(client.release).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up pool.connect() after 3 transient failures', async () => {
+    mockedConnect.mockRejectedValue(
+      Object.assign(new Error('Connection terminated due to connection timeout'), {
+        code: 'ECONNREFUSED',
+      }),
+    )
+    const { runCatalogHygiene } = await import('@/lib/shop/catalog-hygiene')
+    await expect(runCatalogHygiene()).rejects.toThrow(
+      'Connection terminated due to connection timeout',
+    )
+    expect(mockedConnect).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not retry pool.connect() on non-transient errors', async () => {
+    mockedConnect.mockRejectedValue(
+      Object.assign(new Error('password authentication failed'), { code: '28P01' }),
+    )
+    const { runCatalogHygiene } = await import('@/lib/shop/catalog-hygiene')
+    await expect(runCatalogHygiene()).rejects.toThrow('password authentication failed')
+    expect(mockedConnect).toHaveBeenCalledTimes(1)
+  })
 })

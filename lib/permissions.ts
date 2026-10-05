@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  BookOpen,
   Package,
   FolderTree,
   Layers,
@@ -75,13 +74,6 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/admin', label: 'Дашборд', icon: LayoutDashboard, permission: 'dashboard' },
       { href: '/admin/statistics', label: 'Статистика', icon: BarChart3, permission: 'statistics' },
-      {
-        href: '/admin/guides',
-        label: 'Інструкції',
-        icon: BookOpen,
-        permission: 'dashboard',
-        labelKey: 'guides',
-      },
     ],
   },
   {

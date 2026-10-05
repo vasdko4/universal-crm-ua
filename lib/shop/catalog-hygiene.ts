@@ -24,6 +24,47 @@ function isDeadlock(err: unknown): boolean {
   return (err as { code?: string } | null)?.code === DEADLOCK_CODE
 }
 
+// Transient network-level failures from pg-pool's connect(): the pool could
+// not open a fresh connection within connectionTimeoutMillis (10s default).
+// Happens on cold-start connection storms (many Vercel instances booting at
+// once under a traffic spike each run this hygiene in the background).
+// Only these are retried — anything else (auth, config) fails fast.
+const TRANSIENT_CONNECTION_CODES = new Set([
+  'ECONNREFUSED',
+  'ETIMEDOUT',
+  'ECONNRESET',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+])
+
+export function isTransientConnectionError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null
+  if (!e) return false
+  if (
+    typeof e.message === 'string' &&
+    e.message.includes('Connection terminated due to connection timeout')
+  ) {
+    return true
+  }
+  return TRANSIENT_CONNECTION_CODES.has(e.code ?? '')
+}
+
+const CONNECT_MAX_ATTEMPTS = 3
+
+export async function connectWithRetry(
+  connect: () => Promise<PoolClient>,
+  maxAttempts: number = CONNECT_MAX_ATTEMPTS,
+): Promise<PoolClient> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await connect()
+    } catch (err) {
+      if (!isTransientConnectionError(err) || attempt >= maxAttempts) throw err
+      await sleep(1000 * attempt)
+    }
+  }
+}
+
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 async function runOnce(client: Pick<PoolClient, 'query'>): Promise<void> {
@@ -180,7 +221,9 @@ async function runOnce(client: Pick<PoolClient, 'query'>): Promise<void> {
  * retried with backoff — every statement above is idempotent.
  */
 export async function runCatalogHygiene(): Promise<void> {
-  const client = await pool.connect()
+  // Bounded retry for transient connect storms only — the statements below
+  // already retry on deadlock, and the advisory lock serializes instances.
+  const client = await connectWithRetry(() => pool.connect())
   try {
     const { rows } = await client.query<{ ok: boolean }>(
       'SELECT pg_try_advisory_lock($1, $2) AS ok',
