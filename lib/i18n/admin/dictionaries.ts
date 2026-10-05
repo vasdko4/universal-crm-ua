@@ -74,6 +74,8 @@ export type AdminDictionary = {
     mainNav: string
     signOut: string
     signingOut: string
+    collapseSection: string
+    expandSection: string
   }
   navSections: Record<string, string>
   navItems: Record<string, string>
@@ -293,6 +295,16 @@ export type AdminDictionary = {
     bulkActionStock: string
     bulkActionCategory: string
     bulkActionTrash: string
+    bulkActionChars: string
+    bulkBrandLabel: string
+    bulkBrandPlaceholder: string
+    bulkCharsHint: string
+    bulkCharNamePlaceholder: string
+    bulkCharValuePlaceholder: string
+    bulkAddChar: string
+    bulkRemoveCharAria: string
+    toastCharsSet: string
+    errCharsEmpty: string
     bulkPriceLabel: string
     bulkStockHint: string
     bulkCategoryLabel: string
@@ -1896,6 +1908,8 @@ const uk: AdminDictionary = {
     mainNav: 'Основна навігація',
     signOut: 'Вийти',
     signingOut: 'Вихід...',
+    collapseSection: 'Згорнути розділ',
+    expandSection: 'Розгорнути розділ',
   },
   navSections: {
     Обзор: 'Огляд',
@@ -2152,6 +2166,16 @@ const uk: AdminDictionary = {
     bulkActionStock: 'Змінити залишок (±)',
     bulkActionCategory: 'Змінити категорію',
     bulkActionTrash: 'Перемістити в кошик',
+    bulkActionChars: 'Бренд і характеристики',
+    bulkBrandLabel: 'Бренд',
+    bulkBrandPlaceholder: 'Наприклад: Samsung',
+    bulkCharsHint: 'Характеристика з такою назвою буде оновлена, нова — додана. Порожні значення ігноруються.',
+    bulkCharNamePlaceholder: 'Назва',
+    bulkCharValuePlaceholder: 'Значення',
+    bulkAddChar: 'Додати характеристику',
+    bulkRemoveCharAria: 'Видалити характеристику',
+    toastCharsSet: 'Характеристики оновлено',
+    errCharsEmpty: 'Вкажіть бренд або хоча б одну характеристику',
     bulkPriceLabel: 'Нова ціна, ₴',
     bulkStockHint: 'Наприклад: 5 — додати, -3 — списати',
     bulkCategoryLabel: 'Категорія',
@@ -3786,6 +3810,8 @@ const ru: AdminDictionary = {
     mainNav: 'Основная навигация',
     signOut: 'Выйти',
     signingOut: 'Выход...',
+    collapseSection: 'Свернуть раздел',
+    expandSection: 'Развернуть раздел',
   },
   navSections: {
     Обзор: 'Обзор',
@@ -4042,6 +4068,16 @@ const ru: AdminDictionary = {
     bulkActionStock: 'Изменить остаток (±)',
     bulkActionCategory: 'Изменить категорию',
     bulkActionTrash: 'Переместить в корзину',
+    bulkActionChars: 'Бренд и характеристики',
+    bulkBrandLabel: 'Бренд',
+    bulkBrandPlaceholder: 'Например: Samsung',
+    bulkCharsHint: 'Характеристика с таким названием будет обновлена, новая — добавлена. Пустые значения игнорируются.',
+    bulkCharNamePlaceholder: 'Название',
+    bulkCharValuePlaceholder: 'Значение',
+    bulkAddChar: 'Добавить характеристику',
+    bulkRemoveCharAria: 'Удалить характеристику',
+    toastCharsSet: 'Характеристики обновлены',
+    errCharsEmpty: 'Укажите бренд или хотя бы одну характеристику',
     bulkPriceLabel: 'Новая цена, ₴',
     bulkStockHint: 'Например: 5 — добавить, -3 — списать',
     bulkCategoryLabel: 'Категория',

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Store, LogOut, ChevronDown, ShieldCheck } from 'lucide-react'
 import { clearStaffTwoFactorCookie } from '@/app/actions/staff-2fa'
@@ -25,6 +25,25 @@ type SidebarUser = {
   permissions: string[]
 }
 
+const COLLAPSED_STORAGE_KEY = 'admin:sidebar:collapsed'
+
+function loadCollapsed(): Record<string, boolean> {
+  try {
+    const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY)
+    const parsed: unknown = raw ? JSON.parse(raw) : {}
+    if (parsed && typeof parsed === 'object') {
+      const out: Record<string, boolean> = {}
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (v === true) out[k] = true
+      }
+      return out
+    }
+  } catch {
+    // ignore corrupted storage
+  }
+  return {}
+}
+
 export function AdminSidebar({
   user,
   storeName,
@@ -38,11 +57,35 @@ export function AdminSidebar({
   const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
   const { dict } = useAdminI18n()
+  // Collapsed nav sections, persisted per browser. The section holding the
+  // active page auto-expands so the current location is never hidden.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() =>
+    typeof window === 'undefined' ? {} : loadCollapsed(),
+  )
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(collapsed))
+    } catch {
+      // storage unavailable — collapse state just won't persist
+    }
+  }, [collapsed])
 
   const visibleSections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => hasPermission(user.permissions, item.permission)),
   })).filter((section) => section.items.length > 0)
+
+  const isItemActive = (href: string) =>
+    href === '/admin' ? pathname === '/admin' : pathname === href || pathname.startsWith(href + '/')
+
+  // The section holding the active page is never shown collapsed, so the
+  // current location can't hide — no effect needed, derived during render.
+  const activeLabel = visibleSections.find((s) => s.items.some((item) => isItemActive(item.href)))?.label
+  const isSectionCollapsed = (label: string) => collapsed[label] === true && label !== activeLabel
+
+  const toggleSection = (label: string) =>
+    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }))
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -81,36 +124,47 @@ export function AdminSidebar({
       </Link>
 
       <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-2" aria-label={dict.sidebar.mainNav}>
-        {visibleSections.map((section) => (
-          <div key={section.label} className="flex flex-col gap-1">
-            <p className="hidden px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted md:block">
-              {dict.navSections[section.label] ?? section.label}
-            </p>
-            {section.items.map((item) => {
-              const isActive =
-                item.href === '/admin'
-                  ? pathname === '/admin'
-                  : pathname === item.href || pathname.startsWith(item.href + '/')
-              const label = dict.navItems[item.labelKey ?? item.permission] ?? item.label
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-sidebar-primary/15 text-sidebar-primary'
-                      : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                  )}
-                  title={label}
-                >
-                  <item.icon className="size-5 shrink-0" />
-                  <span className="hidden md:inline">{label}</span>
-                </Link>
-              )
-            })}
-          </div>
-        ))}
+        {visibleSections.map((section) => {
+          const isCollapsed = isSectionCollapsed(section.label)
+          const sectionLabel = dict.navSections[section.label] ?? section.label
+          return (
+            <div key={section.label} className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.label)}
+                aria-expanded={!isCollapsed}
+                title={isCollapsed ? dict.sidebar.expandSection : dict.sidebar.collapseSection}
+                className="hidden w-full items-center justify-between gap-2 rounded-md px-3 pb-1 text-left text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted transition-colors hover:text-sidebar-foreground md:flex"
+              >
+                <span className="line-clamp-1">{sectionLabel}</span>
+                <ChevronDown
+                  className={cn('size-3.5 shrink-0 transition-transform', isCollapsed && '-rotate-90')}
+                />
+              </button>
+              {!isCollapsed &&
+                section.items.map((item) => {
+                  const isActive = isItemActive(item.href)
+                  const label = dict.navItems[item.labelKey ?? item.permission] ?? item.label
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-sidebar-primary/15 text-sidebar-primary'
+                          : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                      )}
+                      title={label}
+                    >
+                      <item.icon className="size-5 shrink-0" />
+                      <span className="hidden md:inline">{label}</span>
+                    </Link>
+                  )
+                })}
+            </div>
+          )
+        })}
       </nav>
 
       <div className="flex flex-col gap-1 border-t border-sidebar-accent p-2">

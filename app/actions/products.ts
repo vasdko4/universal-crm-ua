@@ -17,6 +17,7 @@ import { revalidateStorefront } from '@/lib/shop/cache'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { generateUniqueSlug } from '@/lib/product-slug'
+import { normalizeBulkCharacteristics, planCharacteristicUpserts } from '@/lib/products/bulk-characteristics'
 import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
 
 export type VariantInput = {
@@ -450,6 +451,73 @@ export async function setProductsVisibility(ids: number[], isVisible: boolean) {
     .update(products)
     .set({ isVisible, updatedAt: new Date() })
     .where(inArray(products.id, ids))
+  revalidatePath('/admin/products')
+  revalidateStorefront()
+  return { success: true }
+}
+
+/**
+ * Bulk brand + characteristics: upsert the given name→value pairs for every
+ * selected product. Same-name characteristics (case-insensitive) are updated,
+ * missing ones are appended; everything else is left untouched. Empty values
+ * never erase data. One audit-log entry per operation.
+ */
+export async function bulkSetProductCharacteristics(
+  ids: number[],
+  brand: string,
+  chars: { name: string; value: string }[],
+) {
+  const user = await assertWritePermission('products')
+  const t = getAdminDictionary(user.locale).products
+  const unique = uniqueIds(ids)
+  if (!unique.length) return { success: false, error: t.errNothingSelected }
+  const updates = normalizeBulkCharacteristics(brand ?? '', chars ?? [])
+  if (!updates.length) return { success: false, error: t.errCharsEmpty }
+  await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    for (const productId of unique) {
+      const existing = await tx
+        .select({
+          id: productCharacteristics.id,
+          name: productCharacteristics.name,
+          value: productCharacteristics.value,
+          sortOrder: productCharacteristics.sortOrder,
+        })
+        .from(productCharacteristics)
+        .where(eq(productCharacteristics.productId, productId))
+      const { toUpdate, toInsert } = planCharacteristicUpserts(existing, updates)
+      for (const u of toUpdate) {
+        await tx
+          .update(productCharacteristics)
+          .set({ value: u.value, updatedAt: new Date() })
+          .where(eq(productCharacteristics.id, u.id))
+      }
+      if (toInsert.length > 0) {
+        const maxSort = existing.reduce((m, r) => Math.max(m, r.sortOrder ?? 0), -1)
+        await tx.insert(productCharacteristics).values(
+          toInsert.map((c, i) => ({
+            productId,
+            name: c.name,
+            value: c.value,
+            sortOrder: maxSort + 1 + i,
+          })),
+        )
+      }
+    }
+    await tx
+      .update(products)
+      .set({ updatedAt: new Date() })
+      .where(inArray(products.id, unique))
+  })
+  const names = updates.map((u) => u.name).join(', ')
+  void auditLog({
+    userId: user.id,
+    userName: user.name,
+    userEmail: user.email,
+    action: 'update',
+    entity: 'product',
+    details: `Масові характеристики для ${unique.length} товарів: ${names}`,
+  })
   revalidatePath('/admin/products')
   revalidateStorefront()
   return { success: true }

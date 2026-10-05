@@ -12,6 +12,7 @@ import {
   bulkSetProductPrice,
   bulkAdjustProductStock,
   bulkSetProductCategory,
+  bulkSetProductCharacteristics,
   updateProductPrice,
   updateProductStock,
   type ProductFilters,
@@ -92,7 +93,7 @@ type ProductPresetFilters = {
   sort?: string
 }
 
-type BulkAction = 'show' | 'hide' | 'price' | 'stock' | 'category' | 'trash'
+type BulkAction = 'show' | 'hide' | 'price' | 'stock' | 'category' | 'chars' | 'trash'
 
 function formatPrice(value: string | null, currency = 'UAH', locale: string = 'uk') {
   if (value == null) return '—'
@@ -126,6 +127,8 @@ export function ProductsTable({
   const [bulkPrice, setBulkPrice] = useState('')
   const [bulkDelta, setBulkDelta] = useState('')
   const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkBrand, setBulkBrand] = useState('')
+  const [bulkChars, setBulkChars] = useState<{ name: string; value: string }[]>([{ name: '', value: '' }])
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkAction, setBulkAction] = useState<BulkAction>('price')
   // Optimistic overrides for inline price/stock edits (server data arrives via router.refresh()).
@@ -256,6 +259,15 @@ export function ProductsTable({
         if (!bulkCategory) return
         runBulk(() => bulkSetProductCategory(ids, Number(bulkCategory)), t.toastCategorySet)
         break
+      case 'chars': {
+        const pairs = bulkChars.filter((ch) => ch.name.trim() && ch.value.trim())
+        if (!bulkBrand.trim() && pairs.length === 0) {
+          toast.error(t.errCharsEmpty)
+          return
+        }
+        runBulk(() => bulkSetProductCharacteristics(ids, bulkBrand, pairs), t.toastCharsSet)
+        break
+      }
       case 'trash':
         runBulk(() => softDeleteProducts(ids), t.toastMovedToTrash)
         break
@@ -732,7 +744,10 @@ export function ProductsTable({
         confirmDisabled={
           (bulkAction === 'price' && !bulkPrice.trim()) ||
           (bulkAction === 'stock' && !bulkDelta.trim()) ||
-          (bulkAction === 'category' && !bulkCategory)
+          (bulkAction === 'category' && !bulkCategory) ||
+          (bulkAction === 'chars' &&
+            !bulkBrand.trim() &&
+            !bulkChars.some((ch) => ch.name.trim() && ch.value.trim()))
         }
         onConfirm={handleBulkConfirm}
       >
@@ -803,6 +818,73 @@ export function ProductsTable({
                   ))}
                 </SelectContent>
               </Select>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="chars" id="bulk-chars" />
+              <Label htmlFor="bulk-chars">{t.bulkActionChars}</Label>
+            </div>
+            {bulkAction === 'chars' && (
+              <div className="ml-6 flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="bulk-brand">{t.bulkBrandLabel}</Label>
+                  <Input
+                    id="bulk-brand"
+                    value={bulkBrand}
+                    onChange={(e) => setBulkBrand(e.target.value)}
+                    placeholder={t.bulkBrandPlaceholder}
+                    className="w-56"
+                  />
+                </div>
+                {bulkChars.map((ch, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      value={ch.name}
+                      onChange={(e) => {
+                        const next = [...bulkChars]
+                        next[i] = { ...next[i], name: e.target.value }
+                        setBulkChars(next)
+                      }}
+                      placeholder={t.bulkCharNamePlaceholder}
+                      aria-label={`${t.bulkCharNamePlaceholder} ${i + 1}`}
+                    />
+                    <Input
+                      value={ch.value}
+                      onChange={(e) => {
+                        const next = [...bulkChars]
+                        next[i] = { ...next[i], value: e.target.value }
+                        setBulkChars(next)
+                      }}
+                      placeholder={t.bulkCharValuePlaceholder}
+                      aria-label={`${t.bulkCharValuePlaceholder} ${i + 1}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-destructive hover:text-destructive"
+                      aria-label={t.bulkRemoveCharAria}
+                      onClick={() => setBulkChars(bulkChars.filter((_, j) => j !== i))}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+                {bulkChars.length < 10 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit"
+                    onClick={() => setBulkChars([...bulkChars, { name: '', value: '' }])}
+                  >
+                    <Plus className="size-4" />
+                    {t.bulkAddChar}
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground">{t.bulkCharsHint}</p>
+              </div>
             )}
           </div>
           <div className="flex flex-col gap-2">
