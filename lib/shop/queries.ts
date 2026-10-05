@@ -1,5 +1,6 @@
 import 'server-only'
 import { unstable_cache } from 'next/cache'
+import { singleFlight } from '@/lib/cache/single-flight'
 import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { Locale } from '@/lib/i18n/config'
 import { sanitizeSearch } from '@/lib/api/helpers'
@@ -45,7 +46,13 @@ export const CACHE_TAGS = {
 }
 async function cachedQuery<T>(key: string[], tags: string[], fn: () => Promise<T> | T): Promise<T> {
   const ttl = await getStorefrontQueryTtl()
-  return unstable_cache(async () => fn(), [...key, `ttl:${ttl}`], { tags, revalidate: ttl })()
+  const cacheKey = [...key, `ttl:${ttl}`]
+  // Single-flight the recompute: when the TTL expires under load, concurrent
+  // requests share one DB round-trip instead of stampeding the pool.
+  return unstable_cache(() => singleFlight(cacheKey.join('|'), async () => fn()), cacheKey, {
+    tags,
+    revalidate: ttl,
+  })()
 }
 
 /** LIKE pattern; `%`/`_` in the query are treated as literals. */
