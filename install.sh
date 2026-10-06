@@ -260,7 +260,7 @@ BETTER_AUTH_SECRET=$(gen_secret)
 CRON_SECRET=$(gen_secret)
 SETUP_TOKEN=${SETUP_TOKEN_VALUE}
 POSTGRES_PASSWORD=$(gen_password)
-FTP_USER=techno
+FTP_USER=unicrm
 FTP_PASSWORD=$(gen_password)
 FTP_ADDRESS=${FTP_ADDRESS}
 DOMAIN=${DOMAIN}
@@ -406,7 +406,7 @@ services:
       - "21:21"
       - "21000-21010:21000-21010"
     environment:
-      USERS: "\${FTP_USER:-techno}|\${FTP_PASSWORD:-}|/ftp/uploads"
+      USERS: "\${FTP_USER:-unicrm}|\${FTP_PASSWORD:-}|/ftp/uploads"
       ADDRESS: \${FTP_ADDRESS:-}
       MIN_PORT: "21000"
       MAX_PORT: "21010"
@@ -521,7 +521,7 @@ fi
 if [[ -n "${FTP_PASS_SHOW}" ]]; then
   echo ""
   echo "  FTP-доступ к загрузкам (фото товаров):"
-  echo "    Пользователь: ${FTP_USER_SHOW:-techno}"
+  echo "    Пользователь: ${FTP_USER_SHOW:-unicrm}"
   echo "    Пароль:       ${FTP_PASS_SHOW}"
 fi
 echo ""
