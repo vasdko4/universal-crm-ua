@@ -547,6 +547,20 @@ export async function continuePromImport(taskId: number) {
           .limit(1)
         existing.push(...bySku)
       }
+      // BUGFIX: soft-deleted products (in trash) still hold their unique slug.
+      // Re-importing them did INSERT instead of UPDATE → duplicate key error.
+      // Restore the trashed row so the update path below revives it.
+      if (existing.length === 0) {
+        const [trashed] = await db
+          .select({ id: products.id, slug: products.slug })
+          .from(products)
+          .where(eq(products.promId, item.id))
+          .limit(1)
+        if (trashed) {
+          await db.update(products).set({ deletedAt: null }).where(eq(products.id, trashed.id))
+          existing.push(trashed)
+        }
+      }
 
       // Standalone Prom listings that only differ by a size range in the
       // title ("Ролики 29-33" / "Ролики 34-37") are not linked via
