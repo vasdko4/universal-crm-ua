@@ -16,6 +16,8 @@ export type ImportRow = {
   quantity?: string
   description_uk?: string
   description_ru?: string
+  meta_description_uk?: string
+  meta_description_ru?: string
   unit?: string
 }
 
@@ -105,6 +107,8 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             nameUk: nameUk || undefined,
             descriptionRu: row.description_ru || undefined,
             descriptionUk: row.description_uk || undefined,
+            metaDescriptionRu: row.meta_description_ru?.trim() || undefined,
+            metaDescriptionUk: row.meta_description_uk?.trim() || undefined,
             price: String(price),
             oldPrice,
             quantity,
@@ -129,6 +133,8 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             nameUk: nameUk || null,
             descriptionRu: row.description_ru || null,
             descriptionUk: row.description_uk || null,
+            metaDescriptionRu: row.meta_description_ru?.trim() || null,
+            metaDescriptionUk: row.meta_description_uk?.trim() || null,
             sku,
             price: String(price),
             oldPrice,

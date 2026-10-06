@@ -16,6 +16,8 @@ export type ImportRow = {
   quantity?: string
   description_uk?: string
   description_ru?: string
+  meta_description_uk?: string
+  meta_description_ru?: string
   unit?: string
 }
 
@@ -41,6 +43,10 @@ const CSV_HEADER_ALIASES: Record<string, keyof ImportRow> = {
   "описание (рус)": "description_ru",
   description_uk: "description_uk",
   "описание (укр)": "description_uk",
+  meta_description_uk: "meta_description_uk",
+  "мета-описание (укр)": "meta_description_uk",
+  meta_description_ru: "meta_description_ru",
+  "мета-описание (рус)": "meta_description_ru",
   unit: "unit",
 }
 

@@ -51,4 +51,16 @@ describe('parseCSV', () => {
     expect(parseCSV('"a";"b"')).toEqual([])
     expect(parseCSV('')).toEqual([])
   })
+
+  it('parses meta_description columns via English keys and Russian aliases', () => {
+    const rows = parseCSV(
+      '"name_uk";"sku";"price";"meta_description_uk";"Мета-описание (рус)"\n' +
+        '"Товар";"S1";"100";"Купити Товар в PowerFox.";"Купить Товар в PowerFox."',
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      meta_description_uk: 'Купити Товар в PowerFox.',
+      meta_description_ru: 'Купить Товар в PowerFox.',
+    })
+  })
 })
