@@ -62,18 +62,18 @@ export default async function AccountDashboardPage() {
           </div>
           <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
             <div className="flex items-center justify-between gap-2">
-              <dt className="text-muted-foreground">{t.navProfile}</dt>
-              <dd className="truncate font-medium text-card-foreground">{user.name}</dd>
+              <dt className="shrink-0 text-muted-foreground">{t.navProfile}</dt>
+              <dd className="min-w-0 truncate font-medium text-card-foreground">{user.name}</dd>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <dt className="text-muted-foreground">{t.phone}</dt>
-              <dd className="truncate font-medium text-card-foreground">
+              <dt className="shrink-0 text-muted-foreground">{t.phone}</dt>
+              <dd className="min-w-0 truncate font-medium text-card-foreground">
                 {user.phone || t.notSpecified}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <dt className="text-muted-foreground">{t.emailShort}</dt>
-              <dd className="truncate font-medium text-card-foreground">{user.email}</dd>
+              <dt className="shrink-0 text-muted-foreground">{t.emailShort}</dt>
+              <dd className="min-w-0 truncate font-medium text-card-foreground">{user.email}</dd>
             </div>
           </dl>
           <Link
