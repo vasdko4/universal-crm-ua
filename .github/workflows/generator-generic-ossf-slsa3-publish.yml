@@ -13,8 +13,12 @@
 name: SLSA generic generator
 on:
   workflow_dispatch:
-  release:
-    types: [created]
+  # Disabled: template signs dummy artifacts instead of the Docker image.
+  # The release workflow builds and pushes the image; SLSA provenance for
+  # container images needs a different generator (e.g. slsa-github-generator
+  # container workflow). Re-enable with proper config when needed.
+  # release:
+  #   types: [created]
 
 jobs:
   build:
