@@ -244,13 +244,21 @@ if [[ ! -f .env ]]; then
     [[ -n "$DOMAIN" ]] && warn "Не удалось определить публичный IP сервера — FTP_ADDRESS временно указывает на домен ${DOMAIN}. Если домен проксируется (например, через Cloudflare), FTP не будет работать: замените FTP_ADDRESS в .env на реальный IP сервера и перезапустите контейнер ftp."
   fi
 
+  # Generate the one-time setup token first so it can be written to both
+  # .env (for docker-compose) and .setup-token (fallback file mounted into
+  # the app container — the app reads it if SETUP_TOKEN env is missing,
+  # e.g. when the container wasn't recreated after .env changed).
+  SETUP_TOKEN_VALUE=$(if command -v openssl &>/dev/null; then openssl rand -hex 32; else head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi)
+  printf '%s' "$SETUP_TOKEN_VALUE" > .setup-token
+  chmod 600 .setup-token
+
   cat > .env <<ENVEOF
 # Сгенерировано автоматически скриптом install.sh (Magazine 3.0)
 BETTER_AUTH_URL=${PUBLIC_URL}
 NEXT_PUBLIC_SITE_URL=${PUBLIC_URL}
 BETTER_AUTH_SECRET=$(gen_secret)
 CRON_SECRET=$(gen_secret)
-SETUP_TOKEN=$(if command -v openssl &>/dev/null; then openssl rand -hex 32; else head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi)
+SETUP_TOKEN=${SETUP_TOKEN_VALUE}
 POSTGRES_PASSWORD=$(gen_password)
 FTP_USER=techno
 FTP_PASSWORD=$(gen_password)
