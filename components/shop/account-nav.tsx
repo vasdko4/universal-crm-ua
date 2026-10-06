@@ -56,10 +56,10 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
     )
 
   return (
-    <div className="lg:sticky lg:top-6 lg:self-start">
+    <div className="min-w-0 lg:sticky lg:top-6 lg:w-[220px] lg:self-start">
       <nav
         aria-label={dict.account.title}
-        className="sticky top-[72px] z-30 flex gap-1 overflow-x-auto rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 lg:static lg:flex-col lg:overflow-visible lg:bg-card lg:p-2 lg:shadow-none"
+        className="sticky top-[72px] z-30 flex gap-1 overflow-x-auto rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] supports-[backdrop-filter]:bg-card/80 lg:static lg:flex-col lg:overflow-visible lg:bg-card lg:p-2 lg:shadow-none"
       >
         {LINKS.map((l) => {
           const Icon = l.icon
