@@ -350,12 +350,24 @@ export function productPath(item: PromListItem): string {
  * Fetches one product's full detail (uk + ru) by its listing item. Returns
  * null if the uk page couldn't be loaded/parsed (ru falls back to uk).
  */
+export type FetchProductResult =
+  | { ok: true; product: PromProduct }
+  | { ok: false; reason: string; url: string }
+
 export async function fetchProduct(origin: string, item: PromListItem): Promise<PromProduct | null> {
+  const result = await fetchProductDetailed(origin, item)
+  return result.ok ? result.product : null
+}
+
+/** Same as fetchProduct but returns the failure reason for logging. */
+export async function fetchProductDetailed(origin: string, item: PromListItem): Promise<FetchProductResult> {
   const urlUk = `${origin}${productPath(item)}`
   const fetchedUk = await fetchHtml(urlUk)
-  const stateUk = fetchedUk ? extractApolloState(fetchedUk.html) : null
-  const pUk = stateUk ? parseProductCard(getProductCard(stateUk)) : null
-  if (!pUk) return null
+  if (!fetchedUk) return { ok: false, reason: 'fetch_failed', url: urlUk }
+  const stateUk = extractApolloState(fetchedUk.html)
+  if (!stateUk) return { ok: false, reason: 'no_apollo_state', url: fetchedUk.finalUrl }
+  const pUk = parseProductCard(getProductCard(stateUk))
+  if (!pUk) return { ok: false, reason: 'parse_failed', url: fetchedUk.finalUrl }
   const variationItems = stateUk ? getVariationItems(stateUk).filter((v) => v.promId !== pUk.promId) : []
 
   const urlRu = `${origin}${productPath(item).replace(/^\/ua/, '')}`
@@ -366,6 +378,8 @@ export async function fetchProduct(origin: string, item: PromListItem): Promise<
   const metaRu = fetchedRu ? extractHeadMeta(fetchedRu.html) : { title: '', description: '' }
 
   return {
+    ok: true,
+    product: {
     promId: pUk.promId,
     nameUk: pUk.name,
     nameRu: pRu?.name || pUk.name,
@@ -384,6 +398,7 @@ export async function fetchProduct(origin: string, item: PromListItem): Promise<
     metaTitleRu: metaRu.title || metaUk.title,
     metaDescriptionUk: metaUk.description,
     metaDescriptionRu: metaRu.description || metaUk.description,
+    },
   }
 }
 

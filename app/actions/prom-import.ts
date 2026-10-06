@@ -17,6 +17,7 @@ import { generateUniqueSlug } from '@/lib/product-slug'
 import {
   fetchListingPage,
   fetchProduct,
+  fetchProductDetailed,
   isAllowedPromUrl,
   slugify,
   withPage,
@@ -474,8 +475,11 @@ export async function continuePromImport(taskId: number) {
     try {
       // Same politeness delay as the discovery loop / original scrape script.
       await new Promise((r) => setTimeout(r, 400))
-      const p = await fetchProduct(state.origin, item)
-      if (!p) throw new Error('не вдалося завантажити сторінку товару')
+      const detailed = await fetchProductDetailed(state.origin, item)
+      if (!detailed.ok) {
+        throw new Error(`не вдалося завантажити сторінку товару (${detailed.reason}: ${detailed.url})`)
+      }
+      const p = detailed.product
 
       // Prom.ua listings are frequently written in Russian or mixed language.
       // Fix unambiguous standalone Russian words in the Ukrainian description
