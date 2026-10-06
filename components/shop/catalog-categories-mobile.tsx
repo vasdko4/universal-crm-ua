@@ -171,7 +171,7 @@ export function CatalogCategoriesMobile({
                         {children.map((child) => (
                           <li key={child.id}>
                             <Link
-                              href={lp(`/category/${child.id}`)}
+                              href={lp(`/category/${child.slug}`)}
                               className={cn(
                                 'flex items-center gap-2 rounded-lg px-2 py-2 text-sm active:bg-accent',
                                 matchedChildIds?.has(child.id)
@@ -190,7 +190,7 @@ export function CatalogCategoriesMobile({
                       </ul>
                     )}
                     <Link
-                      href={lp(`/category/${parent.id}`)}
+                      href={lp(`/category/${parent.slug}`)}
                       className={cn(
                         'mt-3 inline-flex items-center text-xs font-semibold text-primary active:underline',
                         children.length === 0 && 'mt-0',

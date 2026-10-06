@@ -75,7 +75,7 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
                 return (
                   <li key={c.id}>
                     <Link
-                      href={lp(`/category/${c.id}`)}
+                      href={lp(`/category/${c.slug}`)}
                       onMouseEnter={() => setActiveId(c.id)}
                       onClick={close}
                       className={cn(
@@ -100,7 +100,7 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
             {activeChildren.length > 0 && (
               <div className="max-h-[70vh] w-[56rem] overflow-y-auto border-l border-border p-5">
                 <Link
-                  href={lp(`/category/${activeId}`)}
+                  href={lp(`/category/${categories.find((c) => c.id === activeId)?.slug ?? activeId}`)}
                   onClick={close}
                   className="mb-3 inline-block text-sm font-semibold text-primary hover:underline"
                 >
@@ -112,7 +112,7 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
                     return (
                       <div key={c.id} className="mb-5 flex break-inside-avoid flex-col gap-1">
                         <Link
-                          href={lp(`/category/${c.id}`)}
+                          href={lp(`/category/${c.slug}`)}
                           onClick={close}
                           className="mb-1 block text-sm font-semibold text-foreground transition-colors hover:text-primary"
                         >
@@ -123,7 +123,7 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
                             {grandChildren.map((g) => (
                               <li key={g.id}>
                                 <Link
-                                  href={lp(`/category/${g.id}`)}
+                                  href={lp(`/category/${g.slug}`)}
                                   onClick={close}
                                   className="block text-sm text-muted-foreground transition-colors hover:text-primary"
                                 >

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Phone, User, Wallet, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -278,9 +279,11 @@ function OneClickModal({
           <div className="space-y-4 px-5 py-5">
             <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
               {thumb ? (
-                <img
+                <Image
                   src={thumb}
                   alt=""
+                  width={64}
+                  height={64}
                   loading="lazy"
                   className="size-16 shrink-0 rounded-lg border border-border object-cover"
                 />

@@ -49,7 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ])
 
   const categoryRoutes: MetadataRoute.Sitemap = categories.flatMap((c) =>
-    bilingual(`/category/${c.id}`, {
+    bilingual(`/category/${c.slug || c.id}`, {
       lastModified: c.updatedAt ?? now,
       changeFrequency: 'weekly',
       priority: 0.7,

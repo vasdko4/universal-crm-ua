@@ -203,7 +203,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     [
       { name: dict.common.home, path: lp('/') },
       { name: dict.common.catalog, path: lp('/catalog') },
-      ...(categories[0] ? [{ name: categories[0].name, path: lp(`/category/${categories[0].id}`) }] : []),
+      ...(categories[0] ? [{ name: categories[0].name, path: lp(`/category/${categories[0].slug}`) }] : []),
       { name: product.name, path: lp(`/product/${product.slug}`) },
     ],
     siteUrl,
@@ -231,7 +231,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         {categories[0] && (
           <>
             <span className="mx-2">/</span>
-            <Link href={lp(`/category/${categories[0].id}`)} className="hover:text-primary">
+            <Link href={lp(`/category/${categories[0].slug}`)} className="hover:text-primary">
               {categories[0].name}
             </Link>
           </>

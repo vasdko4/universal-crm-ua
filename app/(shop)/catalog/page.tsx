@@ -122,7 +122,7 @@ export default async function CatalogPage({
           {topCategories.map((cat) => (
             <Link
               key={cat.id}
-              href={lp(`/category/${cat.id}`)}
+              href={lp(`/category/${cat.slug}`)}
               className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
             >
               {cat.name}

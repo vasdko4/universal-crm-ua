@@ -1244,6 +1244,41 @@ export function getCategoryById(id: number, locale: Locale = 'uk') {
   })
 }
 
+/** Lookup a visible category by its URL slug (preferred public identifier). */
+export function getCategoryBySlug(slug: string, locale: Locale = 'uk') {
+  return cachedQuery(['category-slug', slug, locale], [CACHE_TAGS.categories], async () => {
+    const [row] = await db
+      .select()
+      .from(categories)
+      .where(and(eq(categories.slug, slug), eq(categories.isVisible, true)))
+      .limit(1)
+    if (!row) return null
+    const name =
+      locale === 'ru'
+        ? row.nameRu || row.nameUk
+        : row.nameUk || row.nameRu
+    const description =
+      locale === 'ru'
+        ? row.descriptionRu || row.descriptionUk
+        : row.descriptionUk || row.descriptionRu
+    return { ...row, name, description }
+  })
+}
+
+/**
+ * Resolve a category route param: try slug first, fall back to numeric id
+ * so old /category/123 links keep working.
+ */
+export async function getCategoryBySlugOrId(param: string, locale: Locale = 'uk') {
+  const bySlug = await getCategoryBySlug(param, locale).catch(() => null)
+  if (bySlug) return bySlug
+  const id = Number(param)
+  if (Number.isInteger(id) && id > 0) {
+    return getCategoryById(id, locale).catch(() => null)
+  }
+  return null
+}
+
 /** Minimal product rows for building the sitemap (id + last modified). */
 export async function getSitemapProducts() {
   return db
@@ -1257,7 +1292,7 @@ export async function getSitemapProducts() {
 /** Minimal visible category rows for the sitemap. */
 export async function getSitemapCategories() {
   return db
-    .select({ id: categories.id, updatedAt: categories.updatedAt })
+    .select({ id: categories.id, slug: categories.slug, updatedAt: categories.updatedAt })
     .from(categories)
     .where(eq(categories.isVisible, true))
     .limit(1000)

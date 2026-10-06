@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { CatalogToolbar } from '@/components/shop/catalog-toolbar'
 import { InfiniteProducts } from '@/components/shop/infinite-products'
 import { JsonLd } from '@/components/shop/json-ld'
-import { getCatalogProducts, getCatalogFacets, getCategoryById, getPriceBounds, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
+import { getCatalogProducts, getCatalogFacets, getCategoryBySlugOrId, getPriceBounds, getShopCategories, type CatalogParams } from '@/lib/shop/queries'
 import { parseCharFilters } from '@/lib/shop/catalog-search'
 import { getServerDictionary, getLocale } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -14,20 +14,19 @@ import { getCanonicalSiteUrl, toAbsolute, resolveOgImageUrl, buildBreadcrumbLd }
 
 export const dynamic = 'force-dynamic'
 
-const loadCategory = cache((id: number, locale: 'uk' | 'ru') => getCategoryById(id, locale))
+const loadCategory = cache((slug: string, locale: 'uk' | 'ru') => getCategoryBySlugOrId(slug, locale))
 
 export async function generateMetadata({
   params,
   searchParams,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string }>
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }): Promise<Metadata> {
-  const { id } = await params
-  const categoryId = Number(id)
-  if (!Number.isInteger(categoryId) || categoryId < 1) notFound()
+  const { slug } = await params
+  if (!slug) notFound()
   const locale = await getLocale()
-  const category = await loadCategory(categoryId, locale).catch(() => null)
+  const category = await loadCategory(slug, locale).catch(() => null)
   if (!category) notFound()
   const sp = await searchParams
   const get = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]) as string | undefined
@@ -39,7 +38,7 @@ export async function generateMetadata({
     get('minPrice') != null || get('maxPrice') != null || get('chars') != null
   const description =
     category.description || `${category.name} — більший вибір з доставкою по всій Україні і гарантією.`
-  const path = `/category/${category.id}`
+  const path = `/category/${category.slug}`
   const canonical = localizedPath(path, locale)
   const siteUrl = await getCanonicalSiteUrl()
   const settings = await getStoreSettingsInternal().catch(() => null)
@@ -67,17 +66,17 @@ export default async function CategoryPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string }>
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const { id } = await params
+  const { slug } = await params
   const sp = await searchParams
   const { locale, dict } = await getServerDictionary()
-  const categoryId = Number(id)
-  if (!Number.isInteger(categoryId) || categoryId < 1) notFound()
+  if (!slug) notFound()
 
-  const category = await loadCategory(categoryId, locale)
+  const category = await loadCategory(slug, locale)
   if (!category) notFound()
+  const categoryId = category.id
 
   const siteUrl = await getCanonicalSiteUrl()
   const abs = (path: string) => toAbsolute(siteUrl, path)
@@ -86,7 +85,7 @@ export default async function CategoryPage({
     [
       { name: dict.common.home, path: lp('/') },
       { name: dict.common.catalog, path: lp('/catalog') },
-      { name: category.name, path: lp(`/category/${category.id}`) },
+      { name: category.name, path: lp(`/category/${category.slug}`) },
     ],
     siteUrl,
   )
@@ -150,7 +149,7 @@ export default async function CategoryPage({
           {childCategories.map((cat) => (
             <Link
               key={cat.id}
-              href={lp(`/category/${cat.id}`)}
+              href={lp(`/category/${cat.slug}`)}
               className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
             >
               {cat.name}

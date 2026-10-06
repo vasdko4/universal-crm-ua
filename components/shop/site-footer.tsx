@@ -142,7 +142,7 @@ export function SiteFooter({
           <ul className="space-y-2.5">
             {topCategories.map((c) => (
               <li key={c.id}>
-                <Link href={lp(`/category/${c.id}`)} className="text-sm text-muted-foreground hover:text-primary">
+                <Link href={lp(`/category/${c.slug}`)} className="text-sm text-muted-foreground hover:text-primary">
                   {c.name}
                 </Link>
               </li>
