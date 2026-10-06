@@ -49,6 +49,15 @@ export async function downloadImageLocally(remoteUrl: string): Promise<string | 
         .webp({ quality: 85 })
         .toBuffer()
       await writeFile(filePath, webpBuffer)
+      
+      // Generate 400px thumbnail for product cards — avoids on-the-fly
+      // Next.js resize on first page load (major speedup for catalog)
+      const thumbName = fileName.replace(/\.webp$/, '-thumb.webp')
+      const thumbBuffer = await sharp(buffer)
+        .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 75 })
+        .toBuffer()
+      await writeFile(join(LOCAL_UPLOAD_DIR, thumbName), thumbBuffer)
     }
     
     return `${LOCAL_URL_PREFIX}${fileName}`

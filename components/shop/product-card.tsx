@@ -19,6 +19,15 @@ import { cn } from '@/lib/utils'
 
 const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 20vw, 16vw'
 
+/** Get thumbnail URL for product cards (400px, pre-generated during import).
+ *  Falls back to original if thumbnail doesn't exist (old imports). */
+function thumbUrl(src: string): string {
+  if (src.startsWith('/uploads/products/') && src.endsWith('.webp') && !src.endsWith('-thumb.webp')) {
+    return src.replace(/\.webp$/, '-thumb.webp')
+  }
+  return src
+}
+
 export function ProductCard({ product, priority = false }: { product: ShopProduct; priority?: boolean }) {
   const { add } = useCart()
   const router = useRouter()
@@ -100,11 +109,11 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
           {primary ? (
             <>
               <Image
-                src={primary || '/placeholder.svg'}
+                src={thumbUrl(primary) || '/placeholder.svg'}
                 alt={product.name}
                 fill
                 sizes={IMAGE_SIZES}
-                quality={70}
+                quality={75}
                 priority={priority}
                 unoptimized={isProxiedMedia(primary)}
                 loading={priority ? 'eager' : 'lazy'}
@@ -115,7 +124,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
               />
               {hoverImage && showHover && (
                 <Image
-                  src={hoverImage}
+                  src={thumbUrl(hoverImage)}
                   alt=""
                   fill
                   sizes={IMAGE_SIZES}
