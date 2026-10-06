@@ -147,8 +147,11 @@ jobs:
       actions: read     # read the workflow path
       id-token: write   # sign the provenance (Sigstore)
       contents: write   # upload the attestation to the release
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+      packages: write   # read the image from GHCR
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      base64-subjects: ${{ needs.build.outputs.hashes }}
-      upload-assets: true
-      provenance-name: techno-store.intoto.jsonl
+      image: ${{ needs.build.outputs.image }}
+      digest: ${{ needs.build.outputs.digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
