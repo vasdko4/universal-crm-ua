@@ -73,13 +73,11 @@ let persistWarningLogged = false
 
 /**
  * Best-effort persistence so the token survives restarts and the admin can
- * find it in `.setup-token`. Skipped on read-only hosts (Vercel mounts
- * /var/task read-only): there the token lives only in this instance's
- * memory, so a fresh hosted install must set SETUP_TOKEN explicitly.
- * Logs at most once per instance instead of on every cold start.
+ * find it in `.setup-token`. Logs at most once per instance instead of on
+ * every cold start.
  */
 function persistSetupToken(token: string): void {
-  if (persistWarningLogged || process.env.VERCEL) return
+  if (persistWarningLogged) return
   persistWarningLogged = true
   try {
     writeFileSync(TOKEN_FILE, `${token}\n`, { encoding: 'utf8', mode: 0o600 })

@@ -273,7 +273,7 @@ const uk: SetupDictionary = {
     alreadyInstalled:
       'Встановлення вже виконано. Підключення до БД змінюється через .env.local на сервері.',
     setupTokenRequired:
-      'Потрібен токен встановлення. На Vercel задайте SETUP_TOKEN у змінних середовища; на власному сервері використайте SETUP_TOKEN або файл .setup-token.',
+      'Потрібен токен встановлення. Використайте SETUP_TOKEN з .env або файл .setup-token на сервері.',
     invalidPostgres: 'Вкажіть коректні дані підключення до PostgreSQL',
     dbNameRequired: 'Вкажіть назву бази даних',
     connectFailed: 'Не вдалося підключитися до бази. Перевірте хост, порт і пароль.',
@@ -445,7 +445,7 @@ const ru: SetupDictionary = {
     alreadyInstalled:
       'Установка уже выполнена. Подключение к БД меняется через .env.local на сервере.',
     setupTokenRequired:
-      'Нужен токен установки. На Vercel задайте SETUP_TOKEN в переменных окружения; на собственном сервере используйте SETUP_TOKEN или файл .setup-token.',
+      'Нужен токен установки. Используйте SETUP_TOKEN из .env или файл .setup-token на сервере.',
     invalidPostgres: 'Укажите корректные данные подключения к PostgreSQL',
     dbNameRequired: 'Укажите имя базы данных',
     connectFailed: 'Не удалось подключиться к базе. Проверьте хост, порт и пароль.',

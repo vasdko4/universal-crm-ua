@@ -91,7 +91,7 @@ export type SetupInput = {
 
 /**
  * Auto-detects the store's public domain from the incoming request headers.
- * Works on any hosting (Vercel, VPS behind nginx, shared hosting) because the
+ * Works on any hosting (VPS behind nginx, shared hosting) because the
  * install request itself always arrives at the real domain. Local/preview
  * hosts return '' so the runtime env fallback is used instead.
  */
