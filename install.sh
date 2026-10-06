@@ -363,6 +363,7 @@ services:
       - "3000:3000"
     volumes:
       - magazine_uploads:/app/public/uploads
+      - ./.setup-token:/app/.setup-token:ro
     environment:
       DATABASE_URL: postgres://techno:\${POSTGRES_PASSWORD}@db:5432/magazine
       BETTER_AUTH_SECRET: \${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
@@ -371,6 +372,7 @@ services:
       NEXT_PUBLIC_SITE_URL: \${NEXT_PUBLIC_SITE_URL:-}
       UPDATER_URL: \${UPDATER_URL:-http://updater:8787}
       UPDATER_SECRET: \${UPDATER_SECRET:-}
+      SETUP_TOKEN: \${SETUP_TOKEN:-}
     command: >
       sh -c "node scripts/db-setup.mjs && node server.js"
     healthcheck:
