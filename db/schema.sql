@@ -648,7 +648,7 @@ CREATE TABLE IF NOT EXISTS "store_settings" (
   "store_description" text,
   "logo_url" varchar(500),
   "favicon_url" varchar(500),
-  "open_cart_after_add" boolean DEFAULT true NOT NULL,
+  "open_cart_after_add" boolean DEFAULT false NOT NULL,
   "storefront_cache_enabled" boolean DEFAULT false NOT NULL,
   "default_locale" varchar(5) DEFAULT 'uk'::character varying NOT NULL,
   "locale_prompt_mode" varchar(20) DEFAULT 'browser'::character varying NOT NULL,
