@@ -231,7 +231,7 @@ export default async function HomePage() {
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-7">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
             {popularCards.map((p, i) => (
               // Only the first row is eager: everything below the fold is
               // lazy-loaded by next/image.
@@ -250,7 +250,7 @@ export default async function HomePage() {
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-7">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
             {discountedCards.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -266,7 +266,7 @@ export default async function HomePage() {
             initialItems={allProductCards}
             total={allProducts.total}
             params={allProductsParams}
-            gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-7"
+            gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6"
           />
         </section>
       )}
