@@ -647,8 +647,13 @@ export async function continuePromImport(taskId: number) {
         await db.delete(productCharacteristics).where(eq(productCharacteristics.productId, productId))
         await db.delete(productVariants).where(eq(productVariants.productId, productId))
       } else {
-        const insertedRows: { id: number }[] = await db.insert(products).values(values).returning({ id: products.id })
-        productId = insertedRows[0].id
+        try {
+          const insertedRows: { id: number }[] = await db.insert(products).values(values).returning({ id: products.id })
+          productId = insertedRows[0].id
+        } catch (dbError) {
+          const msg = dbError instanceof Error ? dbError.message : String(dbError)
+          throw new Error(`DB insert failed for "${p.nameUk}" (promId ${item.id}, slug "${slug}"): ${msg}`)
+        }
       }
 
       if (variants.length > 0) {
