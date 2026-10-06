@@ -167,7 +167,7 @@ export const DEFAULTS: StoreSettingsData = {
   storeDescription: '',
   logoUrl: null,
   faviconUrl: null,
-  openCartAfterAdd: false,
+  openCartAfterAdd: true,
   storefrontCacheEnabled: false,
   defaultLocale: 'uk',
   localePromptMode: 'browser',

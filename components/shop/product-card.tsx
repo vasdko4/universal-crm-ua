@@ -5,7 +5,6 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Check, ShoppingCart } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import type { ShopProduct } from '@/lib/shop/queries'
@@ -79,7 +78,6 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
       },
       1,
     )
-    toast.success(dict.product.addedToCart, { description: product.name })
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
   }

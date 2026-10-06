@@ -125,9 +125,6 @@ export function ProductPurchasePanel({
   function addToCart() {
     if (!ensureReady()) return
     add(buildItem(), qty)
-    toast.success(
-      selectedVariant ? `${tp.addedToCartVariant} (${variantLabel(selectedVariant)})` : tp.addedToCart,
-    )
   }
 
   return (

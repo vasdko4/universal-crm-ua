@@ -71,7 +71,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     <LocaleProvider locale={locale}>
       <CartProvider
         gaId={settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined}
-        openCartAfterAdd={settings?.openCartAfterAdd ?? false}
+        openCartAfterAdd={settings?.openCartAfterAdd ?? true}
       >
         <FavoritesProvider>
           <AuthDialogProvider googleEnabled={googleAuthEnabled}>
