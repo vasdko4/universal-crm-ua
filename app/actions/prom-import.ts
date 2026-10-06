@@ -475,7 +475,14 @@ export async function continuePromImport(taskId: number) {
     try {
       // Same politeness delay as the discovery loop / original scrape script.
       await new Promise((r) => setTimeout(r, 400))
-      const detailed = await fetchProductDetailed(state.origin, item)
+      // Speedup: check if product already exists BEFORE fetching from Prom.ua.
+      // Existing products skip the RU page (fallback only) — halves requests.
+      const [alreadyExists] = await db
+        .select({ id: products.id })
+        .from(products)
+        .where(and(eq(products.promId, item.id), isNull(products.deletedAt)))
+        .limit(1)
+      const detailed = await fetchProductDetailed(state.origin, item, !!alreadyExists)
       if (!detailed.ok) {
         throw new Error(`не вдалося завантажити сторінку товару (${detailed.reason}: ${detailed.url})`)
       }

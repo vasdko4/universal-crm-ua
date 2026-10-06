@@ -359,8 +359,10 @@ export async function fetchProduct(origin: string, item: PromListItem): Promise<
   return result.ok ? result.product : null
 }
 
-/** Same as fetchProduct but returns the failure reason for logging. */
-export async function fetchProductDetailed(origin: string, item: PromListItem): Promise<FetchProductResult> {
+/** Same as fetchProduct but returns the failure reason for logging.
+ *  skipRu: for re-imports of existing products, skip the RU page fetch
+ *  (it's only a fallback for name/description) to halve the requests. */
+export async function fetchProductDetailed(origin: string, item: PromListItem, skipRu = false): Promise<FetchProductResult> {
   const urlUk = `${origin}${productPath(item)}`
   const fetchedUk = await fetchHtml(urlUk)
   if (!fetchedUk) return { ok: false, reason: 'fetch_failed', url: urlUk }
@@ -370,11 +372,13 @@ export async function fetchProductDetailed(origin: string, item: PromListItem): 
   if (!pUk) return { ok: false, reason: 'parse_failed', url: fetchedUk.finalUrl }
   const variationItems = stateUk ? getVariationItems(stateUk).filter((v) => v.promId !== pUk.promId) : []
 
+  // RU page is only a fallback for name/description — skip it on re-imports
+  // of existing products to halve the HTTP requests.
   const urlRu = `${origin}${productPath(item).replace(/^\/ua/, '')}`
-  const fetchedRu = await fetchHtml(urlRu, 'ru,uk;q=0.8')
+  const fetchedRu = skipRu ? null : await fetchHtml(urlRu, 'ru,uk;q=0.8')
   const pRu = fetchedRu ? parseProductCard(getProductCard(extractApolloState(fetchedRu.html) ?? {})) : null
 
-  const metaUk = fetchedUk ? extractHeadMeta(fetchedUk.html) : { title: '', description: '' }
+  const metaUk = extractHeadMeta(fetchedUk.html)
   const metaRu = fetchedRu ? extractHeadMeta(fetchedRu.html) : { title: '', description: '' }
 
   return {
