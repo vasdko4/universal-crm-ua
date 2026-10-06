@@ -32,6 +32,7 @@ import {
   type SizeFamilyState,
 } from '@/lib/prom-import/size-families'
 import { cleanUkrainianDescription, findCapacityMismatch } from '@/lib/prom-import/hygiene'
+import { downloadImagesLocally } from '@/lib/prom-import/download-images'
 
 // Safety cap: a Prom.ua shop can have thousands of listings. Importing that
 // many product pages one at a time (2 fetches each, for uk+ru) would take
@@ -590,6 +591,9 @@ export async function continuePromImport(taskId: number) {
       }
       const isInStock = anyInStock
 
+      // Download images to local /uploads — remote URLs are never stored.
+      const localImages = await downloadImagesLocally(p.images || [])
+
       const values = {
         nameUk: p.nameUk || null,
         nameRu: p.nameRu || null,
@@ -616,8 +620,8 @@ export async function continuePromImport(taskId: number) {
         quantity: isInStock ? 1 : 0,
         stockStatus: isInStock ? 'В наявності' : 'Немає в наявності',
         isInStock,
-        image: p.images[0] || null,
-        images: p.images,
+        image: localImages[0] || null,
+        images: localImages,
         options,
         sizes: sizesFromOptions(options),
         variantsEnabled: variants.length > 0,
