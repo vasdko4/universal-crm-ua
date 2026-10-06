@@ -446,6 +446,15 @@ if grep -qE '^DOMAIN=[^[:space:]]+' .env 2>/dev/null; then
   PROFILES="${PROFILES:+${PROFILES},}proxy"
 fi
 
+# Explicitly export .env variables so docker compose definitely sees them.
+# (docker compose loads .env automatically, but if that fails silently —
+# e.g. unusual shell env — the app container would miss SETUP_TOKEN and
+# the /setup wizard would reject the token from the install output.)
+set -a
+# shellcheck disable=SC1091
+. ./.env
+set +a
+
 set +e
 COMPOSE_PROFILES="$PROFILES" docker_bin compose pull
 PULL_RC=$?
