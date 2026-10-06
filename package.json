@@ -3,6 +3,11 @@
   "private": true,
   "version": "3.0.8",
   "packageManager": "pnpm@10.34.5",
+  "pnpm": {
+    "overrides": {
+      "source-map-js": "^1.2.2"
+    }
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
