@@ -77,7 +77,7 @@ let persistWarningLogged = false
  * every cold start.
  */
 function persistSetupToken(token: string): void {
-  if (persistWarningLogged) return
+  if (persistWarningLogged || process.env.VERCEL) return
   persistWarningLogged = true
   try {
     writeFileSync(TOKEN_FILE, `${token}\n`, { encoding: 'utf8', mode: 0o600 })
