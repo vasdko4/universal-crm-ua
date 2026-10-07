@@ -2,6 +2,10 @@ import type { MetadataRoute } from 'next'
 import { getCanonicalSiteUrl } from '@/lib/seo'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 
+// Must always reflect the current store domain from DB settings.
+// force-dynamic so a stale cached robots.txt never serves localhost URLs.
+export const dynamic = 'force-dynamic'
+
 // Uses the domain configured in store settings; honors the global indexing
 // switch (pre-launch stores can stay fully hidden from crawlers).
 export default async function robots(): Promise<MetadataRoute.Robots> {
