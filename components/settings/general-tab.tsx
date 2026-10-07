@@ -101,6 +101,17 @@ export function GeneralSection({ data, setData, t }: SectionProps) {
         />
       </div>
 
+      <div className="flex items-center justify-between rounded-lg border border-border p-4">
+        <div>
+          <p className="text-sm font-medium text-foreground">{t.sessionBindingTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.sessionBindingDesc}</p>
+        </div>
+        <Switch
+          checked={data.sessionBindingEnabled}
+          onCheckedChange={(v) => setData((d) => ({ ...d, sessionBindingEnabled: v }))}
+        />
+      </div>
+
       <div className="rounded-lg border border-border p-4">
         <div className="flex items-center justify-between">
           <div>

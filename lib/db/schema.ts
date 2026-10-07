@@ -675,6 +675,9 @@ export const storeSettings = pgTable('store_settings', {
   openCartAfterAdd: boolean('open_cart_after_add').notNull().default(true),
   // Weak-VPS mode: longer storefront query cache (catalog/product/category).
   storefrontCacheEnabled: boolean('storefront_cache_enabled').notNull().default(false),
+  // Anti-stealer: bind admin sessions to IP (/24) + User-Agent. Stolen cookies
+  // from another machine/browser kill the session (Настройки → Безпека).
+  sessionBindingEnabled: boolean('session_binding_enabled').notNull().default(true),
   defaultLocale: varchar('default_locale', { length: 5 }).notNull().default('uk'),
   // First-visit language: 'modal' asks the shopper, 'browser' uses Accept-Language.
   localePromptMode: varchar('locale_prompt_mode', { length: 20 }).notNull().default('browser'),

@@ -117,6 +117,7 @@ export type StoreSettingsData = {
   faviconUrl: string | null
   openCartAfterAdd: boolean
   storefrontCacheEnabled: boolean
+  sessionBindingEnabled: boolean
   defaultLocale: string
   localePromptMode: 'modal' | 'browser'
   activeTemplate: string
@@ -169,6 +170,7 @@ export const DEFAULTS: StoreSettingsData = {
   faviconUrl: null,
   openCartAfterAdd: true,
   storefrontCacheEnabled: false,
+  sessionBindingEnabled: true,
   defaultLocale: 'uk',
   localePromptMode: 'browser',
   activeTemplate: 'classic',
@@ -467,6 +469,10 @@ export function normalizeStoreSettingsRow(row: unknown): StoreSettingsData {
     storefrontCacheEnabled: asBool(
       col(src, 'storefrontCacheEnabled', 'storefront_cache_enabled'),
       DEFAULTS.storefrontCacheEnabled,
+    ),
+    sessionBindingEnabled: asBool(
+      col(src, 'sessionBindingEnabled', 'session_binding_enabled'),
+      DEFAULTS.sessionBindingEnabled,
     ),
     defaultLocale: asString(col(src, 'defaultLocale', 'default_locale'), DEFAULTS.defaultLocale) || 'uk',
     localePromptMode: col(src, 'localePromptMode', 'locale_prompt_mode') === 'modal' ? 'modal' : 'browser',

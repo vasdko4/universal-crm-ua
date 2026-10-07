@@ -433,6 +433,10 @@ CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON public.categories (parent
 ALTER TABLE public.store_settings
   ADD COLUMN IF NOT EXISTS storefront_cache_enabled boolean NOT NULL DEFAULT false;
 
+-- Anti-stealer session binding (Settings → Security). Enabled by default.
+ALTER TABLE public.store_settings
+  ADD COLUMN IF NOT EXISTS session_binding_enabled boolean NOT NULL DEFAULT true;
+
 -- One live promocode per code (FIX-14).
 CREATE UNIQUE INDEX IF NOT EXISTS promotions_promo_code_unique
   ON promotions (UPPER(promo_code))

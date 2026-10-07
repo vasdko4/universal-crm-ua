@@ -538,6 +538,8 @@ export type AdminDictionary = {
     openCartDesc: string
     storefrontCacheTitle: string
     storefrontCacheDesc: string
+    sessionBindingTitle: string
+    sessionBindingDesc: string
     minOrderTitle: string
     minOrderDesc: string
     minOrderAmountLabel: string
@@ -2415,6 +2417,9 @@ const uk: AdminDictionary = {
     storefrontCacheTitle: 'Кеш вітрини для слабкого VPS',
     storefrontCacheDesc:
       'Тримати відповіді каталогу, товару й категорій 1 годину. Зменшує навантаження на Postgres. Ціна й залишок можуть запізнитися до години, поки не зберете товар у адмінці. Кошик і оформлення лишаються живими.',
+    sessionBindingTitle: 'Захист сесії від крадіжки (анти-стіллер)',
+    sessionBindingDesc:
+      "Прив'язує сесію адмінки до IP та браузера. Якщо куки вкрадуть стіллером і спробують зайти з іншого ПК — сесія згорить, треба буде увійти знову. Вимкніть, якщо у вас часто змінюється IP (мобільний інтернет).",
     minOrderTitle: 'Мінімальна сума замовлення',
     minOrderDesc: 'Заборонити оформлення замовлення, якщо сума товарів менша за поріг',
     minOrderAmountLabel: 'Мінімальна сума, ₴',
@@ -4321,6 +4326,9 @@ const ru: AdminDictionary = {
     storefrontCacheTitle: 'Кэш витрины для слабого VPS',
     storefrontCacheDesc:
       'Держать ответы каталога, товара и категорий 1 час. Снижает нагрузку на Postgres. Цена и остаток могут отставать до часа, пока не сохраните товар в админке. Корзина и оформление остаются живыми.',
+    sessionBindingTitle: 'Защита сессии от кражи (анти-стиллер)',
+    sessionBindingDesc:
+      'Привязывает сессию админки к IP и браузеру. Если куки украдут стиллером и попробуют зайти с другого ПК — сессия сгорит, нужно будет войти заново. Отключите, если у вас часто меняется IP (мобильный интернет).',
     minOrderTitle: 'Минимальная сумма заказа',
     minOrderDesc: 'Запретить оформление заказа, если сумма товаров меньше порога',
     minOrderAmountLabel: 'Минимальная сумма, ₴',

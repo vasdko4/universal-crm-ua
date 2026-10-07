@@ -110,6 +110,7 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
     faviconUrl: merged.faviconUrl,
     openCartAfterAdd: merged.openCartAfterAdd,
     storefrontCacheEnabled: merged.storefrontCacheEnabled,
+    sessionBindingEnabled: merged.sessionBindingEnabled,
     defaultLocale: merged.defaultLocale,
     localePromptMode: merged.localePromptMode === 'modal' ? 'modal' : 'browser',
     activeTemplate: merged.activeTemplate,

@@ -21,8 +21,16 @@ import { isLocale } from '@/lib/i18n/config'
 async function validateSessionBinding(
   session: { session: { id: string; ipAddress?: string | null; userAgent?: string | null } },
 ): Promise<boolean> {
-  // Can be disabled via env for networks with rotating IPs (mobile, etc.)
+  // Kill-switch: env var (for emergencies) or admin setting (Настройки → Безпека).
   if (process.env.DISABLE_SESSION_BINDING === '1') return true
+  try {
+    const { rows } = await pool.query<{ session_binding_enabled: boolean | null }>(
+      'SELECT session_binding_enabled FROM store_settings WHERE id = 1',
+    )
+    if (rows[0] && rows[0].session_binding_enabled === false) return true
+  } catch {
+    // Table/column may not exist yet — fall through to binding check.
+  }
   try {
     const h = await headers()
     const currentIp = clientIpFromHeaders(h)
