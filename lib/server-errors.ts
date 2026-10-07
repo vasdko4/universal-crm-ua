@@ -95,20 +95,12 @@ export async function reportError(
     }
 
     const context = safeContext(opts.context)
-    let errorMessage = ''
-    try {
-      if (error instanceof Error) errorMessage = error.message
-      else if (typeof error === 'string') errorMessage = error
-    } catch {
-      // ignore
-    }
     try {
       console.error(
         JSON.stringify({
           level: 'error',
           tag: normalizedTag,
           errorType,
-          message: errorMessage.slice(0, 500),
           ...context,
         }),
       )

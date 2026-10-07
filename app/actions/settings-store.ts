@@ -210,3 +210,33 @@ export async function getGoogleAuthEnabled(): Promise<boolean> {
   }
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
 }
+
+/**
+ * Sends a test email using the current SMTP settings.
+ * Returns the result so the admin UI can show success or the exact error.
+ */
+export async function sendTestEmail(to: string): Promise<{ success: boolean; message: string }> {
+  await assertWritePermission('settings')
+  const { sendMail } = await import('@/lib/mailer')
+  const { getStoreSettingsInternal } = await import('@/lib/store-settings')
+  const settings = await getStoreSettingsInternal()
+  const fromName = settings.storeName || 'PowerFox'
+
+  try {
+    const result = await sendMail({
+      to: to.trim(),
+      subject: `Тестовий лист — ${fromName}`,
+      text: `Це тестовий лист з ${fromName}. SMTP налаштовано правильно.`,
+      html: `<p>Це тестовий лист з <strong>${fromName}</strong>. SMTP налаштовано правильно.</p>`,
+    })
+    if (result.sent) {
+      return { success: true, message: 'Тестовий лист відправлено' }
+    }
+    return { success: false, message: 'SMTP не налаштовано — лист не відправлено' }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    // Sanitize: don't leak the full error which might contain credentials
+    const safe = msg.replace(/pass\w*["']?\s*[:=]\s*["']?[^"'\s,}]+/gi, 'pass=[hidden]')
+    return { success: false, message: `Помилка: ${safe.slice(0, 300)}` }
+  }
+}

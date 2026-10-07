@@ -63,6 +63,26 @@ export function EmailSection({ data, setData, t }: SectionProps) {
   const e = data.emailSettings
   const set = (patch: Partial<StoreSettingsData['emailSettings']>) =>
     setData((d) => ({ ...d, emailSettings: { ...d.emailSettings, ...patch } }))
+  const [testEmail, setTestEmail] = useState('')
+  const [sending, setSending] = useState(false)
+
+  async function handleTestEmail() {
+    if (!testEmail.trim()) {
+      toast.error('Вкажіть email для тесту')
+      return
+    }
+    setSending(true)
+    try {
+      const { sendTestEmail } = await import('@/app/actions/settings-store')
+      const result = await sendTestEmail(testEmail.trim())
+      if (result.success) toast.success(result.message)
+      else toast.error(result.message)
+    } catch (err) {
+      toast.error('Помилка відправки')
+    } finally {
+      setSending(false)
+    }
+  }
 
   return (
     <div className="flex max-w-xl flex-col gap-5">
@@ -193,6 +213,26 @@ export function EmailSection({ data, setData, t }: SectionProps) {
             <span className="font-semibold text-foreground">{t.dnsImportantLabel}</span> — {t.dnsImportant}
           </li>
         </ul>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+        <p className="text-sm font-medium text-foreground">Тестовий лист</p>
+        <p className="text-xs text-muted-foreground">
+          Відправить тестовий лист через поточні SMTP-налаштування
+        </p>
+        <div className="flex gap-2">
+          <Input
+            type="email"
+            placeholder="email@example.com"
+            value={testEmail}
+            onChange={(ev) => setTestEmail(ev.target.value)}
+            className="flex-1"
+          />
+          <Button onClick={handleTestEmail} disabled={sending} variant="outline">
+            {sending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+            <span className="ml-2">Надіслати</span>
+          </Button>
+        </div>
       </div>
     </div>
   )
