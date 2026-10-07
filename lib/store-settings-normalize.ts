@@ -450,7 +450,7 @@ function mergeSocial(stored: unknown): StoreSettingsData['social'] {
 export function stripSecrets(s: StoreSettingsData): StoreSettingsData {
   return {
     ...s,
-    emailSettings: { ...s.emailSettings, smtpUser: '', smtpPassword: '', dkimPrivateKey: '' },
+    emailSettings: { ...s.emailSettings, smtpPassword: '', dkimPrivateKey: '' },
     notifications: { ...s.notifications, telegramBotToken: '', telegramChatId: '' },
     googleAuth: { ...s.googleAuth, clientSecret: '' },
   }
