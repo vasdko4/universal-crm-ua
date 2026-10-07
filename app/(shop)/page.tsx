@@ -150,14 +150,45 @@ export default async function HomePage() {
   const storeName = settings?.storeName || 'Інтернет-магазин'
   const lp = (path: string) => localizedPath(path, locale)
   const siteUrl = await getCanonicalSiteUrl()
+
+  // Build Organization with trust signals: contact point, social profiles,
+  // and address help Google verify the business (E-E-A-T).
+  const phones = (settings?.contact?.phones || []).filter((p: string) => p?.trim())
+  const socialLinks = [
+    settings?.social?.instagram?.url,
+    settings?.social?.telegram?.url,
+    settings?.social?.viber?.url,
+    settings?.social?.tiktok?.url,
+  ].filter((u): u is string => !!u?.trim())
+  const contactEmail = settings?.emailSettings?.fromEmail?.trim()
+
+  const organization: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: storeName,
+    url: siteUrl,
+    logo: toAbsolute(siteUrl, settings?.logoUrl || '/hero-electronics.png'),
+  }
+  if (phones.length > 0 || contactEmail) {
+    organization.contactPoint = {
+      '@type': 'ContactPoint',
+      ...(phones[0] ? { telephone: phones[0] } : {}),
+      ...(contactEmail ? { email: contactEmail } : {}),
+      contactType: 'customer service',
+      availableLanguage: ['uk', 'ru'],
+    }
+  }
+  if (socialLinks.length > 0) organization.sameAs = socialLinks
+  const addressStr = settings?.contact?.address?.trim()
+  if (addressStr) {
+    organization.address = {
+      '@type': 'PostalAddress',
+      streetAddress: addressStr,
+    }
+  }
+
   const structuredData = [
-    {
-      '@context': 'https://schema.org',
-      '@type': 'Organization',
-      name: storeName,
-      url: siteUrl,
-      logo: toAbsolute(siteUrl, settings?.logoUrl || '/hero-electronics.png'),
-    },
+    organization,
     {
       '@context': 'https://schema.org',
       '@type': 'WebSite',

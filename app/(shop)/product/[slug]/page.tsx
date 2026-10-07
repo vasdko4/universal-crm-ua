@@ -43,6 +43,43 @@ function plainText(html: string | null, max = 160): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
+/**
+ * Builds a unique SEO description from structured product data when the
+ * admin-written description is empty. Combines name, brand, top specs and
+ * category — each product gets distinct content instead of a generic template.
+ */
+function buildUniqueSeoDescription(opts: {
+  name: string
+  brand?: string | null
+  specs: Array<{ name: string; value: string }>
+  categoryName?: string
+  price: string
+  locale: 'uk' | 'ru'
+}): string {
+  const { name, brand, specs, categoryName, price, locale } = opts
+  const parts: string[] = []
+  const isUk = locale === 'uk'
+
+  // Lead with name + brand (unique per product).
+  parts.push(brand ? `${name} ${brand}` : name)
+
+  // Add up to 3 key specs for uniqueness and long-tail keywords.
+  const topSpecs = specs
+    .filter((s) => s.name && s.value)
+    .slice(0, 3)
+    .map((s) => `${s.name}: ${s.value}`)
+  if (topSpecs.length > 0) parts.push(topSpecs.join(', '))
+
+  // Category context + CTA with price.
+  const buy = isUk ? 'Купити' : 'Купить'
+  const delivery = isUk ? 'з доставкою по Україні' : 'с доставкой по Украине'
+  const cat = categoryName ? ` ${isUk ? 'в категорії' : 'в категории'} «${categoryName}»` : ''
+  parts.push(`${buy} ${delivery}${cat}. ${isUk ? 'Ціна' : 'Цена'}: ${price}.`)
+
+  const text = parts.join('. ').replace(/\.\.+/g, '.')
+  return text.length > 160 ? `${text.slice(0, 159)}…` : text
+}
+
 // Old links were `/product/<numeric id>` — keep them working by resolving to
 // the current slug instead of 404ing bookmarks/backlinks/indexed search
 // results from before this URL format existed.
@@ -58,12 +95,19 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const locale = await getLocale()
   const data = await loadProduct(slug, locale).catch(() => null)
   if (!data) notFound()
-  const { product } = data
+  const { product, characteristics, categories } = data
   const title = stripPromMarketplaceCopy(product.metaTitle?.trim() || '') || product.name
   const description =
     stripPromMarketplaceCopy(product.metaDescription?.trim() || '') ||
     plainText(product.description) ||
-    `${product.name} — купить с доставкой по Украине. ${formatPrice(product.price, product.currency, locale)}.`
+    buildUniqueSeoDescription({
+      name: product.name,
+      brand: extractBrand(characteristics),
+      specs: characteristics,
+      categoryName: categories[0]?.name,
+      price: formatPrice(product.price, product.currency, locale),
+      locale,
+    })
   const path = `/product/${product.slug}`
   const canonical = localizedPath(path, locale)
   const siteUrl = await getCanonicalSiteUrl()
@@ -155,7 +199,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     '@type': 'Product',
     name: product.name,
     image: images,
-    description: plainText(product.description, 500) || product.name,
+    description: plainText(product.description, 500) || buildUniqueSeoDescription({
+      name: product.name,
+      brand,
+      specs: characteristics,
+      categoryName: categories[0]?.name,
+      price: formatPrice(product.price, product.currency, locale),
+      locale,
+    }),
     ...(product.sku ? { sku: product.sku, mpn: product.sku } : {}),
     ...(gtin ? { gtin } : {}),
     ...(brand ? { brand: { '@type': 'Brand', name: brand } } : {}),
