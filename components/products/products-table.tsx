@@ -421,7 +421,7 @@ export function ProductsTable({
         </div>
       )}
 
-      <div className="max-h-[70vh] overflow-x-hidden overflow-y-auto rounded-lg border bg-card">
+      <div className="max-h-[70vh] overflow-auto rounded-lg border bg-card">
         <Table>
           <TableHeader className="sticky top-0 z-10">
             <TableRow className="bg-muted hover:bg-muted">
