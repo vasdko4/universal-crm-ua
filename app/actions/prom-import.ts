@@ -468,6 +468,7 @@ export async function continuePromImport(taskId: number) {
   }
   let success = 0
   let failed = 0
+  let skipped = 0
   const errors: string[] = []
   // Non-fatal hygiene flags (e.g. title/body capacity contradiction): the
   // product still imports, but the warning lands in the task log for review.
@@ -483,9 +484,9 @@ export async function continuePromImport(taskId: number) {
         .where(and(eq(products.promId, item.id), isNull(products.deletedAt)))
         .limit(1)
       // When skipExisting is on, don't re-fetch or re-process products
-      // already in the catalog — count them as done and move on.
+      // already in the catalog — count them as skipped, not successful.
       if (state.skipExisting && alreadyExists) {
-        success++
+        skipped++
         continue
       }
       // Same politeness delay as the discovery loop / original scrape script.
@@ -526,7 +527,7 @@ export async function continuePromImport(taskId: number) {
       const family = [item.id, ...p.variationItems.map((v) => v.promId)]
       const canonicalId = Math.min(...family)
       if (family.length > 1 && canonicalId !== item.id) {
-        success++
+        skipped++
         continue
       }
 
