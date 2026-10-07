@@ -342,6 +342,7 @@ export type AdminDictionary = {
     nameRu: string
     nameUk: string
     descriptionRu: string
+    descriptionUk: string
     parentCategory: string
     cascaderHint: string
     rootPlaceholder: string
@@ -391,6 +392,7 @@ export type AdminDictionary = {
     nameRu: string
     nameUk: string
     descriptionRu: string
+    descriptionUk: string
     sortOrder: string
     isActive: string
     cancel: string
@@ -2219,6 +2221,7 @@ const uk: AdminDictionary = {
     nameRu: 'Назва (RU) *',
     nameUk: 'Назва (UK) *',
     descriptionRu: 'Опис (RU)',
+    descriptionUk: 'Опис (UK)',
     parentCategory: 'Батьківська категорія',
     cascaderHint: 'Оберіть головну категорію, потім дочірню — до самої кінцевої.',
     rootPlaceholder: 'Головна категорія',
@@ -2268,6 +2271,7 @@ const uk: AdminDictionary = {
     nameRu: 'Назва (RU) *',
     nameUk: 'Назва (UK) *',
     descriptionRu: 'Опис (RU)',
+    descriptionUk: 'Опис (UK)',
     sortOrder: 'Порядок сортування',
     isActive: 'Активна',
     cancel: 'Скасувати',
@@ -4128,6 +4132,7 @@ const ru: AdminDictionary = {
     nameRu: 'Название (RU) *',
     nameUk: 'Название (UK) *',
     descriptionRu: 'Описание (RU)',
+    descriptionUk: 'Описание (UK)',
     parentCategory: 'Родительская категория',
     cascaderHint: 'Выберите главную категорию, затем дочернюю — до самой конечной.',
     rootPlaceholder: 'Главная категория',
@@ -4177,6 +4182,7 @@ const ru: AdminDictionary = {
     nameRu: 'Название (RU) *',
     nameUk: 'Название (UK) *',
     descriptionRu: 'Описание (RU)',
+    descriptionUk: 'Описание (UK)',
     sortOrder: 'Порядок сортировки',
     isActive: 'Активна',
     cancel: 'Отмена',

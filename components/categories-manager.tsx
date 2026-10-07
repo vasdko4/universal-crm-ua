@@ -323,6 +323,15 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                 onChange={(e) => setForm((f) => ({ ...f, descriptionRu: e.target.value }))}
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="catDescUk">{t.descriptionUk}</Label>
+              <Textarea
+                id="catDescUk"
+                rows={2}
+                value={form.descriptionUk}
+                onChange={(e) => setForm((f) => ({ ...f, descriptionUk: e.target.value }))}
+              />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label>{t.parentCategory}</Label>
