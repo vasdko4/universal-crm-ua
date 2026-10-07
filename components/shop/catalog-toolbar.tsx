@@ -237,7 +237,14 @@ export function CatalogToolbar({
                     {selected.length > 0 ? ` (${selected.length})` : ''}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-56 p-2">
+                <PopoverContent
+                  align="start"
+                  side="bottom"
+                  sideOffset={8}
+                  collisionPadding={12}
+                  avoidCollisions
+                  className="w-56 p-2"
+                >
                   <p className="px-1 pb-2 text-sm font-medium text-foreground">{label}</p>
                   <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
                     {facet.values.map((v) => {

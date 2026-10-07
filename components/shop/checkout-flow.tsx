@@ -96,6 +96,7 @@ export function CheckoutFlow({
 
   const {
     items: cartItems,
+    isReady: cartReady,
     setQuantity,
     remove,
     clear,
@@ -673,6 +674,19 @@ export function CheckoutFlow({
 
   if (done) {
     return <OrderSuccess result={done} snapshot={orderSnapshot} />
+  }
+
+  // Cart hydrates from localStorage on the client — don't flash "empty cart"
+  // before it's ready.
+  if (!cartReady && !buyNow) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card px-6 py-20 text-center">
+        <div className="size-10 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
+        <p className="mt-4 text-sm text-muted-foreground">
+          {locale === 'ru' ? 'Загрузка…' : 'Завантаження…'}
+        </p>
+      </div>
+    )
   }
 
   if (items.length === 0) {
