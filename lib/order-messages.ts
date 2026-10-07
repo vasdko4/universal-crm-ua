@@ -37,9 +37,10 @@ function esc(s: string) {
  * data:, …) becomes an empty string so a hostile value can't break out
  * of the attribute.
  */
-function safeUrl(raw: string): string {
+function safeUrl(raw: string, siteUrl?: string): string {
   const v = raw.trim()
   if (/^https?:\/\//i.test(v)) return v
+  if (v.startsWith('/') && siteUrl) return `${siteUrl.replace(/\/$/, '')}${v}`
   if (v.startsWith('/')) return v
   return ''
 }
@@ -235,9 +236,11 @@ ${L.footer}`
         : `<div style="width:64px;height:64px;border-radius:8px;background:#f4f4f2"></div>`
       const productUrl =
         siteUrl && i.productId ? `${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}` : ''
+      // Shorten long product names for email readability (max ~60 chars)
+      const shortName = i.name.length > 60 ? i.name.slice(0, 57) + '…' : i.name
       const nameHtml = productUrl
-        ? `<a href="${productUrl}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${esc(i.name)}</a>`
-        : `<span style="font-weight:600">${esc(i.name)}</span>`
+        ? `<a href="${productUrl}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${esc(shortName)}</a>`
+        : `<span style="font-weight:600">${esc(shortName)}</span>`
       return `<tr>
         <td style="padding:12px 0;border-bottom:1px solid #ececea;width:76px;vertical-align:top">${img}</td>
         <td style="padding:12px 12px;border-bottom:1px solid #ececea;vertical-align:top">
@@ -251,7 +254,7 @@ ${L.footer}`
     .join('')
 
   const logoHtml = store.logoUrl
-    ? `<img src="${safeUrl(store.logoUrl)}" height="36" alt="${esc(storeName)}" style="display:block;max-height:36px;width:auto" />`
+    ? `<img src="${safeUrl(store.logoUrl, store.siteUrl)}" height="36" alt="${esc(storeName)}" style="display:block;max-height:36px;width:auto" />`
     : `<span style="font-size:20px;font-weight:700;color:#1a1a1a;letter-spacing:-0.02em">${esc(storeName)}</span>`
 
   const trackingHtml = order.trackingNumber
