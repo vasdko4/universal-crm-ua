@@ -8,8 +8,9 @@ import {
 import { getCanonicalSiteUrl } from '@/lib/seo'
 import { localizedPath } from '@/lib/i18n/config'
 
-// Refresh the sitemap at most once per hour.
-export const revalidate = 3600
+// Sitemap must always reflect the current store domain from DB settings.
+// Use force-dynamic so a stale cached sitemap never serves localhost URLs.
+export const dynamic = 'force-dynamic'
 
 type Entry = MetadataRoute.Sitemap[number]
 
