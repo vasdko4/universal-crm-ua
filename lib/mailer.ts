@@ -40,9 +40,13 @@ export async function sendMail(payload: MailPayload): Promise<{ sent: boolean; f
   // Anti-spam: the From address MUST match the authenticated SMTP account —
   // otherwise SPF/DKIM/DMARC alignment fails and providers junk the message.
   // A different "fromEmail" is honored only as Reply-To.
+  // Exception: some providers (e.g. Resend) use a non-email SMTP username
+  // like "resend" — in that case the From must be the configured fromEmail.
   const smtpUser = String(email.smtpUser)
   const fromEmail = String(email.fromEmail || smtpUser)
-  const alignedFrom = fromEmail.toLowerCase() === smtpUser.toLowerCase() ? fromEmail : smtpUser
+  const smtpUserIsEmail = smtpUser.includes('@')
+  const alignedFrom =
+    !smtpUserIsEmail || fromEmail.toLowerCase() === smtpUser.toLowerCase() ? fromEmail : smtpUser
   const replyTo = alignedFrom === fromEmail ? undefined : fromEmail
   const senderDomain = alignedFrom.split('@')[1] || 'localhost'
 
