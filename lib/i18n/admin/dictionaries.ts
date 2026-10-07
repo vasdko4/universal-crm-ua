@@ -1158,6 +1158,9 @@ export type AdminDictionary = {
     promFoundTemplate: string
     promFoundCappedTemplate: string
     importedResultTemplate: string
+    deleteConfirm: string
+    deleteSuccess: string
+    deleteTitle: string
   }
   feedback: {
     pageTitle: string
@@ -3053,6 +3056,9 @@ const uk: AdminDictionary = {
     promFoundTemplate: 'Знайдено {total} товарів, починаю імпорт',
     promFoundCappedTemplate: 'Знайдено {shopTotal} товарів, будуть імпортовані перші {total}',
     importedResultTemplate: 'Імпортовано: {imported}, помилок: {failed}',
+    deleteConfirm: 'Видалити цей запис з історії імпорту?',
+    deleteSuccess: 'Запис видалено',
+    deleteTitle: 'Видалити запис',
   },
   feedback: {
     pageTitle: 'Відгуки та запитання',
@@ -4955,6 +4961,9 @@ const ru: AdminDictionary = {
     promFoundTemplate: 'Найдено {total} товаров, начинаю импорт',
     promFoundCappedTemplate: 'Найдено {shopTotal} товаров, будут импортированы первые {total}',
     importedResultTemplate: 'Импортировано: {imported}, ошибок: {failed}',
+    deleteConfirm: 'Удалить эту запись из истории импорта?',
+    deleteSuccess: 'Запись удалена',
+    deleteTitle: 'Удалить запись',
   },
   feedback: {
     pageTitle: 'Отзывы и вопросы',

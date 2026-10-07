@@ -30,6 +30,19 @@ export async function getImportTasks() {
   return db.select().from(importTasks).orderBy(desc(importTasks.createdAt)).limit(20)
 }
 
+export async function deleteImportTask(id: number) {
+  await assertWritePermission('import')
+  const [task] = await db.select().from(importTasks).where(eq(importTasks.id, id)).limit(1)
+  if (!task) return { success: false, error: 'Запис не знайдено' }
+  // Don't allow deleting a running import
+  if (task.status === 'processing' || task.status === 'pending') {
+    return { success: false, error: 'Не можна видалити активний імпорт' }
+  }
+  await db.delete(importTasks).where(eq(importTasks.id, id))
+  revalidatePath('/admin/import')
+  return { success: true }
+}
+
 export async function runImport(fileName: string, sourceType: 'csv' | 'xml', rows: ImportRow[]) {
   await assertWritePermission('import')
   if (rows.length === 0) return { success: false, error: 'Файл не содержит товаров' }

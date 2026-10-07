@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition, Fragment } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Upload, FileSpreadsheet, FileCode, CheckCircle2, XCircle, Loader2, Link2, Play } from "lucide-react"
+import { Upload, FileSpreadsheet, FileCode, CheckCircle2, XCircle, Loader2, Link2, Play, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { runImport, type ImportRow } from "@/app/actions/import"
+import { runImport, deleteImportTask, type ImportRow } from "@/app/actions/import"
 import { parseCSV } from "@/lib/import-csv"
 import { startPromImport, continuePromImport } from "@/app/actions/prom-import"
 import { useAdminI18n } from "@/lib/i18n/admin/context"
@@ -210,7 +210,28 @@ export function ImportManager({
   const [preview, setPreview] = useState<{ fileName: string; type: "csv" | "xml"; rows: ImportRow[] } | null>(null)
   const [isPending, startTransition] = useTransition()
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
   const STATUS = statusConfig(t)
+
+  function handleDeleteTask(id: number) {
+    if (!confirm(t.import.deleteConfirm ?? "Видалити цей запис історії?")) return
+    setDeletingId(id)
+    startTransition(async () => {
+      try {
+        const res = await deleteImportTask(id)
+        if (res.success) {
+          toast.success(t.import.deleteSuccess ?? "Запис видалено")
+          router.refresh()
+        } else {
+          toast.error(res.error ?? t.import.errorGeneric)
+        }
+      } catch {
+        toast.error(t.import.errorGeneric)
+      } finally {
+        setDeletingId(null)
+      }
+    })
+  }
 
   async function handleFile(file: File) {
     const text = await file.text()
@@ -369,12 +390,13 @@ export function ImportManager({
                 <TableHead className="text-right">{t.import.tableSuccess}</TableHead>
                 <TableHead className="text-right">{t.import.tableFailed}</TableHead>
                 <TableHead>{t.import.tableDate}</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tasks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                     {t.import.noImportsYet}
                   </TableCell>
                 </TableRow>
@@ -419,10 +441,24 @@ export function ImportManager({
                           </div>
                         ) : null}
                       </TableCell>
+                      <TableCell>
+                        {tk.status !== "processing" && tk.status !== "pending" ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteTask(tk.id)}
+                            disabled={deletingId === tk.id}
+                            title={t.import.deleteTitle ?? "Видалити запис"}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : null}
+                      </TableCell>
                     </TableRow>
                     {logExpanded && tk.errorLog ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="bg-muted/40">
+                        <TableCell colSpan={8} className="bg-muted/40">
                           <div className="mb-1 text-xs font-medium text-muted-foreground">{t.import.logTitle}</div>
                           <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono text-xs">{tk.errorLog}</pre>
                         </TableCell>
