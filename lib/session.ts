@@ -6,8 +6,77 @@ import { db, pool } from '@/lib/db'
 import { roles } from '@/lib/db/schema'
 import { canWrite, hasPermission, type PermissionKey } from '@/lib/permissions'
 import { twoFactorCookieValid } from '@/lib/staff-2fa'
+import { clientIpFromHeaders } from '@/lib/api/rate-limit'
 import type { Locale } from '@/lib/i18n/config'
 import { isLocale } from '@/lib/i18n/config'
+
+/**
+ * Anti-stealer protection: binds the session to the IP and User-Agent
+ * it was created with. If a stealer copies the cookies to another machine,
+ * the IP/UA won't match and the session is killed (user must log in again).
+ *
+ * Returns true if the session is valid for this request, false if it was
+ * killed due to a binding mismatch.
+ */
+async function validateSessionBinding(
+  session: { session: { id: string; ipAddress?: string | null; userAgent?: string | null } },
+): Promise<boolean> {
+  // Can be disabled via env for networks with rotating IPs (mobile, etc.)
+  if (process.env.DISABLE_SESSION_BINDING === '1') return true
+  try {
+    const h = await headers()
+    const currentIp = clientIpFromHeaders(h)
+    const currentUa = h.get('user-agent')?.slice(0, 500) ?? ''
+    const boundIp = session.session.ipAddress ?? null
+    const boundUa = (session.session.userAgent ?? '').slice(0, 500)
+
+    // First request after login may not have stored values yet — bind them now.
+    if (!boundIp && !boundUa) {
+      await pool.query('UPDATE session SET "ipAddress" = $1, "userAgent" = $2 WHERE id = $3', [
+        currentIp,
+        currentUa || null,
+        session.session.id,
+      ])
+      return true
+    }
+
+    // User-Agent must match exactly — browsers don't change it spontaneously.
+    if (boundUa && currentUa !== boundUa) {
+      await killSession(session.session.id, 'user-agent mismatch')
+      return false
+    }
+    // IP must match, or at least be in the same /24 (tolerates minor DHCP
+    // rotations; a stealer attacker is on a completely different network).
+    if (boundIp && currentIp !== 'unknown' && !sameSubnet24(boundIp, currentIp)) {
+      await killSession(session.session.id, 'IP mismatch')
+      return false
+    }
+    return true
+  } catch {
+    // Fail open on unexpected errors — don't lock out legit users on a bug.
+    return true
+  }
+}
+
+function sameSubnet24(a: string, b: string): boolean {
+  if (a === b) return true
+  const pa = a.split('.')
+  const pb = b.split('.')
+  if (pa.length === 4 && pb.length === 4) {
+    return pa[0] === pb[0] && pa[1] === pb[1] && pa[2] === pb[2]
+  }
+  return false
+}
+
+async function killSession(sessionId: string, reason: string): Promise<void> {
+  try {
+    await pool.query('DELETE FROM session WHERE id = $1', [sessionId])
+    const { reportError } = await import('@/lib/server-errors')
+    void reportError('auth.session-binding-kill', new Error(`Session killed: ${reason}`))
+  } catch {
+    // best effort
+  }
+}
 
 export type AdminUser = {
   id: string
@@ -32,6 +101,12 @@ async function getAdminUserInner(): Promise<AdminUser | null> {
   const auth = await getAuth()
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) return null
+
+  // Anti-stealer: kill the session if IP/User-Agent don't match where it was created.
+  const bound = await validateSessionBinding(
+    session as { session: { id: string; ipAddress?: string | null; userAgent?: string | null } },
+  )
+  if (!bound) return null
 
   const u = session.user as unknown as {
     id: string
