@@ -1,25 +1,6 @@
 # Release pipeline with SLSA provenance.
-#
-# ⚠️ HOW TO ENABLE: GitHub-приложения не могут создавать workflow-файлы, поэтому
-# файл лежит в .github/workflows-available/. Чтобы включить, выполните:
-#     git mv .github/workflows-available/release.yml .github/workflows/release.yml
-#     git commit -m "Enable SLSA release workflow" && git push
-#
-# On every version tag (v1.0.0, v2.3.4, ...):
-#   1. Builds the production Docker image and pushes it to GitHub Container
-#      Registry: ghcr.io/<owner>/techno-store:<version> (+ :latest).
-#      Если в секретах репозитория заданы DOCKERHUB_USERNAME/DOCKERHUB_TOKEN,
-#      образ дополнительно публикуется на Docker Hub (jastindle/magazineuakraine).
-#   2. Generates SLSA v1.0 build provenance for the image digest with the
-#      official SLSA generic generator (slsa-framework/slsa-github-generator)
-#      and uploads the .intoto.jsonl attestation to the GitHub release.
-#
-# Verifying a release on your server before deploying:
-#   slsa-verifier verify-artifact --provenance-path techno-store.intoto.jsonl \
-#     --source-uri github.com/<owner>/techno-store <artifact>
-#
-# Creating a release:
-#   git tag v1.0.0 && git push origin v1.0.0
+# Native multi-arch: amd64 builds on ubuntu-latest, arm64 on ubuntu-24.04-arm
+# (no QEMU emulation — the emulated arm64 `next build` hangs in retry loops).
 
 name: release
 
@@ -27,9 +8,6 @@ on:
   push:
     tags:
       - 'v*'
-    # Also run when a version branch is pushed. The GitHub App cannot create
-    # tags, so a branch named v1.3.5 is the way to kick off the same image
-    # build (GITHUB_REF_NAME still yields 1.3.5 after stripping the leading v).
     branches:
       - 'v[0-9]*'
 
@@ -40,10 +18,6 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
-  # Release gate: a tag must be green before it can become an image.
-  # Same three checks as .github/workflows-available/ci.yml; `build` depends on
-  # this job, so a failing lint/typecheck/test run stops the release instead of
-  # publishing an untested image to GHCR / Docker Hub.
   verify:
     name: lint · typecheck · unit tests
     runs-on: ubuntu-latest
@@ -64,94 +38,167 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-  build:
+  build-amd64:
     needs: [verify]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     env:
-      # Optional Docker Hub mirror. Set the DOCKERHUB_USERNAME and
-      # DOCKERHUB_TOKEN secrets (Settings -> Secrets and variables -> Actions)
-      # to also publish the image to Docker Hub; without them these steps
-      # are skipped and the image goes to GHCR only.
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_IMAGE: jastindle/magazineuakraine
     outputs:
       image: ${{ steps.meta.outputs.image }}
-      digest: ${{ steps.push.outputs.digest }}
-      hashes: ${{ steps.hashes.outputs.hashes }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Log in to Docker Hub
         if: env.DOCKERHUB_USERNAME != ''
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
       - name: Image metadata
         id: meta
         run: |
-          IMAGE="${IMAGE_NAME@L}"   # registry paths must be lowercase
+          IMAGE="${IMAGE_NAME@L}"
           VERSION="${GITHUB_REF_NAME#v}"
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          TAGS="${IMAGE}:${VERSION}"$'\n'"${IMAGE}:latest"
-          if [ -n "${DOCKERHUB_USERNAME}" ]; then
-            TAGS="${TAGS}"$'\n'"${DOCKERHUB_IMAGE}:${VERSION}"$'\n'"${DOCKERHUB_IMAGE}:latest"
-          fi
-          {
-            echo "tags<<EOF"
-            echo "$TAGS"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Build and push image
-        id: push
+      - name: Build and push amd64 image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}-amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  build-arm64:
+    needs: [verify]
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_IMAGE: jastindle/magazineuakraine
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Docker Hub
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Image metadata
+        id: meta
+        run: |
+          IMAGE="${IMAGE_NAME@L}"
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Build and push arm64 image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          push: true
+          platforms: linux/arm64
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}-arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  merge:
+    needs: [build-amd64, build-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_IMAGE: jastindle/magazineuakraine
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      digest: ${{ steps.manifest.outputs.digest }}
+      hashes: ${{ steps.hashes.outputs.hashes }}
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Docker Hub
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Image metadata
+        id: meta
+        run: |
+          IMAGE="${IMAGE_NAME@L}"
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Create multi-arch manifest
+        id: manifest
+        run: |
+          IMAGE="${{ steps.meta.outputs.image }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          docker buildx imagetools create \
+            -t "${IMAGE}:${VERSION}" \
+            -t "${IMAGE}:latest" \
+            "${IMAGE}:${VERSION}-amd64" \
+            "${IMAGE}:${VERSION}-arm64"
+          DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .manifest}}' | sha256sum | cut -d' ' -f1)
+          echo "digest=sha256:${DIGEST}" >> "$GITHUB_OUTPUT"
+          if [ -n "${DOCKERHUB_USERNAME}" ]; then
+            docker buildx imagetools create \
+              -t "${DOCKERHUB_IMAGE}:${VERSION}" \
+              -t "${DOCKERHUB_IMAGE}:latest" \
+              "${IMAGE}:${VERSION}-amd64" \
+              "${IMAGE}:${VERSION}-arm64"
+          fi
       - name: Compute provenance subjects
         id: hashes
         run: |
-          # Subject = the pushed image digest, named after the image reference.
-          DIGEST="${{ steps.push.outputs.digest }}"
+          DIGEST="${{ steps.manifest.outputs.digest }}"
           echo "${DIGEST#sha256:}  ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}" > subjects.txt
           echo "hashes=$(base64 -w0 < subjects.txt)" >> "$GITHUB_OUTPUT"
 
-  # SLSA generic generator: builds the signed provenance attestation in an
-  # isolated, trusted workflow (this is why it must be referenced by tag, not
-  # commit) and uploads it to the GitHub release for this tag.
   provenance:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build]
+    needs: [merge]
     permissions:
-      actions: read     # read the workflow path
-      id-token: write   # sign the provenance (Sigstore)
-      contents: write   # upload the attestation to the release
-      packages: write   # read the image from GHCR
+      actions: read
+      id-token: write
+      contents: write
+      packages: write
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: ${{ needs.build.outputs.image }}
-      digest: ${{ needs.build.outputs.digest }}
+      image: ${{ needs.merge.outputs.image }}
+      digest: ${{ needs.merge.outputs.digest }}
       registry-username: ${{ github.actor }}
     secrets:
       registry-password: ${{ secrets.GITHUB_TOKEN }}
