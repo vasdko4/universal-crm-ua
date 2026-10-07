@@ -62,6 +62,9 @@ export function CheckoutFlow({
   savedAddresses = [],
   gaId,
   minOrder,
+  initialPhone,
+  initialName,
+  initialEmail,
 }: {
   deliveryMethods: Method[]
   paymentMethods: Method[]
@@ -69,6 +72,9 @@ export function CheckoutFlow({
   savedAddresses?: UserAddress[]
   gaId?: string
   minOrder?: { enabled: boolean; amount: number }
+  initialPhone?: string
+  initialName?: string
+  initialEmail?: string
 }) {
   const router = useRouter()
   const { dict, locale } = useI18n()
@@ -232,10 +238,11 @@ export function CheckoutFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promoLines])
 
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [phone, setPhone] = useState('+380')
-  const [email, setEmail] = useState('')
+  // Pre-fill from the logged-in user's account (phone/name/email).
+  const [firstName, setFirstName] = useState(() => (initialName ?? '').trim().split(/\s+/)[0] ?? '')
+  const [lastName, setLastName] = useState(() => (initialName ?? '').trim().split(/\s+/).slice(1).join(' ') ?? '')
+  const [phone, setPhone] = useState(() => (initialPhone ? formatUaPhoneInput(initialPhone) : '+380'))
+  const [email, setEmail] = useState(initialEmail ?? '')
 
   // Auto-format Ukrainian phone: +380 XX XXX XX XX
   const handlePhoneChange = (raw: string) => {

@@ -8,6 +8,7 @@ import {
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { getUserAddresses } from '@/app/actions/addresses'
 import { getPublicStoreSettings } from '@/app/actions/settings-store'
+import { getShopUser } from '@/lib/session'
 import { publicRequisitesFromConfig } from '@/lib/payments/public-requisites'
 
 export const dynamic = 'force-dynamic'
@@ -31,12 +32,13 @@ export default async function CheckoutPage({
   const buyNow = sp.buynow === '1'
   const locale = await getLocale()
   const dict = getDictionary(locale)
-  const [delivery, payment, gateways, savedAddresses, settings] = await Promise.all([
+  const [delivery, payment, gateways, savedAddresses, settings, shopUser] = await Promise.all([
     getActiveDeliveryMethods(),
     getActivePaymentMethods(),
     getActiveGateways(),
     getUserAddresses(),
     getPublicStoreSettings().catch(() => null),
+    getShopUser().catch(() => null),
   ])
   const gaId = settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined
 
@@ -73,6 +75,9 @@ export default async function CheckoutPage({
         savedAddresses={savedAddresses}
         gaId={gaId}
         minOrder={settings?.minOrder}
+        initialPhone={shopUser?.phone ?? undefined}
+        initialName={shopUser?.name ?? undefined}
+        initialEmail={shopUser?.email ?? undefined}
       />
     </div>
   )
