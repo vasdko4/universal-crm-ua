@@ -370,7 +370,7 @@ export function OrderDetail({
           </section>
 
           <section id="order-packing-print" className="rounded-xl border border-dashed border-border bg-card p-5 print:border-0">
-            <h2 className="mb-3 font-semibold text-foreground">Packing slip</h2>
+            <h2 className="mb-3 font-semibold text-foreground">{t.packingSlip}</h2>
             <p className="text-sm text-muted-foreground">
               {order.customerName} · {order.customerPhone}
             </p>

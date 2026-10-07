@@ -98,6 +98,7 @@ export type AdminDictionary = {
     statRevenue: string
     backToOrdersAria: string
     orderNumber: string
+    packingSlip: string
     orderCompleted: string
     paidWith: string
     itemsInOrder: string
@@ -1977,6 +1978,7 @@ const uk: AdminDictionary = {
     statRevenue: 'Виручка',
     backToOrdersAria: 'Назад до замовлень',
     orderNumber: 'Замовлення №',
+    packingSlip: 'Пакувальний лист',
     orderCompleted: 'Замовлення виконано',
     paidWith: 'Це замовлення оплачено',
     itemsInOrder: 'Товари в замовленні',
@@ -3888,6 +3890,7 @@ const ru: AdminDictionary = {
     statRevenue: 'Выручка',
     backToOrdersAria: 'Назад к заказам',
     orderNumber: 'Заказ №',
+    packingSlip: 'Упаковочный лист',
     orderCompleted: 'Заказ выполнен',
     paidWith: 'Этот заказ оплачен',
     itemsInOrder: 'Товары в заказе',

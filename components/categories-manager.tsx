@@ -219,9 +219,6 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                   </TableCell>
                   <TableCell>
                     <p className="font-medium">{catName(cat)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {locale === 'uk' ? cat.nameRu : cat.nameUk}
-                    </p>
                   </TableCell>
                   <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
                     {cat.slug}

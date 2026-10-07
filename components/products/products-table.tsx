@@ -327,16 +327,21 @@ export function ProductsTable({
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <form onSubmit={submitSearch} className="relative min-w-52 flex-1 md:max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            ref={searchRef}
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            placeholder={t.searchPlaceholder}
-            className="bg-card pl-8"
-            aria-label={t.searchPlaceholder}
-          />
+        <form onSubmit={submitSearch} className="flex min-w-52 flex-1 gap-2 md:max-w-sm">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchRef}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder={t.searchPlaceholder}
+              className="bg-card pl-8"
+              aria-label={t.searchPlaceholder}
+            />
+          </div>
+          <Button type="submit" size="icon" aria-label={t.searchPlaceholder}>
+            <Search className="size-4" />
+          </Button>
         </form>
         <Select
           value={filters.categoryId ? String(filters.categoryId) : 'all'}
