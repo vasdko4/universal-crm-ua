@@ -79,6 +79,12 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      { source: '/contacts', destination: '/kontakty', permanent: true },
+      { source: '/ru/contacts', destination: '/ru/kontakty', permanent: true },
+    ]
+  },
 }
 
 export default nextConfig

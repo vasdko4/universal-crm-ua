@@ -129,7 +129,8 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
         <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           {article.author ? (
             <span className="flex items-center gap-1.5">
-              <User className="size-4" /> {article.author}
+              <User className="size-4" />{' '}
+              {article.author === 'Редакция' && locale === 'uk' ? 'Редакція' : article.author}
             </span>
           ) : null}
           {date ? <span>{date}</span> : null}
