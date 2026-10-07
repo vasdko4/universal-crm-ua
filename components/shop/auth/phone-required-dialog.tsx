@@ -5,15 +5,17 @@ import { Loader2, Phone } from 'lucide-react'
 import { saveCustomerPhone } from '@/app/actions/shop-auth'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { useI18n } from '@/lib/i18n/client'
+import { signOut } from '@/lib/auth-client'
+import { localizedPath } from '@/lib/i18n/config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 // Blocking dialog shown to customers without a phone number (e.g. after a
-// Google sign-up). It cannot be dismissed until a valid phone is saved.
+// Google sign-up). The customer must either save a phone number or sign out.
 export function PhoneRequiredDialog() {
-  const { dict } = useI18n()
+  const { dict, locale } = useI18n()
   const t = dict.auth
   const [phone, setPhone] = useState('+380')
   const [error, setError] = useState<string | null>(null)
@@ -32,6 +34,11 @@ export function PhoneRequiredDialog() {
     setDone(true)
     // Refresh so server components pick up the saved phone.
     window.location.reload()
+  }
+
+  async function onExit() {
+    await signOut()
+    window.location.href = localizedPath('/', locale)
   }
 
   return (
@@ -70,6 +77,9 @@ export function PhoneRequiredDialog() {
           <Button type="submit" size="lg" disabled={loading} className="w-full">
             {loading && <Loader2 className="size-4 animate-spin" />}
             {t.phoneSave}
+          </Button>
+          <Button type="button" variant="ghost" size="lg" onClick={onExit} className="w-full">
+            {t.phoneExit}
           </Button>
         </form>
       </DialogContent>

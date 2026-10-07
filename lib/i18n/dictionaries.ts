@@ -595,6 +595,7 @@ export type Dictionary = {
     phoneRequiredDescription: string
     phoneSave: string
     phoneSaveError: string
+    phoneExit: string
     continueWithGoogle: string
     orDivider: string
     dialogTitle: string
@@ -1207,6 +1208,7 @@ const uk: Dictionary = {
       'Щоб завершити реєстрацію, вкажіть номер телефону. Він потрібен для оформлення та підтвердження замовлень.',
     phoneSave: 'Зберегти',
     phoneSaveError: 'Не вдалося зберегти номер',
+    phoneExit: 'Вийти',
     continueWithGoogle: 'Продовжити з Google',
     orDivider: 'або',
     dialogTitle: 'Особистий кабінет',
@@ -1822,6 +1824,7 @@ const ru: Dictionary = {
       'Для завершения регистрации укажите ваш номер телефона. Он нужен для оформления и подтверждения заказов.',
     phoneSave: 'Сохранить',
     phoneSaveError: 'Не удалось сохранить номер',
+    phoneExit: 'Выйти',
     continueWithGoogle: 'Продолжить с Google',
     orDivider: 'или',
     dialogTitle: 'Личный кабинет',
