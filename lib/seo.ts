@@ -172,6 +172,8 @@ export function extractBrand(characteristics: { name: string; value: string }[])
 export function merchantReturnPolicy() {
   return {
     '@type': 'MerchantReturnPolicy',
+    // Google requires returnPolicyCountry since March 2025.
+    returnPolicyCountry: 'UA',
     applicableCountry: 'UA',
     returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
     merchantReturnDays: 14,
