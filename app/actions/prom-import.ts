@@ -50,6 +50,8 @@ type PromImportState = {
   origin: string
   pending: PromListItem[]
   capped: boolean
+  /** When true, products already in the catalog are skipped entirely (no re-fetch). */
+  skipExisting?: boolean
   /** Size-range siblings already imported as one product (name-based families). */
   sizeFamilies?: Record<string, SizeFamilyState>
   /** Batch claimed but not yet fully processed — re-queued on resume after a crash. */
@@ -60,7 +62,7 @@ type PromImportState = {
 
 
 /** Starts a new Prom.ua shop import: discovers every product link, then returns a task id to poll. */
-export async function startPromImport(shopUrl: string) {
+export async function startPromImport(shopUrl: string, skipExisting = false) {
   await assertWritePermission('import')
   const trimmed = shopUrl.trim()
   if (!isAllowedPromUrl(trimmed)) {
@@ -89,7 +91,7 @@ export async function startPromImport(shopUrl: string) {
   const capped = first.total > MAX_PRODUCTS_PER_JOB
   const pending = Array.from(seen.values()).slice(0, MAX_PRODUCTS_PER_JOB)
 
-  const state: PromImportState = { shopUrl: trimmed, origin, pending, capped, sizeFamilies: {} }
+  const state: PromImportState = { shopUrl: trimmed, origin, pending, capped, skipExisting, sizeFamilies: {} }
   const [task] = await db
     .insert(importTasks)
     .values({
@@ -473,8 +475,6 @@ export async function continuePromImport(taskId: number) {
 
   for (const item of batch) {
     try {
-      // Same politeness delay as the discovery loop / original scrape script.
-      await new Promise((r) => setTimeout(r, 400))
       // Speedup: check if product already exists BEFORE fetching from Prom.ua.
       // Existing products skip the RU page (fallback only) — halves requests.
       const [alreadyExists] = await db
@@ -482,6 +482,14 @@ export async function continuePromImport(taskId: number) {
         .from(products)
         .where(and(eq(products.promId, item.id), isNull(products.deletedAt)))
         .limit(1)
+      // When skipExisting is on, don't re-fetch or re-process products
+      // already in the catalog — count them as done and move on.
+      if (state.skipExisting && alreadyExists) {
+        success++
+        continue
+      }
+      // Same politeness delay as the discovery loop / original scrape script.
+      await new Promise((r) => setTimeout(r, 400))
       const detailed = await fetchProductDetailed(state.origin, item, !!alreadyExists)
       if (!detailed.ok) {
         throw new Error(`не вдалося завантажити сторінку товару (${detailed.reason}: ${detailed.url})`)

@@ -1161,6 +1161,7 @@ export type AdminDictionary = {
     deleteConfirm: string
     deleteSuccess: string
     deleteTitle: string
+    skipExistingLabel: string
   }
   feedback: {
     pageTitle: string
@@ -3059,6 +3060,7 @@ const uk: AdminDictionary = {
     deleteConfirm: 'Видалити цей запис з історії імпорту?',
     deleteSuccess: 'Запис видалено',
     deleteTitle: 'Видалити запис',
+    skipExistingLabel: 'Пропускати товари, які вже є в каталозі (швидше)',
   },
   feedback: {
     pageTitle: 'Відгуки та запитання',
@@ -4964,6 +4966,7 @@ const ru: AdminDictionary = {
     deleteConfirm: 'Удалить эту запись из истории импорта?',
     deleteSuccess: 'Запись удалена',
     deleteTitle: 'Удалить запись',
+    skipExistingLabel: 'Пропускать товары, которые уже есть в каталоге (быстрее)',
   },
   feedback: {
     pageTitle: 'Отзывы и вопросы',

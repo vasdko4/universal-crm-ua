@@ -88,6 +88,7 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
   const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [skipExisting, setSkipExisting] = useState(true)
   const cancelledRef = useRef(false)
 
   async function runLoop(id: number) {
@@ -119,7 +120,7 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
     if (!url.trim()) return
     setRunning(true)
     try {
-      const res = await startPromImport(url.trim())
+      const res = await startPromImport(url.trim(), skipExisting)
       if (!res.success) {
         setError(res.error)
         setRunning(false)
@@ -158,6 +159,16 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
             {t.import.promStartButton}
           </Button>
         </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={skipExisting}
+            onChange={(e) => setSkipExisting(e.target.checked)}
+            disabled={running}
+            className="size-4 accent-primary"
+          />
+          {t.import.skipExistingLabel ?? "Пропускати товари, які вже є в каталозі (швидше)"}
+        </label>
         {error && <p className="text-sm text-destructive">{error}</p>}
         {progress && (
           <div className="flex flex-col gap-1.5">
