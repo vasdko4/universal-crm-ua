@@ -1422,6 +1422,8 @@ export type AdminDictionary = {
     publishHint: string
     showInMenuLabel: string
     showInMenuHint: string
+    showInFooterLabel: string
+    showInFooterHint: string
     menuTitleLabel: string
     sortOrderLabel: string
     metaTitleLabel: string
@@ -3328,6 +3330,8 @@ const uk: AdminDictionary = {
     publishHint: 'Сторінка буде видима на сайті',
     showInMenuLabel: 'Показувати в меню',
     showInMenuHint: 'Додати посилання в навігацію',
+    showInFooterLabel: 'Показувати у футері',
+    showInFooterHint: 'Посилання у блоці «Покупцю»',
     menuTitleLabel: 'Назва в меню',
     sortOrderLabel: 'Порядок',
     metaTitleLabel: 'Meta Title',
@@ -5240,6 +5244,8 @@ const ru: AdminDictionary = {
     publishHint: 'Страница будет видна на сайте',
     showInMenuLabel: 'Показывать в меню',
     showInMenuHint: 'Добавить ссылку в навигацию',
+    showInFooterLabel: 'Показывать в футере',
+    showInFooterHint: 'Ссылка в блоке «Покупателю»',
     menuTitleLabel: 'Название в меню',
     sortOrderLabel: 'Порядок',
     metaTitleLabel: 'Meta Title',

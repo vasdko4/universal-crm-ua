@@ -453,6 +453,7 @@ export const pages = pgTable('pages', {
   template: varchar('template', { length: 30 }).notNull().default('default'),
   status: varchar('status', { length: 20 }).notNull().default('draft'),
   showInMenu: boolean('show_in_menu').notNull().default(false),
+  showInFooter: boolean('show_in_footer').notNull().default(false),
   menuTitle: varchar('menu_title', { length: 150 }),
   sortOrder: integer('sort_order').notNull().default(0),
   metaTitle: varchar('meta_title', { length: 255 }),

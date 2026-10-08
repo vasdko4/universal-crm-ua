@@ -1,11 +1,8 @@
 import 'server-only'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { pages } from '@/lib/db/schema'
 import { pickLocalized, type Locale } from '@/lib/i18n/config'
-
-/** Slugs shown as legal links in the footer, in display order. */
-export const LEGAL_SLUGS = ['terms', 'privacy', 'returns', 'delivery', 'povernennya', 'dostavka-i-oplata', 'kontakty', 'pro-nas'] as const
 
 /**
  * RU copy for the Universal Magazine demo pages that were seeded without title_ru /
@@ -49,12 +46,10 @@ export async function getPublishedLegalPages(locale: Locale) {
       titleRu: pages.titleRu,
     })
     .from(pages)
-    .where(eq(pages.status, 'published'))
+    .where(and(eq(pages.status, 'published'), eq(pages.showInFooter, true)))
     .orderBy(asc(pages.sortOrder), asc(pages.id))
 
-  return rows
-    .filter((r) => (LEGAL_SLUGS as readonly string[]).includes(r.slug))
-    .map((r) => ({ slug: r.slug, title: pickLocalized(locale, r.title, r.titleRu) }))
+  return rows.map((r) => ({ slug: r.slug, title: pickLocalized(locale, r.title, r.titleRu) }))
 }
 
 export async function getPageBySlug(slug: string, locale: Locale) {

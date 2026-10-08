@@ -39,6 +39,7 @@ const empty: PageInput = {
   template: 'default',
   status: 'draft',
   showInMenu: false,
+  showInFooter: false,
   menuTitle: '',
   sortOrder: 0,
   metaTitle: '',
@@ -90,6 +91,7 @@ export function PageEditorDialog({
           template: page.template,
           status: page.status as 'draft' | 'published',
           showInMenu: page.showInMenu,
+          showInFooter: (page as { showInFooter?: boolean }).showInFooter ?? false,
           menuTitle: page.menuTitle ?? '',
           sortOrder: page.sortOrder,
           metaTitle: page.metaTitle ?? '',
@@ -271,6 +273,13 @@ export function PageEditorDialog({
                 <p className="text-xs text-muted-foreground">{t.showInMenuHint}</p>
               </div>
               <Switch checked={form.showInMenu} onCheckedChange={(c) => set('showInMenu', c)} />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">{t.showInFooterLabel}</p>
+                <p className="text-xs text-muted-foreground">{t.showInFooterHint}</p>
+              </div>
+              <Switch checked={form.showInFooter} onCheckedChange={(c) => set('showInFooter', c)} />
             </div>
             {form.showInMenu && (
               <div className="grid grid-cols-2 gap-4">

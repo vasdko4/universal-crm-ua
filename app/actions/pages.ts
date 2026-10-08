@@ -20,6 +20,7 @@ export type PageInput = {
   template?: string
   status?: 'draft' | 'published'
   showInMenu?: boolean
+  showInFooter?: boolean
   menuTitle?: string | null
   sortOrder?: number
   metaTitle?: string | null
@@ -128,6 +129,7 @@ export async function createPage(input: PageInput) {
     template: input.template ?? 'default',
     status: input.status ?? 'draft',
     showInMenu: input.showInMenu ?? false,
+    showInFooter: input.showInFooter ?? false,
     menuTitle: input.menuTitle ?? null,
     sortOrder: input.sortOrder ?? 0,
     metaTitle: input.metaTitle ?? null,
@@ -160,6 +162,7 @@ export async function updatePage(id: number, input: PageInput) {
       template: input.template ?? 'default',
       status: input.status ?? 'draft',
       showInMenu: input.showInMenu ?? false,
+      showInFooter: input.showInFooter ?? false,
       menuTitle: input.menuTitle ?? null,
       sortOrder: input.sortOrder ?? 0,
       metaTitle: input.metaTitle ?? null,
