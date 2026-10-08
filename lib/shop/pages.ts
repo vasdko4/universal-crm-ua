@@ -5,7 +5,7 @@ import { pages } from '@/lib/db/schema'
 import { pickLocalized, type Locale } from '@/lib/i18n/config'
 
 /** Slugs shown as legal links in the footer, in display order. */
-export const LEGAL_SLUGS = ['terms', 'privacy', 'returns', 'delivery'] as const
+export const LEGAL_SLUGS = ['terms', 'privacy', 'returns', 'delivery', 'povernennya', 'dostavka-i-oplata', 'kontakty', 'pro-nas'] as const
 
 /**
  * RU copy for the Universal Magazine demo pages that were seeded without title_ru /
