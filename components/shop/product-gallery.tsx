@@ -86,6 +86,23 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
 
   return (
     <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
+      {/* Preload all full-size images so switching thumbnails is instant.
+          Visually hidden but present in layout (1px) so the browser fetches them. */}
+      <div aria-hidden="true" className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0">
+        {gallery.map((src, i) =>
+          i === safeActive ? null : (
+            <Image
+              key={`preload-${src}-${i}`}
+              src={src || '/placeholder.svg'}
+              alt=""
+              width={1200}
+              height={1200}
+              quality={85}
+              unoptimized={isProxiedMedia(src)}
+            />
+          ),
+        )}
+      </div>
       {hasThumbs && (
         <div
           ref={thumbStripRef}
