@@ -44,7 +44,6 @@ export async function downloadImageLocally(remoteUrl: string): Promise<string | 
     if (isGif) {
       await writeFile(filePath, buffer)
     } else {
-      // Convert to WebP (quality 85) for smaller files and faster loading
       const webpBuffer = await sharp(buffer)
         .webp({ quality: 85 })
         .toBuffer()

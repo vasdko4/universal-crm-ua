@@ -4,9 +4,9 @@ import { db } from '@/lib/db'
 import { pages } from '@/lib/db/schema'
 import { and, count, desc, eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { slugify } from '@/lib/slug'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
+import { ensureUniqueSlug, validateTitle } from '@/lib/unique-slug'
 
 export type PageInput = {
   title: string
@@ -95,20 +95,14 @@ export async function getPublicPublishedPageById(id: number) {
 }
 
 async function ensureSlug(desired: string, excludeId?: number): Promise<string> {
-  let base = slugify(desired) || 'page'
-  let slug = base
-  let i = 1
-  while (true) {
+  return ensureUniqueSlug(desired, 'page', async (slug) => {
     const rows = await db.select({ id: pages.id }).from(pages).where(eq(pages.slug, slug)).limit(1)
-    const existing = rows[0]
-    if (!existing || existing.id === excludeId) return slug
-    slug = `${base}-${i++}`
-  }
+    return rows[0]?.id ?? null
+  }, excludeId)
 }
 
 function validate(input: PageInput): string | null {
-  if (!input.title?.trim()) return 'Заголовок обязателен'
-  return null
+  return validateTitle(input)
 }
 
 export async function createPage(input: PageInput) {

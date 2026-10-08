@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { slugify } from '@/lib/slug'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
+import { ensureUniqueSlug, validateTitle } from '@/lib/unique-slug'
 
 export type ArticleInput = {
   title: string
@@ -120,20 +121,14 @@ export async function getPublicPublishedArticleById(id: number) {
 }
 
 async function ensureSlug(desired: string, excludeId?: number): Promise<string> {
-  const base = slugify(desired) || 'article'
-  let slug = base
-  let i = 1
-  while (true) {
+  return ensureUniqueSlug(desired, 'article', async (slug) => {
     const rows = await db.select({ id: articles.id }).from(articles).where(eq(articles.slug, slug)).limit(1)
-    const existing = rows[0]
-    if (!existing || existing.id === excludeId) return slug
-    slug = `${base}-${i++}`
-  }
+    return rows[0]?.id ?? null
+  }, excludeId)
 }
 
 function validate(input: ArticleInput): string | null {
-  if (!input.title?.trim()) return 'Заголовок обязателен'
-  return null
+  return validateTitle(input)
 }
 
 export async function createArticle(input: ArticleInput) {
