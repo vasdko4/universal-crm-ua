@@ -174,7 +174,7 @@ export function SiteFooter({
             </li>
             {legalLinks.map((l) => (
               <li key={l.slug}>
-                <Link href={lp(`/p/${l.slug}`)} className="text-sm text-muted-foreground hover:text-primary">
+                <Link href={lp(`/${l.slug}`)} className="text-sm text-muted-foreground hover:text-primary">
                   {l.title}
                 </Link>
               </li>

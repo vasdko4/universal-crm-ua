@@ -553,4 +553,4 @@ ALTER TABLE products ALTER COLUMN stock_status SET DEFAULT 'В наявност�
 -- 2026-10-08: add show_in_footer flag for pages (footer links manageable via admin).
 ALTER TABLE pages ADD COLUMN IF NOT EXISTS show_in_footer boolean NOT NULL DEFAULT false;
 -- Backfill: pages that were hardcoded in LEGAL_SLUGS get the flag.
-UPDATE pages SET show_in_footer = true WHERE slug IN ('terms', 'privacy', 'returns', 'delivery', 'povernennya', 'dostavka-i-oplata', 'kontakty', 'pro-nas') AND show_in_footer = false;
+UPDATE pages SET show_in_footer = true WHERE slug IN ('terms', 'privacy', 'returns', 'delivery', 'povernennya', 'dostavka-i-oplata', 'kontakty', 'pro-nas', 'return-policy') AND show_in_footer = false;
