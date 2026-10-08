@@ -83,6 +83,8 @@ const nextConfig = {
     return [
       { source: '/contacts', destination: '/kontakty', permanent: true },
       { source: '/ru/contacts', destination: '/ru/kontakty', permanent: true },
+      { source: '/return-policy', destination: '/povernennya', permanent: true },
+      { source: '/ru/return-policy', destination: '/ru/povernennya', permanent: true },
     ]
   },
 }
