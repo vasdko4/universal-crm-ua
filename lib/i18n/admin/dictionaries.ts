@@ -1079,6 +1079,19 @@ export type AdminDictionary = {
     trafficSourcesTitle: string
     directTraffic: string
     methodUnspecified: string
+    visitorsDetailTitle: string
+    humansLabel: string
+    botsLabel: string
+    visitorsLabel: string
+    pageViewsShort: string
+    topBotsTitle: string
+    geoTitle: string
+    geoHumansHint: string
+    geoCountries: string
+    geoRegions: string
+    geoCities: string
+    geoUnknown: string
+    geoUnknownHint: string
   }
   analytics: {
     pageTitle: string
@@ -2984,6 +2997,19 @@ const uk: AdminDictionary = {
     trafficSourcesTitle: 'Джерела трафіку',
     directTraffic: 'Прямі заходи',
     methodUnspecified: 'Не вказано',
+    visitorsDetailTitle: 'Хто заходить: люди і боти',
+    humansLabel: 'Люди',
+    botsLabel: 'Боти',
+    visitorsLabel: 'Відвідувачі',
+    pageViewsShort: 'Перегляди',
+    topBotsTitle: 'Найактивніші боти',
+    geoTitle: 'Географія відвідувачів',
+    geoHumansHint: 'Тільки люди, без ботів',
+    geoCountries: 'Країни',
+    geoRegions: 'Області',
+    geoCities: 'Міста',
+    geoUnknown: 'Невідомо',
+    geoUnknownHint: 'події, записані до ввімкнення гео',
   },
   analytics: {
     pageTitle: 'Кампанії та ROAS',
@@ -4898,6 +4924,19 @@ const ru: AdminDictionary = {
     trafficSourcesTitle: 'Источники трафика',
     directTraffic: 'Прямые заходы',
     methodUnspecified: 'Не указано',
+    visitorsDetailTitle: 'Кто заходит: люди и боты',
+    humansLabel: 'Люди',
+    botsLabel: 'Боты',
+    visitorsLabel: 'Посетители',
+    pageViewsShort: 'Просмотры',
+    topBotsTitle: 'Самые активные боты',
+    geoTitle: 'География посетителей',
+    geoHumansHint: 'Только люди, без ботов',
+    geoCountries: 'Страны',
+    geoRegions: 'Области',
+    geoCities: 'Города',
+    geoUnknown: 'Неизвестно',
+    geoUnknownHint: 'события, записанные до включения гео',
   },
   analytics: {
     pageTitle: 'Кампании и ROAS',

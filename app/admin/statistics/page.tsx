@@ -12,6 +12,9 @@ import {
   getCustomerInsights,
   getWeekdayActivity,
   getAbandonedCartStats,
+  getVisitorSplit,
+  getTopBots,
+  getGeoStats,
 } from '@/app/actions/analytics'
 import { StatsDashboard } from '@/components/statistics/stats-dashboard'
 import { requirePermission } from '@/lib/session'
@@ -40,6 +43,9 @@ export default async function StatisticsPage(props: {
     customers,
     weekdays,
     abandoned,
+    visitorSplit,
+    topBots,
+    geo,
   ] = await Promise.all([
     getStatsSummary(days),
     getTimeseries(days),
@@ -54,6 +60,9 @@ export default async function StatisticsPage(props: {
     getCustomerInsights(days),
     getWeekdayActivity(days),
     getAbandonedCartStats(days),
+    getVisitorSplit(days),
+    getTopBots(days, 8),
+    getGeoStats(days, 10),
   ])
 
   return (
@@ -71,6 +80,9 @@ export default async function StatisticsPage(props: {
       customers={customers}
       weekdays={weekdays}
       abandoned={abandoned}
+      visitorSplit={visitorSplit}
+      topBots={topBots}
+      geo={geo}
       days={days}
     />
   )

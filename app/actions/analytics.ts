@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { assertPermission, assertWritePermission, getAdminUser } from '@/lib/session'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
+import { detectBot, botName, resolveVisitorGeo } from '@/lib/analytics/visitor'
 import { hasPermission } from '@/lib/permissions'
 import type { Locale } from '@/lib/i18n/config'
 import {
@@ -378,6 +379,130 @@ export async function getTopPaths(days = 30, limit = 8): Promise<TopPathRow[]> {
   return res.rows.map((r) => ({ path: r.path, views: r.views }))
 }
 
+/* --------------------- Visitor detail: bots vs humans + geo --------------------- */
+
+export type VisitorSplit = {
+  humans: { visitors: number; pageViews: number }
+  bots: { visitors: number; pageViews: number }
+}
+
+// Humans vs bots, counted from pageview events. Visitors = unique sessions.
+export async function getVisitorSplit(days = 30): Promise<VisitorSplit> {
+  days = normDays(days)
+  await assertPermission('statistics')
+  const res = await pool.query(
+    `SELECT
+      COUNT(DISTINCT session_id) FILTER (WHERE NOT is_bot AND session_id IS NOT NULL)::int AS human_visitors,
+      COUNT(*) FILTER (WHERE NOT is_bot)::int AS human_views,
+      COUNT(DISTINCT session_id) FILTER (WHERE is_bot AND session_id IS NOT NULL)::int AS bot_visitors,
+      COUNT(*) FILTER (WHERE is_bot)::int AS bot_views
+     FROM analytics_events
+     WHERE type = 'pageview'
+       AND created_at >= NOW() - ($1 || ' days')::interval`,
+    [days],
+  )
+  const r = res.rows[0] ?? {}
+  return {
+    humans: { visitors: r.human_visitors ?? 0, pageViews: r.human_views ?? 0 },
+    bots: { visitors: r.bot_visitors ?? 0, pageViews: r.bot_views ?? 0 },
+  }
+}
+
+export type BotRow = { name: string; hits: number }
+
+// Top bots by hits, classified with the same patterns as the tracker
+// (lib/analytics/visitor.ts) so the dashboard and the data agree.
+export async function getTopBots(days = 30, limit = 8): Promise<BotRow[]> {
+  days = normDays(days)
+  limit = normLimit(limit, 8)
+  await assertPermission('statistics')
+  const res = await pool.query(
+    `SELECT user_agent, COUNT(*)::int AS hits
+     FROM analytics_events
+     WHERE type = 'pageview' AND is_bot AND user_agent IS NOT NULL
+       AND created_at >= NOW() - ($1 || ' days')::interval
+     GROUP BY user_agent
+     ORDER BY hits DESC
+     LIMIT 50`,
+    [days],
+  )
+  const byName = new Map<string, number>()
+  for (const row of res.rows as Array<{ user_agent: string; hits: number }>) {
+    const name = botName(row.user_agent) ?? 'Other bot'
+    byName.set(name, (byName.get(name) ?? 0) + row.hits)
+  }
+  return [...byName.entries()]
+    .map(([name, hits]) => ({ name, hits }))
+    .sort((a, b) => b.hits - a.hits)
+    .slice(0, limit)
+}
+
+export type GeoRow = { label: string; visitors: number; pageViews: number }
+export type GeoStats = {
+  countries: GeoRow[]
+  regions: GeoRow[]
+  cities: GeoRow[]
+  unknown: { visitors: number; pageViews: number }
+}
+
+// Geography of HUMAN pageview traffic (bots skew geo, so they are excluded).
+// Historical events written before geo capture show up under `unknown`.
+export async function getGeoStats(days = 30, limit = 10): Promise<GeoStats> {
+  days = normDays(days)
+  limit = normLimit(limit, 10)
+  await assertPermission('statistics')
+  const [countriesRes, regionsRes, citiesRes, unknownRes] = await Promise.all([
+    pool.query(
+      `SELECT country AS label,
+        COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL)::int AS visitors,
+        COUNT(*)::int AS page_views
+       FROM analytics_events
+       WHERE type = 'pageview' AND NOT is_bot AND country IS NOT NULL
+         AND created_at >= NOW() - ($1 || ' days')::interval
+       GROUP BY country ORDER BY page_views DESC LIMIT $2`,
+      [days, limit],
+    ),
+    pool.query(
+      `SELECT region AS label,
+        COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL)::int AS visitors,
+        COUNT(*)::int AS page_views
+       FROM analytics_events
+       WHERE type = 'pageview' AND NOT is_bot AND region IS NOT NULL
+         AND created_at >= NOW() - ($1 || ' days')::interval
+       GROUP BY region ORDER BY page_views DESC LIMIT $2`,
+      [days, limit],
+    ),
+    pool.query(
+      `SELECT city AS label,
+        COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL)::int AS visitors,
+        COUNT(*)::int AS page_views
+       FROM analytics_events
+       WHERE type = 'pageview' AND NOT is_bot AND city IS NOT NULL
+         AND created_at >= NOW() - ($1 || ' days')::interval
+       GROUP BY city ORDER BY page_views DESC LIMIT $2`,
+      [days, limit],
+    ),
+    pool.query(
+      `SELECT
+        COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL)::int AS visitors,
+        COUNT(*)::int AS page_views
+       FROM analytics_events
+       WHERE type = 'pageview' AND NOT is_bot AND country IS NULL
+         AND created_at >= NOW() - ($1 || ' days')::interval`,
+      [days],
+    ),
+  ])
+  const map = (rows: Array<{ label: string; visitors: number; page_views: number }>): GeoRow[] =>
+    rows.map((r) => ({ label: r.label, visitors: r.visitors, pageViews: r.page_views }))
+  const u = unknownRes.rows[0] ?? {}
+  return {
+    countries: map(countriesRes.rows),
+    regions: map(regionsRes.rows),
+    cities: map(citiesRes.rows),
+    unknown: { visitors: u.visitors ?? 0, pageViews: u.page_views ?? 0 },
+  }
+}
+
 // Whitelisted event types — anything else is rejected to keep the table clean.
 const ALLOWED_EVENT_TYPES = new Set(['pageview', 'product_view', 'add_to_cart'])
 
@@ -393,7 +518,8 @@ export async function trackEvent(input: {
 }) {
   // BUGFIX: public action with no rate limit — anyone could flood
   // analytics_events with INSERTs and inflate products.views_count.
-  const ip = clientIpFromHeaders(await headers())
+  const h = await headers()
+  const ip = clientIpFromHeaders(h)
   if (await isRateLimited('analytics-track', ip, 120)) {
     return { success: false, error: 'Too many requests' }
   }
@@ -404,12 +530,19 @@ export async function trackEvent(input: {
   const sessionId = typeof input.sessionId === 'string' ? input.sessionId.slice(0, 64) : null
   const referrer = typeof input.referrer === 'string' ? input.referrer.slice(0, 300) : null
   const productId = Number.isInteger(input.productId) ? input.productId : null
+  // Visitor detail: bot detection from User-Agent and geo (country from
+  // Cloudflare fast path, region/city via cached lookup). Resolved inline —
+  // resolveVisitorGeo never throws and respects an external API budget.
+  const userAgent = h.get('user-agent')?.slice(0, 500) ?? null
+  const { isBot } = detectBot(userAgent)
+  const geo = await resolveVisitorGeo(ip, h.get('cf-ipcountry'))
   // Public tracker: never persist client-supplied orderId/amount. Revenue
   // stats are read from the orders table, not analytics_events.
   await pool.query(
-    `INSERT INTO analytics_events (type, path, product_id, order_id, amount, session_id, referrer)
-     VALUES ($1, $2, $3, NULL, NULL, $4, $5)`,
-    [input.type, path, productId, sessionId, referrer],
+    `INSERT INTO analytics_events (type, path, product_id, order_id, amount, session_id, referrer,
+       user_agent, is_bot, country, region, city)
+     VALUES ($1, $2, $3, NULL, NULL, $4, $5, $6, $7, $8, $9, $10)`,
+    [input.type, path, productId, sessionId, referrer, userAgent, isBot, geo.country, geo.region, geo.city],
   )
   // Keep the denormalized per-product view counter in sync for quick sorting.
   if (input.type === 'product_view' && productId) {

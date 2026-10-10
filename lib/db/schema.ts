@@ -724,7 +724,20 @@ export const analyticsEvents = pgTable('analytics_events', {
   // and trackEvent writes it, but the Drizzle model was missing it — the only
   // such drift in the whole schema.
   referrer: varchar('referrer', { length: 300 }),
+  userAgent: text('user_agent'),
+  isBot: boolean('is_bot').notNull().default(false),
+  country: varchar('country', { length: 2 }),
+  region: varchar('region', { length: 120 }),
+  city: varchar('city', { length: 120 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const geoCache = pgTable('geo_cache', {
+  ipHash: varchar('ip_hash', { length: 64 }).primaryKey(),
+  country: varchar('country', { length: 2 }),
+  region: varchar('region', { length: 120 }),
+  city: varchar('city', { length: 120 }),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const schemaMigrations = pgTable(

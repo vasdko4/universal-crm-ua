@@ -45,6 +45,9 @@ import type {
   CustomerInsights,
   WeekdayRow,
   AbandonedCartStats,
+  VisitorSplit,
+  BotRow,
+  GeoStats,
 } from '@/app/actions/analytics'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { isProxiedMedia } from '@/lib/shop/own-image-url'
@@ -126,6 +129,15 @@ function formatCount(n: number, locale: string) {
   return n.toLocaleString(numberLocale(locale))
 }
 
+function botShareLabel(part: number, total: number) {
+  return `${((part / Math.max(total, 1)) * 100).toFixed(1)}%`
+}
+
+function countryFlag(code: string) {
+  if (!/^[A-Z]{2}$/.test(code)) return ''
+  return String.fromCodePoint(...[...code].map((c) => 127397 + c.charCodeAt(0)))
+}
+
 function TrendBadge({ value }: { value: number | null }) {
   if (value === null) return null
   const up = value >= 0
@@ -162,6 +174,9 @@ export function StatsDashboard({
   customers,
   weekdays,
   abandoned,
+  visitorSplit,
+  topBots,
+  geo,
   days,
 }: {
   summary: StatsSummary
@@ -177,6 +192,9 @@ export function StatsDashboard({
   customers: CustomerInsights
   weekdays: WeekdayRow[]
   abandoned: AbandonedCartStats
+  visitorSplit: VisitorSplit
+  topBots: BotRow[]
+  geo: GeoStats
   days: number
 }) {
   const { dict: t, locale } = useAdminI18n()
@@ -213,6 +231,28 @@ export function StatsDashboard({
   const maxCatRevenue = Math.max(...categorySales.map((c) => c.revenue), 1)
   const maxProductRevenue = Math.max(...topProducts.map((p) => p.revenue), 1)
   const totalStatusCount = Math.max(orderStatuses.reduce((s, r) => s + r.count, 0), 1)
+
+  // Humans vs bots pie (pageviews) and top bots.
+  const totalBotViews = Math.max(visitorSplit.humans.pageViews + visitorSplit.bots.pageViews, 1)
+  const botPieData = [
+    {
+      name: t.statistics.humansLabel,
+      value: visitorSplit.humans.pageViews,
+      color: 'var(--color-success)',
+    },
+    {
+      name: t.statistics.botsLabel,
+      value: visitorSplit.bots.pageViews,
+      color: 'var(--color-warning)',
+    },
+  ]
+  const maxBotHits = Math.max(...topBots.map((b) => b.hits), 1)
+  const maxGeoViews = Math.max(
+    ...geo.countries.map((g) => g.pageViews),
+    ...geo.regions.map((g) => g.pageViews),
+    ...geo.cities.map((g) => g.pageViews),
+    1,
+  )
 
   // Sales funnel. Values and conversions come from the server
   // (lib/analytics/funnel.ts) so the denominators are comparable units:
@@ -780,6 +820,187 @@ export function StatsDashboard({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Humans vs bots + top bots */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              {t.statistics.visitorsDetailTitle}
+            </h2>
+            <div className="flex items-center gap-6">
+              <div className="h-44 w-44 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={botPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={52}
+                      outerRadius={80}
+                      paddingAngle={3}
+                    >
+                      {botPieData.map((d) => (
+                        <Cell key={d.name} fill={d.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-1 flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="size-3 shrink-0 rounded-full"
+                    style={{ background: 'var(--color-success)' }}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{t.statistics.humansLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCount(visitorSplit.humans.visitors, locale)} {t.statistics.visitorsLabel} ·{' '}
+                      {formatCount(visitorSplit.humans.pageViews, locale)} {t.statistics.pageViewsShort}
+                    </p>
+                  </div>
+                  <span className="ml-auto text-sm font-semibold text-foreground">
+                    {botShareLabel(visitorSplit.humans.pageViews, totalBotViews)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className="size-3 shrink-0 rounded-full"
+                    style={{ background: 'var(--color-warning)' }}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{t.statistics.botsLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCount(visitorSplit.bots.visitors, locale)} {t.statistics.visitorsLabel} ·{' '}
+                      {formatCount(visitorSplit.bots.pageViews, locale)} {t.statistics.pageViewsShort}
+                    </p>
+                  </div>
+                  <span className="ml-auto text-sm font-semibold text-foreground">
+                    {botShareLabel(visitorSplit.bots.pageViews, totalBotViews)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">{t.statistics.topBotsTitle}</h2>
+            <div className="flex flex-col gap-3">
+              {topBots.map((b) => (
+                <div key={b.name} className="flex items-center gap-3">
+                  <span className="w-40 shrink-0 truncate text-sm text-foreground">{b.name}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-warning"
+                      style={{ width: `${(b.hits / maxBotHits) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-16 shrink-0 text-right text-sm text-muted-foreground">
+                    {formatCount(b.hits, locale)}
+                  </span>
+                </div>
+              ))}
+              {topBots.length === 0 && (
+                <p className="text-sm text-muted-foreground">{t.statistics.noDataPeriod}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Geography (humans only) */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="mb-4 flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-semibold text-foreground">{t.statistics.geoTitle}</h2>
+            <p className="text-xs text-muted-foreground">{t.statistics.geoHumansHint}</p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            <div>
+              <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+                {t.statistics.geoCountries}
+              </h3>
+              <div className="flex flex-col gap-2.5">
+                {geo.countries.map((g) => (
+                  <div key={g.label} className="flex items-center gap-3">
+                    <span className="w-32 shrink-0 truncate text-sm text-foreground">
+                      {countryFlag(g.label)} {g.label}
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${(g.pageViews / maxGeoViews) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-14 shrink-0 text-right text-sm text-muted-foreground">
+                      {formatCount(g.pageViews, locale)}
+                    </span>
+                  </div>
+                ))}
+                {geo.countries.length === 0 && (
+                  <p className="text-sm text-muted-foreground">{t.statistics.noDataPeriod}</p>
+                )}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+                {t.statistics.geoRegions}
+              </h3>
+              <div className="flex flex-col gap-2.5">
+                {geo.regions.map((g) => (
+                  <div key={g.label} className="flex items-center gap-3">
+                    <span className="w-32 shrink-0 truncate text-sm text-foreground" title={g.label}>
+                      {g.label}
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-info"
+                        style={{ width: `${(g.pageViews / maxGeoViews) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-14 shrink-0 text-right text-sm text-muted-foreground">
+                      {formatCount(g.pageViews, locale)}
+                    </span>
+                  </div>
+                ))}
+                {geo.regions.length === 0 && (
+                  <p className="text-sm text-muted-foreground">{t.statistics.noDataPeriod}</p>
+                )}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+                {t.statistics.geoCities}
+              </h3>
+              <div className="flex flex-col gap-2.5">
+                {geo.cities.map((g) => (
+                  <div key={g.label} className="flex items-center gap-3">
+                    <span className="w-32 shrink-0 truncate text-sm text-foreground" title={g.label}>
+                      {g.label}
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-success"
+                        style={{ width: `${(g.pageViews / maxGeoViews) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-14 shrink-0 text-right text-sm text-muted-foreground">
+                      {formatCount(g.pageViews, locale)}
+                    </span>
+                  </div>
+                ))}
+                {geo.cities.length === 0 && (
+                  <p className="text-sm text-muted-foreground">{t.statistics.noDataPeriod}</p>
+                )}
+              </div>
+            </div>
+          </div>
+          {geo.unknown.pageViews > 0 && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              {t.statistics.geoUnknown}: {formatCount(geo.unknown.pageViews, locale)}{' '}
+              {t.statistics.pageViewsShort} — {t.statistics.geoUnknownHint}
+            </p>
+          )}
         </div>
       </div>
     </div>

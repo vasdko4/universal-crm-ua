@@ -554,3 +554,20 @@ ALTER TABLE products ALTER COLUMN stock_status SET DEFAULT 'В наявност�
 ALTER TABLE pages ADD COLUMN IF NOT EXISTS show_in_footer boolean NOT NULL DEFAULT false;
 -- Backfill: pages that were hardcoded in LEGAL_SLUGS get the flag.
 UPDATE pages SET show_in_footer = true WHERE slug IN ('terms', 'privacy', 'returns', 'delivery', 'povernennya', 'dostavka-i-oplata', 'kontakty', 'pro-nas', 'return-policy') AND show_in_footer = false;
+
+-- 2026-10-10: visitor analytics detail (bots vs humans + geo).
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS user_agent text;
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false;
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS country varchar(2);
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS region varchar(120);
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS city varchar(120);
+CREATE TABLE IF NOT EXISTS geo_cache (
+  ip_hash varchar(64) PRIMARY KEY,
+  country varchar(2),
+  region varchar(120),
+  city varchar(120),
+  resolved_at timestamptz NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_is_bot ON analytics_events (is_bot);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_country ON analytics_events (country);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_region ON analytics_events (region);
