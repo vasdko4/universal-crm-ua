@@ -10,6 +10,7 @@ import { getUserAddresses } from '@/app/actions/addresses'
 import { getPublicStoreSettings } from '@/app/actions/settings-store'
 import { getShopUser } from '@/lib/session'
 import { publicRequisitesFromConfig } from '@/lib/payments/public-requisites'
+import { localizedPath } from '@/lib/i18n/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +42,18 @@ export default async function CheckoutPage({
     getShopUser().catch(() => null),
   ])
   const gaId = settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined
+
+  // Trust block data: seller identity + policy links on the transactional page.
+  // Merchant Center "misrepresentation" reviews check that the checkout shows
+  // who the seller is and where the return policy lives.
+  const sellerPhone = (settings?.contact?.phones || []).find((p: string) => p?.trim())?.trim()
+  const sellerAddress = settings?.contact?.address?.trim()
+  const sellerLine = [settings?.storeName, sellerAddress, sellerPhone].filter(Boolean).join(' · ')
+  const trustLinks = [
+    { href: localizedPath('/povernennya', locale), label: locale === 'ru' ? 'Возврат товара — 14 дней' : 'Повернення товару — 14 днів' },
+    { href: localizedPath('/dostavka-i-oplata', locale), label: locale === 'ru' ? 'Доставка и оплата' : 'Доставка і оплата' },
+    { href: localizedPath('/kontakty', locale), label: locale === 'ru' ? 'Контакты' : 'Контакти' },
+  ]
 
   const hasGateway = gateways.length > 0
 
@@ -79,6 +92,16 @@ export default async function CheckoutPage({
         initialName={shopUser?.name ?? undefined}
         initialEmail={shopUser?.email ?? undefined}
       />
+      <section className="mt-10 rounded-lg border border-border bg-muted/40 p-5 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {trustLinks.map((l) => (
+            <a key={l.href} href={l.href} className="underline underline-offset-2 hover:text-foreground">
+              {l.label}
+            </a>
+          ))}
+        </div>
+        {sellerLine ? <p className="mt-3">{sellerLine}</p> : null}
+      </section>
     </div>
   )
 }

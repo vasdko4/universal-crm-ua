@@ -160,7 +160,13 @@ export default async function HomePage() {
     settings?.social?.viber?.url,
     settings?.social?.tiktok?.url,
   ].filter((u): u is string => !!u?.trim())
-  const contactEmail = settings?.emailSettings?.fromEmail?.trim()
+  // Prefer the monitored contact-widget email over the transactional sender
+  // (noreply@) — same preference as the footer in layout.tsx. Google Merchant
+  // Center treats a noreply address as "no way to contact the business".
+  const widgetEmail = settings?.contact?.widget?.channels?.email
+  const contactEmail =
+    (widgetEmail?.value?.trim() ? widgetEmail.value.trim() : null) ??
+    settings?.emailSettings?.fromEmail?.trim()
 
   const organization: Record<string, unknown> = {
     '@context': 'https://schema.org',
