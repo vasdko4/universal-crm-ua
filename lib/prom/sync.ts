@@ -53,6 +53,68 @@ function normName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
+type EngineCharacteristic = { id: number; name: string; value: string }
+
+/**
+ * Fill missing characteristic names / replace empty values from Prom data.
+ * Never overwrites an already-filled value. Returns how many rows changed.
+ */
+async function applyCharacteristics(
+  productId: number,
+  existing: EngineCharacteristic[],
+  chars: { name: string; value: string }[],
+): Promise<number> {
+  const byName = new Map(existing.map((c) => [normName(c.name), c]))
+  let sortOrder = existing.length
+  let added = 0
+  for (const ch of chars) {
+    const key = normName(ch.name)
+    const cur = byName.get(key)
+    if (!cur) {
+      await pool.query(
+        `INSERT INTO product_characteristics (product_id, name, value, sort_order)
+         VALUES ($1, $2, $3, $4)`,
+        [productId, ch.name.trim(), ch.value.trim(), sortOrder++],
+      )
+      added++
+    } else if (cur.value.trim() === '' && ch.value.trim() !== '') {
+      await pool.query(
+        `UPDATE product_characteristics SET value = $1, updated_at = NOW() WHERE id = $2`,
+        [ch.value.trim(), cur.id],
+      )
+      // Don't re-fill the same row twice if Prom lists the name twice.
+      cur.value = ch.value
+      added++
+    }
+  }
+  return added
+}
+
+/** Run `fn` over items with at most `limit` concurrent executions. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  async function worker(): Promise<void> {
+    while (next < items.length) {
+      const i = next++
+      results[i] = await fn(items[i])
+    }
+  }
+  const workers = Array.from({ length: Math.min(limit, items.length) }, worker)
+  await Promise.all(workers)
+  return results
+}
+
+// How many product-detail requests fly at once. The characteristics leg is
+// the slow part of the sync (~160 products on the first run); sequential
+// fetching would exceed the ~100s proxy timeout on the manual "Sync now"
+// button. 5 concurrent keeps a full sync comfortably under it.
+const DETAIL_CONCURRENCY = 5
+
 export async function syncPromProducts(): Promise<PromSyncResult> {
   const result: PromSyncResult = {
     ok: true,
@@ -127,14 +189,20 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
     }
   }
 
-  // 4) Walk Prom products, update matches.
+  // 4) Walk Prom products: prices + stock are fast and run sequentially.
+  // Characteristics are applied from the list payload when present;
+  // products whose attributes need a separate detail fetch are queued and
+  // pulled concurrently afterwards (phase 4b) to stay under proxy timeouts.
+  const changedIds = new Set<number>()
+  let matched = 0
+  const detailQueue: { ep: EngineProduct; pp: PromProduct }[] = []
   for (const pp of promProducts) {
     const ep = engine.get(pp.id)
     if (!ep) {
       result.newOnProm++
       continue
     }
-    let changed = false
+    matched++
 
     // --- Prices ---
     if (cfg.syncPrices && pp.price !== null) {
@@ -149,7 +217,7 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
           [pp.price, promOld, ep.id],
         )
         result.pricesUpdated++
-        changed = true
+        changedIds.add(ep.id)
         ep.price = pp.price
         ep.oldPrice = promOld
       }
@@ -175,7 +243,7 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
           [qty, inStock, newStatus, ep.id],
         )
         result.stockUpdated++
-        changed = true
+        changedIds.add(ep.id)
         ep.quantity = qty
         ep.isInStock = inStock
         ep.stockStatus = newStatus
@@ -184,48 +252,44 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
 
     // --- Characteristics (fill missing / fix empty only) ---
     if (cfg.syncCharacteristics) {
-      let chars = pp.characteristics
       const existing = charMap.get(ep.id) ?? []
       const needsFix =
         existing.length === 0 || existing.some((c) => c.value.trim() === '')
-      if (needsFix && chars.length === 0) {
-        // The list endpoint didn't carry attributes — pull the product card.
-        try {
-          const details = await fetchPromProductDetails(token, pp.id)
-          if (details) chars = details.characteristics
-          await new Promise((r) => setTimeout(r, 250))
-        } catch (e) {
-          result.errors.push(`характеристики #${pp.id}: ${(e as Error).message}`)
-        }
-      }
-      if (needsFix && chars.length > 0) {
-        const byName = new Map(existing.map((c) => [normName(c.name), c]))
-        let sortOrder = existing.length
-        for (const ch of chars) {
-          const key = normName(ch.name)
-          const cur = byName.get(key)
-          if (!cur) {
-            await pool.query(
-              `INSERT INTO product_characteristics (product_id, name, value, sort_order)
-               VALUES ($1, $2, $3, $4)`,
-              [ep.id, ch.name.trim(), ch.value.trim(), sortOrder++],
-            )
-            result.characteristicsAdded++
-            changed = true
-          } else if (cur.value.trim() === '' && ch.value.trim() !== '') {
-            await pool.query(
-              `UPDATE product_characteristics SET value = $1, updated_at = NOW() WHERE id = $2`,
-              [ch.value.trim(), cur.id],
-            )
-            result.characteristicsAdded++
-            changed = true
+      if (needsFix) {
+        if (pp.characteristics.length > 0) {
+          const added = await applyCharacteristics(ep.id, existing, pp.characteristics)
+          if (added > 0) {
+            result.characteristicsAdded += added
+            changedIds.add(ep.id)
           }
+        } else {
+          // The list endpoint didn't carry attributes — queue a detail fetch.
+          detailQueue.push({ ep, pp })
         }
       }
     }
-
-    if (!changed) result.unchanged++
   }
+
+  // 4b) Pull missing characteristics concurrently.
+  if (detailQueue.length > 0) {
+    await mapWithConcurrency(detailQueue, DETAIL_CONCURRENCY, async ({ ep, pp }) => {
+      try {
+        const details = await fetchPromProductDetails(token, pp.id)
+        const chars = details?.characteristics ?? []
+        if (chars.length === 0) return
+        const existing = charMap.get(ep.id) ?? []
+        const added = await applyCharacteristics(ep.id, existing, chars)
+        if (added > 0) {
+          result.characteristicsAdded += added
+          changedIds.add(ep.id)
+        }
+      } catch (e) {
+        result.errors.push(`характеристики #${pp.id}: ${(e as Error).message}`)
+      }
+    })
+  }
+
+  result.unchanged = matched - changedIds.size
 
   // Engine products that Prom no longer lists (deleted/hidden there).
   const promIds = new Set(promProducts.map((p) => p.id))
