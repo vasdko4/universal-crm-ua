@@ -1299,6 +1299,64 @@ export type AdminDictionary = {
     entityLogs: string
     entityRole: string
   }
+  cron: {
+    pageTitle: string
+    pageSubtitle: string
+    colJob: string
+    colSchedule: string
+    colLastRun: string
+    colStatus: string
+    colEnabled: string
+    colActions: string
+    runNow: string
+    running: string
+    neverRun: string
+    statusOk: string
+    statusError: string
+    statusDisabled: string
+    everyDay: string
+    everyHour: string
+    enabledLabel: string
+    disabledLabel: string
+    runNowTitle: string
+    runNowConfirm: string
+    toggleError: string
+    promManagedNote: string
+    promManagedLink: string
+    deliverySyncName: string
+    deliverySyncDesc: string
+    analyticsRetentionName: string
+    analyticsRetentionDesc: string
+    expirePendingName: string
+    expirePendingDesc: string
+    anomalyAlertName: string
+    anomalyAlertDesc: string
+    dbBackupName: string
+    dbBackupDesc: string
+  }
+  errorLogs: {
+    pageTitle: string
+    pageSubtitle: string
+    colTime: string
+    colTag: string
+    colMessage: string
+    colCount: string
+    colLastSeen: string
+    colActions: string
+    noRecords: string
+    showResolved: string
+    hideResolved: string
+    filterByTag: string
+    allTags: string
+    markResolved: string
+    markUnresolved: string
+    clearResolved: string
+    clearResolvedConfirm: string
+    clearedTemplate: string
+    contextTitle: string
+    resolvedBadge: string
+    unresolvedBadge: string
+  }
   guides: {
     pageTitle: string
     pageSubtitle: string
@@ -1993,6 +2051,8 @@ const uk: AdminDictionary = {
     payments: 'Платежі',
     users: 'Користувачі',
     logs: 'Логи',
+    errorLogsNav: 'Логи помилок',
+    cronNav: 'Cron',
     settings: 'Налаштування',
     system_updates: 'Оновлення',
     trash: 'Смітник',
@@ -3247,6 +3307,64 @@ const uk: AdminDictionary = {
     entityLogs: 'Логи',
     entityRole: 'Роль',
   },
+  cron: {
+    pageTitle: 'Cron-завдання',
+    pageSubtitle: 'Фонові завдання движка: увімкнення, вимкнення і ручний запуск',
+    colJob: 'Завдання',
+    colSchedule: 'Розклад',
+    colLastRun: 'Останній запуск',
+    colStatus: 'Статус',
+    colEnabled: 'Увімкнено',
+    colActions: 'Дії',
+    runNow: 'Запустити зараз',
+    running: 'Виконується…',
+    neverRun: 'Ще не запускалось',
+    statusOk: 'OK',
+    statusError: 'Помилка',
+    statusDisabled: 'Вимкнено',
+    everyDay: 'Щодня',
+    everyHour: 'Щогодини',
+    enabledLabel: 'Увімкнено',
+    disabledLabel: 'Вимкнено',
+    runNowTitle: 'Запустити завдання вручну?',
+    runNowConfirm: 'Запустити',
+    toggleError: 'Не вдалося змінити стан',
+    promManagedNote: 'Керується в',
+    promManagedLink: 'Налаштування → Prom.ua',
+    deliverySyncName: 'Синхронізація доставки',
+    deliverySyncDesc: 'Оновлення статусів Нова Пошта для активних замовлень',
+    analyticsRetentionName: 'Очищення аналітики',
+    analyticsRetentionDesc: 'Видалення старих аналітичних даних',
+    expirePendingName: 'Прострочені замовлення',
+    expirePendingDesc: 'Скасування неоплачених замовлень із вичерпаним терміном',
+    anomalyAlertName: 'Алерти аномалій',
+    anomalyAlertDesc: 'Перевірка аномалій у продажах і сповіщення',
+    dbBackupName: 'Бекап бази даних',
+    dbBackupDesc: 'Щоденне резервне копіювання PostgreSQL',
+  },
+  errorLogs: {
+    pageTitle: 'Логи помилок движка',
+    pageSubtitle: 'Збої у фонових завданнях, оплаті, доставці та інтеграціях',
+    colTime: 'Час',
+    colTag: 'Тег',
+    colMessage: 'Тип',
+    colCount: 'Разів',
+    colLastSeen: 'Востаннє',
+    colActions: 'Дії',
+    noRecords: 'Помилок не зафіксовано',
+    showResolved: 'Показати вирішені',
+    hideResolved: 'Приховати вирішені',
+    filterByTag: 'Фільтр за тегом',
+    allTags: 'Усі теги',
+    markResolved: 'Позначити вирішеною',
+    markUnresolved: 'Повернути в роботу',
+    clearResolved: 'Очистити вирішені',
+    clearResolvedConfirm: 'Видалити всі вирішені записи?',
+    clearedTemplate: 'Видалено: {n}',
+    contextTitle: 'Контекст',
+    resolvedBadge: 'Вирішено',
+    unresolvedBadge: 'Активна',
+  },
   guides: {
     pageTitle: 'Інструкції',
     pageSubtitle: 'Покрокові гайди з налаштування та керування магазином через адмін-центр',
@@ -3948,6 +4066,8 @@ const ru: AdminDictionary = {
     payments: 'Платежи',
     users: 'Пользователи',
     logs: 'Логи',
+    errorLogsNav: 'Логи ошибок',
+    cronNav: 'Cron',
     settings: 'Настройки',
     system_updates: 'Обновления',
     trash: 'Корзина',
@@ -5201,6 +5321,64 @@ const ru: AdminDictionary = {
     entityCategory: 'Категория',
     entityLogs: 'Логи',
     entityRole: 'Роль',
+  },
+  cron: {
+    pageTitle: 'Cron-задачи',
+    pageSubtitle: 'Фоновые задачи движка: включение, выключение и ручной запуск',
+    colJob: 'Задача',
+    colSchedule: 'Расписание',
+    colLastRun: 'Последний запуск',
+    colStatus: 'Статус',
+    colEnabled: 'Включено',
+    colActions: 'Действия',
+    runNow: 'Запустить сейчас',
+    running: 'Выполняется…',
+    neverRun: 'Ещё не запускалась',
+    statusOk: 'OK',
+    statusError: 'Ошибка',
+    statusDisabled: 'Выключено',
+    everyDay: 'Ежедневно',
+    everyHour: 'Каждый час',
+    enabledLabel: 'Включено',
+    disabledLabel: 'Выключено',
+    runNowTitle: 'Запустить задачу вручную?',
+    runNowConfirm: 'Запустить',
+    toggleError: 'Не удалось изменить состояние',
+    promManagedNote: 'Управляется в',
+    promManagedLink: 'Настройки → Prom.ua',
+    deliverySyncName: 'Синхронизация доставки',
+    deliverySyncDesc: 'Обновление статусов Нова Пошта для активных заказов',
+    analyticsRetentionName: 'Очистка аналитики',
+    analyticsRetentionDesc: 'Удаление старых аналитических данных',
+    expirePendingName: 'Просроченные заказы',
+    expirePendingDesc: 'Отмена неоплаченных заказов с истекшим сроком',
+    anomalyAlertName: 'Алерты аномалий',
+    anomalyAlertDesc: 'Проверка аномалий в продажах и уведомления',
+    dbBackupName: 'Бекап базы данных',
+    dbBackupDesc: 'Ежедневное резервное копирование PostgreSQL',
+  },
+  errorLogs: {
+    pageTitle: 'Логи ошибок движка',
+    pageSubtitle: 'Сбои в фоновых задачах, оплате, доставке и интеграциях',
+    colTime: 'Время',
+    colTag: 'Тег',
+    colMessage: 'Тип',
+    colCount: 'Раз',
+    colLastSeen: 'В последний раз',
+    colActions: 'Действия',
+    noRecords: 'Ошибок не зафиксировано',
+    showResolved: 'Показать решённые',
+    hideResolved: 'Скрыть решённые',
+    filterByTag: 'Фильтр по тегу',
+    allTags: 'Все теги',
+    markResolved: 'Отметить решённой',
+    markUnresolved: 'Вернуть в работу',
+    clearResolved: 'Очистить решённые',
+    clearResolvedConfirm: 'Удалить все решённые записи?',
+    clearedTemplate: 'Удалено: {n}',
+    contextTitle: 'Контекст',
+    resolvedBadge: 'Решено',
+    unresolvedBadge: 'Активна',
   },
   guides: {
     pageTitle: 'Инструкции',

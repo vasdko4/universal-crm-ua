@@ -574,3 +574,29 @@ CREATE TABLE IF NOT EXISTS geo_cache (
 CREATE INDEX IF NOT EXISTS idx_analytics_events_is_bot ON analytics_events (is_bot);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_country ON analytics_events (country);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_region ON analytics_events (region);
+
+-- 2026-10-17: cron job registry (enable/disable + last run status for the admin Cron tab).
+CREATE TABLE IF NOT EXISTS cron_jobs (
+  id text PRIMARY KEY,
+  enabled boolean NOT NULL DEFAULT true,
+  last_run_at timestamptz,
+  last_status text,
+  last_error text,
+  updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+-- 2026-10-17: engine error log (reportError persists here for the admin Error Logs tab).
+CREATE TABLE IF NOT EXISTS error_logs (
+  id serial PRIMARY KEY,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  tag text NOT NULL,
+  message text NOT NULL,
+  context jsonb,
+  occurrences integer NOT NULL DEFAULT 1,
+  first_seen timestamptz NOT NULL DEFAULT NOW(),
+  last_seen timestamptz NOT NULL DEFAULT NOW(),
+  resolved boolean NOT NULL DEFAULT false
+);
+CREATE INDEX IF NOT EXISTS idx_error_logs_created_at ON error_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_tag ON error_logs (tag);
+CREATE INDEX IF NOT EXISTS idx_error_logs_resolved ON error_logs (resolved);

@@ -22,6 +22,8 @@ import {
   ScrollText,
   RefreshCw,
   Target,
+  Clock,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -48,6 +50,7 @@ export type PermissionKey =
   | 'import'
   | 'trash'
   | 'logs'
+  | 'system_cron'
   | 'system_updates'
 
 export type NavItem = {
@@ -128,6 +131,20 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/admin/users', label: 'Користувачі', icon: Shield, permission: 'users' },
       { href: '/admin/logs', label: 'Логи', icon: ScrollText, permission: 'logs' },
+      {
+        href: '/admin/error-logs',
+        label: 'Логи помилок',
+        icon: TriangleAlert,
+        permission: 'logs',
+        labelKey: 'errorLogsNav',
+      },
+      {
+        href: '/admin/cron',
+        label: 'Cron',
+        icon: Clock,
+        permission: 'system_cron',
+        labelKey: 'cronNav',
+      },
       { href: '/admin/settings', label: 'Налаштування', icon: Settings, permission: 'settings' },
       { href: '/admin/updates', label: 'Оновлення', icon: RefreshCw, permission: 'system_updates' },
       { href: '/admin/trash', label: 'Смітник', icon: Trash2, permission: 'trash' },

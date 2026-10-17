@@ -20,6 +20,44 @@
  */
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 
+/**
+ * Persist the error to the error_logs table for the admin Error Logs tab.
+ * Deduplicates: same tag + errorType within the last hour bumps `occurrences`
+ * instead of inserting a row (prevents log flooding). Best-effort, never
+ * throws, never calls reportError (no recursion).
+ */
+async function persistErrorLog(
+  tag: string,
+  errorType: string,
+  context: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const { pool } = await import('@/lib/db')
+    const ctxJson = JSON.stringify(context)
+    // Bump an existing unresolved entry from the last hour.
+    const bumped = await pool.query(
+      `UPDATE error_logs
+          SET occurrences = occurrences + 1, last_seen = NOW(), context = $3
+        WHERE tag = $1 AND message = $2 AND resolved = false
+          AND last_seen > NOW() - INTERVAL '1 hour'
+        RETURNING id`,
+      [tag, errorType, ctxJson],
+    )
+    if ((bumped.rowCount ?? 0) > 0) return
+    await pool.query(
+      `INSERT INTO error_logs (tag, message, context) VALUES ($1, $2, $3)`,
+      [tag, errorType, ctxJson],
+    )
+    // Retention: keep the table bounded.
+    await pool.query(
+      `DELETE FROM error_logs
+        WHERE id NOT IN (SELECT id FROM error_logs ORDER BY id DESC LIMIT 5000)`,
+    )
+  } catch {
+    // Best effort — a failing log write must not break the reporter.
+  }
+}
+
 export type ReportErrorOptions = {
   /**
    * Ping the admin Telegram chat. Use only for critical failures
@@ -107,6 +145,10 @@ export async function reportError(
     } catch {
       // Logging must never interfere with the operation being reported.
     }
+
+    // Persist for the admin Error Logs tab (best-effort, deduped).
+    // Fire and forget — never blocks the caller.
+    void persistErrorLog(normalizedTag, errorType, context)
 
     if (!opts.alertAdmin) return
 

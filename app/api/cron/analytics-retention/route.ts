@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { pool } from '@/lib/db'
 import { authorizeCronRequest } from '@/lib/cron-auth'
+import { isCronJobEnabled } from '@/lib/cron/store'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -15,6 +16,11 @@ export async function GET(req: NextRequest) {
   const auth = authorizeCronRequest(process.env.CRON_SECRET, req.headers.get('authorization'))
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status })
+  }
+
+  // Admin Cron tab kill-switch: disabled jobs refuse to run (fail closed).
+  if (!(await isCronJobEnabled('analytics-retention'))) {
+    return NextResponse.json({ ok: false, error: 'cron job disabled' }, { status: 503 })
   }
 
   try {

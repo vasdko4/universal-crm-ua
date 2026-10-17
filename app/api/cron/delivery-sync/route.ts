@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { syncNovaPoshtaTracking } from '@/lib/delivery/sync-tracking'
 import { authorizeCronRequest } from '@/lib/cron-auth'
+import { isCronJobEnabled } from '@/lib/cron/store'
 import { reportError } from '@/lib/server-errors'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,11 @@ export async function GET(req: NextRequest) {
       )
     }
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status })
+  }
+
+  // Admin Cron tab kill-switch: disabled jobs refuse to run (fail closed).
+  if (!(await isCronJobEnabled('delivery-sync'))) {
+    return NextResponse.json({ ok: false, error: 'cron job disabled' }, { status: 503 })
   }
 
   try {

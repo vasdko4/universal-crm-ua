@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { authorizeCronRequest } from '@/lib/cron-auth'
+import { isCronJobEnabled } from '@/lib/cron/store'
 import { reportError } from '@/lib/server-errors'
 import { runAnomalyCheck } from '@/lib/analytics/anomaly'
 
@@ -29,6 +30,11 @@ export async function GET(req: NextRequest) {
       )
     }
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status })
+  }
+
+  // Admin Cron tab kill-switch: disabled jobs refuse to run (fail closed).
+  if (!(await isCronJobEnabled('anomaly-alert'))) {
+    return NextResponse.json({ ok: false, error: 'cron job disabled' }, { status: 503 })
   }
 
   try {
