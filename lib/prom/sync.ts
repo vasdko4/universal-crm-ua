@@ -272,6 +272,7 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
 
   // 4b) Pull missing characteristics concurrently.
   if (detailQueue.length > 0) {
+    console.log(`[prom] fetching characteristics for ${detailQueue.length} products (${DETAIL_CONCURRENCY} concurrent)`)
     await mapWithConcurrency(detailQueue, DETAIL_CONCURRENCY, async ({ ep, pp }) => {
       try {
         const details = await fetchPromProductDetails(token, pp.id)

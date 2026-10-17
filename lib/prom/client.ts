@@ -143,24 +143,42 @@ function extractList(data: unknown): { items: unknown[]; total: number | null } 
  */
 export async function fetchAllPromProducts(token: string): Promise<PromProduct[]> {
   const out: PromProduct[] = []
+  const seen = new Set<number>()
   let offset = 0
   let loggedKeys = false
-  for (;;) {
+  // Safety: never loop forever if the API ignores `offset` or misreports
+  // `total` (a full page every time would otherwise spin endlessly and the
+  // sync button would load "forever").
+  const MAX_PAGES = 50
+  for (let page = 1; page <= MAX_PAGES; page++) {
     const data = await apiGet(token, `/products/list?limit=${PAGE_LIMIT}&offset=${offset}`)
     const { items, total } = extractList(data)
     if (!loggedKeys && items.length > 0 && typeof items[0] === 'object' && items[0] !== null) {
       loggedKeys = true
       console.log('[prom] products/list first-item keys:', Object.keys(items[0] as object).join(','))
     }
+    let fresh = 0
     for (const item of items) {
       const p = normalizePromProduct(item)
-      if (p) out.push(p)
+      if (!p || seen.has(p.id)) continue
+      seen.add(p.id)
+      out.push(p)
+      fresh++
+    }
+    console.log(`[prom] products/list page ${page}: ${items.length} items (${fresh} new), total known: ${out.length}`)
+    if (items.length === 0) break
+    if (fresh === 0) {
+      console.warn('[prom] products/list returned only duplicates — stopping pagination (API may ignore offset)')
+      break
     }
     if (items.length < PAGE_LIMIT) break
     offset += PAGE_LIMIT
     if (total !== null && offset >= total) break
     // Be gentle with the marketplace API.
     await new Promise((r) => setTimeout(r, 300))
+  }
+  if (out.length >= MAX_PAGES * PAGE_LIMIT) {
+    console.warn(`[prom] hit the ${MAX_PAGES}-page safety cap; catalog may be truncated`)
   }
   return out
 }
