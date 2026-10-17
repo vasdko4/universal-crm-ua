@@ -251,21 +251,18 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
     matched++
 
     // --- Prices ---
+    // Only the selling price is synced. old_price (strikethrough discount)
+    // is intentionally left alone: the Prom API does not report it, so
+    // syncing it would wipe discounts based on absence of evidence.
     if (cfg.syncPrices && pp.price !== null) {
-      const priceChanged = Math.abs(ep.price - pp.price) > 0.005
-      const promOld = pp.oldPrice
-      const oldChanged =
-        (promOld === null && ep.oldPrice !== null) ||
-        (promOld !== null && (ep.oldPrice === null || Math.abs(ep.oldPrice - promOld) > 0.005))
-      if (priceChanged || oldChanged) {
+      if (Math.abs(ep.price - pp.price) > 0.005) {
         await pool.query(
-          `UPDATE products SET price = $1, old_price = $2, updated_at = NOW() WHERE id = $3`,
-          [pp.price, promOld, ep.id],
+          `UPDATE products SET price = $1, updated_at = NOW() WHERE id = $2`,
+          [pp.price, ep.id],
         )
         result.pricesUpdated++
         changedIds.add(ep.id)
         ep.price = pp.price
-        ep.oldPrice = promOld
       }
     }
 
