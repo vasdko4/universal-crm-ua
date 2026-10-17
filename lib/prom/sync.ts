@@ -198,6 +198,11 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
     if (sku !== null && !promBySku.has(sku)) promBySku.set(sku, pp)
   }
   console.log(`[prom] matching: ${engineProducts.length} engine products (${bySku.size} with SKU), ${promProducts.length} Prom products`)
+  // Debug: SKU samples from both sides + a few Prom names, to diagnose
+  // mismatches (e.g. empty SKUs on one side, or a wrong store).
+  console.log(`[prom] SKU samples — Prom: ${[...promBySku.keys()].slice(0, 5).join(' | ') || '(none)'}`)
+  console.log(`[prom] SKU samples — engine: ${[...bySku.keys()].slice(0, 5).join(' | ') || '(none)'}`)
+  console.log(`[prom] name samples — Prom: ${promProducts.slice(0, 3).map((p) => p.name).join(' | ')}`)
 
   // 3) Characteristics of matched products (only needed when the toggle is on).
   const charMap = new Map<number, { id: number; name: string; value: string }[]>()
@@ -225,15 +230,23 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
   const changedIds = new Set<number>()
   const matchedPromIds = new Set<number>()
   let matched = 0
+  let matchedBySku = 0
+  let matchedByPromId = 0
   const detailQueue: { ep: EngineProduct; pp: PromProduct }[] = []
   for (const ep of engineProducts) {
     // prom_id first, then SKU.
     let pp = ep.promId !== null ? promById.get(ep.promId) : undefined
-    if (!pp && ep.sku !== null) pp = promBySku.get(ep.sku)
+    let via: 'id' | 'sku' | null = pp ? 'id' : null
+    if (!pp && ep.sku !== null) {
+      pp = promBySku.get(ep.sku)
+      if (pp) via = 'sku'
+    }
     if (!pp) {
       result.unmatched++
       continue
     }
+    if (via === 'sku') matchedBySku++
+    else matchedByPromId++
     matchedPromIds.add(pp.id)
     matched++
 
@@ -324,6 +337,7 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
   }
 
   result.unchanged = matched - changedIds.size
+  console.log(`[prom] matched ${matched} of ${engineProducts.length} engine products (by SKU: ${matchedBySku}, by prom_id: ${matchedByPromId})`)
 
   // Prom products that no engine product matched (counted, never imported).
   for (const pp of promProducts) {
