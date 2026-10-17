@@ -123,6 +123,8 @@ export type PromSettings = {
   syncPrices: boolean
   syncStock: boolean
   syncCharacteristics: boolean
+  /** Auto-sync interval in minutes (in-process scheduler, no cron needed). */
+  syncIntervalMinutes: number
   lastSyncAt: string | null
   lastSyncSummary: string | null
 }
@@ -270,6 +272,7 @@ export const DEFAULTS: StoreSettingsData = {
     syncPrices: true,
     syncStock: true,
     syncCharacteristics: true,
+    syncIntervalMinutes: 60,
     lastSyncAt: null,
     lastSyncSummary: null,
   },
@@ -527,12 +530,15 @@ export function normalizeStoreSettingsRow(row: unknown): StoreSettingsData {
     adsSpend: normalizeAdsSpend(col(src, 'adsSpend', 'ads_spend')),
     prom: (() => {
       const merged = mergeObject(DEFAULTS.prom, col(src, 'prom', 'prom'))
+      const interval = Number(merged.syncIntervalMinutes)
       return {
         enabled: asBool(merged.enabled, DEFAULTS.prom.enabled),
         apiToken: asString(merged.apiToken, ''),
         syncPrices: asBool(merged.syncPrices, DEFAULTS.prom.syncPrices),
         syncStock: asBool(merged.syncStock, DEFAULTS.prom.syncStock),
         syncCharacteristics: asBool(merged.syncCharacteristics, DEFAULTS.prom.syncCharacteristics),
+        syncIntervalMinutes:
+          Number.isFinite(interval) && interval >= 5 ? Math.round(interval) : DEFAULTS.prom.syncIntervalMinutes,
         lastSyncAt: asStringOrNull(merged.lastSyncAt, null),
         lastSyncSummary: asStringOrNull(merged.lastSyncSummary, null),
       }

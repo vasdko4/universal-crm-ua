@@ -22,5 +22,14 @@ export async function register() {
     } catch (e) {
       console.error('[catalog-hygiene]', (e as Error).message)
     }
+    // Prom.ua sync scheduler: minute tick, runs the catalog sync when due
+    // (integration enabled + interval elapsed). Out of the box — no system
+    // crontab needed on the VPS. Never throws, never blocks startup.
+    try {
+      const { startPromScheduler } = await import('./lib/prom/scheduler')
+      startPromScheduler()
+    } catch (e) {
+      console.error('[prom-scheduler]', (e as Error).message)
+    }
   }
 }

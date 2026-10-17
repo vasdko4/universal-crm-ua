@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { normalizePromProduct, promInStock } from '@/lib/prom/client'
+import { isPromSyncDue } from '@/lib/prom/scheduler'
 
 describe('normalizePromProduct', () => {
   it('normalizes a full product payload', () => {
@@ -62,5 +63,31 @@ describe('promInStock', () => {
     const base = { id: 1, name: '', sku: null, price: null, oldPrice: null, quantity: null, characteristics: [] }
     expect(promInStock({ ...base, presence: 'not_available' })).toBe(false)
     expect(promInStock({ ...base, presence: 'available' })).toBe(true)
+  })
+})
+
+describe('isPromSyncDue', () => {
+  const NOW = Date.parse('2026-10-17T12:00:00Z')
+  const base = { enabled: true, hasToken: true, intervalMinutes: 60, lastSyncAt: null as string | null }
+
+  it('is due on first run (never synced)', () => {
+    expect(isPromSyncDue(base, NOW)).toBe(true)
+  })
+
+  it('is not due before the interval elapses', () => {
+    expect(isPromSyncDue({ ...base, lastSyncAt: new Date(NOW - 30 * 60_000).toISOString() }, NOW)).toBe(false)
+  })
+
+  it('is due after the interval elapses', () => {
+    expect(isPromSyncDue({ ...base, lastSyncAt: new Date(NOW - 61 * 60_000).toISOString() }, NOW)).toBe(true)
+  })
+
+  it('is not due when disabled or tokenless', () => {
+    expect(isPromSyncDue({ ...base, enabled: false }, NOW)).toBe(false)
+    expect(isPromSyncDue({ ...base, hasToken: false }, NOW)).toBe(false)
+  })
+
+  it('treats a broken lastSyncAt as due', () => {
+    expect(isPromSyncDue({ ...base, lastSyncAt: 'not-a-date' }, NOW)).toBe(true)
   })
 })

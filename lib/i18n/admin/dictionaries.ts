@@ -735,6 +735,8 @@ export type AdminDictionary = {
     promSyncing: string
     promSyncStarted: string
     promSyncError: string
+    promIntervalLabel: string
+    promIntervalHint: string
     uploadErrorDefault: string
     toastSettingsSaved: string
     toastSettingsSaveError: string
@@ -2674,6 +2676,8 @@ const uk: AdminDictionary = {
     promSyncing: 'Синхронізація…',
     promSyncStarted: 'Синхронізацію запущено',
     promSyncError: 'Помилка синхронізації',
+    promIntervalLabel: 'Інтервал автосинхронізації',
+    promIntervalHint: 'Як часто оновлювати дані з Prom автоматично. Працює одразу після увімкнення — без налаштувань на сервері.',
     uploadErrorDefault: 'Помилка завантаження',
     toastSettingsSaved: 'Налаштування збережено',
     toastSettingsSaveError: 'Помилка збереження',
@@ -4624,6 +4628,8 @@ const ru: AdminDictionary = {
     promSyncing: 'Синхронизация…',
     promSyncStarted: 'Синхронизация запущена',
     promSyncError: 'Ошибка синхронизации',
+    promIntervalLabel: 'Интервал автосинхронизации',
+    promIntervalHint: 'Как часто обновлять данные из Prom автоматически. Работает сразу после включения — без настроек на сервере.',
     uploadErrorDefault: 'Ошибка загрузки',
     toastSettingsSaved: 'Настройки сохранены',
     toastSettingsSaveError: 'Ошибка сохранения',

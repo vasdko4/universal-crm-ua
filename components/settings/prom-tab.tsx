@@ -8,9 +8,25 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { StoreSettingsData } from '@/app/actions/settings-store'
 import { triggerPromSync } from '@/app/actions/prom'
 import type { SectionProps } from './settings-types'
+
+const INTERVAL_OPTIONS = [
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 60, label: '1 h' },
+  { value: 180, label: '3 h' },
+  { value: 360, label: '6 h' },
+  { value: 1440, label: '24 h' },
+]
 
 export function PromSection({ data, setData, t }: SectionProps) {
   const p = data.prom
@@ -96,6 +112,25 @@ export function PromSection({ data, setData, t }: SectionProps) {
       </div>
 
       <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="prom-interval">{t.promIntervalLabel}</Label>
+          <Select
+            value={String(p.syncIntervalMinutes)}
+            onValueChange={(v) => set({ syncIntervalMinutes: Number(v) })}
+          >
+            <SelectTrigger id="prom-interval" className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {INTERVAL_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={String(o.value)}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">{t.promIntervalHint}</p>
+        </div>
         <label className="flex cursor-pointer items-start gap-3">
           <Checkbox
             checked={p.syncPrices}
