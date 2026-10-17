@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { pool } from '@/lib/db'
 import { authorizeCronRequest } from '@/lib/cron-auth'
-import { isCronJobEnabled } from '@/lib/cron/store'
+import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -30,8 +30,10 @@ export async function GET(req: NextRequest) {
          AND type IN ('pageview', 'product_view', 'add_to_cart')`,
       [String(RETENTION_DAYS)],
     )
+    await recordCronRun('analytics-retention', 'ok')
     return NextResponse.json({ ok: true, deleted: result.rowCount ?? 0 })
   } catch (e) {
+    await recordCronRun('analytics-retention', 'error', (e as Error).message)
     console.error('[cron] analytics-retention failed:', (e as Error).message)
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
   }

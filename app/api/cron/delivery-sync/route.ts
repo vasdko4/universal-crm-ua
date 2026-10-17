@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { syncNovaPoshtaTracking } from '@/lib/delivery/sync-tracking'
 import { authorizeCronRequest } from '@/lib/cron-auth'
-import { isCronJobEnabled } from '@/lib/cron/store'
+import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
 import { reportError } from '@/lib/server-errors'
 
 export const dynamic = 'force-dynamic'
@@ -40,10 +40,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await syncNovaPoshtaTracking()
+    await recordCronRun('delivery-sync', result.ok ? 'ok' : 'error', result.ok ? undefined : 'sync failed')
     return NextResponse.json(result, { status: result.ok ? 200 : 422 })
   } catch (e) {
     // A dead delivery-sync cron means TTNs silently stop updating —
     // ping the admin, not just the logs.
+    await recordCronRun('delivery-sync', 'error', (e as Error).message)
     void reportError('cron.delivery-sync', e, { alertAdmin: true })
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
   }

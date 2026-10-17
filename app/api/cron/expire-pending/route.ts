@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { authorizeCronRequest } from '@/lib/cron-auth'
-import { isCronJobEnabled } from '@/lib/cron/store'
+import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
 import { expirePendingPayments } from '@/lib/payments/expire-pending'
 
 export const dynamic = 'force-dynamic'
@@ -25,8 +25,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await expirePendingPayments()
+    await recordCronRun('expire-pending', 'ok')
     return NextResponse.json({ ok: true, ...result })
   } catch (e) {
+    await recordCronRun('expire-pending', 'error', (e as Error).message)
     console.error('[cron] expire-pending failed:', (e as Error).message)
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
   }

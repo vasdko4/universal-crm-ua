@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { syncPromProducts } from '@/lib/prom/sync'
 import { authorizeCronRequest } from '@/lib/cron-auth'
+import { recordCronRun } from '@/lib/cron/store'
 import { reportError } from '@/lib/server-errors'
 
 export const dynamic = 'force-dynamic'
@@ -29,8 +30,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await syncPromProducts()
+    await recordCronRun('prom-sync', result.ok ? 'ok' : 'error', result.ok ? undefined : 'sync failed')
     return NextResponse.json(result, { status: result.ok ? 200 : 422 })
   } catch (e) {
+    await recordCronRun('prom-sync', 'error', (e as Error).message)
     void reportError('cron.prom-sync', e, { alertAdmin: true })
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
   }

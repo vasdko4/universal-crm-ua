@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { authorizeCronRequest } from '@/lib/cron-auth'
-import { isCronJobEnabled } from '@/lib/cron/store'
+import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
 import { runDatabaseBackup } from '@/lib/shop/db-backup'
 import { reportError } from '@/lib/server-errors'
 
@@ -25,9 +25,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const summary = await runDatabaseBackup()
+    await recordCronRun('db-backup', 'ok')
     return NextResponse.json({ ok: true, ...summary })
   } catch (e) {
     const err = e as Error
+    await recordCronRun('db-backup', 'error', err.message)
     await reportError('cron.db-backup', err, { alertAdmin: true })
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
   }

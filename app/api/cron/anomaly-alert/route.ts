@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { authorizeCronRequest } from '@/lib/cron-auth'
-import { isCronJobEnabled } from '@/lib/cron/store'
+import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
 import { reportError } from '@/lib/server-errors'
 import { runAnomalyCheck } from '@/lib/analytics/anomaly'
 
@@ -39,10 +39,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await runAnomalyCheck()
+    await recordCronRun('anomaly-alert', result.ok ? 'ok' : 'error', result.ok ? undefined : 'check failed')
     return NextResponse.json(result, { status: result.ok ? 200 : 500 })
   } catch (e) {
     // A dead anomaly cron means the admin stops hearing about a broken
     // checkout — ping, not just logs.
+    await recordCronRun('anomaly-alert', 'error', (e as Error).message)
     void reportError('cron.anomaly-alert', e, { alertAdmin: true })
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
   }
