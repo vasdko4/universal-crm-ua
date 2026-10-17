@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Banknote,
   FileText,
+  PhoneCall,
   ChevronRight,
   Minus,
   Plus,
@@ -1027,7 +1028,7 @@ export function CheckoutFlow({
               />
             ))}
             {payment === 'requisites' &&
-              availablePayments.find((m) => m.code === 'requisites')?.requisites && (
+              (availablePayments.find((m) => m.code === 'requisites')?.requisites ? (
                 <CopyRequisites
                   className="mt-1"
                   text={formatRequisitesPreview(
@@ -1035,7 +1036,14 @@ export function CheckoutFlow({
                     { amount: total, locale: locale === 'ru' ? 'ru' : 'uk' },
                   )}
                 />
-              )}
+              ) : (
+                <div className="mt-1 flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                  <PhoneCall className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <p className="text-sm leading-relaxed text-foreground">
+                    {t.requisitesManagerContact}
+                  </p>
+                </div>
+              ))}
           </div>
 
           <div className="mt-4">
@@ -1466,9 +1474,17 @@ function OrderSuccess({
           </div>
         )}
 
-        {result.paymentMethod === 'requisites' && result.requisites && (
-          <CopyRequisites className="mt-6 w-full text-left" text={result.requisites} />
-        )}
+        {result.paymentMethod === 'requisites' &&
+          (result.requisites ? (
+            <CopyRequisites className="mt-6 w-full text-left" text={result.requisites} />
+          ) : (
+            <div className="mt-6 flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left">
+              <PhoneCall className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <p className="text-sm leading-relaxed text-foreground">
+                {t.requisitesManagerContact}
+              </p>
+            </div>
+          ))}
 
         {result.paymentMethod === 'online' && result.paymentUrl && (
           <Button

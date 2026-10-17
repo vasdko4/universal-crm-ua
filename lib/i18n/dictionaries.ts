@@ -251,6 +251,7 @@ export type Dictionary = {
     codSubtitle: string
     onlineSubtitle: string
     requisitesSubtitle: string
+    requisitesManagerContact: string
     comment: string
     commentPlaceholder: string
     placeOrder: string
@@ -869,6 +870,7 @@ const uk: Dictionary = {
     codSubtitle: 'Оплата при отриманні у відділенні',
     onlineSubtitle: 'Оплата карткою онлайн',
     requisitesSubtitle: 'Оплата за банківськими реквізитами',
+    requisitesManagerContact: 'Менеджер звʼяжеться з вами найближчим часом, щоб уточнити деталі оплати',
     comment: 'Коментар до замовлення',
     commentPlaceholder: 'Додаткова інформація для менеджера',
     placeOrder: 'Підтвердити замовлення',
@@ -1485,6 +1487,7 @@ const ru: Dictionary = {
     codSubtitle: 'Оплата при получении в отделении',
     onlineSubtitle: 'Оплата картой онлайн',
     requisitesSubtitle: 'Оплата по банковским реквизитам',
+    requisitesManagerContact: 'Менеджер свяжется с вами в ближайшее время, чтобы уточнить детали оплаты',
     comment: 'Комментарий к заказу',
     commentPlaceholder: 'Дополнительная информация для менеджера',
     placeOrder: 'Подтвердить заказ',
