@@ -57,6 +57,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # survive container restarts/rebuilds.
 RUN mkdir -p ./public/uploads/products && chown -R nextjs:nodejs ./public/uploads
 
+# Local DB backups (BACKUP_DIR=/app/data/backups). Same pattern as uploads:
+# the directory must exist and be owned by nextjs, otherwise the backup cron
+# fails with EACCES. docker-compose mounts a named volume here for persistence.
+RUN mkdir -p ./data/backups && chown -R nextjs:nodejs ./data
+
 # db/ + scripts/ are needed for one-off setup commands (db-setup.mjs applies
 # db/schema.sql + db/seed.sql via the `pg` driver — already a prod dependency,
 # no drizzle-kit/devDependencies needed at runtime).
