@@ -34,7 +34,14 @@ export function PromSection({ data, setData, t }: SectionProps) {
     setData((d) => ({ ...d, prom: { ...d.prom, ...patch } }))
   const [showToken, setShowToken] = useState(false)
   const [syncing, startSync] = useTransition()
-  const hasToken = Boolean(p.apiToken.trim())
+  // Secrets are never sent back to the browser (stripSecrets), so after a
+  // reload the field looks empty even though the token is stored encrypted
+  // in the DB. But the toggle can only be ON with a saved token (it can't
+  // be enabled while the field is empty), so `p.enabled` proves a token
+  // exists server-side — the Sync button must not stay disabled because of
+  // the empty-looking field.
+  const tokenTyped = Boolean(p.apiToken.trim())
+  const tokenConfigured = tokenTyped || p.enabled
 
   function syncNow() {
     startSync(async () => {
@@ -77,7 +84,7 @@ export function PromSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={p.enabled}
-          disabled={!hasToken && !p.enabled}
+          disabled={!tokenTyped && !p.enabled}
           onCheckedChange={(v) => set({ enabled: v })}
         />
       </div>
@@ -109,6 +116,11 @@ export function PromSection({ data, setData, t }: SectionProps) {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">{t.promTokenHint}</p>
+        {p.enabled && !tokenTyped && (
+          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            ● {t.promTokenSaved}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
@@ -177,7 +189,7 @@ export function PromSection({ data, setData, t }: SectionProps) {
               : t.promNeverSynced}
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={syncNow} disabled={syncing || !p.enabled || !hasToken}>
+        <Button type="button" variant="outline" onClick={syncNow} disabled={syncing || !p.enabled}>
           {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
           {syncing ? t.promSyncing : t.promSyncNowButton}
         </Button>
