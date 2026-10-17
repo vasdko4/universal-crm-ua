@@ -69,7 +69,24 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
     try {
       const nameRu = row.name_ru?.trim()
       const nameUk = row.name_uk?.trim()
-      if (!nameRu && !nameUk) throw new Error('немає назви')
+      const sku = row.sku?.trim() || null
+
+      // Re-importing the same supplier feed (price/stock updates) is the
+      // expected workflow here, and the preview even shows "Артикул" (SKU) as
+      // a column — so match on SKU and update in place instead of always
+      // inserting, which used to duplicate the whole catalog on every re-run.
+      // Products without a SKU can't be matched safely, so they're always
+      // inserted as new.
+      // Price-only update: when the SKU matches an existing product, the name
+      // is not required — the row just updates price/old_price/quantity.
+      const existing = sku
+        ? await db
+            .select({ id: products.id, slug: products.slug })
+            .from(products)
+            .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
+            .limit(1)
+        : []
+      if (existing.length === 0 && !nameRu && !nameUk) throw new Error('немає назви')
 
       // BUGFIX: price/quantity validation. An empty or malformed price cell
       // used to become price 0 silently (Number('') === 0), zeroing out a
@@ -92,21 +109,10 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       const oldPriceNum = oldPriceRaw ? Number(oldPriceRaw) : Number.NaN
       const oldPrice =
         oldPriceRaw && Number.isFinite(oldPriceNum) && oldPriceNum >= 0 ? row.old_price : null
-      const sku = row.sku?.trim() || null
-
-      // Re-importing the same supplier feed (price/stock updates) is the
-      // expected workflow here, and the preview even shows "Артикул" (SKU) as
-      // a column — so match on SKU and update in place instead of always
-      // inserting, which used to duplicate the whole catalog on every re-run.
-      // Products without a SKU can't be matched safely, so they're always
-      // inserted as new.
-      const existing = sku
-        ? await db
-            .select({ id: products.id, slug: products.slug })
-            .from(products)
-            .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
-            .limit(1)
-        : []
+      // For price-only updates, an empty quantity/old_price cell means
+      // "don't touch" — not "set to zero/clear".
+      const hasQuantity = quantityRaw !== ''
+      const hasOldPrice = oldPriceRaw !== ''
 
       if (existing.length > 0) {
         const ex = existing[0]
@@ -123,11 +129,15 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             metaDescriptionRu: row.meta_description_ru?.trim() || undefined,
             metaDescriptionUk: row.meta_description_uk?.trim() || undefined,
             price: String(price),
-            oldPrice,
-            quantity,
+            ...(hasOldPrice ? { oldPrice } : {}),
+            ...(hasQuantity
+              ? {
+                  quantity,
+                  stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
+                  isInStock: quantity > 0,
+                }
+              : {}),
             unit: row.unit?.trim() || 'шт',
-            stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
-            isInStock: quantity > 0,
             updatedAt: sql`now()`,
             ...(healSlug ? { slug: healSlug } : {}),
           })
