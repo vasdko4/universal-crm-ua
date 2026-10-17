@@ -9,8 +9,8 @@ import { syncPromProducts } from '@/lib/prom/sync'
  * settings.prom.lastSync* by the sync itself.
  */
 export async function triggerPromSync(): Promise<{ ok: boolean; summary?: string; error?: string }> {
-  await assertWritePermission('products')
   try {
+    await assertWritePermission('products')
     const res = await syncPromProducts()
     if (!res.ok) return { ok: false, error: res.reason ?? 'Помилка синхронізації' }
     return { ok: true, summary: res.summary }

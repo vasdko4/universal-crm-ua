@@ -168,19 +168,33 @@ export async function updateStoreSettings(data: Partial<StoreSettingsData>) {
     const k = key as keyof StoreSettingsData
     return JSON.stringify(beforePublic[k]) !== JSON.stringify(data[k])
   })
-  const result = await writeStoreSettings(data)
-  const { auditLog, fillAuditTemplate } = await import('@/lib/audit-log')
-  const { getAdminDictionary } = await import('@/lib/i18n/admin/dictionaries')
-  const t = getAdminDictionary(user.locale).auditLog
-  void auditLog({
-    userId: user.id, userName: user.name, userEmail: user.email,
-    action: 'settings', entity: 'settings',
-    details:
-      changedKeys.length > 0
-        ? fillAuditTemplate(t.settingsUpdated, { keys: changedKeys.join(', ') })
-        : t.settingsUnchanged,
-  })
-  return result
+  try {
+    const result = await writeStoreSettings(data)
+    const { auditLog, fillAuditTemplate } = await import('@/lib/audit-log')
+    const { getAdminDictionary } = await import('@/lib/i18n/admin/dictionaries')
+    const t = getAdminDictionary(user.locale).auditLog
+    void auditLog({
+      userId: user.id, userName: user.name, userEmail: user.email,
+      action: 'settings', entity: 'settings',
+      details:
+        changedKeys.length > 0
+          ? fillAuditTemplate(t.settingsUpdated, { keys: changedKeys.join(', ') })
+          : t.settingsUnchanged,
+    })
+    return result
+  } catch (e) {
+    // A fresh `docker pull` without pressing "Check DB version" in
+    // /admin/updates leaves new settings columns missing — surface that as
+    // a friendly message instead of crashing the page (Next.js error
+    // boundary) and silently losing the form input.
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/column .* does not exist/i.test(msg)) {
+      console.error('[settings] save failed, DB migration missing:', msg)
+      return { success: false as const, needsMigration: true as const }
+    }
+    console.error('[settings] save failed:', msg)
+    return { success: false as const }
+  }
 }
 
 export async function updateAppearance(data: { activeTemplate?: string; defaultLocale?: string; adminTheme?: string }) {

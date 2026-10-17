@@ -740,6 +740,7 @@ export type AdminDictionary = {
     uploadErrorDefault: string
     toastSettingsSaved: string
     toastSettingsSaveError: string
+    toastNeedsMigration: string
   }
   updates: {
     title: string
@@ -2681,6 +2682,7 @@ const uk: AdminDictionary = {
     uploadErrorDefault: 'Помилка завантаження',
     toastSettingsSaved: 'Налаштування збережено',
     toastSettingsSaveError: 'Помилка збереження',
+    toastNeedsMigration: 'Спочатку оновіть базу даних: Адмінка → Оновлення → «Перевірити версію БД», потім збережіть ще раз.',
   },
   updates: {
     title: 'Оновлення',
@@ -4633,6 +4635,7 @@ const ru: AdminDictionary = {
     uploadErrorDefault: 'Ошибка загрузки',
     toastSettingsSaved: 'Настройки сохранены',
     toastSettingsSaveError: 'Ошибка сохранения',
+    toastNeedsMigration: 'Сначала обновите базу данных: Админка → Обновления → «Проверить версию БД», затем сохраните ещё раз.',
   },
   updates: {
     title: 'Обновления',

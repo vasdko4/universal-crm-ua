@@ -90,6 +90,7 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
     startTransition(async () => {
       const res = await updateStoreSettings(data)
       if (res.success) toast.success(t.toastSettingsSaved)
+      else if ('needsMigration' in res && res.needsMigration) toast.error(t.toastNeedsMigration, { duration: 8000 })
       else toast.error(t.toastSettingsSaveError)
     })
   }
