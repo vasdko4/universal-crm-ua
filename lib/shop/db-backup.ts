@@ -1,5 +1,5 @@
 /**
- * Nightly PostgreSQL backup (Vercel Cron, no GitHub involved).
+ * Nightly PostgreSQL backup → local disk.
  *
  * The dump is a gzipped NDJSON stream: one JSON object per line.
  *   {"_manifest":true,"dumpedAt":"...","retentionDays":10,"tables":[{"name":"orders","rows":12}]}
@@ -7,16 +7,18 @@
  *
  * Data-only dump (schema lives in db/migrate.sql). The whole dump runs inside
  * a single REPEATABLE READ transaction so the snapshot is consistent.
- * Restore: scripts/db-restore.mjs (TRUNCATE + parameterized INSERTs).
  *
- * Retention: backups older than BACKUP_RETENTION_DAYS (default 10) are
- * deleted from Vercel Blob, matched by backup filename date.
+ * Storage: local directory (BACKUP_DIR env, default /app/data/backups).
+ * In docker-compose.yml this path is a named volume (techno_store_backups)
+ * so dumps survive container recreates. Retention: files older than
+ * BACKUP_RETENTION_DAYS (default 10) are deleted, matched by filename date.
  */
 import { gzipSync } from 'node:zlib'
-import { put, del, list } from '@vercel/blob'
+import { mkdir, readdir, unlink, writeFile } from 'node:fs/promises'
+import { join, basename } from 'node:path'
 import { pool } from '@/lib/db'
 
-export const BACKUP_BLOB_PREFIX = 'db-backups/'
+export const BACKUP_DIR = process.env.BACKUP_DIR || '/app/data/backups'
 export const BACKUP_RETENTION_DAYS = 10
 /** Safety valve: refuse to buffer more rows than this into one dump. */
 const MAX_DUMP_ROWS = 2_000_000
@@ -29,7 +31,7 @@ export interface BackupManifest {
 }
 
 export interface BackupSummary {
-  blobPathname: string
+  pathname: string
   tables: number
   rows: number
   bytes: number
@@ -37,44 +39,42 @@ export interface BackupSummary {
   pruned: number
 }
 
-/** Filenames look like db-backups/2026-10-01-0030.jsonl.gz */
-export function backupPathFor(date: Date): string {
+/** Filenames look like 2026-10-01-0030.jsonl.gz */
+export function backupFilenameFor(date: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   const stamp = `${date.getUTCFullYear()}-${p(date.getUTCMonth() + 1)}-${p(date.getUTCDate())}-${p(date.getUTCHours())}${p(date.getUTCMinutes())}`
-  return `${BACKUP_BLOB_PREFIX}${stamp}.jsonl.gz`
+  return `${stamp}.jsonl.gz`
 }
 
-function parseBackupDate(pathname: string): Date | null {
-  const m = pathname.match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})\.jsonl\.gz$/)
+function parseBackupDate(filename: string): Date | null {
+  const m = basename(filename).match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})\.jsonl\.gz$/)
   if (!m) return null
   const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]))
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-/** Pure: which backup pathnames are older than retentionDays relative to `now`. */
-export function backupsToDelete(pathnames: string[], now: Date, retentionDays: number): string[] {
+/** Pure: which backup filenames are older than retentionDays relative to `now`. */
+export function backupsToDelete(filenames: string[], now: Date, retentionDays: number): string[] {
   const cutoff = now.getTime() - retentionDays * 24 * 60 * 60 * 1000
-  return pathnames.filter((p) => {
-    const d = parseBackupDate(p)
+  return filenames.filter((f) => {
+    const d = parseBackupDate(f)
     return d !== null && d.getTime() < cutoff
   })
 }
 
-async function listBackupPathnames(): Promise<string[]> {
-  const pathnames: string[] = []
-  let cursor: string | undefined
-  do {
-    const page = await list({ prefix: BACKUP_BLOB_PREFIX, cursor })
-    for (const b of page.blobs) pathnames.push(b.pathname)
-    cursor = page.hasMore ? page.cursor : undefined
-  } while (cursor)
-  return pathnames
+async function listBackupFilenames(): Promise<string[]> {
+  try {
+    const entries = await readdir(BACKUP_DIR)
+    return entries.filter((e) => e.endsWith('.jsonl.gz'))
+  } catch {
+    return []
+  }
 }
 
 export async function pruneOldBackups(now = new Date(), retentionDays = BACKUP_RETENTION_DAYS): Promise<number> {
-  const pathnames = await listBackupPathnames()
-  const stale = backupsToDelete(pathnames, now, retentionDays)
-  await Promise.all(stale.map((pathname) => del(pathname)))
+  const filenames = await listBackupFilenames()
+  const stale = backupsToDelete(filenames, now, retentionDays)
+  await Promise.all(stale.map((f) => unlink(join(BACKUP_DIR, f)).catch(() => {})))
   return stale.length
 }
 
@@ -83,13 +83,12 @@ function quoteIdent(name: string): string {
 }
 
 /**
- * Dumps every public table as gzipped NDJSON into Vercel Blob (private),
+ * Dumps every public table as gzipped NDJSON to the local backup dir,
  * then prunes backups older than the retention window.
  * Runs inside one REPEATABLE READ transaction for a consistent snapshot.
  */
 export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN
-  if (!token) throw new Error('BLOB_READ_WRITE_TOKEN is not configured')
+  await mkdir(BACKUP_DIR, { recursive: true })
 
   const client = await pool.connect()
   try {
@@ -120,16 +119,12 @@ export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary
     const manifest: BackupManifest = { _manifest: true, dumpedAt, retentionDays: BACKUP_RETENTION_DAYS, tables: manifestTables }
     const body = gzipSync(JSON.stringify(manifest) + '\n' + lines.map((l) => l + '\n').join(''), { level: 6 })
 
-    const pathname = backupPathFor(now)
-    await put(pathname, body, {
-      access: 'private',
-      contentType: 'application/gzip',
-      addRandomSuffix: false,
-      token,
-    })
+    const filename = backupFilenameFor(now)
+    const pathname = join(BACKUP_DIR, filename)
+    await writeFile(pathname, body)
 
     const pruned = await pruneOldBackups(now, BACKUP_RETENTION_DAYS)
-    return { blobPathname: pathname, tables: tables.length, rows: totalRows, bytes: body.length, dumpedAt, pruned }
+    return { pathname, tables: tables.length, rows: totalRows, bytes: body.length, dumpedAt, pruned }
   } catch (e) {
     try {
       await client.query('ROLLBACK')

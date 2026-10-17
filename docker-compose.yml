@@ -38,6 +38,8 @@ services:
       # Only used when BLOB_READ_WRITE_TOKEN is unset (the default for
       # self-hosted Docker installs); on Vercel this path is simply unused.
       - techno_store_uploads:/app/public/uploads
+      # Persist local DB backups (BACKUP_DIR=/app/data/backups).
+      - techno_store_backups:/app/data/backups
       # Fallback for the one-time /setup token: the app reads .setup-token
       # if SETUP_TOKEN env is missing (e.g. container not recreated after
       # .env change). install.sh writes this file alongside .env.
@@ -148,5 +150,6 @@ services:
 volumes:
   techno_store_pgdata:
   techno_store_uploads:
+  techno_store_backups:
   techno_store_caddy_data:
   techno_store_caddy_config:
