@@ -43,6 +43,7 @@ import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils'
 import { trackBeginCheckout, trackAddShippingInfo, trackAddPaymentInfo } from '@/components/shop/google-ads'
+import { GoogleReviewsOptIn } from '@/components/shop/google-reviews-optin'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { formatRequisitesPreview } from '@/lib/payments/public-requisites'
@@ -673,7 +674,7 @@ export function CheckoutFlow({
   }
 
   if (done) {
-    return <OrderSuccess result={done} snapshot={orderSnapshot} />
+    return <OrderSuccess result={done} snapshot={orderSnapshot} email={email} />
   }
 
   // Cart hydrates from localStorage on the client — don't flash "empty cart"
@@ -1377,6 +1378,7 @@ function OptionCard({
 function OrderSuccess({
   result,
   snapshot,
+  email,
 }: {
   result: CheckoutResult & { success: true }
   snapshot: {
@@ -1384,6 +1386,7 @@ function OrderSuccess({
     deliveryLabel: string
     deliveryPlace?: string
   } | null
+  email?: string | null
 }) {
   const router = useRouter()
   const { dict, locale } = useI18n()
@@ -1491,6 +1494,9 @@ function OrderSuccess({
           </Button>
         </div>
       </div>
+      {/* Google Customer Reviews opt-in: offers the buyer a review survey.
+          Renders nothing visible; skipped when the order has no email. */}
+      <GoogleReviewsOptIn orderId={result.orderNumber} email={email} />
     </div>
   )
 }
