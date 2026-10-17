@@ -45,14 +45,21 @@ export function PromSection({ data, setData, t }: SectionProps) {
 
   function syncNow() {
     startSync(async () => {
-      const res = await triggerPromSync()
-      if (res.ok) {
-        toast.success(t.promSyncStarted)
-        // Refresh the last-sync line without a full page reload: the sync
-        // action returns the summary, so mirror it into local state.
-        if (res.summary) set({ lastSyncAt: new Date().toISOString(), lastSyncSummary: res.summary })
-      } else {
-        toast.error(res.error || t.promSyncError)
+      try {
+        const res = await triggerPromSync()
+        if (res.ok) {
+          toast.success(t.promSyncStarted)
+          // Refresh the last-sync line without a full page reload: the sync
+          // action returns the summary, so mirror it into local state.
+          if (res.summary) set({ lastSyncAt: new Date().toISOString(), lastSyncSummary: res.summary })
+        } else {
+          toast.error(res.error || t.promSyncError)
+        }
+      } catch {
+        // The full sync can outlive the proxied request (Cloudflare drops
+        // it at ~100s) — the server keeps working in the background. Never
+        // show the error page for this; point at the last-sync row instead.
+        toast.error(t.promSyncDisconnected, { duration: 12000 })
       }
     })
   }
