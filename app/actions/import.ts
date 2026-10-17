@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { importTasks, products } from '@/lib/db/schema'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { revalidateStorefront } from '@/lib/shop/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { generateUniqueSlug } from '@/lib/product-slug'
 
@@ -222,5 +223,9 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
 
   revalidatePath('/admin/products')
   revalidatePath('/admin/import')
+  // The storefront catalog (incl. the discount filter) is cached via
+  // unstable_cache — without this, price/stock updates from an import stay
+  // invisible until the TTL expires.
+  revalidateStorefront()
   return { success: true, imported: success, failed }
 }
