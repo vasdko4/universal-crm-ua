@@ -11,6 +11,7 @@ export type ImportRow = {
   name_uk?: string
   name_ru?: string
   sku?: string
+  prom_id?: string
   price?: string
   old_price?: string
   quantity?: string
@@ -70,6 +71,8 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       const nameRu = row.name_ru?.trim()
       const nameUk = row.name_uk?.trim()
       const sku = row.sku?.trim() || null
+      const promIdRaw = (row.prom_id ?? '').toString().trim()
+      const promId = /^\d+$/.test(promIdRaw) ? Number(promIdRaw) : null
 
       // Re-importing the same supplier feed (price/stock updates) is the
       // expected workflow here, and the preview even shows "Артикул" (SKU) as
@@ -79,13 +82,23 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       // inserted as new.
       // Price-only update: when the SKU matches an existing product, the name
       // is not required — the row just updates price/old_price/quantity.
-      const existing = sku
-        ? await db
-            .select({ id: products.id, slug: products.slug })
-            .from(products)
-            .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
-            .limit(1)
-        : []
+      // prom_id match first (Prom cabinet exports carry the Prom product ID,
+      // and SKUs don't always align between Prom and the engine).
+      let existing: { id: number; slug: string | null }[] = []
+      if (promId !== null) {
+        existing = await db
+          .select({ id: products.id, slug: products.slug })
+          .from(products)
+          .where(and(eq(products.promId, promId), isNull(products.deletedAt)))
+          .limit(1)
+      }
+      if (existing.length === 0 && sku) {
+        existing = await db
+          .select({ id: products.id, slug: products.slug })
+          .from(products)
+          .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
+          .limit(1)
+      }
       if (existing.length === 0 && !nameRu && !nameUk) throw new Error('немає назви')
 
       // BUGFIX: price/quantity validation. An empty or malformed price cell

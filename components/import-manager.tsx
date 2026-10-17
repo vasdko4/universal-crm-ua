@@ -51,6 +51,7 @@ function parseXML(text: string): ImportRow[] {
       name_uk: get("name_uk") || get("name"),
       name_ru: get("name_ru") || get("name"),
       sku: get("sku") || get("vendorCode"),
+      prom_id: get("prom_id") || get("promid") || get("id"),
       price: get("price"),
       old_price: get("old_price") || get("oldprice"),
       quantity: get("quantity") || get("stock_quantity"),
