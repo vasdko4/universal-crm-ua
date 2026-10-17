@@ -1,14 +1,17 @@
 /**
  * Prom.ua → engine catalog sync.
  *
- * Matches engine products to Prom products by `products.prom_id` and, per
- * the toggles in Настройки → Prom, updates:
+ * Matches engine products to Prom products by SKU (normalized: trimmed,
+ * case-insensitive), falling back to `products.prom_id`. Per the toggles in
+ * Настройки → Prom, updates:
  *  - prices (`price`, plus `old_price` when Prom carries a discount),
  *  - stock (`quantity`, `is_in_stock`, and `stock_status` for default-mode
  *    products — `coming_soon`/`preorder` labels are left alone),
  *  - characteristics: only FILLS missing names and REPLACES empty values;
  *    already-filled characteristics are never overwritten.
  *
+ * SKU is the primary key because the catalog import never populated
+ * `prom_id` (and the scraper's promId values are not Prom API ids).
  * Engine products without a Prom match are skipped (never deleted);
  * Prom products without an engine match are counted, not imported.
  */
@@ -37,7 +40,8 @@ export type PromSyncResult = {
 
 type EngineProduct = {
   id: number
-  promId: number
+  promId: number | null
+  sku: string | null
   price: number
   oldPrice: number | null
   quantity: number
@@ -51,6 +55,13 @@ const OUT_OF_STOCK_LABEL = 'Немає в наявності'
 
 function normName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** Normalize a SKU for matching (Prom and the engine may differ in case). */
+function normSku(s: string | null | undefined): string | null {
+  if (!s) return null
+  const v = s.trim().toUpperCase()
+  return v === '' ? null : v
 }
 
 type EngineCharacteristic = { id: number; name: string; value: string }
@@ -149,32 +160,49 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
     return { ...result, ok: false, reason: 'Prom API повернув 0 товарів — перевірте токен і каталог' }
   }
 
-  // 2) Load engine products that came from Prom.
+  // 2) Load engine products. Match key is the SKU (normalized); prom_id is a
+  // fallback for products imported with a real Prom id.
   const { rows } = await pool.query(
-    `SELECT id, prom_id, price, old_price, quantity, is_in_stock, stock_status, availability_mode
+    `SELECT id, prom_id, sku, price, old_price, quantity, is_in_stock, stock_status, availability_mode
        FROM products
-      WHERE deleted_at IS NULL AND prom_id IS NOT NULL`,
+      WHERE deleted_at IS NULL
+        AND (prom_id IS NOT NULL OR (sku IS NOT NULL AND btrim(sku) <> ''))`,
   )
-  const engine = new Map<number, EngineProduct>()
+  const byPromId = new Map<number, EngineProduct>()
+  const bySku = new Map<string, EngineProduct>()
+  const engineProducts: EngineProduct[] = []
   for (const r of rows) {
-    const promId = Number(r.prom_id)
-    if (!Number.isFinite(promId)) continue
-    engine.set(promId, {
+    const rawPromId = r.prom_id === null ? null : Number(r.prom_id)
+    const ep: EngineProduct = {
       id: Number(r.id),
-      promId,
+      promId: rawPromId !== null && Number.isFinite(rawPromId) ? rawPromId : null,
+      sku: normSku(r.sku === null ? null : String(r.sku)),
       price: Number(r.price) || 0,
       oldPrice: r.old_price === null ? null : Number(r.old_price),
       quantity: Number(r.quantity) || 0,
       isInStock: Boolean(r.is_in_stock),
       stockStatus: String(r.stock_status ?? ''),
       availabilityMode: String(r.availability_mode ?? 'default'),
-    })
+    }
+    engineProducts.push(ep)
+    if (ep.promId !== null && !byPromId.has(ep.promId)) byPromId.set(ep.promId, ep)
+    if (ep.sku !== null && !bySku.has(ep.sku)) bySku.set(ep.sku, ep)
   }
+
+  // Index Prom products by id and by normalized SKU.
+  const promById = new Map<number, PromProduct>()
+  const promBySku = new Map<string, PromProduct>()
+  for (const pp of promProducts) {
+    if (!promById.has(pp.id)) promById.set(pp.id, pp)
+    const sku = normSku(pp.sku)
+    if (sku !== null && !promBySku.has(sku)) promBySku.set(sku, pp)
+  }
+  console.log(`[prom] matching: ${engineProducts.length} engine products (${bySku.size} with SKU), ${promProducts.length} Prom products`)
 
   // 3) Characteristics of matched products (only needed when the toggle is on).
   const charMap = new Map<number, { id: number; name: string; value: string }[]>()
   if (cfg.syncCharacteristics) {
-    const ids = [...engine.values()].map((p) => p.id)
+    const ids = engineProducts.map((p) => p.id)
     if (ids.length > 0) {
       const cres = await pool.query(
         `SELECT id, product_id, name, value FROM product_characteristics WHERE product_id = ANY($1)`,
@@ -189,19 +217,24 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
     }
   }
 
-  // 4) Walk Prom products: prices + stock are fast and run sequentially.
+  // 4) Walk engine products (matched to Prom by prom_id, then SKU):
+  // prices + stock are fast and run sequentially.
   // Characteristics are applied from the list payload when present;
   // products whose attributes need a separate detail fetch are queued and
   // pulled concurrently afterwards (phase 4b) to stay under proxy timeouts.
   const changedIds = new Set<number>()
+  const matchedPromIds = new Set<number>()
   let matched = 0
   const detailQueue: { ep: EngineProduct; pp: PromProduct }[] = []
-  for (const pp of promProducts) {
-    const ep = engine.get(pp.id)
-    if (!ep) {
-      result.newOnProm++
+  for (const ep of engineProducts) {
+    // prom_id first, then SKU.
+    let pp = ep.promId !== null ? promById.get(ep.promId) : undefined
+    if (!pp && ep.sku !== null) pp = promBySku.get(ep.sku)
+    if (!pp) {
+      result.unmatched++
       continue
     }
+    matchedPromIds.add(pp.id)
     matched++
 
     // --- Prices ---
@@ -292,10 +325,9 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
 
   result.unchanged = matched - changedIds.size
 
-  // Engine products that Prom no longer lists (deleted/hidden there).
-  const promIds = new Set(promProducts.map((p) => p.id))
-  for (const promId of engine.keys()) {
-    if (!promIds.has(promId)) result.unmatched++
+  // Prom products that no engine product matched (counted, never imported).
+  for (const pp of promProducts) {
+    if (!matchedPromIds.has(pp.id)) result.newOnProm++
   }
 
   const parts = [
