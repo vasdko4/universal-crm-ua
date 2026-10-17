@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, ...summary })
   } catch (e) {
     const err = e as Error
-    await reportError('cron:db-backup', err, { alertAdmin: true })
+    await reportError('cron.db-backup', err, { alertAdmin: true })
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
   }
 }

@@ -80,7 +80,22 @@ async function tick(): Promise<void> {
       if (!(await isCronJobEnabled(job.id))) continue
       const lastRaw = states.get(job.id)
       const last = lastRaw ? Date.parse(lastRaw) : NaN
-      if (Number.isFinite(last) && now - last < job.intervalMs) continue
+      if (!Number.isFinite(last)) {
+        // Never ran and no timestamp (e.g. row created before the
+        // last_run_at=NOW() default): stamp now and wait for the next
+        // interval instead of firing everything at once. Status stays
+        // empty — the job hasn't actually run yet.
+        try {
+          await pool.query(
+            `UPDATE cron_jobs SET last_run_at = NOW(), updated_at = NOW() WHERE id = $1`,
+            [job.id],
+          )
+        } catch {
+          // Best effort.
+        }
+        continue
+      }
+      if (now - last < job.intervalMs) continue
       // Fire and forget — runJob tracks its own in-flight set.
       void runJob(job.id)
     } catch (e) {

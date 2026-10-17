@@ -18,8 +18,11 @@ export type CronJobState = {
 async function ensureRows(): Promise<void> {
   try {
     for (const j of CRON_JOBS) {
+      // last_run_at = NOW() on first insert: a fresh install must NOT fire
+      // all jobs at once on the scheduler's first tick — they run on their
+      // next scheduled interval instead.
       await pool.query(
-        `INSERT INTO cron_jobs (id, enabled) VALUES ($1, true)
+        `INSERT INTO cron_jobs (id, enabled, last_run_at) VALUES ($1, true, NOW())
          ON CONFLICT (id) DO NOTHING`,
         [j.id],
       )
