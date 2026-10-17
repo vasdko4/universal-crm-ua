@@ -15,6 +15,7 @@ import {
   STORE_EMAIL_SECRET_KEYS,
   STORE_GOOGLE_AUTH_SECRET_KEYS,
   STORE_NOTIFICATIONS_SECRET_KEYS,
+  STORE_PROM_SECRET_KEYS,
 } from '@/lib/secrets'
 
 // Re-export types for existing callers/components that import them from
@@ -97,12 +98,20 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
       clientSecret: keepSecret(data.googleAuth.clientSecret, current.googleAuth.clientSecret),
     }
   }
+  if (data.prom) {
+    merged.prom = {
+      ...current.prom,
+      ...data.prom,
+      apiToken: keepSecret(data.prom.apiToken, current.prom.apiToken),
+    }
+  }
   // SECURITY: integration secrets are encrypted at rest — lib/secrets.ts.
   // Encryption is idempotent, so carried-over (already encrypted) values
   // from keepSecret() are not double-encrypted.
   merged.emailSettings = encryptConfigSecrets(merged.emailSettings, STORE_EMAIL_SECRET_KEYS)
   merged.notifications = encryptConfigSecrets(merged.notifications, STORE_NOTIFICATIONS_SECRET_KEYS)
   merged.googleAuth = encryptConfigSecrets(merged.googleAuth, STORE_GOOGLE_AUTH_SECRET_KEYS)
+  merged.prom = encryptConfigSecrets(merged.prom, STORE_PROM_SECRET_KEYS)
   const values = {
     storeName: merged.storeName,
     storeDescription: merged.storeDescription,
@@ -126,6 +135,7 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
     homeHero: merged.homeHero,
     homeBenefits: merged.homeBenefits,
     minOrder: merged.minOrder,
+    prom: merged.prom,
     updatedAt: new Date(),
   }
   await db

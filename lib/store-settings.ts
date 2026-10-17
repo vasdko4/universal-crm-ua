@@ -31,6 +31,7 @@ import {
   STORE_EMAIL_SECRET_KEYS,
   STORE_GOOGLE_AUTH_SECRET_KEYS,
   STORE_NOTIFICATIONS_SECRET_KEYS,
+  STORE_PROM_SECRET_KEYS,
 } from '@/lib/secrets'
 
 export const STORE_SETTINGS_TAG = 'store-settings'
@@ -63,6 +64,7 @@ export type {
   HomeBenefitItem,
   HomeBenefitsSettings,
   MinOrderSettings,
+  PromSettings,
   StoreSettingsData,
 } from '@/lib/store-settings-normalize'
 
@@ -113,6 +115,7 @@ export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
       emailSettings: decryptConfigSecrets(s.emailSettings, STORE_EMAIL_SECRET_KEYS),
       notifications: decryptConfigSecrets(s.notifications, STORE_NOTIFICATIONS_SECRET_KEYS),
       googleAuth: decryptConfigSecrets(s.googleAuth, STORE_GOOGLE_AUTH_SECRET_KEYS),
+      prom: decryptConfigSecrets(s.prom, STORE_PROM_SECRET_KEYS),
     }
   } catch (err) {
     console.error('[store-settings] getStoreSettingsInternal failed:', (err as Error).message)

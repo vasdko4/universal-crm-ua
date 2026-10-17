@@ -110,6 +110,23 @@ export type AdsSpendSettings = {
   entries: AdsSpendEntry[]
 }
 
+/**
+ * Prom.ua marketplace integration (Prom → engine sync).
+ * The seller creates a personal API token in the Prom seller cabinet
+ * (Налаштування → Керування API-ключами); the token is encrypted at rest
+ * like other integration secrets (lib/secrets.ts).
+ * Sync matches engine products to Prom products by `products.prom_id`.
+ */
+export type PromSettings = {
+  enabled: boolean
+  apiToken: string
+  syncPrices: boolean
+  syncStock: boolean
+  syncCharacteristics: boolean
+  lastSyncAt: string | null
+  lastSyncSummary: string | null
+}
+
 export type StoreSettingsData = {
   storeName: string
   storeDescription: string | null
@@ -161,6 +178,7 @@ export type StoreSettingsData = {
   homeBenefits: HomeBenefitsSettings
   minOrder: MinOrderSettings
   adsSpend: AdsSpendSettings
+  prom: PromSettings
 }
 
 export const DEFAULTS: StoreSettingsData = {
@@ -246,6 +264,15 @@ export const DEFAULTS: StoreSettingsData = {
   },
   minOrder: { enabled: false, amount: 0 },
   adsSpend: { entries: [] },
+  prom: {
+    enabled: false,
+    apiToken: '',
+    syncPrices: true,
+    syncStock: true,
+    syncCharacteristics: true,
+    lastSyncAt: null,
+    lastSyncSummary: null,
+  },
   contact: {
     phones: [''],
     address: '',
@@ -453,6 +480,7 @@ export function stripSecrets(s: StoreSettingsData): StoreSettingsData {
     emailSettings: { ...s.emailSettings, smtpPassword: '', dkimPrivateKey: '' },
     notifications: { ...s.notifications, telegramBotToken: '', telegramChatId: '' },
     googleAuth: { ...s.googleAuth, clientSecret: '' },
+    prom: { ...s.prom, apiToken: '' },
   }
 }
 
@@ -497,5 +525,17 @@ export function normalizeStoreSettingsRow(row: unknown): StoreSettingsData {
       }
     })(),
     adsSpend: normalizeAdsSpend(col(src, 'adsSpend', 'ads_spend')),
+    prom: (() => {
+      const merged = mergeObject(DEFAULTS.prom, col(src, 'prom', 'prom'))
+      return {
+        enabled: asBool(merged.enabled, DEFAULTS.prom.enabled),
+        apiToken: asString(merged.apiToken, ''),
+        syncPrices: asBool(merged.syncPrices, DEFAULTS.prom.syncPrices),
+        syncStock: asBool(merged.syncStock, DEFAULTS.prom.syncStock),
+        syncCharacteristics: asBool(merged.syncCharacteristics, DEFAULTS.prom.syncCharacteristics),
+        lastSyncAt: asStringOrNull(merged.lastSyncAt, null),
+        lastSyncSummary: asStringOrNull(merged.lastSyncSummary, null),
+      }
+    })(),
   }
 }

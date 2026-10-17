@@ -18,6 +18,7 @@ import {
   Bell,
   KeyRound,
   LayoutTemplate,
+  RefreshCw,
 } from 'lucide-react'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
@@ -40,6 +41,7 @@ import { EmailSection } from './email-tab'
 import { NotificationsSection } from './notifications-tab'
 import { AdsSection } from './ads-tab'
 import { GoogleAuthSection } from './google-auth-tab'
+import { PromSection } from './prom-tab'
 
 type Section =
   | 'general'
@@ -54,6 +56,7 @@ type Section =
   | 'notifications'
   | 'ads'
   | 'googleAuth'
+  | 'prom'
   | 'system'
 
 function getSections(t: AdminDictionary['settings']): { key: Section; label: string; icon: typeof Store }[] {
@@ -70,6 +73,7 @@ function getSections(t: AdminDictionary['settings']): { key: Section; label: str
     { key: 'notifications', label: t.navNotifications, icon: Bell },
     { key: 'ads', label: t.navAds, icon: BarChart3 },
     { key: 'googleAuth', label: t.navGoogleAuth, icon: KeyRound },
+    { key: 'prom', label: t.navProm, icon: RefreshCw },
     { key: 'system', label: t.navSystem, icon: Power },
   ]
 }
@@ -150,6 +154,7 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
           {section === 'notifications' && <NotificationsSection data={data} setData={setData} t={t} />}
           {section === 'ads' && <AdsSection data={data} setData={setData} t={t} />}
           {section === 'googleAuth' && <GoogleAuthSection data={data} setData={setData} t={t} />}
+          {section === 'prom' && <PromSection data={data} setData={setData} t={t} />}
           {section === 'system' && <SystemSection t={t} />}
         </div>
       </div>

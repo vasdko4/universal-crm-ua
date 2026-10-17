@@ -93,6 +93,9 @@ ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "merchant_feed" jsonb DEFA
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "min_order" jsonb DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "receipt_url" text;
 
+-- ---------- Интеграция Prom.ua: настройки синхронизации ----------
+ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "prom" jsonb DEFAULT '{}'::jsonb NOT NULL;
+
 -- ---------- Товары: включатель вариантов (цвет/размер и т.д.) ----------
 -- По умолчанию false для новых товаров. Для уже существующих товаров, у
 -- которых уже настроены комбинации вариантов, включаем автоматически, чтобы

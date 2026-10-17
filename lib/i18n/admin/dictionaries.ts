@@ -527,6 +527,7 @@ export type AdminDictionary = {
     navNotifications: string
     navAds: string
     navGoogleAuth: string
+    navProm: string
     navSystem: string
     cacheTitle: string
     cacheDesc: string
@@ -713,6 +714,27 @@ export type AdminDictionary = {
     secretHint: string
     redirectTitle: string
     redirectHint: string
+    promTitle: string
+    promDescPrefix: string
+    promDescLink: string
+    promDescSuffix: string
+    promToggleTitle: string
+    promToggleOn: string
+    promToggleOff: string
+    promTokenLabel: string
+    promTokenHint: string
+    promSyncPricesLabel: string
+    promSyncPricesHint: string
+    promSyncStockLabel: string
+    promSyncStockHint: string
+    promSyncCharacteristicsLabel: string
+    promSyncCharacteristicsHint: string
+    promLastSyncLabel: string
+    promNeverSynced: string
+    promSyncNowButton: string
+    promSyncing: string
+    promSyncStarted: string
+    promSyncError: string
     uploadErrorDefault: string
     toastSettingsSaved: string
     toastSettingsSaveError: string
@@ -2422,6 +2444,7 @@ const uk: AdminDictionary = {
     navNotifications: 'Сповіщення',
     navAds: 'Google Ads / Analytics',
     navGoogleAuth: 'Вхід через Google',
+    navProm: 'Prom.ua',
     navSystem: 'Система',
     cacheTitle: 'Кеш сайту',
     cacheDesc:
@@ -2629,6 +2652,28 @@ const uk: AdminDictionary = {
     secretHint: 'Секрет зберігається в базі даних. Не передавайте його третім особам.',
     redirectTitle: 'Redirect URI для Google Console',
     redirectHint: 'Додайте цю адресу до «Authorized redirect URIs» вашого OAuth-клієнта.',
+    promTitle: 'Інтеграція з Prom.ua',
+    promDescPrefix: 'Персональний API-токен створюється в',
+    promDescLink: 'кабінеті продавця Prom',
+    promDescSuffix:
+      '(Налаштування → Керування API-ключами). Ціни, наявність і характеристики тягнуться з Prom і оновлюють товари на сайті. Зіставлення товарів — по Prom ID.',
+    promToggleTitle: 'Синхронізація з Prom',
+    promToggleOn: 'Увімкнено — дані оновлюються за розкладом',
+    promToggleOff: 'Вставте API-токен, щоб увімкнути',
+    promTokenLabel: 'API-токен',
+    promTokenHint: 'Токен зберігається зашифрованим у базі даних. Не передавайте його третім особам.',
+    promSyncPricesLabel: 'Ціни',
+    promSyncPricesHint: 'Оновлювати ціну товару з Prom',
+    promSyncStockLabel: 'Наявність',
+    promSyncStockHint: 'Оновлювати залишок і статус наявності з Prom',
+    promSyncCharacteristicsLabel: 'Характеристики',
+    promSyncCharacteristicsHint: 'Доповнювати порожні або биті характеристики даними з Prom (заповнені не чіпаємо)',
+    promLastSyncLabel: 'Остання синхронізація',
+    promNeverSynced: 'Ще не виконувалась',
+    promSyncNowButton: 'Синхронізувати зараз',
+    promSyncing: 'Синхронізація…',
+    promSyncStarted: 'Синхронізацію запущено',
+    promSyncError: 'Помилка синхронізації',
     uploadErrorDefault: 'Помилка завантаження',
     toastSettingsSaved: 'Налаштування збережено',
     toastSettingsSaveError: 'Помилка збереження',
@@ -4349,6 +4394,7 @@ const ru: AdminDictionary = {
     navNotifications: 'Уведомления',
     navAds: 'Google Ads / Analytics',
     navGoogleAuth: 'Вход через Google',
+    navProm: 'Prom.ua',
     navSystem: 'Система',
     cacheTitle: 'Кеш сайта',
     cacheDesc:
@@ -4556,6 +4602,28 @@ const ru: AdminDictionary = {
     secretHint: 'Секрет хранится в базе данных. Не передавайте его третьим лицам.',
     redirectTitle: 'Redirect URI для Google Console',
     redirectHint: 'Добавьте этот адрес в «Authorized redirect URIs» вашего OAuth-клиента.',
+    promTitle: 'Интеграция с Prom.ua',
+    promDescPrefix: 'Персональный API-токен создаётся в',
+    promDescLink: 'кабинете продавца Prom',
+    promDescSuffix:
+      '(Настройки → Управление API-ключами). Цены, наличие и характеристики тянутся из Prom и обновляют товары на сайте. Сопоставление товаров — по Prom ID.',
+    promToggleTitle: 'Синхронизация с Prom',
+    promToggleOn: 'Включено — данные обновляются по расписанию',
+    promToggleOff: 'Вставьте API-токен, чтобы включить',
+    promTokenLabel: 'API-токен',
+    promTokenHint: 'Токен хранится зашифрованным в базе данных. Не передавайте его третьим лицам.',
+    promSyncPricesLabel: 'Цены',
+    promSyncPricesHint: 'Обновлять цену товара из Prom',
+    promSyncStockLabel: 'Наличие',
+    promSyncStockHint: 'Обновлять остаток и статус наличия из Prom',
+    promSyncCharacteristicsLabel: 'Характеристики',
+    promSyncCharacteristicsHint: 'Дополнять пустые или битые характеристики данными из Prom (заполненные не трогаем)',
+    promLastSyncLabel: 'Последняя синхронизация',
+    promNeverSynced: 'Ещё не выполнялась',
+    promSyncNowButton: 'Синхронизировать сейчас',
+    promSyncing: 'Синхронизация…',
+    promSyncStarted: 'Синхронизация запущена',
+    promSyncError: 'Ошибка синхронизации',
     uploadErrorDefault: 'Ошибка загрузки',
     toastSettingsSaved: 'Настройки сохранены',
     toastSettingsSaveError: 'Ошибка сохранения',

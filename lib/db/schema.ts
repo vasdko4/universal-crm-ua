@@ -709,6 +709,9 @@ export const storeSettings = pgTable('store_settings', {
   // Одна JSON-настройка: { entries: [{ source, medium, campaign, spend }] } —
   // см. lib/analytics/roas.ts и app/actions/analytics.ts (saveCampaignSpend).
   adsSpend: jsonb('ads_spend').notNull().default({}),
+  // Интеграция с Prom.ua (Настройки → Prom): API-токен кабинета продавца,
+  // флаги синхронизации цен/наличия/характеристик. См. lib/prom/sync.ts.
+  prom: jsonb('prom').notNull().default({}),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 

@@ -111,3 +111,4 @@ export const DELIVERY_CONFIG_SECRET_KEYS = ['apiKey'] as const
 export const STORE_EMAIL_SECRET_KEYS = ['smtpPassword', 'dkimPrivateKey'] as const
 export const STORE_NOTIFICATIONS_SECRET_KEYS = ['telegramBotToken'] as const
 export const STORE_GOOGLE_AUTH_SECRET_KEYS = ['clientSecret'] as const
+export const STORE_PROM_SECRET_KEYS = ['apiToken'] as const
