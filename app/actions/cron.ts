@@ -61,7 +61,10 @@ export async function runCronJobNow(
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     await assertWritePermission('system_cron')
-    if (!CRON_JOBS.some((j) => j.id === id)) {
+    // Allowlist: use the registry's own id (trusted constant) in the URL,
+    // never the raw request parameter — closes the SSRF dataflow.
+    const job = CRON_JOBS.find((j) => j.id === id)
+    if (!job) {
       return { ok: false, error: 'unknown job' }
     }
     const secret = process.env.CRON_SECRET
@@ -70,7 +73,7 @@ export async function runCronJobNow(
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 55_000)
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/api/cron/${id}`, {
+      const res = await fetch(`http://127.0.0.1:${port}/api/cron/${job.id}`, {
         headers: { Authorization: `Bearer ${secret}` },
         signal: ctrl.signal,
       })

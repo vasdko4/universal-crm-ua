@@ -85,8 +85,24 @@ function extractPayload(html) {
 
 function extractDescription(html, ldProduct) {
   const m = html.match(/content-description"[^>]*><div class="prose[^>]*>([\s\S]*?)<\/div><\/div>/)
-  if (m && m[1].replace(/<[^>]+>/g, '').trim().length > 50) return m[1].trim()
+  if (m && textLength(m[1].trim()) > 50) return m[1].trim()
   return ldProduct?.description || ''
+}
+
+// Visible-text length without regex tag-stripping: single pass, skipping
+// everything between < and >. This is only a length heuristic, NOT a
+// sanitizer — product HTML is sanitized at render time by
+// lib/shop/sanitize.ts (sanitize-html), so a regex-based strip here would
+// be both misleading and flagged as incomplete sanitization.
+function textLength(html) {
+  let len = 0
+  let inTag = false
+  for (const ch of html) {
+    if (ch === '<') inTag = true
+    else if (ch === '>') inTag = false
+    else if (!inTag) len++
+  }
+  return len
 }
 
 function extractBreadcrumbs(ldBc) {
