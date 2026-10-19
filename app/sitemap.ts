@@ -74,7 +74,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   )
 
   const pageRoutes: MetadataRoute.Sitemap = pageRows.flatMap((p) =>
-    bilingual(`/p/${p.slug}`, {
+    bilingual(`/${p.slug}`, {
       lastModified: p.updatedAt ?? now,
       changeFrequency: 'monthly',
       priority: 0.4,

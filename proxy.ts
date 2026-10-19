@@ -99,6 +99,21 @@ export function proxy(request: NextRequest) {
     return withSecurityHeaders(NextResponse.redirect(url))
   }
 
+  // Canonicalize legacy /p/<slug> info-page URLs to /<slug> (permanent).
+  // The menu/footer and sitemap both point at /<slug>; keeping /p/<slug>
+  // renderable would leave two 200-OK copies of every info page (duplicate
+  // content). Checked against the un-prefixed path so /ru/p/<slug> lands on
+  // /ru/<slug>.
+  if (innerPathname === '/p' || innerPathname.startsWith('/p/')) {
+    const rest = innerPathname.slice(2) || '/'
+    const dest = locale === 'ru' ? `/ru${rest}` : rest
+    const url = request.nextUrl.clone()
+    url.pathname = dest
+    url.search = request.nextUrl.search
+    url.hash = ''
+    return withSecurityHeaders(NextResponse.redirect(url, 301))
+  }
+
   // Guard the protected storefront account area at the edge, before rendering.
   // Doing the auth check here (instead of a redirect() inside the async
   // AccountLayout) avoids aborting a Server Component mid-render, which the

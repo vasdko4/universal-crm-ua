@@ -37,7 +37,10 @@ export async function generateMetadata(): Promise<Metadata> {
     !suffix || nameLc === suffixBare || nameLc.includes(suffixBare)
       ? name
       : `${name} ${suffix}`
-  const title = seo?.metaTitle?.trim() || composed
+  // Admin SEO metaTitle is a single global string (usually Ukrainian). On /ru
+  // use the composed Russian-dictionary title so <title> matches the page
+  // language (same pattern as description below).
+  const title = locale === 'ru' ? composed : seo?.metaTitle?.trim() || composed
   // Admin SEO is a single global string (usually Ukrainian). On /ru use the
   // Russian dictionary defaults so the <meta description> matches the page.
   const description =
