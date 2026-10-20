@@ -19,11 +19,11 @@
 > Next.js app: catalog, orders, customers, stock, promos, Nova Poshta delivery, Monobank /
 > WayForPay payments. One-command VPS install, Docker, no SaaS lock-in.
 
-**Version 3.0.0** · Next.js 16 · PostgreSQL · Docker · MIT
+**Version 3.4.48** · Next.js 16 · PostgreSQL · Docker · MIT
 
 **Демо:** https://magazine-test-ten.vercel.app — имя в вкладке берётся из `/admin` → Налаштування (`storeName`), не из кода.
 **Релиз:** https://github.com/vasdko4/universal-crm-ua/releases/latest
-**Образ:** `ghcr.io/vasdko4/universal-crm-ua:3.0.0`
+**Образ:** `ghcr.io/vasdko4/universal-crm-ua:3.4.48`
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vasdko4/universal-crm-ua/main/install.sh | bash
@@ -99,7 +99,7 @@ DOMAIN=shop.example.com bash install.sh
 Другая версия образа:
 
 ```bash
-IMAGE=ghcr.io/vasdko4/universal-crm-ua:3.0.0 bash install.sh
+IMAGE=ghcr.io/vasdko4/universal-crm-ua:3.4.48 bash install.sh
 ```
 
 Пропустить подготовку ОС (Docker уже стоит):
