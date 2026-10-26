@@ -99,10 +99,13 @@ export function proxy(request: NextRequest) {
     return withSecurityHeaders(NextResponse.redirect(url))
   }
 
-  // Canonicalize legacy /p/<slug> info-page URLs to /<slug> (permanent).
-  // The menu/footer and sitemap both point at /<slug>; keeping /p/<slug>
-  // renderable would leave two 200-OK copies of every info page (duplicate
-  // content). Checked against the un-prefixed path so /ru/p/<slug> lands on
+  // Canonicalize legacy /p/<slug> URLs to /<slug> (permanent).
+  // Bare /<slug> serves info pages only (see app/(shop)/[slug]/page.tsx);
+  // products live at /product/<slug>, so a /p/<product-slug> link lands on
+  // /<slug> first and the [slug] page redirects it on to /product/<slug>
+  // when the slug matches a product. Keeping /p/<slug> renderable would
+  // leave two 200-OK copies of every info page (duplicate content).
+  // Checked against the un-prefixed path so /ru/p/<slug> lands on
   // /ru/<slug>.
   if (innerPathname === '/p' || innerPathname.startsWith('/p/')) {
     const rest = innerPathname.slice(2) || '/'

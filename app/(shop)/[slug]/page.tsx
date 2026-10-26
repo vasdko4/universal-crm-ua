@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import sanitizeHtml from 'sanitize-html'
 import { RICH_TEXT_SANITIZE_OPTIONS } from '@/lib/shop/sanitize'
 import { getPageBySlug } from '@/lib/shop/pages'
+import { getProductBySlug } from '@/lib/shop/queries'
 import { getServerDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { canonicalUrl, getCanonicalSiteUrl } from '@/lib/seo'
@@ -17,7 +18,16 @@ export async function generateMetadata({
   const { slug } = await params
   const { locale } = await getServerDictionary()
   const page = await getPageBySlug(slug, locale)
-  if (!page) notFound()
+  if (!page) {
+    // Legacy /p/<product-slug> links land here through the proxy's /p/ → /<slug>
+    // canonicalization, and a product slug has no info page — so send it on to
+    // the canonical product URL (permanent, so Google updates the indexed URL)
+    // instead of a dead 404. Slugs matching neither a page nor a product
+    // still 404 for real.
+    const data = await getProductBySlug(slug, locale).catch(() => null)
+    if (data) redirect(localizedPath(`/product/${data.product.slug || slug}`, locale), 'replace')
+    notFound()
+  }
   const path = `/${slug}`
   const siteUrl = await getCanonicalSiteUrl()
   return {
@@ -42,7 +52,14 @@ export default async function InfoPage({
   const { slug } = await params
   const { dict, locale } = await getServerDictionary()
   const page = await getPageBySlug(slug, locale)
-  if (!page) notFound()
+  if (!page) {
+    // Same fallback as in generateMetadata: a product slug has no info page,
+    // so a legacy /p/<product-slug> link (via the proxy's /p/ → /<slug> hop)
+    // goes on to the canonical product URL instead of a dead 404.
+    const data = await getProductBySlug(slug, locale).catch(() => null)
+    if (data) redirect(localizedPath(`/product/${data.product.slug || slug}`, locale), 'replace')
+    notFound()
+  }
 
   const html = sanitizeHtml(page.content || '', RICH_TEXT_SANITIZE_OPTIONS)
 
