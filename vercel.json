@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/prom-sync",
-      "schedule": "15 * * * *"
+      "schedule": "15 2 * * *"
     }
   ],
   "headers": [
