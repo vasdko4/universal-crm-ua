@@ -23,6 +23,7 @@ import {
 } from '@/lib/analytics/roas'
 import { getStoreSettingsInternal, normalizeAdsSpend } from '@/lib/store-settings'
 import { normDays, normLimit } from '@/lib/api/helpers'
+import { auditLog } from '@/lib/audit-log'
 
 async function adminLocale(): Promise<Locale> {
   const user = await getAdminUser()
@@ -124,6 +125,10 @@ export type StatsSummary = {
   profit: number
   /** Profit margin as a percentage of revenue. */
   profitMargin: number
+  /** Order items sold in the period with no cost snapshot — their profit
+   *  is unknown, so they are excluded from `profit` (not silently priced
+   *  at today's purchase cost). */
+  costUnknownItems: number
   visitors: number
   /**
    * visitor → paid order over the period. Previously this was
@@ -159,8 +164,30 @@ function trend(current: number, previous: number): number | null {
   return ((current - previous) / previous) * 100
 }
 
-export async function getStatsSummary(days = 30): Promise<StatsSummary> {
+/**
+ * SQL fragment: start of the statistics window — midnight Europe/Kyiv
+ * `days` ago, as an absolute timestamp. `daysParam` is the $n placeholder
+ * holding the day count. Every statistics query uses this instead of the
+ * rolling `NOW() - days` window, so cards, charts and breakdowns all count
+ * exactly the same calendar days: the charts already used Kyiv days while
+ * the totals used rolling 24h windows, so one "30 days" view disagreed
+ * with itself by up to a day of boundary traffic.
+ */
+function kyivWindowStart(daysParam: string): string {
+  return `((date_trunc('day', NOW() AT TIME ZONE 'Europe/Kyiv') - (${daysParam} || ' days')::interval) AT TIME ZONE 'Europe/Kyiv')`
+}
+
+/** Storefront traffic events older than this are deleted by the
+ * analytics-retention cron — a previous-period comparison reaching past
+ * it would compare against deleted data and report a fake collapse. */
+const TRAFFIC_RETENTION_DAYS = 90
+
+export async function getStatsSummary(
+  days = 30,
+  opts: { humansOnly?: boolean } = {},
+): Promise<StatsSummary> {
   days = normDays(days)
+  const includeBots = !opts.humansOnly
   await assertDashboardOrStatistics()
   // Traffic counters (pageviews/product views/add-to-cart/visitors) come from
   // analytics_events, which client-side tracking actually writes to.
@@ -179,30 +206,30 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
   const [trafficRes, ordersRes] = await Promise.all([
     pool.query(
       `SELECT
-        COUNT(*) FILTER (WHERE type = 'pageview' AND created_at >= NOW() - ($1 || ' days')::interval)::int AS page_views,
-        COUNT(*) FILTER (WHERE type = 'product_view' AND created_at >= NOW() - ($1 || ' days')::interval)::int AS product_views,
-        COUNT(*) FILTER (WHERE type = 'add_to_cart' AND created_at >= NOW() - ($1 || ' days')::interval)::int AS add_to_carts,
-        COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL AND created_at >= NOW() - ($1 || ' days')::interval)::int AS visitors,
+        COUNT(*) FILTER (WHERE type = 'pageview' AND created_at >= ${kyivWindowStart('$1')} AND ($2::boolean OR NOT is_bot))::int AS page_views,
+        COUNT(*) FILTER (WHERE type = 'product_view' AND created_at >= ${kyivWindowStart('$1')} AND ($2::boolean OR NOT is_bot))::int AS product_views,
+        COUNT(*) FILTER (WHERE type = 'add_to_cart' AND created_at >= ${kyivWindowStart('$1')} AND ($2::boolean OR NOT is_bot))::int AS add_to_carts,
+        COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL AND created_at >= ${kyivWindowStart('$1')} AND ($2::boolean OR NOT is_bot))::int AS visitors,
         -- Funnel stages are counted in unique sessions, not raw events, so
         -- "visitor -> product view" and "product view -> cart" compare like
         -- with like (see lib/analytics/funnel.ts).
-        COUNT(DISTINCT session_id) FILTER (WHERE type = 'product_view' AND session_id IS NOT NULL AND created_at >= NOW() - ($1 || ' days')::interval)::int AS product_view_sessions,
-        COUNT(DISTINCT session_id) FILTER (WHERE type = 'add_to_cart' AND session_id IS NOT NULL AND created_at >= NOW() - ($1 || ' days')::interval)::int AS cart_sessions,
-        COUNT(*) FILTER (WHERE type = 'pageview' AND created_at >= NOW() - ($1::int * 2 || ' days')::interval AND created_at < NOW() - ($1 || ' days')::interval)::int AS prev_page_views,
-        COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL AND created_at >= NOW() - ($1::int * 2 || ' days')::interval AND created_at < NOW() - ($1 || ' days')::interval)::int AS prev_visitors
+        COUNT(DISTINCT session_id) FILTER (WHERE type = 'product_view' AND session_id IS NOT NULL AND created_at >= ${kyivWindowStart('$1')} AND ($2::boolean OR NOT is_bot))::int AS product_view_sessions,
+        COUNT(DISTINCT session_id) FILTER (WHERE type = 'add_to_cart' AND session_id IS NOT NULL AND created_at >= ${kyivWindowStart('$1')} AND ($2::boolean OR NOT is_bot))::int AS cart_sessions,
+        COUNT(*) FILTER (WHERE type = 'pageview' AND created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND created_at < ${kyivWindowStart('$1')} AND ($2::boolean OR NOT is_bot))::int AS prev_page_views,
+        COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL AND created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND created_at < ${kyivWindowStart('$1')} AND ($2::boolean OR NOT is_bot))::int AS prev_visitors
        FROM analytics_events
-       WHERE created_at >= NOW() - ($1::int * 2 || ' days')::interval`,
-      [days],
+       WHERE created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval)`,
+      [days, includeBots],
     ),
     pool.query(
       `SELECT
-        COUNT(*) FILTER (WHERE created_at >= NOW() - ($1 || ' days')::interval)::int AS orders,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= NOW() - ($1 || ' days')::interval), 0)::float AS revenue,
-        COUNT(*) FILTER (WHERE created_at >= NOW() - ($1::int * 2 || ' days')::interval AND created_at < NOW() - ($1 || ' days')::interval)::int AS prev_orders,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= NOW() - ($1::int * 2 || ' days')::interval AND created_at < NOW() - ($1 || ' days')::interval), 0)::float AS prev_revenue
+        COUNT(*) FILTER (WHERE created_at >= ${kyivWindowStart('$1')})::int AS orders,
+        COALESCE(SUM(total) FILTER (WHERE created_at >= ${kyivWindowStart('$1')}), 0)::float AS revenue,
+        COUNT(*) FILTER (WHERE created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND created_at < ${kyivWindowStart('$1')})::int AS prev_orders,
+        COALESCE(SUM(total) FILTER (WHERE created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND created_at < ${kyivWindowStart('$1')}), 0)::float AS prev_revenue
        FROM orders
        WHERE status NOT IN ('cancelled', 'pending_payment')
-         AND created_at >= NOW() - ($1::int * 2 || ' days')::interval`,
+         AND created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval)`,
       [days],
     ),
   ])
@@ -218,7 +245,7 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
       COUNT(*) FILTER (WHERE status <> 'cancelled' AND payment_status = 'paid')::int AS paid,
       COUNT(*) FILTER (WHERE status <> 'cancelled' AND payment_status = 'paid' AND status IN ('shipped', 'done'))::int AS fulfilled
      FROM orders
-     WHERE created_at >= NOW() - ($1 || ' days')::interval`,
+     WHERE created_at >= ${kyivWindowStart('$1')}`,
     [days],
   )
   const fo = funnelOrdersRes.rows[0] ?? { placed: 0, paid: 0, fulfilled: 0 }
@@ -227,15 +254,19 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
   // snapshot (falls back to the product's current cost for older orders).
   const profitRes = await pool.query(
     `SELECT
-      COALESCE(SUM(oi.total) FILTER (WHERE o.created_at >= NOW() - ($1 || ' days')::interval), 0)::float AS items_revenue,
-      COALESCE(SUM(COALESCE(oi.cost_price, p.cost_price, 0) * oi.quantity) FILTER (WHERE o.created_at >= NOW() - ($1 || ' days')::interval), 0)::float AS cost_total,
-      COALESCE(SUM(oi.total - COALESCE(oi.cost_price, p.cost_price, 0) * oi.quantity) FILTER (WHERE o.created_at >= NOW() - ($1 || ' days')::interval), 0)::float AS profit,
-      COALESCE(SUM(oi.total - COALESCE(oi.cost_price, p.cost_price, 0) * oi.quantity) FILTER (WHERE o.created_at >= NOW() - ($1::int * 2 || ' days')::interval AND o.created_at < NOW() - ($1 || ' days')::interval), 0)::float AS prev_profit
+      COALESCE(SUM(oi.total) FILTER (WHERE o.created_at >= ${kyivWindowStart('$1')}), 0)::float AS items_revenue,
+      -- Profit uses ONLY the cost snapshot stored on the order item.
+      -- Falling back to the product's CURRENT cost (the old behaviour)
+      -- silently rewrote history whenever a purchase price changed; items
+      -- without a snapshot are excluded from profit and counted below.
+      COALESCE(SUM(oi.cost_price * oi.quantity) FILTER (WHERE o.created_at >= ${kyivWindowStart('$1')}), 0)::float AS cost_total,
+      COALESCE(SUM(oi.total - oi.cost_price * oi.quantity) FILTER (WHERE o.created_at >= ${kyivWindowStart('$1')}), 0)::float AS profit,
+      COALESCE(SUM(oi.total - oi.cost_price * oi.quantity) FILTER (WHERE o.created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND o.created_at < ${kyivWindowStart('$1')}), 0)::float AS prev_profit,
+      COUNT(*) FILTER (WHERE o.created_at >= ${kyivWindowStart('$1')} AND oi.cost_price IS NULL)::int AS cost_unknown_items
      FROM order_items oi
      JOIN orders o ON o.id = oi.order_id
-     LEFT JOIN products p ON p.id = oi.product_id
      WHERE o.status NOT IN ('cancelled', 'pending_payment')
-       AND o.created_at >= NOW() - ($1::int * 2 || ' days')::interval`,
+       AND o.created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval)`,
     [days],
   )
   const pr = profitRes.rows[0]
@@ -276,9 +307,15 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
     cartConversion: orderStage?.conversionFromPrev ?? 0,
     funnel,
     productViewsPerVisitor: funnel.productViewsPerVisitor,
+    // Traffic trends are only meaningful while the previous window still
+    // exists: the retention cron deletes traffic older than 90 days, so a
+    // 90-day view would otherwise compare against an empty previous period
+    // and report a fake -100%. Orders are never deleted, so their trends
+    // are always computed.
+    costUnknownItems: pr.cost_unknown_items ?? 0,
     trends: {
-      pageViews: trend(pageViews, r.prev_page_views ?? 0),
-      visitors: trend(visitors, r.prev_visitors ?? 0),
+      pageViews: days * 2 <= TRAFFIC_RETENTION_DAYS ? trend(pageViews, r.prev_page_views ?? 0) : null,
+      visitors: days * 2 <= TRAFFIC_RETENTION_DAYS ? trend(visitors, r.prev_visitors ?? 0) : null,
       orders: trend(orders, r.prev_orders ?? 0),
       revenue: trend(revenue, r.prev_revenue ?? 0),
       profit: trend(profit, pr.prev_profit ?? 0),
@@ -287,7 +324,11 @@ export async function getStatsSummary(days = 30): Promise<StatsSummary> {
 }
 
 // Where visitors come from: normalized referrer hosts ("direct" if none).
-export async function getTopReferrers(days = 30, limit = 8): Promise<ReferrerRow[]> {
+export async function getTopReferrers(
+  days = 30,
+  limit = 8,
+  opts: { humansOnly?: boolean } = {},
+): Promise<ReferrerRow[]> {
   days = normDays(days)
   limit = normLimit(limit, 8)
   await assertPermission('statistics')
@@ -297,16 +338,20 @@ export async function getTopReferrers(days = 30, limit = 8): Promise<ReferrerRow
        COUNT(*)::int AS visits
      FROM analytics_events
      WHERE type = 'pageview'
-       AND created_at >= NOW() - ($1 || ' days')::interval
+       AND ($3::boolean OR NOT is_bot)
+       AND created_at >= ${kyivWindowStart('$1')}
      GROUP BY source
      ORDER BY visits DESC
      LIMIT $2`,
-    [days, limit],
+    [days, limit, !opts.humansOnly],
   )
   return res.rows.map((r) => ({ source: r.source, visits: r.visits }))
 }
 
-export async function getTimeseries(days = 30): Promise<TimeseriesPoint[]> {
+export async function getTimeseries(
+  days = 30,
+  opts: { humansOnly?: boolean } = {},
+): Promise<TimeseriesPoint[]> {
   days = normDays(days)
   await assertPermission('statistics')
   // Pageviews/visitors from analytics_events (actually tracked); orders from
@@ -334,6 +379,7 @@ export async function getTimeseries(days = 30): Promise<TimeseriesPoint[]> {
               COUNT(DISTINCT session_id) FILTER (WHERE type = 'pageview' AND session_id IS NOT NULL) AS visitors
        FROM analytics_events, bounds
        WHERE created_at >= bounds.start_ts
+         AND ($2::boolean OR NOT is_bot)
        GROUP BY 1
      ),
      orders_by_day AS (
@@ -352,7 +398,7 @@ export async function getTimeseries(days = 30): Promise<TimeseriesPoint[]> {
      LEFT JOIN events_by_day ev ON ev.day = d.day
      LEFT JOIN orders_by_day ob ON ob.day = d.day
      ORDER BY d.day ASC`,
-    [days],
+    [days, !opts.humansOnly],
   )
   return res.rows.map((row) => ({
     date: row.date,
@@ -362,7 +408,11 @@ export async function getTimeseries(days = 30): Promise<TimeseriesPoint[]> {
   }))
 }
 
-export async function getTopPaths(days = 30, limit = 8): Promise<TopPathRow[]> {
+export async function getTopPaths(
+  days = 30,
+  limit = 8,
+  opts: { humansOnly?: boolean } = {},
+): Promise<TopPathRow[]> {
   days = normDays(days)
   limit = normLimit(limit, 8)
   await assertPermission('statistics')
@@ -370,11 +420,12 @@ export async function getTopPaths(days = 30, limit = 8): Promise<TopPathRow[]> {
     `SELECT path, COUNT(*)::int AS views
      FROM analytics_events
      WHERE type = 'pageview' AND path IS NOT NULL
-       AND created_at >= NOW() - ($1 || ' days')::interval
+       AND ($3::boolean OR NOT is_bot)
+       AND created_at >= ${kyivWindowStart('$1')}
      GROUP BY path
      ORDER BY views DESC
      LIMIT $2`,
-    [days, limit],
+    [days, limit, !opts.humansOnly],
   )
   return res.rows.map((r) => ({ path: r.path, views: r.views }))
 }
@@ -398,7 +449,7 @@ export async function getVisitorSplit(days = 30): Promise<VisitorSplit> {
       COUNT(*) FILTER (WHERE is_bot)::int AS bot_views
      FROM analytics_events
      WHERE type = 'pageview'
-       AND created_at >= NOW() - ($1 || ' days')::interval`,
+       AND created_at >= ${kyivWindowStart('$1')}`,
     [days],
   )
   const r = res.rows[0] ?? {}
@@ -420,7 +471,7 @@ export async function getTopBots(days = 30, limit = 8): Promise<BotRow[]> {
     `SELECT user_agent, COUNT(*)::int AS hits
      FROM analytics_events
      WHERE type = 'pageview' AND is_bot AND user_agent IS NOT NULL
-       AND created_at >= NOW() - ($1 || ' days')::interval
+       AND created_at >= ${kyivWindowStart('$1')}
      GROUP BY user_agent
      ORDER BY hits DESC
      LIMIT 50`,
@@ -458,7 +509,7 @@ export async function getGeoStats(days = 30, limit = 10): Promise<GeoStats> {
         COUNT(*)::int AS page_views
        FROM analytics_events
        WHERE type = 'pageview' AND NOT is_bot AND country IS NOT NULL
-         AND created_at >= NOW() - ($1 || ' days')::interval
+         AND created_at >= ${kyivWindowStart('$1')}
        GROUP BY country ORDER BY page_views DESC LIMIT $2`,
       [days, limit],
     ),
@@ -468,7 +519,7 @@ export async function getGeoStats(days = 30, limit = 10): Promise<GeoStats> {
         COUNT(*)::int AS page_views
        FROM analytics_events
        WHERE type = 'pageview' AND NOT is_bot AND region IS NOT NULL
-         AND created_at >= NOW() - ($1 || ' days')::interval
+         AND created_at >= ${kyivWindowStart('$1')}
        GROUP BY region ORDER BY page_views DESC LIMIT $2`,
       [days, limit],
     ),
@@ -478,7 +529,7 @@ export async function getGeoStats(days = 30, limit = 10): Promise<GeoStats> {
         COUNT(*)::int AS page_views
        FROM analytics_events
        WHERE type = 'pageview' AND NOT is_bot AND city IS NOT NULL
-         AND created_at >= NOW() - ($1 || ' days')::interval
+         AND created_at >= ${kyivWindowStart('$1')}
        GROUP BY city ORDER BY page_views DESC LIMIT $2`,
       [days, limit],
     ),
@@ -488,7 +539,7 @@ export async function getGeoStats(days = 30, limit = 10): Promise<GeoStats> {
         COUNT(*)::int AS page_views
        FROM analytics_events
        WHERE type = 'pageview' AND NOT is_bot AND country IS NULL
-         AND created_at >= NOW() - ($1 || ' days')::interval`,
+         AND created_at >= ${kyivWindowStart('$1')}`,
       [days],
     ),
   ])
@@ -527,7 +578,14 @@ export async function trackEvent(input: {
     return { success: false, error: 'Неизвестный тип события' }
   }
   const path = typeof input.path === 'string' ? input.path.slice(0, 500) : null
-  const sessionId = typeof input.sessionId === 'string' ? input.sessionId.slice(0, 64) : null
+  // Visitors without localStorage all send the literal 'anonymous' id —
+  // storing it would collapse every one of them into a single fake
+  // "visitor" in DISTINCT session counts. NULL keeps their pageviews
+  // counted while excluding them from the visitor count.
+  const sessionId =
+    typeof input.sessionId === 'string' && input.sessionId !== 'anonymous'
+      ? input.sessionId.slice(0, 64)
+      : null
   const referrer = typeof input.referrer === 'string' ? input.referrer.slice(0, 300) : null
   const productId = Number.isInteger(input.productId) ? input.productId : null
   // Visitor detail: bot detection from User-Agent and geo (country from
@@ -577,9 +635,10 @@ export async function getRevenueTimeseries(days = 30): Promise<RevenuePoint[]> {
        ON date_trunc('day', o.created_at AT TIME ZONE 'Europe/Kyiv') = d.day
       AND o.status NOT IN ('cancelled', 'pending_payment')
      LEFT JOIN LATERAL (
-       SELECT SUM(oi.total - COALESCE(oi.cost_price, p.cost_price, 0) * oi.quantity) AS profit
+       -- Snapshot-only cost, same rule as getStatsSummary: items without a
+       -- cost snapshot contribute no profit instead of today's cost.
+       SELECT SUM(oi.total - oi.cost_price * oi.quantity) AS profit
        FROM order_items oi
-       LEFT JOIN products p ON p.id = oi.product_id
        WHERE oi.order_id = o.id
      ) op ON TRUE
      GROUP BY d.day
@@ -602,7 +661,7 @@ export async function getOrderStatusBreakdown(days = 30): Promise<OrderStatusRow
   const res = await pool.query(
     `SELECT status, COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
      FROM orders
-     WHERE created_at >= NOW() - ($1 || ' days')::interval
+     WHERE created_at >= ${kyivWindowStart('$1')}
      GROUP BY status
      ORDER BY count DESC`,
     [days],
@@ -619,7 +678,7 @@ export async function getDeliveryBreakdown(days = 30): Promise<MethodBreakdownRo
     `SELECT COALESCE(NULLIF(delivery_method, ''), 'unspecified') AS method,
             COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
      FROM orders
-     WHERE created_at >= NOW() - ($1 || ' days')::interval
+     WHERE created_at >= ${kyivWindowStart('$1')}
        AND status NOT IN ('cancelled', 'pending_payment')
      GROUP BY 1 ORDER BY count DESC`,
     [days],
@@ -634,7 +693,7 @@ export async function getPaymentBreakdown(days = 30): Promise<MethodBreakdownRow
     `SELECT COALESCE(NULLIF(payment_method, ''), 'unspecified') AS method,
             COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
      FROM orders
-     WHERE created_at >= NOW() - ($1 || ' days')::interval
+     WHERE created_at >= ${kyivWindowStart('$1')}
        AND status NOT IN ('cancelled', 'pending_payment')
      GROUP BY 1 ORDER BY count DESC`,
     [days],
@@ -664,12 +723,12 @@ export async function getTopProductsPeriod(days = 30, limit = 10): Promise<TopPr
        COALESCE(p.image, oi.image) AS image,
        SUM(oi.quantity)::int AS units_sold,
        SUM(oi.total)::float AS revenue,
-       SUM(oi.total - COALESCE(oi.cost_price, p.cost_price, 0) * oi.quantity)::float AS profit
+       SUM(oi.total - oi.cost_price * oi.quantity)::float AS profit
      FROM order_items oi
      JOIN orders o ON o.id = oi.order_id
      LEFT JOIN products p ON p.id = oi.product_id
      WHERE o.status NOT IN ('cancelled', 'pending_payment')
-       AND o.created_at >= NOW() - ($1 || ' days')::interval
+       AND o.created_at >= ${kyivWindowStart('$1')}
      GROUP BY oi.product_id, p.name_ru, p.name_uk, oi.name, p.image, oi.image
      ORDER BY revenue DESC
      LIMIT $2`,
@@ -704,7 +763,7 @@ export async function getCategorySales(days = 30, limit = 8): Promise<CategorySa
      JOIN product_category pc ON pc.product_id = oi.product_id
      JOIN categories c ON c.id = pc.category_id
      WHERE o.status NOT IN ('cancelled', 'pending_payment')
-       AND o.created_at >= NOW() - ($1 || ' days')::interval
+       AND o.created_at >= ${kyivWindowStart('$1')}
      GROUP BY c.id, c.name_ru, c.name_uk
      ORDER BY revenue DESC
      LIMIT $2`,
@@ -730,7 +789,7 @@ export async function getCustomerInsights(days = 30): Promise<CustomerInsights> 
     pool.query(
       `WITH period_orders AS (
          SELECT * FROM orders
-         WHERE created_at >= NOW() - ($1 || ' days')::interval
+         WHERE created_at >= ${kyivWindowStart('$1')}
            AND status NOT IN ('cancelled', 'pending_payment')
        ),
        customer_first AS (
@@ -743,7 +802,7 @@ export async function getCustomerInsights(days = 30): Promise<CustomerInsights> 
          (SELECT COUNT(*) FROM period_orders)::int AS total_orders,
          (SELECT COUNT(DISTINCT customer_phone) FROM period_orders)::int AS unique_customers,
          (SELECT COUNT(*) FROM customer_first
-           WHERE first_order >= NOW() - ($1 || ' days')::interval)::int AS new_customers,
+           WHERE first_order >= ${kyivWindowStart('$1')})::int AS new_customers,
          COALESCE((SELECT AVG(total) FROM period_orders), 0)::float AS avg_order_value,
          COALESCE((SELECT AVG(items_count) FROM period_orders), 0)::float AS avg_items`,
       [days],
@@ -752,7 +811,7 @@ export async function getCustomerInsights(days = 30): Promise<CustomerInsights> 
       `SELECT customer_name AS name, customer_phone AS phone,
               COUNT(*)::int AS orders, COALESCE(SUM(total), 0)::float AS total
        FROM orders
-       WHERE created_at >= NOW() - ($1 || ' days')::interval
+       WHERE created_at >= ${kyivWindowStart('$1')}
          AND status NOT IN ('cancelled', 'pending_payment')
        GROUP BY customer_name, customer_phone
        ORDER BY total DESC
@@ -789,7 +848,7 @@ export async function getWeekdayActivity(days = 30): Promise<WeekdayRow[]> {
     `SELECT EXTRACT(ISODOW FROM created_at AT TIME ZONE 'Europe/Kyiv')::int AS weekday,
             COUNT(*)::int AS orders, COALESCE(SUM(total), 0)::float AS revenue
      FROM orders
-     WHERE created_at >= NOW() - ($1 || ' days')::interval
+     WHERE created_at >= ${kyivWindowStart('$1')}
        AND status NOT IN ('cancelled', 'pending_payment')
      GROUP BY 1 ORDER BY 1`,
     [days],
@@ -809,10 +868,59 @@ export async function getAbandonedCartStats(days = 30): Promise<AbandonedCartSta
   const res = await pool.query(
     `SELECT COUNT(*)::int AS count, COALESCE(SUM(items_total), 0)::float AS total
      FROM abandoned_carts
-     WHERE created_at >= NOW() - ($1 || ' days')::interval`,
+     WHERE created_at >= ${kyivWindowStart('$1')}`,
     [days],
   ).catch(() => ({ rows: [{ count: 0, total: 0 }] }))
   return { count: res.rows[0].count ?? 0, total: res.rows[0].total ?? 0 }
+}
+
+/* --------------------- Statistics reset --------------------- */
+
+/**
+ * Clears collected storefront traffic statistics: every analytics_events
+ * row, the geo cache, and the denormalized per-product view counters.
+ *
+ * Deliberately does NOT touch orders, customers, or abandoned carts:
+ * revenue, profit, order and customer blocks are computed from real
+ * business data, not from traffic events, so they stay intact and the
+ * dashboard keeps showing true sales after a reset. Only the traffic
+ * side (visitors, pageviews, funnel traffic stages, top pages, sources,
+ * bots, geo) goes back to zero.
+ *
+ * Gated by the 'settings' permission (not just 'statistics'): wiping
+ * data is destructive and must not be available to a statistics viewer.
+ * The reset is written to the audit log with the deleted counts.
+ */
+export async function resetAnalyticsTraffic(): Promise<{
+  success: boolean
+  eventsDeleted?: number
+  geoDeleted?: number
+  productsReset?: number
+  error?: string
+}> {
+  const user = await assertPermission('settings')
+  try {
+    const events = await pool.query('DELETE FROM analytics_events')
+    const geo = await pool.query('DELETE FROM geo_cache')
+    const products = await pool.query(
+      'UPDATE products SET views_count = 0 WHERE views_count IS NOT NULL AND views_count <> 0',
+    )
+    const eventsDeleted = events.rowCount ?? 0
+    const geoDeleted = geo.rowCount ?? 0
+    const productsReset = products.rowCount ?? 0
+    void auditLog({
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      action: 'delete',
+      entity: 'analytics',
+      details: `Statistics reset: ${eventsDeleted} analytics events, ${geoDeleted} geo cache rows deleted, ${productsReset} product view counters zeroed. Orders and revenue untouched.`,
+    })
+    revalidatePath('/admin/statistics')
+    return { success: true, eventsDeleted, geoDeleted, productsReset }
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Reset failed' }
+  }
 }
 
 /* --------------------- Per-product analytics (admin) --------------------- */

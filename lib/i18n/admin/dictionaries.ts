@@ -1119,6 +1119,21 @@ export type AdminDictionary = {
     geoCities: string
     geoUnknown: string
     geoUnknownHint: string
+    days1: string
+    trafficAll: string
+    trafficHumans: string
+    exportCsv: string
+    resetButton: string
+    resetArmText: string
+    resetConfirmButton: string
+    resetCancelButton: string
+    resetWorking: string
+    resetDone: string
+    resetFailed: string
+    resetDismiss: string
+    resetClearsNote: string
+    profitUnknownNote: string
+    qualityNote: string
   }
   analytics: {
     pageTitle: string
@@ -3125,6 +3140,21 @@ const uk: AdminDictionary = {
     geoCities: 'Міста',
     geoUnknown: 'Невідомо',
     geoUnknownHint: 'події, записані до ввімкнення гео',
+    days1: 'Сьогодні',
+    trafficAll: 'Весь трафік',
+    trafficHumans: 'Тільки люди',
+    exportCsv: 'Скачати CSV',
+    resetButton: 'Скинути статистику',
+    resetArmText: 'Скинути весь зібраний трафік? Замовлення, виручка і клієнти залишаться.',
+    resetConfirmButton: 'Так, скинути',
+    resetCancelButton: 'Скасувати',
+    resetWorking: 'Скидання…',
+    resetDone: 'Статистику трафіку скинуто: {events} подій, {geo} записів гео, {products} лічильників товарів обнулено.',
+    resetFailed: 'Не вдалося скинути статистику',
+    resetDismiss: 'Сховати',
+    resetClearsNote: 'Скидання видаляє події трафіку, гео-кеш і лічильники переглядів товарів. Замовлення, виручка, прибуток і клієнти НЕ видаляються.',
+    profitUnknownNote: 'Прибуток пораховано без {count} поз. без збереженої собівартості',
+    qualityNote: 'Як рахуються цифри: період — календарні дні за Києвом (Europe/Kyiv), однакові для всіх блоків. Трафік — події, надіслані браузером покупця (без JS трафік не фіксується); боти відокремлені за User-Agent, а перемикач «Тільки люди» прибирає їх з усіх блоків трафіку. Трафік старше 90 днів автоматично видаляється, тому порівняння з попереднім періодом для 90 днів не показується. Прибуток рахується тільки за позиціями зі збереженою собівартістю на момент замовлення.',
   },
   analytics: {
     pageTitle: 'Кампанії та ROAS',
@@ -5140,6 +5170,21 @@ const ru: AdminDictionary = {
     geoCities: 'Города',
     geoUnknown: 'Неизвестно',
     geoUnknownHint: 'события, записанные до включения гео',
+    days1: 'Сегодня',
+    trafficAll: 'Весь трафик',
+    trafficHumans: 'Только люди',
+    exportCsv: 'Скачать CSV',
+    resetButton: 'Сбросить статистику',
+    resetArmText: 'Сбросить весь собранный трафик? Заказы, выручка и клиенты останутся.',
+    resetConfirmButton: 'Да, сбросить',
+    resetCancelButton: 'Отмена',
+    resetWorking: 'Сброс…',
+    resetDone: 'Статистика трафика сброшена: {events} событий, {geo} записей гео, {products} счётчиков товаров обнулено.',
+    resetFailed: 'Не удалось сбросить статистику',
+    resetDismiss: 'Скрыть',
+    resetClearsNote: 'Сброс удаляет события трафика, гео-кеш и счётчики просмотров товаров. Заказы, выручка, прибыль и клиенты НЕ удаляются.',
+    profitUnknownNote: 'Прибыль посчитана без {count} поз. без сохранённой себестоимости',
+    qualityNote: 'Как считаются цифры: период — календарные дни по Киеву (Europe/Kyiv), одинаковые для всех блоков. Трафик — события, отправленные браузером покупателя (без JS трафик не фиксируется); боты отделены по User-Agent, а переключатель «Только люди» убирает их из всех блоков трафика. Трафик старше 90 дней удаляется автоматически, поэтому сравнение с предыдущим периодом для 90 дней не показывается. Прибыль считается только по позициям с сохранённой себестоимостью на момент заказа.',
   },
   analytics: {
     pageTitle: 'Кампании и ROAS',

@@ -28,9 +28,32 @@ function lastForwardedHop(value: string | null): string | null {
   return hops.at(-1) ?? null
 }
 
+function isValidIp(value: string): boolean {
+  // IPv4 dotted quad or IPv6 (with optional zone id) — rejects garbage a
+  // spoofed header could carry, so a bad value never becomes a rate-limit
+  // key or a geo-lookup input.
+  return (
+    /^(?:\d{1,3}\.){3}\d{1,3}$/.test(value) ||
+    /^[0-9a-fA-F:]+(?:%[0-9a-zA-Z]+)?$/.test(value)
+  )
+}
+
 export function clientIpFromHeaders(h: { get(name: string): string | null }): string {
   const vercel = h.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
   if (vercel) return vercel
+  // Cloudflare fast path. Behind Cloudflare, x-forwarded-for ends with a
+  // Cloudflare edge IP (the last hop is the edge, not the shopper), so
+  // every visitor used to share a handful of edge IPs: rate-limit buckets
+  // collided (real shoppers 429'd, one bot poisoned the bucket) and geo
+  // region/city resolved to the datacenter, not the shopper. Cloudflare
+  // overwrites cf-connecting-ip with the real client IP, so it is trusted
+  // ONLY when cf-ray is present — that header is set by Cloudflare itself
+  // and proves the request actually came through the proxy. Without cf-ray
+  // a directly-sent cf-connecting-ip is ignored as spoofed. This assumes
+  // the origin is reachable only via Cloudflare (the production setup).
+  const cfRay = h.get('cf-ray')?.trim()
+  const cfIp = h.get('cf-connecting-ip')?.trim()
+  if (cfRay && cfIp && isValidIp(cfIp)) return cfIp
   const real = h.get('x-real-ip')?.trim()
   if (real) return real
   // nginx `$proxy_add_x_forwarded_for` prepends the caller, so the last hop

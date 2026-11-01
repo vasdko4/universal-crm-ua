@@ -19,6 +19,22 @@ describe('detectBot', () => {
     expect(botName('AhrefsBot/7.0; +http://ahrefs.com/robot/')).toBe('AhrefsBot')
   })
 
+  it('names AI crawlers instead of lumping them under "Other bot"', () => {
+    expect(detectBot('Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)')).toEqual({
+      isBot: true,
+      name: 'ChatGPT',
+    })
+    expect(detectBot('ClaudeBot/1.0 (+https://claude.com)')).toEqual({
+      isBot: true,
+      name: 'ClaudeBot',
+    })
+    expect(detectBot('PerplexityBot/1.0 (+https://www.perplexity.ai)')).toEqual({
+      isBot: true,
+      name: 'PerplexityBot',
+    })
+    expect(detectBot('Bytespider; +https://bytedance.com').name).toBe('Bytespider')
+  })
+
   it('does not flag real browsers', () => {
     const chrome =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'

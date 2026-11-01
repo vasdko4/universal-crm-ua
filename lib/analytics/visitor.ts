@@ -32,6 +32,15 @@ const BOT_PATTERNS: Array<{ re: RegExp; name: string }> = [
   { re: /discordbot/i, name: 'Discordbot' },
   { re: /slackbot/i, name: 'Slackbot' },
   { re: /applebot/i, name: 'Applebot' },
+  // AI crawlers / training fetchers — a growing share of bot traffic that
+  // the generic "bot" fallback used to lump under "Other bot".
+  { re: /gptbot|chatgpt-user|oai-searchbot/i, name: 'ChatGPT' },
+  { re: /claudebot|anthropic-ai|claude-web/i, name: 'ClaudeBot' },
+  { re: /perplexitybot/i, name: 'PerplexityBot' },
+  { re: /bytespider/i, name: 'Bytespider' },
+  { re: /cohere-ai/i, name: 'Cohere AI' },
+  { re: /meta-externalagent|facebookbot/i, name: 'Meta AI' },
+  { re: /ccbot/i, name: 'Common Crawl' },
   { re: /petalbot/i, name: 'PetalBot' },
   { re: /ahrefsbot/i, name: 'AhrefsBot' },
   { re: /semrushbot/i, name: 'SemrushBot' },

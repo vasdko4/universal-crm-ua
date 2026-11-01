@@ -15,19 +15,27 @@ import {
   getVisitorSplit,
   getTopBots,
   getGeoStats,
+  resetAnalyticsTraffic,
 } from '@/app/actions/analytics'
 import { StatsDashboard } from '@/components/statistics/stats-dashboard'
-import { requirePermission } from '@/lib/session'
+import { requirePermission, getAdminUserWithPermission } from '@/lib/session'
 import { parsePage } from '@/lib/api/helpers'
 
 export const dynamic = 'force-dynamic'
 
 export default async function StatisticsPage(props: {
-  searchParams: Promise<{ days?: string }>
+  searchParams: Promise<{ days?: string; traffic?: string }>
 }) {
   await requirePermission('statistics')
   const sp = await props.searchParams
   const days = parsePage(sp.days, 30)
+  // Traffic filter: bots inflate pageviews, so the dashboard can show
+  // human traffic only. Default keeps the old "everything" view so
+  // existing numbers do not silently change.
+  const humansOnly = sp.traffic === 'humans'
+  // Reset is destructive and gated by 'settings' server-side too; the
+  // button is only rendered for users who actually have that permission.
+  const canReset = (await getAdminUserWithPermission('settings')) !== null
 
   const [
     summary,
@@ -47,10 +55,10 @@ export default async function StatisticsPage(props: {
     topBots,
     geo,
   ] = await Promise.all([
-    getStatsSummary(days),
-    getTimeseries(days),
-    getTopPaths(days, 8),
-    getTopReferrers(days, 8),
+    getStatsSummary(days, { humansOnly }),
+    getTimeseries(days, { humansOnly }),
+    getTopPaths(days, 8, { humansOnly }),
+    getTopReferrers(days, 8, { humansOnly }),
     getRevenueTimeseries(days),
     getOrderStatusBreakdown(days),
     getDeliveryBreakdown(days),
@@ -84,6 +92,9 @@ export default async function StatisticsPage(props: {
       topBots={topBots}
       geo={geo}
       days={days}
+      humansOnly={humansOnly}
+      canReset={canReset}
+      onReset={resetAnalyticsTraffic}
     />
   )
 }

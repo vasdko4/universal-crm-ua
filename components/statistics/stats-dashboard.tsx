@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import {
@@ -55,6 +56,7 @@ import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 
 function dayOptions(t: AdminDictionary) {
   return [
+    { value: 1, label: t.statistics.days1 },
     { value: 7, label: t.statistics.days7 },
     { value: 30, label: t.statistics.days30 },
     { value: 90, label: t.statistics.days90 },
@@ -178,6 +180,9 @@ export function StatsDashboard({
   topBots,
   geo,
   days,
+  humansOnly,
+  canReset,
+  onReset,
 }: {
   summary: StatsSummary
   timeseries: TimeseriesPoint[]
@@ -196,6 +201,15 @@ export function StatsDashboard({
   topBots: BotRow[]
   geo: GeoStats
   days: number
+  humansOnly: boolean
+  canReset: boolean
+  onReset: () => Promise<{
+    success: boolean
+    eventsDeleted?: number
+    geoDeleted?: number
+    productsReset?: number
+    error?: string
+  }>
 }) {
   const { dict: t, locale } = useAdminI18n()
   const router = useRouter()
@@ -216,6 +230,80 @@ export function StatsDashboard({
     const params = new URLSearchParams(searchParams.toString())
     params.set('days', String(value))
     router.push(`/admin/statistics?${params.toString()}`)
+  }
+
+  function setTraffic(value: 'all' | 'humans') {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('traffic', value)
+    router.push(`/admin/statistics?${params.toString()}`)
+  }
+
+  // Statistics reset: two-step confirmation (arm, then confirm) so a
+  // stray click cannot wipe data. The server action is gated by the
+  // 'settings' permission and writes the deleted counts to the audit log.
+  const [resetState, setResetState] = useState<'idle' | 'armed' | 'working' | 'done' | 'error'>('idle')
+  const [resetResult, setResetResult] = useState<string | null>(null)
+
+  async function handleReset() {
+    if (resetState === 'idle') {
+      setResetState('armed')
+      return
+    }
+    if (resetState !== 'armed') return
+    setResetState('working')
+    setResetResult(null)
+    try {
+      const res = await onReset()
+      if (res.success) {
+        setResetState('done')
+        setResetResult(
+          t.statistics.resetDone
+            .replace('{events}', String(res.eventsDeleted ?? 0))
+            .replace('{geo}', String(res.geoDeleted ?? 0))
+            .replace('{products}', String(res.productsReset ?? 0)),
+        )
+        router.refresh()
+      } else {
+        setResetState('error')
+        setResetResult(res.error ?? t.statistics.resetFailed)
+      }
+    } catch (e) {
+      setResetState('error')
+      setResetResult(e instanceof Error ? e.message : t.statistics.resetFailed)
+    }
+  }
+
+  function exportCsv() {
+    const byDate = new Map<
+      string,
+      { pageViews: number; visitors: number; orders: number; revenue: number; profit: number }
+    >()
+    for (const p of timeseries) {
+      byDate.set(p.date, { pageViews: p.pageViews, visitors: p.visitors, orders: p.orders, revenue: 0, profit: 0 })
+    }
+    for (const r of revenueSeries) {
+      const row = byDate.get(r.date) ?? { pageViews: 0, visitors: 0, orders: 0, revenue: 0, profit: 0 }
+      row.revenue = r.revenue
+      row.profit = r.profit
+      if (row.orders === 0) row.orders = r.orders
+      byDate.set(r.date, row)
+    }
+    const lines = [
+      'date,page_views,visitors,orders,revenue_uah,profit_uah',
+      ...[...byDate.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(
+          ([d, v]) =>
+            `${d},${v.pageViews},${v.visitors},${v.orders},${Math.round(v.revenue)},${Math.round(v.profit)}`,
+        ),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `statistics-${days}d-${humansOnly ? 'humans' : 'all'}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const cards = [
@@ -304,6 +392,77 @@ export function StatsDashboard({
             </button>
           ))}
         </div>
+        <div className="flex w-full flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+            <button
+              onClick={() => setTraffic('all')}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                !humansOnly
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {t.statistics.trafficAll}
+            </button>
+            <button
+              onClick={() => setTraffic('humans')}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                humansOnly
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {t.statistics.trafficHumans}
+            </button>
+          </div>
+          <button
+            onClick={exportCsv}
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            {t.statistics.exportCsv}
+          </button>
+          {canReset && resetState === 'idle' && (
+            <button
+              onClick={handleReset}
+              className="rounded-lg border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10"
+            >
+              {t.statistics.resetButton}
+            </button>
+          )}
+          {canReset && resetState === 'armed' && (
+            <span className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">{t.statistics.resetArmText}</span>
+              <button
+                onClick={handleReset}
+                className="rounded-lg bg-destructive px-3 py-1.5 font-medium text-destructive-foreground"
+              >
+                {t.statistics.resetConfirmButton}
+              </button>
+              <button
+                onClick={() => setResetState('idle')}
+                className="rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted"
+              >
+                {t.statistics.resetCancelButton}
+              </button>
+            </span>
+          )}
+          {canReset && resetState === 'working' && (
+            <span className="text-sm text-muted-foreground">{t.statistics.resetWorking}</span>
+          )}
+          {canReset && (resetState === 'done' || resetState === 'error') && resetResult && (
+            <span
+              className={`text-sm ${resetState === 'done' ? 'text-success' : 'text-destructive'}`}
+            >
+              {resetResult}{' '}
+              <button onClick={() => setResetState('idle')} className="underline">
+                {t.statistics.resetDismiss}
+              </button>
+            </span>
+          )}
+        </div>
+        {canReset && (
+          <p className="w-full text-xs text-muted-foreground">{t.statistics.resetClearsNote}</p>
+        )}
       </header>
 
       <div className="grid gap-6 p-6">
@@ -348,6 +507,11 @@ export function StatsDashboard({
             <p className="mt-1 text-xs text-muted-foreground">
               {t.statistics.marginLabel}: {summary.profitMargin.toFixed(1)}%
             </p>
+            {summary.costUnknownItems > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t.statistics.profitUnknownNote.replace('{count}', String(summary.costUnknownItems))}
+              </p>
+            )}
           </div>
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-center justify-between">
@@ -1001,6 +1165,11 @@ export function StatsDashboard({
               {t.statistics.pageViewsShort} — {t.statistics.geoUnknownHint}
             </p>
           )}
+        </div>
+
+        {/* How the numbers are counted — the accuracy notes. */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-xs leading-relaxed text-muted-foreground">{t.statistics.qualityNote}</p>
         </div>
       </div>
     </div>
