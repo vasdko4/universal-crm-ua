@@ -89,6 +89,25 @@ export function proxy(request: NextRequest) {
     innerPathname = pathname.slice(3) || '/'
   }
 
+  // Legacy /ua/ prefix (the old Ukrainian locale prefix; 'uk' is now served
+  // unprefixed — LOCALES is ['uk', 'ru'] only, and nothing legitimate lives
+  // under /ua/). Without this, /ua/* URLs still in Google's index 404.
+  // Strip the prefix: /ua/p/<slug> flows into the /p/ canonicalization
+  // below (one redirect total from the browser's view); everything else
+  // gets a permanent redirect to the unprefixed canonical URL.
+  if (pathname === '/ua' || pathname.startsWith('/ua/')) {
+    const stripped = pathname.slice(3) || '/'
+    if (stripped === '/p' || stripped.startsWith('/p/')) {
+      innerPathname = stripped
+    } else {
+      const url = request.nextUrl.clone()
+      url.pathname = stripped
+      url.search = request.nextUrl.search
+      url.hash = ''
+      return withSecurityHeaders(NextResponse.redirect(url, 301))
+    }
+  }
+
   const shortcut = storefrontAuthShortcut(innerPathname)
   if (shortcut) {
     const dest = locale === 'ru' ? `/ru${shortcut}` : shortcut

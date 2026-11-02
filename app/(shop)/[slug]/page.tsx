@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { notFound, redirect } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import sanitizeHtml from 'sanitize-html'
 import { RICH_TEXT_SANITIZE_OPTIONS } from '@/lib/shop/sanitize'
 import { getPageBySlug } from '@/lib/shop/pages'
@@ -21,11 +21,14 @@ export async function generateMetadata({
   if (!page) {
     // Legacy /p/<product-slug> links land here through the proxy's /p/ → /<slug>
     // canonicalization, and a product slug has no info page — so send it on to
-    // the canonical product URL (permanent, so Google updates the indexed URL)
-    // instead of a dead 404. Slugs matching neither a page nor a product
-    // still 404 for real.
+    // the canonical product URL with a 308 permanent redirect, so Google
+    // updates the indexed URL, instead of a dead 404. (This used to be
+    // redirect(), which sends a 307 temporary redirect: Google kept the
+    // old URL indexed under "Page with redirect" and never consolidated
+    // it onto the canonical product URL.) Slugs matching neither a page
+    // nor a product still 404 for real.
     const data = await getProductBySlug(slug, locale).catch(() => null)
-    if (data) redirect(localizedPath(`/product/${data.product.slug || slug}`, locale), 'replace')
+    if (data) permanentRedirect(localizedPath(`/product/${data.product.slug || slug}`, locale), 'replace')
     notFound()
   }
   const path = `/${slug}`
@@ -55,9 +58,10 @@ export default async function InfoPage({
   if (!page) {
     // Same fallback as in generateMetadata: a product slug has no info page,
     // so a legacy /p/<product-slug> link (via the proxy's /p/ → /<slug> hop)
-    // goes on to the canonical product URL instead of a dead 404.
+    // goes on to the canonical product URL with a 308 permanent redirect
+    // instead of a dead 404 (see above: redirect() was a 307 here).
     const data = await getProductBySlug(slug, locale).catch(() => null)
-    if (data) redirect(localizedPath(`/product/${data.product.slug || slug}`, locale), 'replace')
+    if (data) permanentRedirect(localizedPath(`/product/${data.product.slug || slug}`, locale), 'replace')
     notFound()
   }
 

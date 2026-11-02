@@ -1,7 +1,7 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { ProductTabs } from '@/components/shop/product-tabs'
 import { ProductCard } from '@/components/shop/product-card'
 import { FrequentlyBoughtTogether } from '@/components/shop/frequently-bought-together'
@@ -82,12 +82,14 @@ function buildUniqueSeoDescription(opts: {
 
 // Old links were `/product/<numeric id>` — keep them working by resolving to
 // the current slug instead of 404ing bookmarks/backlinks/indexed search
-// results from before this URL format existed.
+// results from before this URL format existed. This must be a 308
+// permanent redirect (not redirect(), which sends a 307 temporary one
+// that Google refuses to consolidate onto the canonical URL).
 async function resolveLegacyNumericSlug(slug: string, locale: 'uk' | 'ru'): Promise<never | void> {
   if (!/^\d+$/.test(slug)) return
   const resolved = await getProductSlugById(Number(slug)).catch(() => null)
   if (!resolved) notFound()
-  redirect(localizedPath(`/product/${resolved}`, locale))
+  permanentRedirect(localizedPath(`/product/${resolved}`, locale))
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
