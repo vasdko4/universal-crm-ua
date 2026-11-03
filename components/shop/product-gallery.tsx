@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import { LoadingImage } from '@/components/shop/loading-image'
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/client'
@@ -125,13 +126,14 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
                   : 'border-transparent opacity-70 hover:border-border hover:opacity-100',
               )}
             >
-              <Image
+              <LoadingImage
                 src={src || '/placeholder.svg'}
                 alt=""
                 fill
                 sizes="68px"
                 quality={75}
                 unoptimized={isProxiedMedia(src)}
+                showSpinner={false}
                 className="object-cover"
               />
             </button>
@@ -155,7 +157,8 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
             className="relative block h-full w-full cursor-zoom-in touch-pan-y"
             aria-label={`${alt} — ${dict.product.enlargePhoto}`}
           >
-            <Image
+            <LoadingImage
+              key={current}
               src={current || '/placeholder.svg'}
               alt={alt}
               fill
@@ -354,7 +357,8 @@ function Lightbox({
             zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in',
           )}
         >
-          <Image
+          <LoadingImage
+            key={gallery[index]}
             src={gallery[index] || '/placeholder.svg'}
             alt={alt}
             fill
@@ -399,7 +403,7 @@ function Lightbox({
                 i === index ? 'border-primary' : 'border-transparent opacity-55 hover:opacity-100',
               )}
             >
-              <Image src={src || '/placeholder.svg'} alt="" fill sizes="64px" unoptimized={isProxiedMedia(src)} className="object-cover" />
+              <LoadingImage src={src || '/placeholder.svg'} alt="" fill sizes="64px" unoptimized={isProxiedMedia(src)} showSpinner={false} className="object-cover" />
             </button>
           ))}
         </div>

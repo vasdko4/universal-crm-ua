@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { LoadingImage } from '@/components/shop/loading-image'
 import { useRouter } from 'next/navigation'
 import { Check, ShoppingCart } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -108,7 +109,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
         <Link href={href} className="relative block aspect-square overflow-hidden">
           {primary ? (
             <>
-              <Image
+              <LoadingImage
                 src={thumbUrl(primary) || '/placeholder.svg'}
                 alt={product.name}
                 fill
