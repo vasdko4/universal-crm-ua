@@ -4,8 +4,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getAdminUser, requireAdmin } from '@/lib/session'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
-import { AdminSidebar } from '@/components/admin-sidebar'
-import { AdminHeader } from '@/components/admin-header'
+import { AdminShell } from '@/components/admin-shell'
 import { permissionForPath, hasPermission, NAV_SECTIONS } from '@/lib/permissions'
 import { AdminLocaleProvider } from '@/lib/i18n/admin/context'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
@@ -57,17 +56,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <AdminLocaleProvider locale={user.locale}>
-      <div className="flex min-h-screen bg-muted/30" data-admin-theme={adminTheme}>
-        <AdminSidebar
-          user={{ name: user.name, email: user.email, role: user.role, permissions: user.permissions }}
-          storeName={settings?.storeName ?? dict.sidebar.adminCenter}
-          logoUrl={settings?.logoUrl ?? null}
-        />
-        <main className="flex min-w-0 flex-1 flex-col">
-          <AdminHeader />
-          <div className="flex-1">{children}</div>
-        </main>
-      </div>
+      <AdminShell
+        user={{ name: user.name, email: user.email, role: user.role, permissions: user.permissions }}
+        storeName={settings?.storeName ?? dict.sidebar.adminCenter}
+        logoUrl={settings?.logoUrl ?? null}
+        adminTheme={adminTheme}
+      >
+        {children}
+      </AdminShell>
     </AdminLocaleProvider>
   )
 }

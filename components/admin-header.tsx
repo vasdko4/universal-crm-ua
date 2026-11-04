@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { ChevronDown, Check, Languages, RefreshCw } from 'lucide-react'
+import { ChevronDown, Check, Languages, Menu, RefreshCw } from 'lucide-react'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { setAdminLocale } from '@/app/actions/admin-locale'
 import { LOCALES, LOCALE_LABELS, type Locale } from '@/lib/i18n/config'
@@ -18,7 +18,7 @@ import {
 // Thin top bar shown above every admin page. Hosts the current CRM version
 // (links to the Updates page, /admin/updates) on the left and the language
 // switcher on the right. A natural place to add breadcrumbs/page titles too.
-export function AdminHeader() {
+export function AdminHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter()
   const { locale, dict, setLocale } = useAdminI18n()
   const [switchingLocale, startLocaleSwitch] = useTransition()
@@ -34,14 +34,26 @@ export function AdminHeader() {
 
   return (
     <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b bg-background px-4">
-      <Link
-        href="/admin/updates"
-        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
-        title={dict.navItems.system_updates}
-      >
-        <RefreshCw className="size-3.5" />
-        {`v${APP_VERSION.replace(/^v/i, '')}`}
-      </Link>
+      <div className="flex min-w-0 items-center gap-1">
+        {onMenuClick && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            aria-label="Меню"
+            className="-ml-1 rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted md:hidden"
+          >
+            <Menu className="size-5" />
+          </button>
+        )}
+        <Link
+          href="/admin/updates"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+          title={dict.navItems.system_updates}
+        >
+          <RefreshCw className="size-3.5" />
+          {`v${APP_VERSION.replace(/^v/i, '')}`}
+        </Link>
+      </div>
       <DropdownMenu>
         <DropdownMenuTrigger
           className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-60"

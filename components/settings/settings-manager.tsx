@@ -142,7 +142,7 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
           ))}
         </nav>
 
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-6">
           {section === 'general' && <GeneralSection data={data} setData={setData} t={t} />}
           {section === 'homepage' && <HomepageSection data={data} setData={setData} t={t} />}
           {section === 'seo' && <SeoSection data={data} setData={setData} t={t} />}

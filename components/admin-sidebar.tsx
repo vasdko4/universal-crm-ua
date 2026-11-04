@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Store, LogOut, ChevronDown, ShieldCheck } from 'lucide-react'
+import { Store, LogOut, ChevronDown, ShieldCheck, X } from 'lucide-react'
 import { clearStaffTwoFactorCookie } from '@/app/actions/staff-2fa'
 import { NAV_SECTIONS, hasPermission } from '@/lib/permissions'
 import { authClient } from '@/lib/auth-client'
@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-type SidebarUser = {
+export type SidebarUser = {
   name: string
   email: string
   role: string
@@ -48,10 +48,15 @@ export function AdminSidebar({
   user,
   storeName,
   logoUrl,
+  mobileOpen = false,
+  onMobileClose,
 }: {
   user: SidebarUser
   storeName: string
   logoUrl: string | null
+  /** Mobile drawer state, owned by AdminShell (header menu button). */
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -102,104 +107,174 @@ export function AdminSidebar({
     .join('')
     .toUpperCase()
 
-  return (
-    <aside className="sticky top-0 flex h-screen w-16 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:w-60">
-      <Link
-        href="/"
-        className="flex h-16 items-center gap-3 border-b border-sidebar-accent px-4 transition-colors hover:bg-sidebar-accent/50"
-        title={dict.sidebar.goToSite}
-      >
-        <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sidebar-primary text-sidebar">
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- admin logo may be off-allowlist
-            <img src={logoUrl} alt={storeName} width={32} height={32} className="size-full object-cover" />
-          ) : (
-            <Store className="size-5" />
-          )}
-        </div>
-        <div className="hidden md:block">
-          <p className="line-clamp-1 text-sm font-semibold leading-tight">{storeName}</p>
-          <p className="text-xs text-sidebar-muted">{dict.sidebar.adminCenter}</p>
-        </div>
-      </Link>
+  // While the mobile drawer is open: Escape closes it and the page behind
+  // doesn't scroll.
+  useEffect(() => {
+    if (!mobileOpen || !onMobileClose) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onMobileClose()
+    }
+    window.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [mobileOpen, onMobileClose])
 
-      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-2" aria-label={dict.sidebar.mainNav}>
-        {visibleSections.map((section) => {
-          const isCollapsed = isSectionCollapsed(section.label)
-          const sectionLabel = dict.navSections[section.label] ?? section.label
-          return (
-            <div key={section.label} className="flex flex-col gap-1">
+  // showLabels: false on the desktop rail (labels appear from md up),
+  // true in the mobile drawer (touch has no hover tooltips, so icons
+  // alone are unreadable there).
+  const logoBlock = (showLabels: boolean) => (
+    <>
+      <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sidebar-primary text-sidebar">
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- admin logo may be off-allowlist
+          <img src={logoUrl} alt={storeName} width={32} height={32} className="size-full object-cover" />
+        ) : (
+          <Store className="size-5" />
+        )}
+      </div>
+      <div className={showLabels ? 'min-w-0' : 'hidden md:block'}>
+        <p className="line-clamp-1 text-sm font-semibold leading-tight">{storeName}</p>
+        <p className="text-xs text-sidebar-muted">{dict.sidebar.adminCenter}</p>
+      </div>
+    </>
+  )
+
+  const navSections = (showLabels: boolean, onNavigate?: () => void) => (
+    <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-2" aria-label={dict.sidebar.mainNav}>
+      {visibleSections.map((section) => {
+        const isCollapsed = isSectionCollapsed(section.label)
+        const sectionLabel = dict.navSections[section.label] ?? section.label
+        return (
+          <div key={section.label} className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => toggleSection(section.label)}
+              aria-expanded={!isCollapsed}
+              title={isCollapsed ? dict.sidebar.expandSection : dict.sidebar.collapseSection}
+              className={cn(
+                'w-full items-center justify-between gap-2 rounded-md px-3 pb-1 text-left text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted transition-colors hover:text-sidebar-foreground',
+                showLabels ? 'flex' : 'hidden md:flex',
+              )}
+            >
+              <span className="line-clamp-1">{sectionLabel}</span>
+              <ChevronDown
+                className={cn('size-3.5 shrink-0 transition-transform', isCollapsed && '-rotate-90')}
+              />
+            </button>
+            {!isCollapsed &&
+              section.items.map((item) => {
+                const isActive = isItemActive(item.href)
+                const label = dict.navItems[item.labelKey ?? item.permission] ?? item.label
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-sidebar-primary/15 text-sidebar-primary'
+                        : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                    )}
+                    title={label}
+                  >
+                    <item.icon className="size-5 shrink-0" />
+                    <span className={showLabels ? 'inline' : 'hidden md:inline'}>{label}</span>
+                  </Link>
+                )
+              })}
+          </div>
+        )
+      })}
+    </nav>
+  )
+
+  const userFooter = (showLabels: boolean) => (
+    <div className="flex flex-col gap-1 border-t border-sidebar-accent p-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-sidebar-accent">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar">
+            {initials}
+          </div>
+          <div className={showLabels ? 'min-w-0 flex-1' : 'hidden min-w-0 flex-1 md:block'}>
+            <p className="line-clamp-1 text-sm font-medium">{user.name}</p>
+            <p className="line-clamp-1 text-xs text-sidebar-muted">
+              {dict.roles[user.role] ?? user.role}
+            </p>
+          </div>
+          <ChevronDown className={showLabels ? 'size-4 text-sidebar-muted' : 'hidden size-4 text-sidebar-muted md:block'} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" side="top" className="w-56">
+          <DropdownMenuLabel className="flex flex-col">
+            <span>{user.name}</span>
+            <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/admin/security">
+              <ShieldCheck className="size-4" />
+              {dict.twoFactor.menuItem}
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSignOut} disabled={signingOut}>
+            <LogOut className="size-4" />
+            {signingOut ? dict.sidebar.signingOut : dict.sidebar.signOut}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+
+  return (
+    <>
+      <aside className="sticky top-0 hidden h-screen w-16 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex md:w-60">
+        <Link
+          href="/"
+          className="flex h-16 items-center gap-3 border-b border-sidebar-accent px-4 transition-colors hover:bg-sidebar-accent/50"
+          title={dict.sidebar.goToSite}
+        >
+          {logoBlock(false)}
+        </Link>
+        {navSections(false)}
+        {userFooter(false)}
+      </aside>
+
+      {mobileOpen && onMobileClose && (
+        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label={dict.sidebar.mainNav}>
+          <button
+            type="button"
+            aria-label={dict.common.close}
+            onClick={onMobileClose}
+            className="absolute inset-0 bg-black/50"
+          />
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-sidebar text-sidebar-foreground shadow-xl">
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-accent pr-2">
+              <Link
+                href="/"
+                onClick={onMobileClose}
+                className="flex h-16 min-w-0 flex-1 items-center gap-3 px-4 transition-colors hover:bg-sidebar-accent/50"
+                title={dict.sidebar.goToSite}
+              >
+                {logoBlock(true)}
+              </Link>
               <button
                 type="button"
-                onClick={() => toggleSection(section.label)}
-                aria-expanded={!isCollapsed}
-                title={isCollapsed ? dict.sidebar.expandSection : dict.sidebar.collapseSection}
-                className="hidden w-full items-center justify-between gap-2 rounded-md px-3 pb-1 text-left text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted transition-colors hover:text-sidebar-foreground md:flex"
+                aria-label={dict.common.close}
+                onClick={onMobileClose}
+                className="rounded-md p-2 text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
-                <span className="line-clamp-1">{sectionLabel}</span>
-                <ChevronDown
-                  className={cn('size-3.5 shrink-0 transition-transform', isCollapsed && '-rotate-90')}
-                />
+                <X className="size-5" />
               </button>
-              {!isCollapsed &&
-                section.items.map((item) => {
-                  const isActive = isItemActive(item.href)
-                  const label = dict.navItems[item.labelKey ?? item.permission] ?? item.label
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-sidebar-primary/15 text-sidebar-primary'
-                          : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground',
-                      )}
-                      title={label}
-                    >
-                      <item.icon className="size-5 shrink-0" />
-                      <span className="hidden md:inline">{label}</span>
-                    </Link>
-                  )
-                })}
             </div>
-          )
-        })}
-      </nav>
-
-      <div className="flex flex-col gap-1 border-t border-sidebar-accent p-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-sidebar-accent">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar">
-              {initials}
-            </div>
-            <div className="hidden min-w-0 flex-1 md:block">
-              <p className="line-clamp-1 text-sm font-medium">{user.name}</p>
-              <p className="line-clamp-1 text-xs text-sidebar-muted">
-                {dict.roles[user.role] ?? user.role}
-              </p>
-            </div>
-            <ChevronDown className="hidden size-4 text-sidebar-muted md:block" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-56">
-            <DropdownMenuLabel className="flex flex-col">
-              <span>{user.name}</span>
-              <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/admin/security">
-                <ShieldCheck className="size-4" />
-                {dict.twoFactor.menuItem}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSignOut} disabled={signingOut}>
-              <LogOut className="size-4" />
-              {signingOut ? dict.sidebar.signingOut : dict.sidebar.signOut}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </aside>
+            {navSections(true, onMobileClose)}
+            {userFooter(true)}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
