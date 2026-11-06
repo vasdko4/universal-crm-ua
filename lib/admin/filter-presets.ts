@@ -29,13 +29,9 @@ function isValidPreset<F>(value: unknown): value is FilterPreset<F> {
   )
 }
 
-/** Load saved presets for a storage key. Never throws. */
-export function loadFilterPresets<F>(
-  storage: KeyValueStorage,
-  storageKey: string,
-): FilterPreset<F>[] {
+/** Parse saved presets from a raw stored string. Never throws. */
+export function parseFilterPresets<F>(raw: string | null): FilterPreset<F>[] {
   try {
-    const raw = storage.getItem(storageKey)
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -43,6 +39,14 @@ export function loadFilterPresets<F>(
   } catch {
     return []
   }
+}
+
+/** Load saved presets for a storage key. Never throws. */
+export function loadFilterPresets<F>(
+  storage: KeyValueStorage,
+  storageKey: string,
+): FilterPreset<F>[] {
+  return parseFilterPresets<F>(storage.getItem(storageKey))
 }
 
 /** Persist presets for a storage key. Never throws (quota / private mode). */

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { resolveVisibleColumns, toggleColumn } from '@/lib/admin/column-visibility'
+import { createLocalStorageStore } from '@/lib/admin/local-storage-store'
 
 /**
  * Persisted column visibility for admin tables (localStorage-backed).
@@ -19,31 +20,20 @@ import { resolveVisibleColumns, toggleColumn } from '@/lib/admin/column-visibili
  * @param allColumns every known column id in display order
  */
 export function useColumnVisibility(storageKey: string, allColumns: string[]) {
-  const [visible, setVisible] = useState<string[]>(allColumns)
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(storageKey)
-      setVisible(
+  // `allColumns` is a module-level constant at call sites.
+  const [store] = useState(() =>
+    createLocalStorageStore<string[]>({
+      key: storageKey,
+      parse: (raw) =>
         resolveVisibleColumns(raw ? (JSON.parse(raw) as string[]) : null, allColumns),
-      )
-    } catch {
-      setVisible([...allColumns])
-    }
-    // `allColumns` is a module-level constant at call sites.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey])
+      serialize: (value) => JSON.stringify(value),
+      fallback: [...allColumns],
+    }),
+  )
+  const visible = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot)
 
   function toggle(id: string) {
-    setVisible((prev) => {
-      const next = toggleColumn(prev, allColumns, id)
-      try {
-        window.localStorage.setItem(storageKey, JSON.stringify(next))
-      } catch {
-        // Non-persistent fallback: state still updates for this session.
-      }
-      return next
-    })
+    store.set(toggleColumn(visible, allColumns, id))
   }
 
   return { visible, toggle }

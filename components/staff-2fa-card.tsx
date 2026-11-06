@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { beginStaffTwoFactor, confirmStaffTwoFactor, disableStaffTwoFactor } from '@/app/actions/staff-2fa'
 import { Button } from '@/components/ui/button'
@@ -23,27 +23,6 @@ export function StaffTwoFactorCard({ enabled }: { enabled: boolean }) {
   const [code, setCode] = useState('')
   const [on, setOn] = useState(enabled)
 
-  useEffect(() => {
-    if (!otpauth) {
-      return
-    }
-    setQrFailed(false)
-    let cancelled = false
-    import('qrcode')
-      .then((mod) => mod.toDataURL(otpauth, { width: 220, margin: 1, color: { dark: '#111111', light: '#ffffff' } }))
-      .then((url) => {
-        if (!cancelled) setQrCache({ otpauth, url })
-      })
-      .catch(() => {
-        // No hosted fallback on purpose (see SECURITY note above) — the
-        // manual secret below is the fallback.
-        if (!cancelled) setQrFailed(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [otpauth])
-
   function startEnroll() {
     start(async () => {
       const res = await beginStaffTwoFactor()
@@ -53,6 +32,22 @@ export function StaffTwoFactorCard({ enabled }: { enabled: boolean }) {
       }
       setSecret(res.secret)
       setOtpauth(res.otpauth)
+      // The QR is generated here, in the event handler, not in an effect:
+      // the otpauth URI only ever becomes non-null at this point.
+      setQrFailed(false)
+      try {
+        const mod = await import('qrcode')
+        const url = await mod.toDataURL(res.otpauth, {
+          width: 220,
+          margin: 1,
+          color: { dark: '#111111', light: '#ffffff' },
+        })
+        setQrCache({ otpauth: res.otpauth, url })
+      } catch {
+        // No hosted fallback on purpose (see SECURITY note above) — the
+        // manual secret below is the fallback.
+        setQrFailed(true)
+      }
     })
   }
 

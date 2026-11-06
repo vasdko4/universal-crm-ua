@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { BookmarkPlus, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   addFilterPreset,
-  loadFilterPresets,
-  persistFilterPresets,
+  parseFilterPresets,
   removeFilterPreset,
   type FilterPreset,
 } from '@/lib/admin/filter-presets'
+import { createLocalStorageStore } from '@/lib/admin/local-storage-store'
 
 export interface PresetStrings {
   title: string
@@ -37,17 +37,20 @@ export function FilterPresetBar<F extends Record<string, unknown>>({
   onApply: (filters: F) => void
   strings: PresetStrings
 }) {
-  const [custom, setCustom] = useState<FilterPreset<F>[]>([])
+  const [store] = useState(() =>
+    createLocalStorageStore<FilterPreset<F>[]>({
+      key: storageKey,
+      parse: (raw) => parseFilterPresets<F>(raw),
+      serialize: (value) => JSON.stringify(value),
+      fallback: [],
+    }),
+  )
+  const custom = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot)
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState('')
 
-  useEffect(() => {
-    setCustom(loadFilterPresets<F>(window.localStorage, storageKey))
-  }, [storageKey])
-
   function persist(next: FilterPreset<F>[]) {
-    setCustom(next)
-    persistFilterPresets(window.localStorage, storageKey, next)
+    store.set(next)
   }
 
   function handleSave() {
