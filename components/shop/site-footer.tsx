@@ -113,9 +113,11 @@ export function SiteFooter({
   return (
     <footer className="mt-8 border-t border-border bg-card lg:mt-16">
       <div className="mx-auto max-w-7xl px-4 py-6 lg:grid lg:grid-cols-4 lg:gap-8 lg:px-8 lg:py-12">
-        {/* Brand — always visible */}
+        {/* Brand — always visible. A <p>, not an <h3>: the brand name is not
+            a section heading, and as an h3 it broke heading order (h1 → h3)
+            on every page (axe on the category report). Same look. */}
         <div className="space-y-3 pb-2 lg:pb-0">
-          <h3 className="text-lg font-bold text-foreground">{storeName}</h3>
+          <p className="text-lg font-bold text-foreground">{storeName}</p>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {dict.footer.about}
           </p>

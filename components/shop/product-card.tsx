@@ -116,6 +116,12 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
                 sizes={IMAGE_SIZES}
                 quality={75}
                 priority={priority}
+                // NB: `priority` alone does NOT put fetchpriority="high" on
+                // the <img> in Next 16 (verified live on the product gallery:
+                // priority gave a preload link but no fetchpriority attribute,
+                // and Lighthouse flagged the lazy LCP card image on category
+                // pages). Pass it explicitly for priority cards.
+                fetchPriority={priority ? 'high' : undefined}
                 unoptimized={isProxiedMedia(primary)}
                 loading={priority ? 'eager' : 'lazy'}
                 className={cn(

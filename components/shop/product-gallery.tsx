@@ -151,6 +151,13 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               alt={alt}
               fill
               priority
+              // NB: `priority` alone does NOT put fetchpriority="high" on the
+              // <img> or its preload link in Next 16 — Lighthouse still flags
+              // the LCP photo (verified live: gallery img had neither
+              // attribute, while the hero's direct fetchPriority="high" does
+              // render). Pass it explicitly so the LCP image is really high
+              // priority; `priority` stays for the preload link + eager load.
+              fetchPriority="high"
               quality={85}
               sizes="(max-width: 1024px) 100vw, 50vw"
               unoptimized={isProxiedMedia(current)}

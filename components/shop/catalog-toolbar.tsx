@@ -118,7 +118,10 @@ export function CatalogToolbar({
           {dict.catalog.found}: <span className="font-semibold text-foreground">{total}</span>
         </p>
         <Select value={sort} onValueChange={(v) => update('sort', v)}>
-          <SelectTrigger className="w-44 shrink-0">
+          {/* The trigger had no accessible name (axe: "Buttons do not have
+              an accessible name" on the category page); the visible label
+              comes from the selected option, which the audit does not count. */}
+          <SelectTrigger className="w-44 shrink-0" aria-label={dict.catalog.sort}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

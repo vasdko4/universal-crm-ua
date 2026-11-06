@@ -61,8 +61,10 @@ export function InfiniteProducts({
   return (
     <div className="space-y-6">
       <div className={gridClassName}>
-        {items.map((p) => (
-          <ProductCard key={p.id} product={p} />
+        {items.map((p, i) => (
+          // First row is the LCP on category pages: give it priority (the
+          // card then renders eager + fetchpriority="high" instead of lazy).
+          <ProductCard key={p.id} product={p} priority={i < 2} />
         ))}
       </div>
 
