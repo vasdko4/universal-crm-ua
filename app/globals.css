@@ -23,7 +23,7 @@
   --border: oklch(0.912 0.005 90);
   --input: oklch(0.912 0.005 90);
   --ring: oklch(0.48 0.11 190);
-  --success: oklch(0.6 0.13 150);
+  --success: oklch(0.48 0.13 150);
   --warning: oklch(0.75 0.15 75);
   --info: oklch(0.6 0.12 250);
   --sidebar: oklch(0.235 0.015 260);
@@ -136,6 +136,7 @@
 [data-template='dark-tech'] {
   color-scheme: dark;
   --background: oklch(0.19 0.02 260);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.95 0.01 260);
   --card: oklch(0.24 0.025 260);
   --card-foreground: oklch(0.95 0.01 260);
@@ -291,6 +292,7 @@
 [data-template='forest'] {
   color-scheme: dark;
   --background: oklch(0.16 0.02 150);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.94 0.01 150);
   --card: oklch(0.22 0.025 150);
   --card-foreground: oklch(0.94 0.01 150);
@@ -389,6 +391,7 @@
 [data-template='electronics'] {
   color-scheme: dark;
   --background: oklch(0.18 0.02 260);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.94 0.01 250);
   --card: oklch(0.23 0.025 260);
   --card-foreground: oklch(0.94 0.01 250);
@@ -500,6 +503,7 @@
 [data-template='sport'] {
   color-scheme: dark;
   --background: oklch(0.16 0.015 20);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.94 0.01 20);
   --card: oklch(0.21 0.02 20);
   --card-foreground: oklch(0.94 0.01 20);
@@ -545,6 +549,7 @@
 [data-template='autochem'] {
   color-scheme: dark;
   --background: oklch(0.2 0.03 250);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.94 0.01 250);
   --card: oklch(0.25 0.035 250);
   --card-foreground: oklch(0.94 0.01 250);
@@ -744,6 +749,7 @@
 [data-template='jewelry'] {
   color-scheme: dark;
   --background: oklch(0.15 0.01 60);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.93 0.015 70);
   --card: oklch(0.2 0.015 60);
   --card-foreground: oklch(0.93 0.015 70);
@@ -811,6 +817,7 @@
 [data-template='gaming'] {
   color-scheme: dark;
   --background: oklch(0.15 0.02 290);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.93 0.015 290);
   --card: oklch(0.2 0.025 290);
   --card-foreground: oklch(0.93 0.015 290);
@@ -900,6 +907,7 @@
 [data-template='moto'] {
   color-scheme: dark;
   --background: oklch(0.17 0.015 30);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.94 0.01 40);
   --card: oklch(0.22 0.02 30);
   --card-foreground: oklch(0.94 0.01 40);
@@ -945,6 +953,7 @@
 [data-template='music'] {
   color-scheme: dark;
   --background: oklch(0.16 0.015 40);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.93 0.015 60);
   --card: oklch(0.21 0.02 40);
   --card-foreground: oklch(0.93 0.015 60);
@@ -1101,6 +1110,7 @@
 [data-admin-theme='midnight'] {
   color-scheme: dark;
   --background: oklch(0.18 0.015 260);
+  --success: oklch(0.7 0.13 150);
   --foreground: oklch(0.93 0.01 260);
   --card: oklch(0.23 0.02 260);
   --card-foreground: oklch(0.93 0.01 260);
