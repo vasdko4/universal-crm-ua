@@ -38,6 +38,11 @@ const HOME_CONTENT = {
     discounts: 'Знижки',
     allProducts: 'Усі товари',
     viewAll: 'Дивитися всі',
+    // The two "Дивитися всі" links point to different destinations
+    // (/catalog?popular=1 vs /catalog), so they need distinct accessible
+    // names — otherwise Lighthouse flags identical links.
+    viewAllPopular: 'Дивитися всі популярні товари',
+    viewAllDiscounts: 'Дивитися всі товари зі знижками',
     noPhoto: 'Немає фото',
     benefits: [
       { title: 'Швидка доставка', text: 'Нова Пошта по всій Україні' },
@@ -61,6 +66,11 @@ const HOME_CONTENT = {
     discounts: 'Скидки',
     allProducts: 'Все товары',
     viewAll: 'Смотреть все',
+    // The two "Смотреть все" links point to different destinations
+    // (/catalog?popular=1 vs /catalog), so they need distinct accessible
+    // names — otherwise Lighthouse flags identical links.
+    viewAllPopular: 'Смотреть все популярные товары',
+    viewAllDiscounts: 'Смотреть все товары со скидками',
     noPhoto: 'Нет фото',
     benefits: [
       { title: 'Быстрая доставка', text: 'Нова Пошта по всей Украине' },
@@ -264,15 +274,17 @@ export default async function HomePage() {
                 {c.popular}
               </Link>
             </h2>
-            <Link href={lp('/catalog?popular=1')} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+            <Link href={lp('/catalog?popular=1')} aria-label={c.viewAllPopular} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
             {popularCards.map((p, i) => (
               // Only the first row is eager: everything below the fold is
-              // lazy-loaded by next/image.
-              <ProductCard key={p.id} product={p} priority={i < 4} />
+              // lazy-loaded by next/image. On mobile the grid is 2 columns,
+              // so 2 priority images cover the first row — preloading 4
+              // competed with the hero (LCP) image for bandwidth.
+              <ProductCard key={p.id} product={p} priority={i < 2} />
             ))}
           </div>
         </section>
@@ -283,7 +295,7 @@ export default async function HomePage() {
         <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
           <div className="mb-4 flex items-center justify-between lg:mb-5">
             <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">{c.discounts}</h2>
-            <Link href={lp('/catalog')} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+            <Link href={lp('/catalog')} aria-label={c.viewAllDiscounts} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>

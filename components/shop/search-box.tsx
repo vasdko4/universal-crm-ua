@@ -128,7 +128,13 @@ export function SearchBox({
             leadingIcon ? 'pl-11' : 'pl-3.5'
           }`}
           aria-label={dict.common.search}
-          aria-expanded={showDropdown}
+          // aria-expanded is not a valid attribute on a plain textbox input
+          // (it belongs on combobox/button roles), so Lighthouse flags it.
+          // The suggestions popup is announced with aria-haspopup instead,
+          // and aria-controls points at it only while it is open so the
+          // reference never dangles.
+          aria-haspopup="listbox"
+          aria-controls={showDropdown ? 'search-suggestions' : undefined}
           autoComplete="off"
           autoFocus={autoFocus}
           enterKeyHint="search"
@@ -136,7 +142,10 @@ export function SearchBox({
       </form>
 
       {showDropdown && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(24rem,calc(100dvh-11rem))] overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+        <div
+          id="search-suggestions"
+          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(24rem,calc(100dvh-11rem))] overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover shadow-lg"
+        >
           {isLoading && items.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">{dict.common.loading}</p>
           ) : items.length === 0 ? (

@@ -80,6 +80,11 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   alt={slide.imageAlt?.trim() || slide.title}
                   fill
                   priority={i === 0}
+                  // The active slide is the LCP image on the homepage: give it
+                  // high fetch priority, and deprioritize the neighbouring
+                  // slides (they are only there for the cross-fade) so they
+                  // don't compete with it for bandwidth on slow connections.
+                  fetchPriority={i === index ? 'high' : 'low'}
                   sizes="(max-width: 640px) 100vw, 1280px"
                   quality={70}
                   className="object-cover object-center"
@@ -135,10 +140,17 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                     key={s.title}
                     type="button"
                     onClick={() => setIndex(i)}
-                    className={cn('h-1.5 rounded-full transition-all', i === index ? 'w-8 bg-white' : 'w-3 bg-white/40')}
+                    // The visual dot stays tiny (h-1.5), but the hit area is
+                    // a full 24×24 px so the dots pass the tap-target audit
+                    // on touch screens.
+                    className="flex h-6 w-6 items-center justify-center"
                     aria-label={s.badge}
                     aria-current={i === index}
-                  />
+                  >
+                    <span
+                      className={cn('h-1.5 rounded-full transition-all', i === index ? 'w-8 bg-white' : 'w-3 bg-white/40')}
+                    />
+                  </button>
                 ))}
               </div>
             </>
