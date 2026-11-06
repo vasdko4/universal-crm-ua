@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
 import { LoadingImage } from '@/components/shop/loading-image'
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -87,23 +86,12 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
 
   return (
     <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
-      {/* Preload all full-size images so switching thumbnails is instant.
-          Visually hidden but present in layout (1px) so the browser fetches them. */}
-      <div aria-hidden="true" className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0">
-        {gallery.map((src, i) =>
-          i === safeActive ? null : (
-            <Image
-              key={`preload-${src}-${i}`}
-              src={src || '/placeholder.svg'}
-              alt=""
-              width={1200}
-              height={1200}
-              quality={85}
-              unoptimized={isProxiedMedia(src)}
-            />
-          ),
-        )}
-      </div>
+      {/* NOTE: an earlier version preloaded every full-size photo here in a
+          hidden 1px div so thumbnail switching felt instant. That backfired:
+          on slow connections the hidden 1200px images competed with the main
+          (LCP) photo for bandwidth — PageSpeed flagged one at 1038×898 in a
+          1×1 container. Switching now fetches on demand; the loading
+          indicator (LoadingImage) covers the brief wait. */}
       {hasThumbs && (
         <div
           ref={thumbStripRef}
