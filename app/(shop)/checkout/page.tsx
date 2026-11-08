@@ -42,6 +42,13 @@ export default async function CheckoutPage({
     getShopUser().catch(() => null),
   ])
   const gaId = settings?.googleAds.gaEnabled ? settings.googleAds.gaMeasurementId : undefined
+  // Google Ads purchase conversion: passed to the checkout success screen so
+  // the conversion fires for regular checkout orders (not only on
+  // /order/[orderNumber], which the checkout flow never opens).
+  const gads = settings?.googleAds
+  const conversionId = gads?.enabled ? gads.conversionId : undefined
+  const conversionLabel = gads?.enabled ? gads.conversionLabel : undefined
+  const enhancedConversions = gads?.enhancedConversionsEnabled ?? false
 
   // Trust block data: seller identity + policy links on the transactional page.
   // Merchant Center "misrepresentation" reviews check that the checkout shows
@@ -87,6 +94,9 @@ export default async function CheckoutPage({
         buyNow={buyNow}
         savedAddresses={savedAddresses}
         gaId={gaId}
+        conversionId={conversionId}
+        conversionLabel={conversionLabel}
+        enhancedConversions={enhancedConversions}
         minOrder={settings?.minOrder}
         initialPhone={shopUser?.phone ?? undefined}
         initialName={shopUser?.name ?? undefined}

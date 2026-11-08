@@ -43,7 +43,7 @@ import { useSession } from '@/lib/auth-client'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils'
-import { trackBeginCheckout, trackAddShippingInfo, trackAddPaymentInfo } from '@/components/shop/google-ads'
+import { GoogleAdsPurchase, trackBeginCheckout, trackAddShippingInfo, trackAddPaymentInfo } from '@/components/shop/google-ads'
 import { GoogleReviewsOptIn } from '@/components/shop/google-reviews-optin'
 import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { CopyRequisites } from '@/components/shop/copy-requisites'
@@ -63,6 +63,9 @@ export function CheckoutFlow({
   buyNow = false,
   savedAddresses = [],
   gaId,
+  conversionId,
+  conversionLabel,
+  enhancedConversions = false,
   minOrder,
   initialPhone,
   initialName,
@@ -73,6 +76,9 @@ export function CheckoutFlow({
   buyNow?: boolean
   savedAddresses?: UserAddress[]
   gaId?: string
+  conversionId?: string
+  conversionLabel?: string
+  enhancedConversions?: boolean
   minOrder?: { enabled: boolean; amount: number }
   initialPhone?: string
   initialName?: string
@@ -675,7 +681,18 @@ export function CheckoutFlow({
   }
 
   if (done) {
-    return <OrderSuccess result={done} snapshot={orderSnapshot} email={email} />
+    return (
+      <OrderSuccess
+        result={done}
+        snapshot={orderSnapshot}
+        email={email}
+        phone={phone}
+        conversionId={conversionId}
+        conversionLabel={conversionLabel}
+        gaId={gaId}
+        enhancedConversions={enhancedConversions}
+      />
+    )
   }
 
   // Cart hydrates from localStorage on the client — don't flash "empty cart"
@@ -1387,6 +1404,11 @@ function OrderSuccess({
   result,
   snapshot,
   email,
+  phone,
+  conversionId,
+  conversionLabel,
+  gaId,
+  enhancedConversions = false,
 }: {
   result: CheckoutResult & { success: true }
   snapshot: {
@@ -1395,6 +1417,11 @@ function OrderSuccess({
     deliveryPlace?: string
   } | null
   email?: string | null
+  phone?: string | null
+  conversionId?: string
+  conversionLabel?: string
+  gaId?: string
+  enhancedConversions?: boolean
 }) {
   const router = useRouter()
   const { dict, locale } = useI18n()
@@ -1402,6 +1429,24 @@ function OrderSuccess({
   const lp = (p: string) => localizedPath(p, locale)
   return (
     <div className="mx-auto max-w-xl">
+      {/* Google Ads / GA4 purchase conversion — fires once per order (deduped
+          by order number inside GoogleAdsPurchase). Without this, regular
+          checkout orders never send a conversion: the component previously
+          lived only on /order/[orderNumber], which checkout never opens. */}
+      {(conversionId && conversionLabel) || gaId ? (
+        <GoogleAdsPurchase
+          conversionId={conversionId}
+          conversionLabel={conversionLabel}
+          gaId={gaId}
+          orderNumber={result.orderNumber}
+          value={result.total}
+          currency="UAH"
+          items={snapshot?.items}
+          enhancedConversions={enhancedConversions}
+          customerEmail={email}
+          customerPhone={phone}
+        />
+      ) : null}
       <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-12 text-center">
         <div className="flex size-16 items-center justify-center rounded-full bg-success/15 text-success">
           <Check className="size-8" />
