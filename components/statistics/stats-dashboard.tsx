@@ -941,7 +941,12 @@ export function StatsDashboard({
             <div className="flex flex-col gap-3">
               {topPaths.map((p) => (
                 <div key={p.path} className="flex items-center gap-3">
-                  <span className="w-40 shrink-0 truncate font-mono text-sm text-foreground">{p.path}</span>
+                  <span
+                    className="min-w-0 basis-2/5 shrink-0 break-all font-mono text-sm text-foreground"
+                    title={p.path}
+                  >
+                    {p.path}
+                  </span>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-primary"
@@ -967,7 +972,12 @@ export function StatsDashboard({
             <div className="flex flex-col gap-3">
               {referrers.map((r) => (
                 <div key={r.source} className="flex items-center gap-3">
-                  <span className="w-40 shrink-0 truncate text-sm text-foreground">{sourceLabel(r.source)}</span>
+                  <span
+                    className="min-w-0 basis-2/5 shrink-0 break-all text-sm text-foreground"
+                    title={sourceLabel(r.source)}
+                  >
+                    {sourceLabel(r.source)}
+                  </span>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-info"
