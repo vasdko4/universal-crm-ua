@@ -136,7 +136,7 @@ export type Dictionary = {
     increase: string
     enlargePhoto: string
     inStockCount: string
-    lowStockLeft: string
+    lowStockBand: string
     unitsShort: string
     purchasedOne: string
     purchasedFew: string
@@ -755,7 +755,7 @@ const uk: Dictionary = {
     increase: 'Більше',
     enlargePhoto: 'збільшити фото',
     inStockCount: 'В наявності:',
-    lowStockLeft: 'Залишилось лише {{count}} шт!',
+    lowStockBand: 'Залишилось менше 10 шт!',
     unitsShort: 'шт.',
     purchasedOne: 'Купили {{count}} раз',
     purchasedFew: 'Купили {{count}} рази',
@@ -1372,7 +1372,7 @@ const ru: Dictionary = {
     increase: 'Больше',
     enlargePhoto: 'увеличить фото',
     inStockCount: 'В наличии:',
-    lowStockLeft: 'Осталось всего {{count}} шт!',
+    lowStockBand: 'Осталось меньше 10 шт!',
     unitsShort: 'шт.',
     purchasedOne: 'Купили {{count}} раз',
     purchasedFew: 'Купили {{count}} раза',
