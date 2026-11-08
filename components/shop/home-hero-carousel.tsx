@@ -80,11 +80,23 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   alt={slide.imageAlt?.trim() || slide.title}
                   fill
                   priority={i === 0}
-                  // The active slide is the LCP image on the homepage: give it
-                  // high fetch priority, and deprioritize the neighbouring
-                  // slides (they are only there for the cross-fade) so they
-                  // don't compete with it for bandwidth on slow connections.
-                  fetchPriority={i === index ? 'high' : 'low'}
+                  // The first slide is the LCP image on the homepage: give it
+                  // high fetch priority, and deprioritize the other slides
+                  // (they are only there for the cross-fade) so they don't
+                  // compete with it for bandwidth on slow connections.
+                  //
+                  // Deliberately keyed to the slide position (i === 0), NOT
+                  // to the active index: the carousel auto-advances every
+                  // 5.5 s and React rewrites the attribute on each advance,
+                  // so a dynamic `i === index` flips the LCP element itself
+                  // to fetchPriority="low" once the slide changes — and that
+                  // is exactly what Lighthouse flags (its LCP audit reads
+                  // the attribute after the advance). Slide 0 is the
+                  // server-rendered first paint; it keeps "high" for good.
+                  // Neighbour slides are already in the viewport (opacity-0
+                  // but laid out), so their lazy images are fetched on load
+                  // and ready by the time they become active.
+                  fetchPriority={i === 0 ? 'high' : 'low'}
                   sizes="(max-width: 640px) 100vw, 1280px"
                   quality={70}
                   className="object-cover object-center"

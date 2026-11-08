@@ -60,6 +60,11 @@ function BoutiqueHero({ content: c, locale, image }: { content: HeroContent; loc
           alt={c.heroAlt}
           fill
           priority
+          // Next 16's `priority` adds a preload link but does NOT render
+          // fetchPriority="high" on the <img> itself (same lesson as the
+          // carousel in 3.4.58) — set it explicitly so the LCP image is
+          // never flagged for low fetch priority.
+          fetchPriority="high"
           sizes="100vw"
           className="object-cover"
         />
