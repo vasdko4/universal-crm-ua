@@ -868,7 +868,8 @@ export async function getAbandonedCartStats(days = 30): Promise<AbandonedCartSta
   const res = await pool.query(
     `SELECT COUNT(*)::int AS count, COALESCE(SUM(items_total), 0)::float AS total
      FROM abandoned_carts
-     WHERE created_at >= ${kyivWindowStart('$1')}`,
+     WHERE created_at >= ${kyivWindowStart('$1')}
+       AND status <> 'dismissed'`,
     [days],
   ).catch(() => ({ rows: [{ count: 0, total: 0 }] }))
   return { count: res.rows[0].count ?? 0, total: res.rows[0].total ?? 0 }
