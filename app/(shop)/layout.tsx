@@ -10,7 +10,7 @@ import { AnalyticsTracker } from '@/components/shop/analytics-tracker'
 import { PhoneGuard } from '@/components/shop/auth/phone-guard'
 import { AuthDialogProvider } from '@/components/shop/auth/auth-dialog'
 import { GoogleTag, GoogleAnalyticsPageview } from '@/components/shop/google-ads'
-import { CookieConsentBanner } from '@/components/shop/cookie-consent-banner'
+import { CookieConsentModal } from '@/components/shop/cookie-consent-modal'
 import { LocaleModal } from '@/components/shop/locale-modal'
 import { ModalAdHost } from '@/components/shop/modal-ad'
 import { LocaleProvider } from '@/lib/i18n/client'
@@ -118,7 +118,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           {chosenLocale && modalAdsList.length > 0 && <ModalAdHost ads={modalAdsList} />}
           {((settings?.googleAds.enabled && settings.googleAds.conversionId) ||
             (settings?.googleAds.gaEnabled && settings.googleAds.gaMeasurementId)) && (
-            <CookieConsentBanner />
+            <CookieConsentModal />
           )}
           </AuthDialogProvider>
         </FavoritesProvider>

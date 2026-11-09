@@ -29,11 +29,11 @@ export type EcommPageType = 'home' | 'category' | 'product' | 'cart' | 'purchase
 // double-loads the library. Rendered once in the shop layout.
 //
 // Also wires up Google Consent Mode v2: ad/analytics storage default to
-// "denied" until the visitor accepts the cookie banner (components/shop/
-// cookie-consent-banner.tsx), or immediately to "granted" if they already
+// "denied" until the visitor accepts the cookie modal (components/shop/
+// cookie-consent-modal.tsx), or immediately to "granted" if they already
 // accepted on a previous visit (cookie read synchronously before the first
 // gtag call, so no consent-state flash). This keeps EU traffic measurable
-// without violating GDPR — see CookieConsentBanner for the actual prompt.
+// without violating GDPR — see CookieConsentModal for the actual prompt.
 export function GoogleTag({ adsId, gaId, nonce }: { adsId?: string; gaId?: string; nonce?: string | null }) {
   const validAds = adsId && isValidAdsId(adsId) ? adsId : null
   const validGa = gaId && isValidGaId(gaId) ? gaId : null

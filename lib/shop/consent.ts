@@ -1,6 +1,6 @@
 // Google Consent Mode v2 — shared cookie name + reader used by both the
 // server-rendered gtag init script (components/shop/google-ads.tsx) and the
-// client-side consent banner (components/shop/cookie-consent-banner.tsx).
+// client-side consent modal (components/shop/cookie-consent-modal.tsx).
 //
 // Kept intentionally simple (granted | denied, no per-category toggles):
 // this store doesn't need cookie-category granularity, and Google's own
