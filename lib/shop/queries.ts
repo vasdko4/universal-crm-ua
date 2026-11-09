@@ -276,15 +276,24 @@ const plainOutOfStockSql = sql`(${products.isInStock} IS NOT TRUE OR ${products.
 const SIZE_AXIS = /розмір|размер|size/i
 const JUNK_SIZE = /маломір/i
 
+// "Типорозмір акумулятора" (battery standard size, e.g. AA/AAA/C/D) is a
+// compatibility spec, never a purchasable choice — Prom.ua lists it on
+// every charger, and the import used to turn it into variants.
+/** True for an option axis a shopper can actually choose (color, size, ...). */
+const NON_CHOICE_AXIS = /типорозмір|типоразмер/i
+export function isChoiceAxis(name: string): boolean {
+  return !NON_CHOICE_AXIS.test(name)
+}
+
 function sizesFromOptions(options: ProductOption[]): string[] {
-  const sizeOption = options.find((o) => SIZE_AXIS.test(o.name))
+  const sizeOption = options.find((o) => SIZE_AXIS.test(o.name) && isChoiceAxis(o.name))
   return (sizeOption?.values ?? []).filter((v) => v.trim() && !JUNK_SIZE.test(v))
 }
 
 function sizesFromCharacteristics(chars: { name: string; value: string }[]): string[] {
   const out: string[] = []
   for (const c of chars) {
-    if (!SIZE_AXIS.test(c.name)) continue
+    if (!SIZE_AXIS.test(c.name) || !isChoiceAxis(c.name)) continue
     for (const part of c.value.split(/[,;/|]+/)) {
       const v = part.trim()
       if (v && !JUNK_SIZE.test(v)) out.push(v)
@@ -298,6 +307,7 @@ function sizesFromVariantRows(variants: ProductVariant[]): string[] {
   for (const v of variants) {
     for (const [key, val] of Object.entries(v.options ?? {})) {
       if (!val?.trim() || JUNK_SIZE.test(val)) continue
+      if (!isChoiceAxis(key)) continue
       if (SIZE_AXIS.test(key) || SIZE_AXIS.test(val)) out.push(val.trim())
     }
   }
@@ -441,7 +451,7 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
       if (stored.length > 0) return stored
       return sizesFromOptions(toOptions(r.options))
     })(),
-    options: variantsEnabled ? toOptions(r.options) : [],
+    options: variantsEnabled ? toOptions(r.options).filter((o) => isChoiceAxis(o.name)) : [],
     variants: [],
     variantsEnabled,
     isPopular: Boolean(r.is_popular),
@@ -831,13 +841,22 @@ export async function getProductsByIds(ids: number[], locale: Locale = 'uk') {
 
 export type FeedProduct = ShopProduct & { brand: string | null }
 
+/** True when a variant still has at least one purchasable choice axis. */
+function hasChoiceOptions(v: ProductVariant): boolean {
+  return Object.keys(v.options ?? {}).length > 0
+}
+
 function mapVariantRow(v: typeof productVariants.$inferSelect): ProductVariant {
   const vq = Number(v.quantity ?? 0)
   const vp = Number(v.price ?? 0)
   const vop = v.oldPrice != null ? Number(v.oldPrice) : null
   return {
     id: v.id,
-    options: (v.options ?? {}) as VariantOptions,
+    // Drop non-choice axes (e.g. "Типорозмір акумулятора") — a variant left
+    // with no choice axis is not a purchasable choice (see hasChoiceOptions).
+    options: Object.fromEntries(
+      Object.entries((v.options ?? {}) as VariantOptions).filter(([k]) => isChoiceAxis(k)),
+    ),
     sku: v.sku ?? null,
     price: vp,
     oldPrice: vop && vop > vp ? vop : null,
@@ -901,7 +920,7 @@ export async function getFeedProducts(locale: Locale = 'uk', limit = 5000): Prom
   return mapped.map((p) => ({
     ...p,
     brand: extractBrand(charsByProduct.get(p.id) ?? []),
-    variants: p.variantsEnabled ? (variantsByProduct.get(p.id) ?? []) : [],
+    variants: p.variantsEnabled ? (variantsByProduct.get(p.id) ?? []).filter(hasChoiceOptions) : [],
   }))
 }
 
@@ -1005,7 +1024,7 @@ async function _getProductByWhere(whereClause: SQL | undefined, locale: Locale =
   const product = applySizeFallbacks(toShopProduct(row as Record<string, unknown>), chars, mappedVariants)
   product.image = galleryMediaPath(product.image)
   product.images = galleryMediaPathList(product.images ?? [])
-  product.variants = product.variantsEnabled ? mappedVariants : []
+  product.variants = product.variantsEnabled ? mappedVariants.filter(hasChoiceOptions) : []
   return {
     product,
     characteristics: chars,

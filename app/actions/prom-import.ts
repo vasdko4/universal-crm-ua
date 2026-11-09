@@ -196,6 +196,11 @@ type BuiltVariant = { options: VariantOptions; isInStock: boolean; sortOrder: nu
 
 const SIZE_AXIS_NAMES = ['розмір', 'размер', 'size']
 
+// "Типорозмір акумулятора" (battery standard size, e.g. AA/AAA/C/D) is a
+// compatibility spec, never a purchasable choice — it must never become
+// variants (same rule as lib/shop/queries.ts NON_CHOICE_AXIS).
+const NON_CHOICE_AXIS = /типорозмір|типоразмер/i
+
 function isJunkChoice(value: string): boolean {
   return !value.trim() || /маломір/i.test(value)
 }
@@ -209,7 +214,9 @@ function splitAttrValues(value: string): string[] {
 
 /** Size values for listing cards (`product.sizes` → «Обрати розмір»). */
 function sizesFromOptions(options: ProductOption[]): string[] {
-  const sizeOption = options.find((o) => SIZE_AXIS_NAMES.some((n) => o.name.toLowerCase().includes(n)))
+  const sizeOption = options.find(
+    (o) => SIZE_AXIS_NAMES.some((n) => o.name.toLowerCase().includes(n)) && !NON_CHOICE_AXIS.test(o.name),
+  )
   return (sizeOption?.values ?? []).filter((v) => !isJunkChoice(v))
 }
 
@@ -217,7 +224,9 @@ function variantsFromSizeAttribute(
   fetchedInStock: boolean,
   fetchedAttributesUk: { group: string; name: string; value: string }[],
 ): { options: ProductOption[]; variants: BuiltVariant[]; anyInStock: boolean } | null {
-  const sizeAttr = fetchedAttributesUk.find((a) => SIZE_AXIS_NAMES.some((n) => a.name.toLowerCase().includes(n)))
+  const sizeAttr = fetchedAttributesUk.find(
+    (a) => SIZE_AXIS_NAMES.some((n) => a.name.toLowerCase().includes(n)) && !NON_CHOICE_AXIS.test(a.name),
+  )
   const values = sizeAttr ? splitAttrValues(sizeAttr.value) : []
   if (!sizeAttr || values.length <= 1) return null
   const options: ProductOption[] = [{ name: sizeAttr.name, type: 'text', values }]
@@ -254,7 +263,9 @@ function buildVariants(
 
   // Siblings only carry the choice axis (e.g. size) that actually varies
   // between them (color etc. stays out since it's identical across sizes).
-  const axisNames = Array.from(new Set(siblings.flatMap((v) => v.attributes.map((a) => a.name))))
+  const axisNames = Array.from(
+    new Set(siblings.flatMap((v) => v.attributes.map((a) => a.name))),
+  ).filter((n) => !NON_CHOICE_AXIS.test(n))
   if (axisNames.length === 0) return { options: [], variants: [], anyInStock: fetchedInStock }
 
   // The scraped page is itself one choice in the group but doesn't repeat
@@ -275,7 +286,7 @@ function buildVariants(
       ...v,
       attributes: v.attributes
         .map((a) => ({ ...a, value: splitAttrValues(a.value)[0] ?? a.value }))
-        .filter((a) => !isJunkChoice(a.value)),
+        .filter((a) => !isJunkChoice(a.value) && !NON_CHOICE_AXIS.test(a.name)),
     })),
   ]
 
@@ -345,7 +356,9 @@ async function mergeSizeIntoProduct(opts: {
     .limit(1)
   if (!row) return
   const options: ProductOption[] = Array.isArray(row.options) ? [...(row.options as ProductOption[])] : []
-  let sizeOpt = options.find((o) => SIZE_AXIS_NAMES.some((n) => o.name.toLowerCase().includes(n)))
+  let sizeOpt = options.find(
+    (o) => SIZE_AXIS_NAMES.some((n) => o.name.toLowerCase().includes(n)) && !NON_CHOICE_AXIS.test(o.name),
+  )
   if (!sizeOpt) {
     sizeOpt = { name: SIZE_OPTION_NAME_UK, type: 'text', values: [] }
     options.push(sizeOpt)

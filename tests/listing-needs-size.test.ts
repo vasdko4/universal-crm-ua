@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { listingNeedsSizeChoice, toListingCard, type ShopProduct } from '@/lib/shop/queries'
+import { isChoiceAxis, listingNeedsSizeChoice, toListingCard, type ShopProduct } from '@/lib/shop/queries'
 
 function product(overrides: Partial<ShopProduct> = {}): ShopProduct {
   return {
@@ -33,6 +33,19 @@ function product(overrides: Partial<ShopProduct> = {}): ShopProduct {
   }
 }
 
+describe('isChoiceAxis', () => {
+  it('rejects the battery standard-size spec', () => {
+    expect(isChoiceAxis('Типорозмір акумулятора')).toBe(false)
+    expect(isChoiceAxis('Типоразмер аккумулятора')).toBe(false)
+  })
+
+  it('keeps real choice axes', () => {
+    expect(isChoiceAxis('Розмір')).toBe(true)
+    expect(isChoiceAxis('Міжнародний розмір')).toBe(true)
+    expect(isChoiceAxis('Колір')).toBe(true)
+  })
+})
+
 describe('listingNeedsSizeChoice', () => {
   it('is false for an adjustable range stored only as a characteristic', () => {
     expect(listingNeedsSizeChoice(product({ sizes: ['34-37'] }))).toBe(false)
@@ -48,6 +61,30 @@ describe('listingNeedsSizeChoice', () => {
         }),
       ),
     ).toBe(false)
+  })
+
+  it('is false for a charger whose only axis is the battery standard size', () => {
+    const charger = product({
+      variantsEnabled: true,
+      options: [{ name: 'Типорозмір акумулятора', type: 'text', values: ['AA', 'AAA', 'C', 'D'] }],
+      variants: ['AA', 'AAA', 'C', 'D'].map((size, i) => ({
+        id: i + 1,
+        sku: null,
+        price: 1030,
+        oldPrice: null,
+        quantity: 1,
+        inStock: true,
+        image: null,
+        options: { 'Типорозмір акумулятора': size },
+      })),
+    })
+    // The storefront strips non-choice axes before the card sees the product.
+    const stripped = {
+      ...charger,
+      options: charger.options.filter((o) => isChoiceAxis(o.name)),
+      variants: charger.variants.filter((v) => Object.keys(v.options).some((k) => isChoiceAxis(k))),
+    }
+    expect(listingNeedsSizeChoice(stripped)).toBe(false)
   })
 
   it('is true when several variants exist', () => {
