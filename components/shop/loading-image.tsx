@@ -9,6 +9,9 @@ type Props = Omit<ImageProps, 'onLoadingComplete' | 'onError'> & {
   /** Show a spinning icon on top of the pulsing placeholder. Small
    *  thumbnails pass false so the grid doesn't turn into a spinner field. */
   showSpinner?: boolean
+  /** Called when the current src finishes loading (or fails) — lets the
+   *  gallery know it is safe to preload neighbouring photos. */
+  onLoaded?: () => void
 }
 
 /**
@@ -23,7 +26,7 @@ type Props = Omit<ImageProps, 'onLoadingComplete' | 'onError'> & {
  * lightbox — already are). The image itself is rendered untouched, so
  * existing hover/scale transitions keep working.
  */
-export function LoadingImage({ showSpinner = true, className, alt, ...props }: Props) {
+export function LoadingImage({ showSpinner = true, onLoaded, className, alt, ...props }: Props) {
   const [loaded, setLoaded] = useState(false)
 
   return (
@@ -31,8 +34,14 @@ export function LoadingImage({ showSpinner = true, className, alt, ...props }: P
       <Image
         {...props}
         alt={alt}
-        onLoadingComplete={() => setLoaded(true)}
-        onError={() => setLoaded(true)}
+        onLoadingComplete={() => {
+          setLoaded(true)
+          onLoaded?.()
+        }}
+        onError={() => {
+          setLoaded(true)
+          onLoaded?.()
+        }}
         className={className}
       />
       <span

@@ -40,6 +40,27 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
   const current = hasImages ? gallery[safeActive] : null
   const hasThumbs = count > 1
 
+  // The src that has actually finished loading. The frame keeps showing
+  // the previous photo until the next one arrives (no `key` remount below),
+  // so switching never flashes a spinner — and neighbours are only warmed
+  // up once the current photo is in, so they never steal bandwidth from it
+  // (preloading ALL photos up front is what used to hurt the LCP photo).
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null)
+  const galleryRef = useRef(gallery)
+  // Keep the ref fresh without writing it during render (react-hooks/refs).
+  useEffect(() => {
+    galleryRef.current = gallery
+  })
+  useEffect(() => {
+    if (loadedSrc !== current || count < 2 || !current) return
+    const g = galleryRef.current
+    for (const src of [g[(safeActive + 1) % count], g[(safeActive - 1 + count) % count]]) {
+      if (!src) continue
+      const img = new window.Image()
+      img.src = src
+    }
+  }, [loadedSrc, current, safeActive, count])
+
   function goTo(i: number) {
     setActive(((i % count) + count) % count)
   }
@@ -86,12 +107,10 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
 
   return (
     <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
-      {/* NOTE: an earlier version preloaded every full-size photo here in a
-          hidden 1px div so thumbnail switching felt instant. That backfired:
-          on slow connections the hidden 1200px images competed with the main
-          (LCP) photo for bandwidth — PageSpeed flagged one at 1038×898 in a
-          1×1 container. Switching now fetches on demand; the loading
-          indicator (LoadingImage) covers the brief wait. */}
+      {/* Neighbour photos are preloaded only after the current one has
+          loaded (see the loadedSrc effect above) — never all of them up
+          front: on slow connections the hidden full-size images used to
+          compete with the main (LCP) photo for bandwidth. */}
       {hasThumbs && (
         <div
           ref={thumbStripRef}
@@ -146,7 +165,6 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
             aria-label={`${alt} — ${dict.product.enlargePhoto}`}
           >
             <LoadingImage
-              key={current}
               src={current || '/placeholder.svg'}
               alt={alt}
               fill
@@ -161,6 +179,11 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
               quality={85}
               sizes="(max-width: 1024px) 100vw, 50vw"
               unoptimized={isProxiedMedia(current)}
+              // No `key` here on purpose: remounting on every switch
+              // destroyed the old photo and showed a spinner while the new
+              // one downloaded. Without it the browser keeps showing the
+              // previous photo until the new src is ready.
+              onLoaded={() => setLoadedSrc(current)}
               className="object-contain"
             />
             <span className="pointer-events-none absolute bottom-3 right-3 hidden rounded-full bg-background/90 p-2 text-muted-foreground shadow-sm opacity-0 transition-opacity group-hover:opacity-100 lg:inline-flex">
