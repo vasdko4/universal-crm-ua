@@ -19,6 +19,7 @@ function product(overrides: Partial<ShopProduct> = {}): ShopProduct {
     options: [],
     variants: [],
     variantsEnabled: false,
+    feedTitle: null,
     isPopular: false,
     sku: null,
     barcode: null,

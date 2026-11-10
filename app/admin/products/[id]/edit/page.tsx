@@ -68,6 +68,8 @@ export default async function EditProductPage({
     metaTitleRu: product.metaTitleRu ?? '',
     metaDescriptionUk: product.metaDescriptionUk ?? '',
     metaDescriptionRu: product.metaDescriptionRu ?? '',
+    feedTitleUk: product.feedTitleUk ?? '',
+    feedTitleRu: product.feedTitleRu ?? '',
     categoryIds: product.categoryIds,
     groupIds: product.groupIds,
     characteristics: product.characteristics.map((c) => ({ name: c.name, value: c.value })),

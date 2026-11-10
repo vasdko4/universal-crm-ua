@@ -61,6 +61,8 @@ export type ProductFormData = {
   metaTitleRu: string
   metaDescriptionUk: string
   metaDescriptionRu: string
+  feedTitleUk: string
+  feedTitleRu: string
   image: string | null
   images: string[]
   categoryIds: number[]
@@ -102,6 +104,8 @@ export const emptyProduct: ProductFormData = {
   metaTitleRu: '',
   metaDescriptionUk: '',
   metaDescriptionRu: '',
+  feedTitleUk: '',
+  feedTitleRu: '',
   image: null,
   images: [],
   categoryIds: [],
@@ -204,6 +208,8 @@ export function ProductForm({
       metaTitleRu: form.metaTitleRu,
       metaDescriptionUk: form.metaDescriptionUk,
       metaDescriptionRu: form.metaDescriptionRu,
+      feedTitleUk: form.feedTitleUk,
+      feedTitleRu: form.feedTitleRu,
       categoryIds: form.categoryIds,
       groupIds: form.groupIds,
       characteristics: form.characteristics,
@@ -826,6 +832,24 @@ export function ProductForm({
                   rows={3}
                   value={form.metaDescriptionUk}
                   onChange={(e) => set('metaDescriptionUk', e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="feedTitleRu">{t.feedTitleRuLabel}</Label>
+                <Input
+                  id="feedTitleRu"
+                  value={form.feedTitleRu}
+                  maxLength={150}
+                  onChange={(e) => set('feedTitleRu', e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="feedTitleUk">{t.feedTitleUkLabel}</Label>
+                <Input
+                  id="feedTitleUk"
+                  value={form.feedTitleUk}
+                  maxLength={150}
+                  onChange={(e) => set('feedTitleUk', e.target.value)}
                 />
               </div>
             </CardContent>

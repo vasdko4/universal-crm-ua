@@ -25,6 +25,7 @@ import {
   type PromVariationItem,
 } from '@/lib/prom-import/scraper'
 import { findAliasedCategory } from '@/lib/shop/category-aliases'
+import { trimFeedTitle } from '@/lib/shop/feed-title'
 import {
   SIZE_OPTION_NAME_UK,
   extractSizeFromName,
@@ -556,14 +557,14 @@ export async function continuePromImport(taskId: number) {
       // is always present, so it's tried first and is the reliable key;
       // SKU is kept as a fallback for rows imported before this field
       // existed.
-      const existing: { id: number; slug: string | null }[] = await db
-        .select({ id: products.id, slug: products.slug })
+      const existing: { id: number; slug: string | null; feedTitleUk: string | null; feedTitleRu: string | null }[] = await db
+        .select({ id: products.id, slug: products.slug, feedTitleUk: products.feedTitleUk, feedTitleRu: products.feedTitleRu })
         .from(products)
         .where(and(eq(products.promId, item.id), isNull(products.deletedAt)))
         .limit(1)
       if (existing.length === 0 && sku) {
         const bySku = await db
-          .select({ id: products.id, slug: products.slug })
+          .select({ id: products.id, slug: products.slug, feedTitleUk: products.feedTitleUk, feedTitleRu: products.feedTitleRu })
           .from(products)
           .where(and(eq(products.sku, sku), isNull(products.deletedAt)))
           .limit(1)
@@ -574,7 +575,7 @@ export async function continuePromImport(taskId: number) {
       // Restore the trashed row so the update path below revives it.
       if (existing.length === 0) {
         const [trashed] = await db
-          .select({ id: products.id, slug: products.slug })
+          .select({ id: products.id, slug: products.slug, feedTitleUk: products.feedTitleUk, feedTitleRu: products.feedTitleRu })
           .from(products)
           .where(eq(products.promId, item.id))
           .limit(1)
@@ -644,6 +645,11 @@ export async function continuePromImport(taskId: number) {
       const values = {
         nameUk: p.nameUk || null,
         nameRu: p.nameRu || null,
+        // The Merchant feed title is filled from the name only when the
+        // product has none yet — a title edited by hand in admin must
+        // survive re-imports.
+        feedTitleUk: existing[0]?.feedTitleUk || trimFeedTitle(p.nameUk),
+        feedTitleRu: existing[0]?.feedTitleRu || trimFeedTitle(p.nameRu),
         slug,
         descriptionUk: p.descriptionUk || null,
         descriptionRu: p.descriptionRu || null,

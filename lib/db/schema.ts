@@ -107,6 +107,12 @@ export const products = pgTable('products', {
   metaTitleRu: varchar('meta_title_ru', { length: 255 }),
   metaDescriptionUk: text('meta_description_uk'),
   metaDescriptionRu: text('meta_description_ru'),
+  // Short title for the Google Merchant feed (<title>) — trimmed to
+  // FEED_TITLE_MAX chars, so Shopping ads are not cut mid-word. The
+  // storefront keeps showing the full product name; the feed prefers this
+  // field when set and falls back to the name. Max 150: Google's hard cap.
+  feedTitleUk: varchar('feed_title_uk', { length: 150 }),
+  feedTitleRu: varchar('feed_title_ru', { length: 150 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),

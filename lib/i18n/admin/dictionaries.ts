@@ -1935,6 +1935,8 @@ export type AdminDictionary = {
     metaTitleUkLabel: string
     metaDescRuLabel: string
     metaDescUkLabel: string
+    feedTitleRuLabel: string
+    feedTitleUkLabel: string
     toastNameRequired: string
     toastPriceInvalid: string
     toastUpdated: string
@@ -3965,6 +3967,8 @@ const uk: AdminDictionary = {
     metaTitleUkLabel: 'Meta Title (UK)',
     metaDescRuLabel: 'Meta Description (RU)',
     metaDescUkLabel: 'Meta Description (UK)',
+    feedTitleRuLabel: 'Заголовок у фіді Google (RU)',
+    feedTitleUkLabel: 'Заголовок у фіді Google (UK)',
     toastNameRequired: 'Вкажіть назву товару хоча б однією мовою',
     toastPriceInvalid: 'Вкажіть коректну ціну',
     toastUpdated: 'Товар оновлено',
@@ -5995,6 +5999,8 @@ const ru: AdminDictionary = {
     metaTitleUkLabel: 'Meta Title (UK)',
     metaDescRuLabel: 'Meta Description (RU)',
     metaDescUkLabel: 'Meta Description (UK)',
+    feedTitleRuLabel: 'Заголовок в фиде Google (RU)',
+    feedTitleUkLabel: 'Заголовок в фиде Google (UK)',
     toastNameRequired: 'Укажите название товара хотя бы на одном языке',
     toastPriceInvalid: 'Укажите корректную цену',
     toastUpdated: 'Товар обновлён',

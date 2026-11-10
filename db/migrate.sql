@@ -36,6 +36,13 @@ CREATE INDEX IF NOT EXISTS idx_analytics_events_type_created ON analytics_events
 -- ---------- Товары: накрутка счётчика покупок ----------
 ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "purchases_boost" integer DEFAULT 0 NOT NULL;
 
+-- ---------- Товары: отдельный заголовок для фида Google Merchant ----------
+-- Короткий заголовок для <title> в фиде (см. lib/shop/feed-title.ts):
+-- витрина по-прежнему показывает полное название товара, а фид берёт это
+-- поле, когда оно заполнено, иначе — название. Лимит 150 — жёсткий лимит Google.
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "feed_title_uk" varchar(150);
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "feed_title_ru" varchar(150);
+
 -- ---------- Заказы: промокод и себестоимость ----------
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "promo_code" varchar(80);
 ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "cost_price" numeric(12,2);

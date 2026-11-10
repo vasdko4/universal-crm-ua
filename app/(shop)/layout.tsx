@@ -23,6 +23,7 @@ import { getPublishedLegalPages } from '@/lib/shop/pages'
 import { headers } from 'next/headers'
 import { getLocale, hasLocaleCookie, getDictionary } from '@/lib/i18n/server'
 import { ensureProductSizesBackfill } from '@/lib/shop/backfill-product-sizes'
+import { ensureFeedTitlesBackfill } from '@/lib/shop/backfill-feed-titles'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   // Fresh install (no users yet): guide the visitor through the setup wizard.
   if (await isSetupNeeded()) redirect('/setup')
   await ensureProductSizesBackfill()
+  await ensureFeedTitlesBackfill()
 
   const [settings, locale, chosenLocale, googleAuthEnabled] = await Promise.all([
     getStoreSettingsInternal().catch(() => null),

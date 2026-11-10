@@ -27,6 +27,7 @@ function product(over: Partial<FeedProduct> = {}): FeedProduct {
     sku: 'IP15',
     barcode: '5901234123457',
     weight: 0.35,
+    feedTitle: null,
     variantsEnabled: false,
     variants: [],
     isPreorder: false,
@@ -174,6 +175,46 @@ describe('feed hygiene', () => {
     expect(expandFeedOffers(product({ name: '' }))).toEqual([])
     expect(expandFeedOffers(product({ name: '   ' }))).toEqual([])
     expect(expandFeedOffers(product({ name: 'iPhone 15' }))).toHaveLength(1)
+  })
+
+  it('prefers the short feed title over the full product name', () => {
+    const [offer] = expandFeedOffers(
+      product({
+        name: 'Мережевий зарядний пристрій з кабелем ACEFAST A118 PD30W mini GaN USB-C fast charger set (P16) Black',
+        feedTitle: 'Мережевий зарядний пристрій з кабелем ACEFAST A118 PD30W mini GaN',
+      }),
+    )
+    expect(offer.name).toBe('Мережевий зарядний пристрій з кабелем ACEFAST A118 PD30W mini GaN')
+  })
+
+  it('falls back to the product name when the feed title is empty', () => {
+    const [offer] = expandFeedOffers(product({ feedTitle: null }))
+    expect(offer.name).toBe('iPhone 15')
+    const [blank] = expandFeedOffers(product({ feedTitle: '   ' }))
+    expect(blank.name).toBe('iPhone 15')
+  })
+
+  it('appends variant options to the feed title, not the full name', () => {
+    const [offer] = expandFeedOffers(
+      product({
+        name: 'Футболка чоловіча бавовняна з довгим рукавом і принтом на грудях',
+        feedTitle: 'Футболка чоловіча бавовняна з принтом',
+        variantsEnabled: true,
+        variants: [
+          {
+            id: 1,
+            options: { Розмір: 'XL' },
+            sku: null,
+            price: 1000,
+            oldPrice: null,
+            quantity: 2,
+            inStock: true,
+            image: null,
+          },
+        ],
+      }),
+    )
+    expect(offer.name).toBe('Футболка чоловіча бавовняна з принтом — XL')
   })
 
   it('buildItemXml never emits an item without title, price, or id', () => {

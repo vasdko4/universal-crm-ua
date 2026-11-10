@@ -184,6 +184,9 @@ export type ProductInput = {
   metaTitleRu?: string | null
   metaDescriptionUk?: string | null
   metaDescriptionRu?: string | null
+  /** Short title for the Google Merchant feed (trimmed, uk/ru). */
+  feedTitleUk?: string | null
+  feedTitleRu?: string | null
   categoryIds?: number[]
   groupIds?: number[]
   characteristics?: { name: string; value: string }[]
@@ -303,6 +306,8 @@ function toProductRow(input: ProductInput) {
     metaTitleRu: input.metaTitleRu || null,
     metaDescriptionUk: input.metaDescriptionUk || null,
     metaDescriptionRu: input.metaDescriptionRu || null,
+    feedTitleUk: input.feedTitleUk || null,
+    feedTitleRu: input.feedTitleRu || null,
     updatedAt: new Date(),
   }
 }

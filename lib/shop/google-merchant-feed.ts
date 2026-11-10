@@ -29,6 +29,8 @@ export type FeedVariant = {
 export type FeedProduct = {
   id: number
   name: string
+  /** Short title for the feed (<title>) — null = use the product name. */
+  feedTitle: string | null
   slug: string
   description: string | null
   price: number
@@ -150,6 +152,9 @@ export function expandFeedOffers(p: FeedProduct): MerchantOffer[] {
   // survive the Prom.ua import (blank name_uk/name_ru) must never reach the
   // feed — it would only burn the Merchant Center error quota.
   if (!p.name?.trim()) return []
+  // The feed title is a separate, trimmed field (lib/shop/feed-title.ts) —
+  // the storefront keeps showing the full product name, the ad shows this.
+  const displayName = p.feedTitle?.trim() ? p.feedTitle.trim() : p.name
   const base = {
     slug: p.slug,
     description: p.description,
@@ -171,7 +176,7 @@ export function expandFeedOffers(p: FeedProduct): MerchantOffer[] {
         ...base,
         id: `${p.id}-${v.id}`,
         itemGroupId: String(p.id),
-        name: extra ? `${p.name} — ${extra}` : p.name,
+        name: extra ? `${displayName} — ${extra}` : displayName,
         price,
         oldPrice: v.oldPrice && v.oldPrice > price ? v.oldPrice : p.oldPrice,
         image: v.image || p.image,
@@ -188,7 +193,7 @@ export function expandFeedOffers(p: FeedProduct): MerchantOffer[] {
     {
       ...base,
       id: String(p.id),
-      name: p.name,
+      name: displayName,
       price: p.price,
       oldPrice: p.oldPrice,
       image: p.image,

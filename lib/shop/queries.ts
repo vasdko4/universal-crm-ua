@@ -228,6 +228,8 @@ export type ShopProduct = {
   name: string
   slug: string
   description: string | null
+  /** Short title for the Google Merchant feed (null = use the product name). */
+  feedTitle: string | null
   price: number
   oldPrice: number | null
   currency: string
@@ -433,6 +435,7 @@ function toShopProduct(r: Record<string, unknown>): ShopProduct {
     // column existed and not yet backfilled — see db/migrate.sql.
     slug: (r.slug as string) || `${r.id}`,
     description: (r.description as string) ?? null,
+    feedTitle: ((r.feed_title as string) || '').trim() || null,
     price,
     oldPrice:
       oldPrice && oldPrice > price && !(oldPrice / price >= 1.95 && oldPrice / price <= 2.05)
@@ -515,6 +518,12 @@ function buildProductSelect(locale: Locale = 'uk') {
     locale === 'ru'
       ? sql<string>`COALESCE(NULLIF(${products.metaDescriptionRu}, ''), ${products.metaDescriptionUk})`
       : sql<string>`COALESCE(NULLIF(${products.metaDescriptionUk}, ''), ${products.metaDescriptionRu})`
+  // Short title for the Google Merchant feed — see lib/shop/feed-title.ts.
+  // NULL/'' falls back to the product name in the feed builder.
+  const feedTitle =
+    locale === 'ru'
+      ? sql<string>`COALESCE(NULLIF(${products.feedTitleRu}, ''), ${products.feedTitleUk})`
+      : sql<string>`COALESCE(NULLIF(${products.feedTitleUk}, ''), ${products.feedTitleRu})`
   return {
     id: products.id,
     slug: products.slug,
@@ -537,6 +546,7 @@ function buildProductSelect(locale: Locale = 'uk') {
     weight: products.weight,
     meta_title: metaTitle,
     meta_description: metaDescription,
+    feed_title: feedTitle,
     orders_count: products.ordersCount,
     purchases_boost: products.purchasesBoost,
     variants_enabled: products.variantsEnabled,
