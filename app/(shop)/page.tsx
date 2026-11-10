@@ -316,6 +316,7 @@ export default async function HomePage() {
             total={allProducts.total}
             params={allProductsParams}
             gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6"
+            priorityInitialImages={false}
           />
         </section>
       )}

@@ -302,7 +302,6 @@ export function GoogleAdsPurchase({
     const key = `gads-conv-${orderNumber}`
     try {
       if (sessionStorage.getItem(key)) return
-      sessionStorage.setItem(key, '1')
     } catch {
       // sessionStorage unavailable (private mode) — fire anyway.
     }
@@ -341,6 +340,13 @@ export function GoogleAdsPurchase({
             value,
           ),
         })
+      }
+      // Mark only after gtag accepted the calls. If the script never loads,
+      // a later refresh must be able to retry instead of silently losing it.
+      try {
+        sessionStorage.setItem(key, '1')
+      } catch {
+        // Storage may be unavailable; transaction_id remains on the event.
       }
       return true
     }

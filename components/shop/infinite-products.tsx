@@ -21,6 +21,7 @@ export function InfiniteProducts({
   total,
   params,
   gridClassName = 'product-grid',
+  priorityInitialImages = true,
 }: {
   initialItems: ShopProduct[]
   total: number
@@ -28,6 +29,12 @@ export function InfiniteProducts({
   params: CatalogParams
   /** Full grid class list, e.g. Tailwind 'grid grid-cols-2 ... xl:grid-cols-7'. */
   gridClassName?: string
+  /**
+   * Give the first visible catalogue row a high image-fetch priority. Pages
+   * that render this grid below another LCP candidate (the homepage) must
+   * turn this off so below-the-fold cards do not compete for bandwidth.
+   */
+  priorityInitialImages?: boolean
 }) {
   const { dict } = useI18n()
   const perPage = params.perPage ?? 24
@@ -62,9 +69,10 @@ export function InfiniteProducts({
     <div className="space-y-6">
       <div className={gridClassName}>
         {items.map((p, i) => (
-          // First row is the LCP on category pages: give it priority (the
-          // card then renders eager + fetchpriority="high" instead of lazy).
-          <ProductCard key={p.id} product={p} priority={i < 2} />
+          // On catalogue pages the first row can be the LCP. The homepage
+          // passes false because its hero is the LCP and this grid is far
+          // below the fold.
+          <ProductCard key={p.id} product={p} priority={priorityInitialImages && i < 2} />
         ))}
       </div>
 
