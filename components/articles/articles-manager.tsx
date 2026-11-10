@@ -74,8 +74,9 @@ export function ArticlesManager({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
-  const { dict } = useAdminI18n()
+  const { dict, canWrite } = useAdminI18n()
   const t = dict.articles
+  const canEdit = canWrite('articles')
 
   const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const status = (searchParams.get('status') as 'all' | 'draft' | 'published') ?? 'all'
@@ -142,20 +143,25 @@ export function ArticlesManager({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
+            {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+          </div>
           <p className="text-sm text-muted-foreground">
             {t.subtitle} — {total}
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            setEditorOpen(true)
-          }}
-        >
-          <Plus className="size-4" />
-          {t.newArticle}
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setEditorOpen(true)
+            }}
+          >
+            <Plus className="size-4" />
+            {t.newArticle}
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -224,41 +230,43 @@ export function ArticlesManager({
                   )}
                 </div>
                 <div className="absolute right-2 top-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" className="size-7" aria-label={t.actionsAria}>
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setEditing(a)
-                          setEditorOpen(true)
-                        }}
-                      >
-                        <Pencil className="size-4" /> {t.edit}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleToggleStatus(a)}>
-                        {a.status === 'published' ? (
-                          <>
-                            <EyeOff className="size-4" /> {t.unpublish}
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="size-4" /> {t.publish}
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleFeatured(a)}>
-                        <Star className="size-4" /> {a.isFeatured ? t.featuredRemove : t.featuredAdd}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(a)}>
-                        <Trash2 className="size-4" /> {t.delete}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {canEdit && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="icon" className="size-7" aria-label={t.actionsAria}>
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setEditing(a)
+                            setEditorOpen(true)
+                          }}
+                        >
+                          <Pencil className="size-4" /> {t.edit}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleToggleStatus(a)}>
+                          {a.status === 'published' ? (
+                            <>
+                              <EyeOff className="size-4" /> {t.unpublish}
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="size-4" /> {t.publish}
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleFeatured(a)}>
+                          <Star className="size-4" /> {a.isFeatured ? t.featuredRemove : t.featuredAdd}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(a)}>
+                          <Trash2 className="size-4" /> {t.delete}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
               <div className="flex flex-1 flex-col gap-2 p-4">
@@ -267,15 +275,19 @@ export function ArticlesManager({
                     {a.categoryName}
                   </span>
                 )}
-                <button
-                  onClick={() => {
-                    setEditing(a)
-                    setEditorOpen(true)
-                  }}
-                  className="text-left font-semibold leading-snug text-foreground hover:text-primary"
-                >
-                  {a.title}
-                </button>
+                {canEdit ? (
+                  <button
+                    onClick={() => {
+                      setEditing(a)
+                      setEditorOpen(true)
+                    }}
+                    className="text-left font-semibold leading-snug text-foreground hover:text-primary"
+                  >
+                    {a.title}
+                  </button>
+                ) : (
+                  <span className="text-left font-semibold leading-snug text-foreground">{a.title}</span>
+                )}
                 {a.excerpt && (
                   <p className="line-clamp-2 text-sm text-muted-foreground">{a.excerpt}</p>
                 )}

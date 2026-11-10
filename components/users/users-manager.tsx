@@ -71,14 +71,17 @@ export function UsersManager({
   currentUserId: string
 }) {
   const [tab, setTab] = useState<Tab>('users')
-  const { dict } = useAdminI18n()
+  const { dict, isAdmin } = useAdminI18n()
   const t = dict.users
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
+            {!isAdmin && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">{t.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -128,6 +131,7 @@ function UsersTab({
   currentUserId: string
   t: AdminDictionary['users']
 }) {
+  const { isAdmin } = useAdminI18n()
   const [pending, startTransition] = useTransition()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -168,10 +172,12 @@ function UsersTab({
             className="pl-9"
           />
         </div>
-        <Button onClick={() => setOpen(true)} className="w-full sm:w-auto">
-          <UserPlus className="size-4" />
-          {t.addUser}
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setOpen(true)} className="w-full sm:w-auto">
+            <UserPlus className="size-4" />
+            {t.addUser}
+          </Button>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -291,6 +297,7 @@ function UserRow({
   isSelf: boolean
   t: AdminDictionary['users']
 }) {
+  const { isAdmin } = useAdminI18n()
   const [pending, startTransition] = useTransition()
 
   return (
@@ -309,7 +316,7 @@ function UserRow({
             <div className="mt-1 sm:hidden">
               <Select
                 value={user.role}
-                disabled={pending || (isSelf && user.role === 'admin')}
+                disabled={pending || (isSelf && user.role === 'admin') || !isAdmin}
                 onValueChange={(v) =>
                   startTransition(async () => {
                     const res = await updateUserRole(user.id, v)
@@ -336,7 +343,7 @@ function UserRow({
       <TableCell className="hidden sm:table-cell">
         <Select
           value={user.role}
-          disabled={pending || (isSelf && user.role === 'admin')}
+          disabled={pending || (isSelf && user.role === 'admin') || !isAdmin}
           onValueChange={(v) =>
             startTransition(async () => {
               const res = await updateUserRole(user.id, v)
@@ -360,7 +367,7 @@ function UserRow({
       <TableCell>
         <button
           type="button"
-          disabled={pending || isSelf}
+          disabled={pending || isSelf || !isAdmin}
           onClick={() =>
             startTransition(async () => {
               const res = await setUserActive(user.id, !user.isActive)
@@ -370,7 +377,7 @@ function UserRow({
           className={cn(
             'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
             user.isActive ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground',
-            isSelf ? 'cursor-default' : 'cursor-pointer hover:opacity-80',
+            isSelf || !isAdmin ? 'cursor-default' : 'cursor-pointer hover:opacity-80',
           )}
         >
           {user.isActive ? <Check className="size-3" /> : <X className="size-3" />}
@@ -378,7 +385,7 @@ function UserRow({
         </button>
       </TableCell>
       <TableCell className="text-right">
-        {!isSelf && (
+        {!isSelf && isAdmin && (
           <Button
             variant="ghost"
             size="icon"
@@ -402,17 +409,20 @@ function UserRow({
 }
 
 function RolesTab({ roles, t }: { roles: Role[]; t: AdminDictionary['users'] }) {
+  const { isAdmin } = useAdminI18n()
   const [editing, setEditing] = useState<Role | null>(null)
   const [creating, setCreating] = useState(false)
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setCreating(true)} className="w-full sm:w-auto">
-          <Plus className="size-4" />
-          {t.createRole}
-        </Button>
-      </div>
+      {isAdmin && (
+        <div className="flex justify-end">
+          <Button onClick={() => setCreating(true)} className="w-full sm:w-auto">
+            <Plus className="size-4" />
+            {t.createRole}
+          </Button>
+        </div>
+      )}
 
       {roles.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-16 text-center">
@@ -451,11 +461,13 @@ function RolesTab({ roles, t }: { roles: Role[]; t: AdminDictionary['users'] }) 
                   <span className="font-medium text-foreground">{fullAccess ? t.allSections : perms.length}</span>
                 </p>
                 <div className="mt-4 flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setEditing(role)}>
-                    <Pencil className="size-3.5" />
-                    {t.edit}
-                  </Button>
-                  {!role.isSystem && (
+                  {isAdmin && (
+                    <Button variant="outline" size="sm" onClick={() => setEditing(role)}>
+                      <Pencil className="size-3.5" />
+                      {t.edit}
+                    </Button>
+                  )}
+                  {!role.isSystem && isAdmin && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -500,6 +512,7 @@ function RoleDialog({
   onClose: () => void
   t: AdminDictionary['users']
 }) {
+  const { isAdmin } = useAdminI18n()
   const [pending, startTransition] = useTransition()
   const isAdminRole = role?.code === 'admin'
   const [name, setName] = useState(role?.name ?? '')
@@ -611,7 +624,7 @@ function RoleDialog({
           <Button variant="outline" onClick={onClose}>
             {t.cancel}
           </Button>
-          <Button onClick={handleSave} disabled={pending || !name}>
+          <Button onClick={handleSave} disabled={pending || !name || !isAdmin}>
             {pending && <Loader2 className="size-4 animate-spin" />}
             {t.save}
           </Button>

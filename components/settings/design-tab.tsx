@@ -61,7 +61,8 @@ import {
 import type { SectionProps } from './settings-types'
 
 export function DesignSection({ data, setData, t }: SectionProps) {
-  const { locale } = useAdminI18n()
+  const { locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const nicheTemplates = TEMPLATES.filter((tpl) => tpl.niche)
   const baseTemplates = TEMPLATES.filter((tpl) => !tpl.niche)
   return (
@@ -78,6 +79,7 @@ export function DesignSection({ data, setData, t }: SectionProps) {
             activeId={data.activeTemplate}
             locale={locale}
             premiumBadge={t.premiumBadge}
+            disabled={!canEdit}
             onSelect={(id) => setData((d) => ({ ...d, activeTemplate: id }))}
           />
         )}
@@ -87,6 +89,7 @@ export function DesignSection({ data, setData, t }: SectionProps) {
           activeId={data.activeTemplate}
           locale={locale}
           premiumBadge={t.premiumBadge}
+          disabled={!canEdit}
           onSelect={(id) => setData((d) => ({ ...d, activeTemplate: id }))}
         />
       </div>
@@ -105,6 +108,7 @@ export function DesignSection({ data, setData, t }: SectionProps) {
                 type="button"
                 onClick={() => setData((d) => ({ ...d, adminTheme: tpl.id }))}
                 aria-pressed={active}
+                disabled={!canEdit}
                 className={cn(
                   'group relative flex flex-col gap-3 overflow-hidden rounded-xl border-2 p-3 text-left transition-colors',
                   active ? 'border-primary' : 'border-border hover:border-primary/40',
@@ -200,6 +204,7 @@ function TemplateGroup({
   activeId,
   locale,
   premiumBadge,
+  disabled,
   onSelect,
 }: {
   title: string
@@ -207,6 +212,7 @@ function TemplateGroup({
   activeId: string
   locale: string
   premiumBadge: string
+  disabled?: boolean
   onSelect: (id: string) => void
 }) {
   return (
@@ -221,6 +227,7 @@ function TemplateGroup({
               type="button"
               onClick={() => onSelect(tpl.id)}
               aria-pressed={active}
+              disabled={disabled}
               className={cn(
                 'group relative flex flex-col gap-3 overflow-hidden rounded-xl border-2 p-3 text-left transition-colors',
                 active ? 'border-primary' : 'border-border hover:border-primary/40',

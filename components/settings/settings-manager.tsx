@@ -23,6 +23,7 @@ import {
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   updateStoreSettings,
   type StoreSettingsData,
@@ -79,8 +80,9 @@ function getSections(t: AdminDictionary['settings']): { key: Section; label: str
 }
 
 export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
-  const { dict } = useAdminI18n()
+  const { dict, canWrite } = useAdminI18n()
   const t = dict.settings
+  const canEdit = canWrite('settings')
   const [data, setData] = useState<StoreSettingsData>(initial)
   const [section, setSection] = useState<Section>('general')
   const [pending, startTransition] = useTransition()
@@ -115,10 +117,13 @@ export function SettingsManager({ initial }: { initial: StoreSettingsData }) {
 
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.pageTitle}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.pageTitle}</h1>
+            {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+          </div>
           <p className="text-sm text-muted-foreground">{t.pageSubtitle}</p>
         </div>
-        <Button onClick={save} disabled={pending}>
+        <Button onClick={save} disabled={pending || !canEdit}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
           {t.saveButton}
         </Button>

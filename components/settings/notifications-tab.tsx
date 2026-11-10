@@ -60,6 +60,8 @@ import {
 import type { SectionProps } from './settings-types'
 
 export function NotificationsSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const n = data.notifications
   const set = (patch: Partial<StoreSettingsData['notifications']>) =>
     setData((d) => ({ ...d, notifications: { ...d.notifications, ...patch } }))
@@ -91,6 +93,7 @@ export function NotificationsSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={n.customerEmailEnabled}
+          disabled={!canEdit}
           onCheckedChange={(v) => set({ customerEmailEnabled: v })}
         />
       </div>
@@ -101,7 +104,7 @@ export function NotificationsSection({ data, setData, t }: SectionProps) {
             <p className="text-sm font-medium text-foreground">{t.adminEmailTitle}</p>
             <p className="text-xs text-muted-foreground">{t.adminEmailDesc}</p>
           </div>
-          <Switch checked={n.adminEmailEnabled} onCheckedChange={(v) => set({ adminEmailEnabled: v })} />
+          <Switch checked={n.adminEmailEnabled} disabled={!canEdit} onCheckedChange={(v) => set({ adminEmailEnabled: v })} />
         </div>
         {n.adminEmailEnabled && (
           <div className="flex flex-col gap-2">
@@ -122,7 +125,7 @@ export function NotificationsSection({ data, setData, t }: SectionProps) {
             <p className="text-sm font-medium text-foreground">{t.telegramTitle}</p>
             <p className="text-xs text-muted-foreground">{t.telegramDesc}</p>
           </div>
-          <Switch checked={n.telegramEnabled} onCheckedChange={(v) => set({ telegramEnabled: v })} />
+          <Switch checked={n.telegramEnabled} disabled={!canEdit} onCheckedChange={(v) => set({ telegramEnabled: v })} />
         </div>
         {n.telegramEnabled && (
           <>
@@ -157,7 +160,7 @@ export function NotificationsSection({ data, setData, t }: SectionProps) {
               size="sm"
               className="self-start"
               onClick={testTelegram}
-              disabled={testing}
+              disabled={testing || !canEdit}
             >
               {testing ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
               {t.testButton}

@@ -74,7 +74,8 @@ export function FeedbackManager({
   reviewsStats: ReviewsStats
   questionsStats: QuestionsStats
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('reviews')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -169,7 +170,10 @@ export function FeedbackManager({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.feedback.pageTitle}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.feedback.pageTitle}</h1>
+          {!canEdit && <Badge variant="secondary">{t.common.readOnly}</Badge>}
+        </div>
         <p className="text-sm text-muted-foreground">{t.feedback.pageSubtitle}</p>
       </div>
 
@@ -245,21 +249,23 @@ export function FeedbackManager({
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  {r.status !== 'approved' && (
-                    <Button size="sm" variant="outline" onClick={() => moderate(r.id, 'approved')} disabled={isPending}>
-                      <Check className="size-4" /> {t.feedback.approveButton}
+                {canEdit && (
+                  <div className="flex items-center gap-1">
+                    {r.status !== 'approved' && (
+                      <Button size="sm" variant="outline" onClick={() => moderate(r.id, 'approved')} disabled={isPending}>
+                        <Check className="size-4" /> {t.feedback.approveButton}
+                      </Button>
+                    )}
+                    {r.status !== 'rejected' && (
+                      <Button size="sm" variant="outline" onClick={() => moderate(r.id, 'rejected')} disabled={isPending}>
+                        <X className="size-4" /> {t.feedback.rejectButton}
+                      </Button>
+                    )}
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteReviewId(r.id)} aria-label={t.feedback.deleteAria}>
+                      <Trash2 className="size-4" />
                     </Button>
-                  )}
-                  {r.status !== 'rejected' && (
-                    <Button size="sm" variant="outline" onClick={() => moderate(r.id, 'rejected')} disabled={isPending}>
-                      <X className="size-4" /> {t.feedback.rejectButton}
-                    </Button>
-                  )}
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteReviewId(r.id)} aria-label={t.feedback.deleteAria}>
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
+                  </div>
+                )}
               </div>
 
               {r.title && <p className="mt-3 font-medium text-foreground">{r.title}</p>}
@@ -288,18 +294,20 @@ export function FeedbackManager({
                   <p className="mt-1 text-sm text-foreground/90">{r.adminReply}</p>
                 </div>
               ) : (
-                <div className="mt-3 flex gap-2">
-                  <Textarea
-                    value={replyDrafts[r.id] ?? ''}
-                    onChange={(e) => setReplyDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
-                    placeholder={t.feedback.replyPlaceholder}
-                    rows={1}
-                    className="min-h-9"
-                  />
-                  <Button size="sm" variant="outline" onClick={() => sendReply(r.id)} disabled={isPending}>
-                    <Reply className="size-4" /> {t.feedback.replyButton}
-                  </Button>
-                </div>
+                canEdit && (
+                  <div className="mt-3 flex gap-2">
+                    <Textarea
+                      value={replyDrafts[r.id] ?? ''}
+                      onChange={(e) => setReplyDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
+                      placeholder={t.feedback.replyPlaceholder}
+                      rows={1}
+                      className="min-h-9"
+                    />
+                    <Button size="sm" variant="outline" onClick={() => sendReply(r.id)} disabled={isPending}>
+                      <Reply className="size-4" /> {t.feedback.replyButton}
+                    </Button>
+                  </div>
+                )
               )}
             </div>
           ))}
@@ -320,9 +328,11 @@ export function FeedbackManager({
                     {t.feedback.aboutProductPrefix} {q.productName ?? `#${q.productId}`}
                   </span>
                 </div>
-                <Button size="icon" variant="ghost" onClick={() => setDeleteQuestionId(q.id)} aria-label={t.feedback.deleteAria}>
-                  <Trash2 className="size-4" />
-                </Button>
+                {canEdit && (
+                  <Button size="icon" variant="ghost" onClick={() => setDeleteQuestionId(q.id)} aria-label={t.feedback.deleteAria}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
               </div>
 
               <p className="mt-3 text-sm text-foreground/90">
@@ -336,18 +346,20 @@ export function FeedbackManager({
                   <p className="mt-1 text-sm text-foreground/90">{q.answer}</p>
                 </div>
               ) : (
-                <div className="mt-3 flex gap-2">
-                  <Textarea
-                    value={answerDrafts[q.id] ?? ''}
-                    onChange={(e) => setAnswerDrafts((d) => ({ ...d, [q.id]: e.target.value }))}
-                    placeholder={t.feedback.answerPlaceholder}
-                    rows={1}
-                    className="min-h-9"
-                  />
-                  <Button size="sm" onClick={() => sendAnswer(q.id)} disabled={isPending}>
-                    <Reply className="size-4" /> {t.feedback.answerButton}
-                  </Button>
-                </div>
+                canEdit && (
+                  <div className="mt-3 flex gap-2">
+                    <Textarea
+                      value={answerDrafts[q.id] ?? ''}
+                      onChange={(e) => setAnswerDrafts((d) => ({ ...d, [q.id]: e.target.value }))}
+                      placeholder={t.feedback.answerPlaceholder}
+                      rows={1}
+                      className="min-h-9"
+                    />
+                    <Button size="sm" onClick={() => sendAnswer(q.id)} disabled={isPending}>
+                      <Reply className="size-4" /> {t.feedback.answerButton}
+                    </Button>
+                  </div>
+                )
               )}
             </div>
           ))}

@@ -70,8 +70,9 @@ const emptyForm: FormState = {
 
 export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
   const router = useRouter()
-  const { dict, locale } = useAdminI18n()
+  const { dict, locale, canWrite } = useAdminI18n()
   const t = dict.groups
+  const canEdit = canWrite('groups')
   const groupName = (g: { nameUk: string; nameRu: string }) =>
     pickLocalized(locale, g.nameUk, g.nameRu)
   const [isPending, startTransition] = useTransition()
@@ -150,16 +151,21 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-balance">{t.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight text-balance">{t.title}</h1>
+            {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+          </div>
           <p className="text-sm text-muted-foreground">
             {t.subtitle} — {groups.length}{' '}
             {pluralize(groups.length, t.countOne, t.countFew, t.countMany)}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          {t.addGroup}
-        </Button>
+        {canEdit && (
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            {t.addGroup}
+          </Button>
+        )}
       </header>
 
       <div className="overflow-hidden rounded-lg border bg-card">
@@ -171,13 +177,13 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
               <TableHead className="text-right">{t.colProducts}</TableHead>
               <TableHead className="hidden text-right sm:table-cell">{t.colSortOrder}</TableHead>
               <TableHead>{t.colStatus}</TableHead>
-              <TableHead className="w-24 text-right">{t.colActions}</TableHead>
+              {canEdit && <TableHead className="w-24 text-right">{t.colActions}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {groups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
+                <TableCell colSpan={canEdit ? 6 : 5} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Layers className="size-8" />
                     <p className="text-sm">{t.notFound}</p>
@@ -201,44 +207,54 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
                     {group.sortOrder}
                   </TableCell>
                   <TableCell>
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(group)}
-                      disabled={isPending}
-                      className="cursor-pointer"
-                      aria-label={group.isActive ? t.deactivateAria : t.activateAria}
-                    >
-                      {group.isActive ? (
-                        <Badge className="bg-success/15 text-success hover:bg-success/25">
-                          {t.active}
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">{t.inactive}</Badge>
-                      )}
-                    </button>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        onClick={() => openEdit(group)}
-                        aria-label={`${t.editAria} ${groupName(group)}`}
+                    {canEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => handleToggle(group)}
+                        disabled={isPending}
+                        className="cursor-pointer"
+                        aria-label={group.isActive ? t.deactivateAria : t.activateAria}
                       >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleting(group)}
-                        aria-label={`${t.deleteAria} ${groupName(group)}`}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
+                        {group.isActive ? (
+                          <Badge className="bg-success/15 text-success hover:bg-success/25">
+                            {t.active}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">{t.inactive}</Badge>
+                        )}
+                      </button>
+                    ) : group.isActive ? (
+                      <Badge className="bg-success/15 text-success hover:bg-success/25">
+                        {t.active}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">{t.inactive}</Badge>
+                    )}
                   </TableCell>
+                  {canEdit && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => openEdit(group)}
+                          aria-label={`${t.editAria} ${groupName(group)}`}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleting(group)}
+                          aria-label={`${t.deleteAria} ${groupName(group)}`}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -305,7 +321,7 @@ export function GroupsManager({ groups }: { groups: GroupWithCount[] }) {
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 {t.cancel}
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || !canEdit}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 {editing ? t.save : t.create}
               </Button>

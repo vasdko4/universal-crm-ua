@@ -15,6 +15,7 @@ import {
   MapPin,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -75,9 +76,10 @@ export function OrdersList({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { locale, dict } = useAdminI18n()
+  const { locale, dict, canWrite } = useAdminI18n()
   const t = dict.orders
   const c = dict.common
+  const canEdit = canWrite('orders')
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState(initialSearch)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -92,7 +94,7 @@ export function OrdersList({
 
   useAdminHotkeys({
     onFocusSearch: () => searchRef.current?.focus(),
-    onNew: () => router.push('/admin/orders/new'),
+    onNew: canEdit ? () => router.push('/admin/orders/new') : undefined,
     onEscape: () => setBulkOpen(false),
   })
 
@@ -161,15 +163,20 @@ export function OrdersList({
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.listTitle}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.listTitle}</h1>
+            {!canEdit && <Badge variant="secondary">{c.readOnly}</Badge>}
+          </div>
           <p className="text-sm text-muted-foreground">{t.listSubtitle}: {initialData.total}</p>
         </div>
-        <Button asChild>
-          <Link href="/admin/orders/new">
-            <Plus className="size-4" />
-            {t.createOrder}
-          </Link>
-        </Button>
+        {canEdit && (
+          <Button asChild>
+            <Link href="/admin/orders/new">
+              <Plus className="size-4" />
+              {t.createOrder}
+            </Link>
+          </Button>
+        )}
       </header>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -299,14 +306,16 @@ export function OrdersList({
             >
               {t.clearSelection}
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={isPending}
-              onClick={() => setBulkOpen(true)}
-            >
-              {c.bulkActions}
-            </Button>
+            {canEdit && (
+              <Button
+                type="button"
+                size="sm"
+                disabled={isPending}
+                onClick={() => setBulkOpen(true)}
+              >
+                {c.bulkActions}
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -347,14 +356,16 @@ export function OrdersList({
           <div className="divide-y divide-border">
             {initialData.items.map((o) => (
               <div key={o.id} className="grid grid-cols-1 gap-4 p-4 md:grid-cols-[auto_1.5fr_1fr_1.5fr_auto] md:items-center">
-                <input
-                  type="checkbox"
-                  className="size-4 accent-primary"
-                  checked={selected.includes(o.id)}
-                  onChange={() =>
-                    setSelected((prev) => (prev.includes(o.id) ? prev.filter((id) => id !== o.id) : [...prev, o.id]))
-                  }
-                />
+                {canEdit && (
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-primary"
+                    checked={selected.includes(o.id)}
+                    onChange={() =>
+                      setSelected((prev) => (prev.includes(o.id) ? prev.filter((id) => id !== o.id) : [...prev, o.id]))
+                    }
+                  />
+                )}
                 <div className="min-w-0">
                   <Link href={`/admin/orders/${o.id}`} className="font-medium text-primary hover:underline">
                     №{o.orderNumber}
@@ -397,18 +408,22 @@ export function OrdersList({
                 </div>
 
                 <div className="w-full md:w-44">
-                  <Select value={o.status} onValueChange={(v) => handleStatusChange(o.id, v)} disabled={isPending}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {orderStatuses.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {canEdit ? (
+                    <Select value={o.status} onValueChange={(v) => handleStatusChange(o.id, v)} disabled={isPending}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orderStatuses.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <StatusBadge status={o.status} />
+                  )}
                 </div>
               </div>
             ))}

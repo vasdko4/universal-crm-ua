@@ -35,6 +35,8 @@ type Props = {
   /** Called after a successful save so the parent can refresh server data. */
   onSaved?: () => void
   className?: string
+  /** Read-only view: renders only `display`, never enters edit mode. */
+  disabled?: boolean
 }
 
 /**
@@ -52,6 +54,7 @@ export function InlineEditCell({
   errorMessage,
   onSaved,
   className,
+  disabled,
 }: Props) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(initial)
@@ -95,6 +98,7 @@ export function InlineEditCell({
   }
 
   if (!editing) {
+    if (disabled) return <span className={className}>{display}</span>
     return (
       <button
         type="button"

@@ -53,7 +53,8 @@ export function AbandonedCartsManager({
   initialCarts: AbandonedCart[]
   stats: AbandonedCartsStats
 }) {
-  const { dict: t, locale } = useAdminI18n()
+  const { dict: t, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('abandoned_carts')
   const STATUS_LABEL = statusLabels(t)
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -95,6 +96,11 @@ export function AbandonedCartsManager({
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{t.abandonedCarts.pageTitle}</h1>
           <p className="text-sm text-muted-foreground">{t.abandonedCarts.pageSubtitle}</p>
+          {!canEdit && (
+            <Badge variant="secondary" className="mt-2">
+              {t.common.readOnly}
+            </Badge>
+          )}
         </div>
         <Button variant="outline" size="sm" onClick={() => router.refresh()} disabled={pending}>
           <RefreshCw className="size-4" />
@@ -198,7 +204,7 @@ export function AbandonedCartsManager({
                   ))}
                 </ul>
 
-                {cart.status !== 'recovered' && (
+                {canEdit && cart.status !== 'recovered' && (
                   <div className="flex flex-wrap justify-end gap-2">
                     <Button
                       variant="outline"

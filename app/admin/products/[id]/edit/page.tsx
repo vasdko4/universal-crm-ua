@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { requireAdmin } from '@/lib/session'
+import { requireWritePermission } from '@/lib/session'
 import { getProduct } from '@/app/actions/products'
 import { getCategories } from '@/app/actions/categories'
 import { getGroups, getSiteGroups, getMarketplaceCategories } from '@/app/actions/groups'
@@ -18,7 +18,7 @@ export default async function EditProductPage({
   const productId = Number(id)
   if (!Number.isInteger(productId) || productId <= 0) notFound()
 
-  const admin = await requireAdmin()
+  const admin = await requireWritePermission('products')
   const [product, categories, groups, siteGroups, marketplaceCategories] = await Promise.all([
     getProduct(productId),
     getCategories(),

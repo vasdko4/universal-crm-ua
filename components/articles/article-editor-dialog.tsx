@@ -64,8 +64,9 @@ export function ArticleEditorDialog({
   categories: ArticleCategory[]
   onSaved: () => void
 }) {
-  const { dict } = useAdminI18n()
+  const { dict, canWrite } = useAdminI18n()
   const t = dict.articles
+  const canEdit = canWrite('articles')
   const [form, setForm] = useState<ArticleInput>(empty)
   const [slugTouched, setSlugTouched] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -148,7 +149,12 @@ export function ArticleEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{article ? t.dialogTitleEdit : t.dialogTitleCreate}</DialogTitle>
+          <DialogTitle>
+            <span className="flex items-center gap-2">
+              {article ? t.dialogTitleEdit : t.dialogTitleCreate}
+              {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+            </span>
+          </DialogTitle>
           <DialogDescription>{t.dialogDescription}</DialogDescription>
         </DialogHeader>
 
@@ -362,7 +368,7 @@ export function ArticleEditorDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t.cancel}
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button onClick={handleSubmit} disabled={isPending || !canEdit}>
             {isPending ? t.saving : article ? t.save : t.create}
           </Button>
         </DialogFooter>

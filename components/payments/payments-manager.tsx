@@ -120,7 +120,8 @@ export function PaymentsManager({
   payments: PaymentsList
   methods: PaymentMethod[]
 }) {
-  const { dict: t, locale } = useAdminI18n()
+  const { dict: t, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('payments')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [createOpen, setCreateOpen] = useState(false)
@@ -233,7 +234,10 @@ export function PaymentsManager({
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-balance">{t.payments.pageTitle}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight text-balance">{t.payments.pageTitle}</h1>
+            {!canEdit && <Badge variant="secondary">{t.common.readOnly}</Badge>}
+          </div>
           <p className="text-sm text-muted-foreground">{t.payments.pageSubtitle}</p>
         </div>
       </header>
@@ -273,15 +277,17 @@ export function PaymentsManager({
           </div>
 
           <div className="flex justify-end">
-            <Button
-              onClick={() => {
-                setForm({ ...emptyForm, gatewayCode: activeGateways[0]?.code ?? '' })
-                setCreateOpen(true)
-              }}
-            >
-              <Plus className="size-4" />
-              {t.payments.createButton}
-            </Button>
+            {canEdit && (
+              <Button
+                onClick={() => {
+                  setForm({ ...emptyForm, gatewayCode: activeGateways[0]?.code ?? '' })
+                  setCreateOpen(true)
+                }}
+              >
+                <Plus className="size-4" />
+                {t.payments.createButton}
+              </Button>
+            )}
           </div>
 
           <div className="overflow-hidden rounded-lg border bg-card">
@@ -350,50 +356,54 @@ export function PaymentsManager({
                           {p.createdAt ? new Date(p.createdAt).toLocaleString(locale === 'ru' ? 'ru-RU' : 'uk-UA', { timeZone: 'Europe/Kyiv' }) : '—'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8" disabled={busy}>
-                                {busy ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : (
-                                  <MoreHorizontal className="size-4" />
-                                )}
-                                <span className="sr-only">{t.payments.colActions}</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {p.paymentUrl && (
-                                <DropdownMenuItem asChild>
-                                  <a href={p.paymentUrl} target="_blank" rel="noopener noreferrer">
-                                    <ExternalLink className="size-4" />
-                                    {t.payments.openPayment}
-                                  </a>
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => handleRefresh(p)}>
-                                <RefreshCw className="size-4" />
-                                {t.payments.refreshStatus}
-                              </DropdownMenuItem>
-                              {isTest && p.status !== 'paid' && p.status !== 'refunded' && (
-                                <DropdownMenuItem onClick={() => handleMarkPaid(p)}>
-                                  <CheckCircle2 className="size-4" />
-                                  {t.payments.markPaid}
-                                </DropdownMenuItem>
-                              )}
-                              {canRefund && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => openRefund(p)}
-                                  >
-                                    <RotateCcw className="size-4" />
-                                    {t.payments.refundAction}
+                          {(canEdit || p.paymentUrl) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-8" disabled={busy}>
+                                  {busy ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                  ) : (
+                                    <MoreHorizontal className="size-4" />
+                                  )}
+                                  <span className="sr-only">{t.payments.colActions}</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {p.paymentUrl && (
+                                  <DropdownMenuItem asChild>
+                                    <a href={p.paymentUrl} target="_blank" rel="noopener noreferrer">
+                                      <ExternalLink className="size-4" />
+                                      {t.payments.openPayment}
+                                    </a>
                                   </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                )}
+                                {canEdit && (
+                                  <DropdownMenuItem onClick={() => handleRefresh(p)}>
+                                    <RefreshCw className="size-4" />
+                                    {t.payments.refreshStatus}
+                                  </DropdownMenuItem>
+                                )}
+                                {canEdit && isTest && p.status !== 'paid' && p.status !== 'refunded' && (
+                                  <DropdownMenuItem onClick={() => handleMarkPaid(p)}>
+                                    <CheckCircle2 className="size-4" />
+                                    {t.payments.markPaid}
+                                  </DropdownMenuItem>
+                                )}
+                                {canEdit && canRefund && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => openRefund(p)}
+                                    >
+                                      <RotateCcw className="size-4" />
+                                      {t.payments.refundAction}
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </TableCell>
                       </TableRow>
                     )
@@ -540,7 +550,7 @@ export function PaymentsManager({
                 <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={isPending}>
+                <Button type="submit" disabled={isPending || !canEdit}>
                   {isPending && <Loader2 className="size-4 animate-spin" />}
                   {t.payments.createInvoiceButton}
                 </Button>
@@ -587,7 +597,7 @@ export function PaymentsManager({
             <Button
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleRefund}
-              disabled={isPending}
+              disabled={isPending || !canEdit}
             >
               {isPending && <Loader2 className="size-4 animate-spin" />}
               {t.payments.confirmRefundButton}

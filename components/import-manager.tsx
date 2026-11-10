@@ -82,7 +82,8 @@ function statusConfig(
  * navigating away — an unfinished job just shows a "Продолжить" button.
  */
 function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; fileName: string; totalItems: number | null; processedItems: number | null }[] }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('import')
   const router = useRouter()
   const [url, setUrl] = useState("")
   const [taskId, setTaskId] = useState<number | null>(null)
@@ -152,20 +153,22 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder={t.import.promUrlPlaceholder}
-            disabled={running}
+            disabled={running || !canEdit}
             className="max-w-md"
           />
-          <Button onClick={handleStart} disabled={running || !url.trim()}>
-            {running ? <Loader2 className="size-4 animate-spin" /> : <Link2 className="size-4" />}
-            {t.import.promStartButton}
-          </Button>
+          {canEdit && (
+            <Button onClick={handleStart} disabled={running || !url.trim()}>
+              {running ? <Loader2 className="size-4 animate-spin" /> : <Link2 className="size-4" />}
+              {t.import.promStartButton}
+            </Button>
+          )}
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             checked={skipExisting}
             onChange={(e) => setSkipExisting(e.target.checked)}
-            disabled={running}
+            disabled={running || !canEdit}
             className="size-4 accent-primary"
           />
           {t.import.skipExistingLabel ?? "Пропускати товари, які вже є в каталозі (швидше)"}
@@ -195,10 +198,12 @@ function PromImportCard({ resumableTasks }: { resumableTasks: { id: number; file
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {tk.processedItems ?? 0}/{tk.totalItems ?? 0}
                   </span>
-                  <Button size="sm" variant="outline" onClick={() => runLoop(tk.id)}>
-                    <Play className="size-3.5" />
-                    {t.import.promContinueButton}
-                  </Button>
+                  {canEdit && (
+                    <Button size="sm" variant="outline" onClick={() => runLoop(tk.id)}>
+                      <Play className="size-3.5" />
+                      {t.import.promContinueButton}
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -216,7 +221,8 @@ export function ImportManager({
   tasks: ImportTask[]
   resumablePromTasks?: { id: number; fileName: string; totalItems: number | null; processedItems: number | null }[]
 }) {
-  const { dict: t, locale } = useAdminI18n()
+  const { dict: t, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('import')
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<{ fileName: string; type: "csv" | "xml"; rows: ImportRow[] } | null>(null)
@@ -296,7 +302,10 @@ export function ImportManager({
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.import.pageTitle}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{t.import.pageTitle}</h1>
+          {!canEdit && <Badge variant="secondary">{t.common.readOnly}</Badge>}
+        </div>
         <p className="text-sm text-muted-foreground">{t.import.pageSubtitle}</p>
       </div>
 
@@ -318,10 +327,12 @@ export function ImportManager({
                 if (file) handleFile(file)
               }}
             />
-            <Button variant="outline" onClick={() => fileRef.current?.click()}>
-              <Upload className="size-4" />
-              {t.import.chooseFileButton}
-            </Button>
+            {canEdit && (
+              <Button variant="outline" onClick={() => fileRef.current?.click()}>
+                <Upload className="size-4" />
+                {t.import.chooseFileButton}
+              </Button>
+            )}
             {preview && (
               <div className="flex items-center gap-2 text-sm">
                 {preview.type === "csv" ? (
@@ -365,7 +376,7 @@ export function ImportManager({
                 </p>
               )}
               <div className="flex gap-2">
-                <Button onClick={handleImport} disabled={isPending}>
+                <Button onClick={handleImport} disabled={isPending || !canEdit}>
                   {isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
                   {tpl(t.import.importButtonTemplate, { n: preview.rows.length })}
                 </Button>
@@ -402,13 +413,13 @@ export function ImportManager({
                 <TableHead className="text-right">{t.import.tableSuccess}</TableHead>
                 <TableHead className="text-right">{t.import.tableFailed}</TableHead>
                 <TableHead>{t.import.tableDate}</TableHead>
-                <TableHead className="w-10"></TableHead>
+                {canEdit && <TableHead className="w-10"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {tasks.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={canEdit ? 8 : 7} className="h-24 text-center text-muted-foreground">
                     {t.import.noImportsYet}
                   </TableCell>
                 </TableRow>
@@ -453,24 +464,26 @@ export function ImportManager({
                           </div>
                         ) : null}
                       </TableCell>
-                      <TableCell>
-                        {tk.status !== "processing" && tk.status !== "pending" ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDeleteTask(tk.id)}
-                            disabled={deletingId === tk.id}
-                            title={t.import.deleteTitle ?? "Видалити запис"}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        ) : null}
-                      </TableCell>
+                      {canEdit && (
+                        <TableCell>
+                          {tk.status !== "processing" && tk.status !== "pending" ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDeleteTask(tk.id)}
+                              disabled={deletingId === tk.id}
+                              title={t.import.deleteTitle ?? "Видалити запис"}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          ) : null}
+                        </TableCell>
+                      )}
                     </TableRow>
                     {logExpanded && tk.errorLog ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="bg-muted/40">
+                        <TableCell colSpan={canEdit ? 8 : 7} className="bg-muted/40">
                           <div className="mb-1 text-xs font-medium text-muted-foreground">{t.import.logTitle}</div>
                           <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono text-xs">{tk.errorLog}</pre>
                         </TableCell>

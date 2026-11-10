@@ -17,6 +17,7 @@ import {
   Megaphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -90,8 +91,9 @@ export function OrderDetail({
   productSlugs?: Record<number, string>
 }) {
   const router = useRouter()
-  const { locale, dict } = useAdminI18n()
+  const { locale, dict, canWrite } = useAdminI18n()
   const t = dict.orders
+  const canEdit = canWrite('orders')
   const [isPending, startTransition] = useTransition()
   const [tracking, setTracking] = useState(order.trackingNumber ?? '')
   const [note, setNote] = useState(order.note ?? '')
@@ -300,24 +302,27 @@ export function OrderDetail({
             <p className="text-xs text-muted-foreground">{formatDate(order.createdAt, locale)}</p>
           </div>
           <StatusBadge status={order.status} />
+          {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={order.status} onValueChange={changeStatus} disabled={isPending}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {orderStatuses.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={() => changeStatus('done')} disabled={isPending || order.status === 'done'}>
-            {t.orderCompleted}
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <Select value={order.status} onValueChange={changeStatus} disabled={isPending}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {orderStatuses.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={() => changeStatus('done')} disabled={isPending || order.status === 'done'}>
+              {t.orderCompleted}
+            </Button>
+          </div>
+        )}
       </header>
 
       {order.paymentStatus === 'paid' && (
@@ -467,19 +472,21 @@ export function OrderDetail({
                 <p className="text-muted-foreground">
                   {paidWithLabel ?? t.paymentNotSelected}
                 </p>
-                <Select value={order.paymentStatus} onValueChange={changePayment} disabled={isPending}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentStatuses.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {(order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded') && (
+                {canEdit && (
+                  <Select value={order.paymentStatus} onValueChange={changePayment} disabled={isPending}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentStatuses.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {canEdit && (order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded') && (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="refund-amount" className="text-xs text-muted-foreground">
                       {t.refundAmountLabel}
@@ -538,21 +545,25 @@ export function OrderDetail({
               <div className="mt-2 flex items-end gap-2 border-t border-border pt-3">
                 <div className="flex-1">
                   <Label htmlFor="tracking" className="text-xs text-muted-foreground">{t.trackingLabel}</Label>
-                  <Input id="tracking" value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="20450000000000" className="mt-1" />
+                  <Input id="tracking" value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="20450000000000" className="mt-1" disabled={!canEdit} />
                 </div>
-                <Button variant="outline" onClick={saveTracking} disabled={isPending}>
-                  {t.saveTracking}
-                </Button>
-                {!order.trackingNumber && (order.deliveryMethod === 'nova_poshta' || !order.deliveryMethod) && (
+                {canEdit && (
+                  <Button variant="outline" onClick={saveTracking} disabled={isPending}>
+                    {t.saveTracking}
+                  </Button>
+                )}
+                {canEdit && !order.trackingNumber && (order.deliveryMethod === 'nova_poshta' || !order.deliveryMethod) && (
                   <Button onClick={createTtn} disabled={isPending}>
                     {t.createTtn}
                   </Button>
                 )}
                 {order.trackingNumber && (
                   <>
-                    <Button variant="outline" onClick={printLabel} disabled={isPending}>
-                      {t.printTtn}
-                    </Button>
+                    {canEdit && (
+                      <Button variant="outline" onClick={printLabel} disabled={isPending}>
+                        {t.printTtn}
+                      </Button>
+                    )}
                     <Button asChild variant="outline">
                       <a
                         href={novaPoshtaTrackingUrl(order.trackingNumber)}
@@ -625,25 +636,27 @@ export function OrderDetail({
             </div>
           </section>
 
-          <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-semibold text-foreground">{t.actions}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{t.writeToCustomer}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {messengers.map((m) => (
-                <Button
-                  key={m.key}
-                  variant="outline"
-                  size="sm"
-                  className="justify-start"
-                  disabled={sending !== null}
-                  onClick={() => sendMessage(m.key === 'chat' ? 'email' : m.key)}
-                >
-                  <m.icon className="size-4" />
-                  {sending === (m.key === 'chat' ? 'email' : m.key) ? '...' : m.label}
-                </Button>
-              ))}
-            </div>
-          </section>
+          {canEdit && (
+            <section className="rounded-xl border border-border bg-card p-5">
+              <h2 className="font-semibold text-foreground">{t.actions}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">{t.writeToCustomer}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {messengers.map((m) => (
+                  <Button
+                    key={m.key}
+                    variant="outline"
+                    size="sm"
+                    className="justify-start"
+                    disabled={sending !== null}
+                    onClick={() => sendMessage(m.key === 'chat' ? 'email' : m.key)}
+                  >
+                    <m.icon className="size-4" />
+                    {sending === (m.key === 'chat' ? 'email' : m.key) ? '...' : m.label}
+                  </Button>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="rounded-xl border border-border bg-card p-5">
             <h2 className="font-semibold text-foreground">{t.notes}</h2>
@@ -652,12 +665,15 @@ export function OrderDetail({
               onChange={(e) => setNote(e.target.value.slice(0, 300))}
               placeholder={t.notePlaceholder}
               className="mt-3 min-h-24"
+              disabled={!canEdit}
             />
-            <div className="mt-2 flex justify-end">
-              <Button variant="outline" size="sm" onClick={saveNote} disabled={isPending}>
-                {t.save}
-              </Button>
-            </div>
+            {canEdit && (
+              <div className="mt-2 flex justify-end">
+                <Button variant="outline" size="sm" onClick={saveNote} disabled={isPending}>
+                  {t.save}
+                </Button>
+              </div>
+            )}
           </section>
 
           {Array.isArray(order.tags) && order.tags.length > 0 && (

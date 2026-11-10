@@ -60,6 +60,8 @@ import {
 import type { SectionProps } from './settings-types'
 
 export function GeneralSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   return (
     <div className="flex max-w-xl flex-col gap-5">
       <div className="flex flex-col gap-2">
@@ -86,6 +88,7 @@ export function GeneralSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={data.openCartAfterAdd}
+          disabled={!canEdit}
           onCheckedChange={(v) => setData((d) => ({ ...d, openCartAfterAdd: v }))}
         />
       </div>
@@ -97,6 +100,7 @@ export function GeneralSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={data.storefrontCacheEnabled}
+          disabled={!canEdit}
           onCheckedChange={(v) => setData((d) => ({ ...d, storefrontCacheEnabled: v }))}
         />
       </div>
@@ -108,6 +112,7 @@ export function GeneralSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={data.sessionBindingEnabled}
+          disabled={!canEdit}
           onCheckedChange={(v) => setData((d) => ({ ...d, sessionBindingEnabled: v }))}
         />
       </div>
@@ -120,6 +125,7 @@ export function GeneralSection({ data, setData, t }: SectionProps) {
           </div>
           <Switch
             checked={data.minOrder.enabled}
+            disabled={!canEdit}
             onCheckedChange={(v) => setData((d) => ({ ...d, minOrder: { ...d.minOrder, enabled: v } }))}
           />
         </div>

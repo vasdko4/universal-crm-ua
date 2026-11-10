@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getPromotionById, getTargetOptions } from '@/app/actions/promotions'
 import { PromotionForm } from '@/components/promotions/promotion-form'
-import { requirePermission } from '@/lib/session'
+import { requireWritePermission } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,7 @@ export default async function EditPromotionPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requirePermission('promotions')
+  await requireWritePermission('promotions')
   const { id } = await params
   const promotionId = Number(id)
   if (!Number.isInteger(promotionId) || promotionId <= 0) notFound()

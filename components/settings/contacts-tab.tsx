@@ -61,6 +61,8 @@ import type { SectionProps } from './settings-types'
 import { getWeekDays } from './settings-types'
 
 export function ContactsSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const c = data.contact
   const setContact = (patch: Partial<StoreSettingsData['contact']>) =>
     setData((d) => ({ ...d, contact: { ...d.contact, ...patch } }))
@@ -107,6 +109,7 @@ export function ContactsSection({ data, setData, t }: SectionProps) {
                 className="shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={() => removePhone(i)}
                 aria-label={t.removePhoneAria}
+                disabled={!canEdit}
               >
                 <Trash2 className="size-4" />
               </Button>
@@ -114,7 +117,7 @@ export function ContactsSection({ data, setData, t }: SectionProps) {
           </div>
         ))}
         {phones.length < 3 && (
-          <Button type="button" variant="outline" size="sm" className="w-fit gap-2" onClick={addPhone}>
+          <Button type="button" variant="outline" size="sm" className="w-fit gap-2" onClick={addPhone} disabled={!canEdit}>
             <Plus className="size-4" /> {t.addPhoneButton}
           </Button>
         )}
@@ -170,7 +173,7 @@ export function ContactsSection({ data, setData, t }: SectionProps) {
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <Switch checked={day.closed} onCheckedChange={(v) => updateDay(key, { closed: v })} />
+                  <Switch checked={day.closed} disabled={!canEdit} onCheckedChange={(v) => updateDay(key, { closed: v })} />
                   <span className="text-xs text-muted-foreground">{t.dayOff}</span>
                 </div>
               </div>

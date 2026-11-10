@@ -44,7 +44,8 @@ type TrashedProduct = {
 
 export function TrashManager({ products }: { products: TrashedProduct[] }) {
   const router = useRouter()
-  const { dict, locale } = useAdminI18n()
+  const { dict, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('trash')
   const t = dict.trash
   const productName = (p: TrashedProduct) => pickLocalized(locale, p.nameUk, p.nameRu) || t.noName
   const [selected, setSelected] = useState<number[]>([])
@@ -102,11 +103,15 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+          {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+        </div>
         <p className="text-sm text-muted-foreground">{t.subtitle}</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {canEdit && (
+        <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -160,40 +165,45 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
             </AlertDialogContent>
           </AlertDialog>
         )}
-      </div>
+        </div>
+      )}
 
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10">
-                <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t.selectAllAria} />
-              </TableHead>
+              {canEdit && (
+                <TableHead className="w-10">
+                  <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t.selectAllAria} />
+                </TableHead>
+              )}
               <TableHead>{t.colName}</TableHead>
               <TableHead>{t.colSku}</TableHead>
               <TableHead className="text-right">{t.colPrice}</TableHead>
               <TableHead className="text-right">{t.colQuantity}</TableHead>
               <TableHead>{t.colDeletedAt}</TableHead>
-              <TableHead className="w-24 text-right">{t.colActions}</TableHead>
+              {canEdit && <TableHead className="w-24 text-right">{t.colActions}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={canEdit ? 7 : 5} className="h-32 text-center text-muted-foreground">
                   {t.empty}
                 </TableCell>
               </TableRow>
             ) : (
               products.map((p) => (
                 <TableRow key={p.id} data-state={selected.includes(p.id) ? "selected" : undefined}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selected.includes(p.id)}
-                      onCheckedChange={() => toggle(p.id)}
-                      aria-label={`${t.selectRowAria} ${productName(p)}`}
-                    />
-                  </TableCell>
+                  {canEdit && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selected.includes(p.id)}
+                        onCheckedChange={() => toggle(p.id)}
+                        aria-label={`${t.selectRowAria} ${productName(p)}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium">{productName(p)}</TableCell>
                   <TableCell>
                     {p.sku ? <Badge variant="outline">{p.sku}</Badge> : <span className="text-muted-foreground">—</span>}
@@ -205,30 +215,32 @@ export function TrashManager({ products }: { products: TrashedProduct[] }) {
                   <TableCell className="text-muted-foreground">
                     {p.deletedAt ? new Date(p.deletedAt).toLocaleDateString(locale === "ru" ? "ru-RU" : "uk-UA", { timeZone: "Europe/Kyiv" }) : "—"}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        onClick={() => handleRestore([p.id])}
-                        disabled={isPending}
-                        aria-label={t.restoreAria}
-                      >
-                        <RotateCcw className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-destructive"
-                        onClick={() => handleDelete([p.id])}
-                        disabled={isPending}
-                        aria-label={t.deleteForeverAria}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {canEdit && (
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => handleRestore([p.id])}
+                          disabled={isPending}
+                          aria-label={t.restoreAria}
+                        >
+                          <RotateCcw className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-destructive"
+                          onClick={() => handleDelete([p.id])}
+                          disabled={isPending}
+                          aria-label={t.deleteForeverAria}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

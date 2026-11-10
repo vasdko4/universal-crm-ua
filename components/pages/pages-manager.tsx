@@ -63,8 +63,9 @@ export function PagesManager({ initialData }: { initialData: ListData }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
-  const { dict } = useAdminI18n()
+  const { dict, canWrite } = useAdminI18n()
   const t = dict.pages
+  const canEdit = canWrite('pages')
 
   const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const status = (searchParams.get('status') as 'all' | 'draft' | 'published') ?? 'all'
@@ -132,15 +133,20 @@ export function PagesManager({ initialData }: { initialData: ListData }) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.title}</h1>
+            {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+          </div>
           <p className="text-sm text-muted-foreground">
             {t.subtitle} — {total}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          {t.createPage}
-        </Button>
+        {canEdit && (
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            {t.createPage}
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -185,12 +191,16 @@ export function PagesManager({ initialData }: { initialData: ListData }) {
             {items.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>
-                  <button
-                    onClick={() => openEdit(p)}
-                    className="text-left font-medium text-foreground hover:text-primary"
-                  >
-                    {p.title}
-                  </button>
+                  {canEdit ? (
+                    <button
+                      onClick={() => openEdit(p)}
+                      className="text-left font-medium text-foreground hover:text-primary"
+                    >
+                      {p.title}
+                    </button>
+                  ) : (
+                    <span className="text-left font-medium text-foreground">{p.title}</span>
+                  )}
                   {p.template !== 'default' && (
                     <span className="ml-2 text-xs text-muted-foreground">({p.template})</span>
                   )}
@@ -218,33 +228,35 @@ export function PagesManager({ initialData }: { initialData: ListData }) {
                   )}
                 </TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" aria-label={t.actionsAria}>
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(p)}>
-                        <Pencil className="size-4" /> {t.edit}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleToggle(p)}>
-                        {p.status === 'published' ? (
-                          <>
-                            <EyeOff className="size-4" /> {t.unpublish}
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="size-4" /> {t.publish}
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(p)}>
-                        <Trash2 className="size-4" /> {t.delete}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {canEdit && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label={t.actionsAria}>
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(p)}>
+                          <Pencil className="size-4" /> {t.edit}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleToggle(p)}>
+                          {p.status === 'published' ? (
+                            <>
+                              <EyeOff className="size-4" /> {t.unpublish}
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="size-4" /> {t.publish}
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(p)}>
+                          <Trash2 className="size-4" /> {t.delete}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

@@ -170,8 +170,9 @@ export function ModalAdsManager({
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const { dict, locale } = useAdminI18n()
+  const { dict, locale, canWrite } = useAdminI18n()
   const t = dict.modalAds
+  const canEdit = canWrite('modal_ads')
   const [query, setQuery] = useState(search)
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -322,11 +323,18 @@ export function ModalAdsManager({
         <div>
           <h1 className="text-xl font-semibold text-foreground">{t.title}</h1>
           <p className="text-sm text-muted-foreground">{t.subtitle}</p>
+          {!canEdit && (
+            <Badge variant="secondary" className="mt-2">
+              {dict.common.readOnly}
+            </Badge>
+          )}
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          {t.newCampaign}
-        </Button>
+        {canEdit && (
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            {t.newCampaign}
+          </Button>
+        )}
       </header>
 
       {/* Aggregate analytics for the visible page */}
@@ -377,10 +385,12 @@ export function ModalAdsManager({
           <Megaphone className="size-8 text-muted-foreground" />
           <p className="font-medium text-foreground">{t.empty}</p>
           <p className="max-w-sm text-sm text-muted-foreground">{t.emptyHint}</p>
-          <Button onClick={openCreate} variant="outline" size="sm">
-            <Plus className="size-4" />
-            {t.createCampaign}
-          </Button>
+          {canEdit && (
+            <Button onClick={openCreate} variant="outline" size="sm">
+              <Plus className="size-4" />
+              {t.createCampaign}
+            </Button>
+          )}
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -431,33 +441,37 @@ export function ModalAdsManager({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Switch
-                      checked={ad.isActive}
-                      onCheckedChange={() => onToggle(ad)}
-                      disabled={isPending}
-                      aria-label={t.enableCampaignAria}
-                    />
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={t.actionsAria}>
-                          <MoreVertical className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(ad)}>
-                          <Pencil className="size-4" />
-                          {t.edit}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onResetStats(ad.id)}>
-                          <RotateCcw className="size-4" />
-                          {t.resetStats}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(ad.id)}>
-                          <Trash2 className="size-4" />
-                          {t.delete}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {canEdit && (
+                      <>
+                        <Switch
+                          checked={ad.isActive}
+                          onCheckedChange={() => onToggle(ad)}
+                          disabled={isPending}
+                          aria-label={t.enableCampaignAria}
+                        />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label={t.actionsAria}>
+                              <MoreVertical className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(ad)}>
+                              <Pencil className="size-4" />
+                              {t.edit}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onResetStats(ad.id)}>
+                              <RotateCcw className="size-4" />
+                              {t.resetStats}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(ad.id)}>
+                              <Trash2 className="size-4" />
+                              {t.delete}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -815,7 +829,7 @@ export function ModalAdsManager({
             <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
               {t.cancel}
             </Button>
-            <Button onClick={submit} disabled={saving}>
+            <Button onClick={submit} disabled={saving || !canEdit}>
               {saving && <Loader2 className="size-4 animate-spin" />}
               {editingId ? t.save : t.create}
             </Button>

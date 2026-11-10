@@ -28,6 +28,7 @@ export type AdminDictionary = {
     confirm: string
     close: string
     back: string
+    readOnly: string
     language: string
     presetsTitle: string
     presetSave: string
@@ -1988,6 +1989,7 @@ const uk: AdminDictionary = {
     confirm: 'Підтвердити',
     close: 'Закрити',
     back: 'Назад',
+    readOnly: 'Тільки перегляд',
     language: 'Мова',
     presetsTitle: 'Швидкі фільтри',
     presetSave: 'Зберегти фільтр',
@@ -4020,6 +4022,7 @@ const ru: AdminDictionary = {
     confirm: 'Подтвердить',
     close: 'Закрыть',
     back: 'Назад',
+    readOnly: 'Только просмотр',
     language: 'Язык',
     presetsTitle: 'Быстрые фильтры',
     presetSave: 'Сохранить фильтр',

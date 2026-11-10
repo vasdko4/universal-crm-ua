@@ -60,6 +60,8 @@ import {
 import type { SectionProps } from './settings-types'
 
 export function SystemSection({ t }: { t: AdminDictionary['settings'] }) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const [clearing, startClearing] = useTransition()
 
   function handleClearCache() {
@@ -84,7 +86,7 @@ export function SystemSection({ t }: { t: AdminDictionary['settings'] }) {
           <p className="text-sm font-medium text-foreground">{t.clearCacheLabel}</p>
           <p className="text-xs text-muted-foreground">{t.clearCacheHint}</p>
         </div>
-        <Button variant="outline" onClick={handleClearCache} disabled={clearing}>
+        <Button variant="outline" onClick={handleClearCache} disabled={clearing || !canEdit}>
           {clearing ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
           {t.clearCacheButton}
         </Button>

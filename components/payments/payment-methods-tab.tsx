@@ -37,7 +37,8 @@ function ToggleMethodCard({
   hint: string
   extra?: React.ReactNode
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('payments')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isActive, setIsActive] = useState(method.isActive ?? false)
@@ -80,12 +81,14 @@ function ToggleMethodCard({
           </div>
           <div className="flex items-center gap-2">
             {isPending && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
-            <Switch
-              id={`${method.code}-active`}
-              checked={isActive}
-              disabled={isPending}
-              onCheckedChange={handleToggle}
-            />
+            {canEdit && (
+              <Switch
+                id={`${method.code}-active`}
+                checked={isActive}
+                disabled={isPending}
+                onCheckedChange={handleToggle}
+              />
+            )}
           </div>
         </div>
         {extra}
@@ -97,7 +100,8 @@ function ToggleMethodCard({
 /* ------------------------------ Оплата по реквизитам ------------------------------ */
 
 function RequisitesCard({ method }: { method: PaymentMethod }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('payments')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const initial = (method.config ?? {}) as Record<string, string>
@@ -163,17 +167,22 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
             <Label htmlFor="requisites-active">{t.payments.availableAtCheckoutLabel}</Label>
             <p className="text-xs text-muted-foreground">{t.payments.customerCanChooseDesc}</p>
           </div>
-          <Switch id="requisites-active" checked={isActive} onCheckedChange={setIsActive} />
+          <Switch
+            id="requisites-active"
+            checked={isActive}
+            onCheckedChange={setIsActive}
+            disabled={!canEdit}
+          />
         </div>
 
         <div className="flex flex-col gap-2">
           <Label className="text-xs">{t.payments.requisitesTypeLabel}</Label>
           <Tabs value={mode} onValueChange={(v) => setMode(v as 'card' | 'requisites')}>
             <TabsList>
-              <TabsTrigger value="card" className="gap-1.5">
+              <TabsTrigger value="card" className="gap-1.5" disabled={!canEdit}>
                 <CreditCard className="size-4" /> {t.payments.tabCard}
               </TabsTrigger>
-              <TabsTrigger value="requisites" className="gap-1.5">
+              <TabsTrigger value="requisites" className="gap-1.5" disabled={!canEdit}>
                 <Landmark className="size-4" /> {t.payments.tabRequisites}
               </TabsTrigger>
             </TabsList>
@@ -190,6 +199,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
                 value={cardNumber}
                 placeholder="0000 0000 0000 0000"
                 onChange={(e) => setCardNumber(e.target.value)}
+                disabled={!canEdit}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -199,6 +209,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
                 value={cardHolder}
                 placeholder="Иванов Иван Иванович"
                 onChange={(e) => setCardHolder(e.target.value)}
+                disabled={!canEdit}
               />
             </div>
           </div>
@@ -212,6 +223,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
                 value={edrpou}
                 placeholder="12345678"
                 onChange={(e) => setEdrpou(e.target.value)}
+                disabled={!canEdit}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -221,6 +233,7 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
                 value={recipientName}
                 placeholder="ФЛП Иванов И.И."
                 onChange={(e) => setRecipientName(e.target.value)}
+                disabled={!canEdit}
               />
             </div>
             <div className="flex flex-col gap-2 sm:col-span-2">
@@ -230,13 +243,14 @@ function RequisitesCard({ method }: { method: PaymentMethod }) {
                 value={iban}
                 placeholder="UA00 0000 0000 0000 0000 0000 00000"
                 onChange={(e) => setIban(e.target.value)}
+                disabled={!canEdit}
               />
             </div>
           </div>
         )}
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={isPending}>
+          <Button onClick={handleSave} disabled={isPending || !canEdit}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             {t.common.save}
           </Button>

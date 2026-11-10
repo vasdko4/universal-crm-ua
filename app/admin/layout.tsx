@@ -55,7 +55,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const adminTheme = getAdminTheme(settings?.adminTheme ?? 'teal').id
 
   return (
-    <AdminLocaleProvider locale={user.locale}>
+    <AdminLocaleProvider locale={user.locale} permissions={user.permissions}>
       <AdminShell
         user={{ name: user.name, email: user.email, role: user.role, permissions: user.permissions }}
         storeName={settings?.storeName ?? dict.sidebar.adminCenter}

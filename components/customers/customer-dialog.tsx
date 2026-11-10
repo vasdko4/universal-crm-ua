@@ -48,8 +48,9 @@ export function CustomerDialog({
   customer: CustomerListItem | null
   onSaved: () => void
 }) {
-  const { dict } = useAdminI18n()
+  const { dict, canWrite } = useAdminI18n()
   const t = dict.customers
+  const canEdit = canWrite('customers')
   const CHANNEL_OPTIONS = [
     { value: 'viber', label: t.contactViber },
     { value: 'skype', label: t.contactSkype },
@@ -271,7 +272,7 @@ export function CustomerDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t.cancel}
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || !canEdit}>
               {isPending ? t.saving : isEdit ? t.save : t.create}
             </Button>
           </DialogFooter>

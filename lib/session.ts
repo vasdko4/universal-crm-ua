@@ -265,6 +265,14 @@ export async function requirePermission(key: PermissionKey): Promise<AdminUser> 
   return user
 }
 
+// Guard a page by write permission. Shows the access-denied page when the
+// user may only read this section (they can still view its list pages).
+export async function requireWritePermission(key: PermissionKey): Promise<AdminUser> {
+  const user = await requirePermission(key)
+  if (!canWrite(user.permissions, key)) redirect('/admin/access-denied?key=' + key)
+  return user
+}
+
 // Guard a server action or API route by permission. Throws instead of
 // redirecting so mutations fail loudly when called without authorization.
 export async function assertPermission(key: PermissionKey): Promise<AdminUser> {

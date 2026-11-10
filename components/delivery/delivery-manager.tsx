@@ -18,7 +18,8 @@ import { useAdminI18n } from '@/lib/i18n/admin/context'
 
 function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
   const router = useRouter()
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('delivery')
   const [isPending, startTransition] = useTransition()
   const initialConfig = (method.config ?? {}) as Record<string, string>
   const [apiKey, setApiKey] = useState(initialConfig.apiKey ?? '')
@@ -101,6 +102,7 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
             value={apiKey}
             placeholder={t.delivery.npApiKeyPlaceholder}
             onChange={(e) => setApiKey(e.target.value)}
+            disabled={!canEdit}
           />
           <p className="text-xs text-muted-foreground">
             {apiKey.trim() ? t.delivery.npApiKeyHintReal : t.delivery.npApiKeyHintDemo}
@@ -109,36 +111,38 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label>{t.delivery.npCitySenderRef}</Label>
-            <Input value={senderCityRef} onChange={(e) => setSenderCityRef(e.target.value)} />
+            <Input value={senderCityRef} onChange={(e) => setSenderCityRef(e.target.value)} disabled={!canEdit} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>{t.delivery.npSenderRef}</Label>
-            <Input value={senderRef} onChange={(e) => setSenderRef(e.target.value)} />
+            <Input value={senderRef} onChange={(e) => setSenderRef(e.target.value)} disabled={!canEdit} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>{t.delivery.npSenderAddressRef}</Label>
-            <Input value={senderAddressRef} onChange={(e) => setSenderAddressRef(e.target.value)} />
+            <Input value={senderAddressRef} onChange={(e) => setSenderAddressRef(e.target.value)} disabled={!canEdit} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>{t.delivery.npContactSenderRef}</Label>
-            <Input value={contactSenderRef} onChange={(e) => setContactSenderRef(e.target.value)} />
+            <Input value={contactSenderRef} onChange={(e) => setContactSenderRef(e.target.value)} disabled={!canEdit} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>{t.delivery.npSenderPhoneLabel}</Label>
-            <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="+380..." />
+            <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="+380..." disabled={!canEdit} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>{t.delivery.npDefaultWeightLabel}</Label>
-            <Input value={defaultWeight} onChange={(e) => setDefaultWeight(e.target.value)} />
+            <Input value={defaultWeight} onChange={(e) => setDefaultWeight(e.target.value)} disabled={!canEdit} />
           </div>
         </div>
         <p className="text-xs text-muted-foreground">{t.delivery.npPullHint}</p>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="outline" onClick={pullSender} disabled={isPending || !apiKey.trim()}>
-            {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-            {t.delivery.npPullFromCabinet}
-          </Button>
-          <Button onClick={handleSave} disabled={isPending}>
+          {canEdit && (
+            <Button type="button" variant="outline" onClick={pullSender} disabled={isPending || !apiKey.trim()}>
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              {t.delivery.npPullFromCabinet}
+            </Button>
+          )}
+          <Button onClick={handleSave} disabled={isPending || !canEdit}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             {t.common.save}
           </Button>
@@ -157,7 +161,8 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
 
 function UkrPoshtaCard({ method }: { method: DeliveryMethod }) {
   const router = useRouter()
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('delivery')
   const [isPending, startTransition] = useTransition()
   const [isActive, setIsActive] = useState(method.isActive ?? false)
 
@@ -201,12 +206,14 @@ function UkrPoshtaCard({ method }: { method: DeliveryMethod }) {
           </div>
           <div className="flex items-center gap-2">
             {isPending && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
-            <Switch
-              id="ukr-active"
-              checked={isActive}
-              disabled={isPending}
-              onCheckedChange={handleToggle}
-            />
+            {canEdit && (
+              <Switch
+                id="ukr-active"
+                checked={isActive}
+                disabled={isPending}
+                onCheckedChange={handleToggle}
+              />
+            )}
           </div>
         </div>
       </CardContent>
@@ -215,14 +222,18 @@ function UkrPoshtaCard({ method }: { method: DeliveryMethod }) {
 }
 
 export function DeliveryManager({ methods }: { methods: DeliveryMethod[] }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('delivery')
   const novaPoshta = methods.find((m) => m.code === 'nova_poshta')
   const ukrPoshta = methods.find((m) => m.code === 'ukrposhta')
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.delivery.pageTitle}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{t.delivery.pageTitle}</h1>
+          {!canEdit && <Badge variant="secondary">{t.common.readOnly}</Badge>}
+        </div>
         <p className="text-sm text-muted-foreground">{t.delivery.pageSubtitle}</p>
       </header>
       <div className="grid gap-4 xl:grid-cols-2">

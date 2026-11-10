@@ -72,7 +72,8 @@ function StatusBadge({ job, t }: { job: CronJobAdminRow; t: CronDict }) {
 
 export function CronManager({ initial, t }: { initial: CronJobAdminRow[]; t: CronDict }) {
   const router = useRouter()
-  const { locale } = useAdminI18n()
+  const { dict, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('system_cron')
   const [jobs, setJobs] = useState<CronJobAdminRow[]>(initial)
   const [runningId, setRunningId] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -113,7 +114,10 @@ export function CronManager({ initial, t }: { initial: CronJobAdminRow[]; t: Cro
   return (
     <div className="flex flex-col gap-4">
       <header>
-        <h1 className="text-2xl font-semibold text-foreground">{t.pageTitle}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-foreground">{t.pageTitle}</h1>
+          {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">{t.pageSubtitle}</p>
       </header>
 
@@ -139,7 +143,7 @@ export function CronManager({ initial, t }: { initial: CronJobAdminRow[]; t: Cro
                 <TableHead>{t.colLastRun}</TableHead>
                 <TableHead>{t.colStatus}</TableHead>
                 <TableHead>{t.colEnabled}</TableHead>
-                <TableHead className="text-right">{t.colActions}</TableHead>
+                {canEdit && <TableHead className="text-right">{t.colActions}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -164,35 +168,39 @@ export function CronManager({ initial, t }: { initial: CronJobAdminRow[]; t: Cro
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Switch
-                          checked={job.enabled}
-                          disabled={togglingId === job.id || running}
-                          onCheckedChange={(v) => toggle(job, v)}
-                          aria-label={job.enabled ? t.enabledLabel : t.disabledLabel}
-                        />
+                        {canEdit && (
+                          <Switch
+                            checked={job.enabled}
+                            disabled={togglingId === job.id || running}
+                            onCheckedChange={(v) => toggle(job, v)}
+                            aria-label={job.enabled ? t.enabledLabel : t.disabledLabel}
+                          />
+                        )}
                         <span className="text-xs text-muted-foreground">
                           {job.enabled ? t.enabledLabel : t.disabledLabel}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={running || !job.enabled}
-                        onClick={() => runNow(job)}
-                        title={t.runNowTitle}
-                      >
-                        {running ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Play className="size-4" />
-                        )}
-                        <span className="ml-2 hidden sm:inline">
-                          {running ? t.running : t.runNow}
-                        </span>
-                      </Button>
-                    </TableCell>
+                    {canEdit && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={running || !job.enabled}
+                          onClick={() => runNow(job)}
+                          title={t.runNowTitle}
+                        >
+                          {running ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Play className="size-4" />
+                          )}
+                          <span className="ml-2 hidden sm:inline">
+                            {running ? t.running : t.runNow}
+                          </span>
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 )
               })}

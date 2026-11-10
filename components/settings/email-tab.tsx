@@ -60,6 +60,8 @@ import {
 import type { SectionProps } from './settings-types'
 
 export function EmailSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const e = data.emailSettings
   const set = (patch: Partial<StoreSettingsData['emailSettings']>) =>
     setData((d) => ({ ...d, emailSettings: { ...d.emailSettings, ...patch } }))
@@ -91,7 +93,7 @@ export function EmailSection({ data, setData, t }: SectionProps) {
           <p className="text-sm font-medium text-foreground">{t.emailToggleTitle}</p>
           <p className="text-xs text-muted-foreground">{t.emailToggleDesc}</p>
         </div>
-        <Switch checked={e.enabled} onCheckedChange={(v) => set({ enabled: v })} />
+        <Switch checked={e.enabled} disabled={!canEdit} onCheckedChange={(v) => set({ enabled: v })} />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
@@ -228,7 +230,7 @@ export function EmailSection({ data, setData, t }: SectionProps) {
             onChange={(ev) => setTestEmail(ev.target.value)}
             className="flex-1"
           />
-          <Button onClick={handleTestEmail} disabled={sending} variant="outline">
+          <Button onClick={handleTestEmail} disabled={sending || !canEdit} variant="outline">
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
             <span className="ml-2">Надіслати</span>
           </Button>

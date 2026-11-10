@@ -933,7 +933,7 @@ export async function resetAnalyticsTraffic(): Promise<{
   productsReset?: number
   error?: string
 }> {
-  const user = await assertPermission('settings')
+  const user = await assertWritePermission('settings')
   try {
     const events = await pool.query('DELETE FROM analytics_events')
     const geo = await pool.query('DELETE FROM geo_cache')

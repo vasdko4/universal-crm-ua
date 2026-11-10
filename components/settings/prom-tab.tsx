@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import type { StoreSettingsData } from '@/app/actions/settings-store'
 import { triggerPromSync } from '@/app/actions/prom'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { SectionProps } from './settings-types'
 
 const INTERVAL_OPTIONS = [
@@ -29,6 +30,8 @@ const INTERVAL_OPTIONS = [
 ]
 
 export function PromSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const p = data.prom
   const set = (patch: Partial<StoreSettingsData['prom']>) =>
     setData((d) => ({ ...d, prom: { ...d.prom, ...patch } }))
@@ -91,7 +94,7 @@ export function PromSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={p.enabled}
-          disabled={!tokenTyped && !p.enabled}
+          disabled={!canEdit || (!tokenTyped && !p.enabled)}
           onCheckedChange={(v) => set({ enabled: v })}
         />
       </div>
@@ -153,6 +156,7 @@ export function PromSection({ data, setData, t }: SectionProps) {
         <label className="flex cursor-pointer items-start gap-3">
           <Checkbox
             checked={p.syncPrices}
+            disabled={!canEdit}
             onCheckedChange={(v) => set({ syncPrices: v === true })}
             className="mt-0.5"
           />
@@ -164,6 +168,7 @@ export function PromSection({ data, setData, t }: SectionProps) {
         <label className="flex cursor-pointer items-start gap-3">
           <Checkbox
             checked={p.syncStock}
+            disabled={!canEdit}
             onCheckedChange={(v) => set({ syncStock: v === true })}
             className="mt-0.5"
           />
@@ -175,6 +180,7 @@ export function PromSection({ data, setData, t }: SectionProps) {
         <label className="flex cursor-pointer items-start gap-3">
           <Checkbox
             checked={p.syncCharacteristics}
+            disabled={!canEdit}
             onCheckedChange={(v) => set({ syncCharacteristics: v === true })}
             className="mt-0.5"
           />
@@ -196,7 +202,7 @@ export function PromSection({ data, setData, t }: SectionProps) {
               : t.promNeverSynced}
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={syncNow} disabled={syncing || !p.enabled}>
+        <Button type="button" variant="outline" onClick={syncNow} disabled={syncing || !p.enabled || !canEdit}>
           {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
           {syncing ? t.promSyncing : t.promSyncNowButton}
         </Button>

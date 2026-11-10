@@ -1,10 +1,12 @@
 import { getCategories } from '@/app/actions/categories'
 import { getGroups, getSiteGroups, getMarketplaceCategories } from '@/app/actions/groups'
 import { ProductForm, emptyProduct } from '@/components/products/product-form'
+import { requireWritePermission } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
 export default async function NewProductPage() {
+  await requireWritePermission('products')
   const [categories, groups, siteGroups, marketplaceCategories] = await Promise.all([
     getCategories(),
     getGroups(),

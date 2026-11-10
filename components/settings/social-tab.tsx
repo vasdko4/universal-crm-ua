@@ -61,6 +61,8 @@ import type { SectionProps } from './settings-types'
 import { SOCIALS } from './settings-types'
 
 export function SocialSection({ data, setData }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   return (
     <div className="flex max-w-xl flex-col gap-4">
       {SOCIALS.map(({ key, label }) => (
@@ -69,6 +71,7 @@ export function SocialSection({ data, setData }: SectionProps) {
             <Label>{label}</Label>
             <Switch
               checked={data.social[key].enabled}
+              disabled={!canEdit}
               onCheckedChange={(v) =>
                 setData((d) => ({
                   ...d,

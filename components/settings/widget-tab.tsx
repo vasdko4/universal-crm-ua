@@ -61,6 +61,8 @@ import type { SectionProps } from './settings-types'
 import { getWidgetChannels } from './settings-types'
 
 export function WidgetSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const WIDGET_CHANNELS = getWidgetChannels(t)
   const w = data.contact.widget
   const setWidget = (patch: Partial<StoreSettingsData['contact']['widget']>) =>
@@ -83,16 +85,16 @@ export function WidgetSection({ data, setData, t }: SectionProps) {
           <p className="text-sm font-medium text-foreground">{t.widgetTitle}</p>
           <p className="text-xs text-muted-foreground">{t.widgetDesc}</p>
         </div>
-        <Switch checked={w.enabled} onCheckedChange={(v) => setWidget({ enabled: v })} />
+        <Switch checked={w.enabled} disabled={!canEdit} onCheckedChange={(v) => setWidget({ enabled: v })} />
       </div>
 
       {/* Bulk actions */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-sm text-muted-foreground">{t.channelsLabel}</span>
-        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => toggleAll(true)} disabled={allOn}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => toggleAll(true)} disabled={!canEdit || allOn}>
           <Power className="size-4" /> {t.enableAllButton}
         </Button>
-        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => toggleAll(false)}>
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => toggleAll(false)} disabled={!canEdit}>
           <Power className="size-4" /> {t.disableAllButton}
         </Button>
       </div>
@@ -105,7 +107,7 @@ export function WidgetSection({ data, setData, t }: SectionProps) {
             <div key={key} className="flex flex-col gap-2 rounded-lg border border-border p-4">
               <div className="flex items-center justify-between">
                 <Label>{label}</Label>
-                <Switch checked={ch.enabled} onCheckedChange={(v) => setChannel(key, { enabled: v })} />
+                <Switch checked={ch.enabled} disabled={!canEdit} onCheckedChange={(v) => setChannel(key, { enabled: v })} />
               </div>
               <Input
                 value={ch.value}

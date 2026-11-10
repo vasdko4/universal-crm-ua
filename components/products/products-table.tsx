@@ -116,7 +116,8 @@ export function ProductsTable({
   filters: ProductFilters
 }) {
   const router = useRouter()
-  const { dict, locale } = useAdminI18n()
+  const { dict, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('products')
   const t = dict.products
   const c = dict.common
   const [isPending, startTransition] = useTransition()
@@ -141,7 +142,9 @@ export function ProductsTable({
 
   useAdminHotkeys({
     onFocusSearch: () => searchRef.current?.focus(),
-    onNew: () => router.push('/admin/products/new'),
+    onNew: () => {
+      if (canEdit) router.push('/admin/products/new')
+    },
     onEscape: () => {
       setBulkOpen(false)
       setDeleteTarget(null)
@@ -283,6 +286,7 @@ export function ProductsTable({
           <p className="text-sm text-muted-foreground">
             {total} {pluralize(total, t.countOne, t.countFew, t.countMany)} {t.inCatalog}
           </p>
+          {!canEdit && <Badge variant="secondary">{c.readOnly}</Badge>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
@@ -291,12 +295,14 @@ export function ProductsTable({
               {t.exportCsv}
             </a>
           </Button>
-          <Button asChild>
-            <Link href="/admin/products/new">
-              <Plus className="size-4" />
-              {t.addProduct}
-            </Link>
-          </Button>
+          {canEdit && (
+            <Button asChild>
+              <Link href="/admin/products/new">
+                <Plus className="size-4" />
+                {t.addProduct}
+              </Link>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -430,13 +436,15 @@ export function ProductsTable({
         <Table>
           <TableHeader className="sticky top-0 z-10">
             <TableRow className="bg-muted hover:bg-muted">
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={toggleAll}
-                  aria-label={t.selectedCount}
-                />
-              </TableHead>
+              {canEdit && (
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label={t.selectedCount}
+                  />
+                </TableHead>
+              )}
               <TableHead>{t.colProduct}</TableHead>
               {showCol('sku') && (
                 <TableHead className="hidden md:table-cell">{t.colSku}</TableHead>
@@ -454,7 +462,7 @@ export function ProductsTable({
               {showCol('status') && (
                 <TableHead className="hidden sm:table-cell">{t.colStatus}</TableHead>
               )}
-              <TableHead className="w-10" />
+              {canEdit && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -464,9 +472,11 @@ export function ProductsTable({
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Package className="size-8" />
                     <p className="text-sm">{t.notFound}</p>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href="/admin/products/new">{t.addFirst}</Link>
-                    </Button>
+                    {canEdit && (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href="/admin/products/new">{t.addFirst}</Link>
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -477,13 +487,15 @@ export function ProductsTable({
                   .filter(Boolean)
                 return (
                   <TableRow key={product.id} data-state={selected.has(product.id) ? 'selected' : undefined}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selected.has(product.id)}
-                        onCheckedChange={() => toggleOne(product.id)}
-                        aria-label={pickLocalized(locale, product.nameUk, product.nameRu) || undefined}
-                      />
-                    </TableCell>
+                    {canEdit && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selected.has(product.id)}
+                          onCheckedChange={() => toggleOne(product.id)}
+                          aria-label={pickLocalized(locale, product.nameUk, product.nameRu) || undefined}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="relative size-11 shrink-0 overflow-hidden rounded-md border bg-muted">
@@ -503,12 +515,18 @@ export function ProductsTable({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <Link
-                            href={`/admin/products/${product.id}/edit`}
-                            className="font-medium hover:text-primary hover:underline"
-                          >
-                            {pickLocalized(locale, product.nameUk, product.nameRu) || t.noName}
-                          </Link>
+                          {canEdit ? (
+                            <Link
+                              href={`/admin/products/${product.id}/edit`}
+                              className="font-medium hover:text-primary hover:underline"
+                            >
+                              {pickLocalized(locale, product.nameUk, product.nameRu) || t.noName}
+                            </Link>
+                          ) : (
+                            <span className="font-medium">
+                              {pickLocalized(locale, product.nameUk, product.nameRu) || t.noName}
+                            </span>
+                          )}
                           {product.isPopular && (
                             <Badge variant="secondary" className="ml-2 text-xs">
                               {t.popularBadge}
@@ -562,6 +580,7 @@ export function ProductsTable({
                           successMessage={t.toastPriceSet}
                           errorMessage={t.toastGenericError}
                           onSaved={() => router.refresh()}
+                          disabled={!canEdit}
                           onSave={async (raw) => {
                             const parsed = parsePriceInput(raw)
                             const result = await updateProductPrice(product.id, parsed)
@@ -595,6 +614,7 @@ export function ProductsTable({
                           successMessage={t.toastStockAdjusted}
                           errorMessage={t.toastGenericError}
                           onSaved={() => router.refresh()}
+                          disabled={!canEdit}
                           onSave={async (raw) => {
                             const parsed = parseStockInput(raw)
                             const result = await updateProductStock(product.id, parsed)
@@ -636,6 +656,7 @@ export function ProductsTable({
                       </TableCell>
                     )}
                     <TableCell>
+                      {canEdit && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="size-8" aria-label={t.colActions}>
@@ -674,6 +695,7 @@ export function ProductsTable({
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      )}
                     </TableCell>
                   </TableRow>
                 )

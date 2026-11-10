@@ -13,7 +13,8 @@ import {
 
 
 export function DbSchemaPanel() {
-  const { dict: t, locale } = useAdminI18n()
+  const { dict: t, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('system_updates')
   const [status, setStatus] = useState<MigrationStatus | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -109,7 +110,7 @@ export function DbSchemaPanel() {
             <RefreshCw className={`size-4 ${isPending ? 'animate-spin' : ''}`} />
             {t.updates.dbCheckButton}
           </Button>
-          {status?.ok && !status.upToDate && (
+          {canEdit && status?.ok && !status.upToDate && (
             <Button type="button" onClick={handleApply} disabled={isPending}>
               {isPending ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
               {isPending ? t.updates.dbApplying : t.updates.dbApplyButton}

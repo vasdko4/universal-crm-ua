@@ -6,6 +6,7 @@ import { createPage, updatePage, type PageInput } from '@/app/actions/pages'
 import { slugify } from '@/lib/slug'
 import type { Page } from '@/lib/db/schema'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -57,8 +58,9 @@ export function PageEditorDialog({
   page: Page | null
   onSaved: () => void
 }) {
-  const { dict } = useAdminI18n()
+  const { dict, canWrite } = useAdminI18n()
   const t = dict.pages
+  const canEdit = canWrite('pages')
   const TEMPLATES = [
     { value: 'default', label: t.templateDefault },
     { value: 'contacts', label: t.templateContacts },
@@ -137,7 +139,12 @@ export function PageEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{page ? t.dialogTitleEdit : t.dialogTitleCreate}</DialogTitle>
+          <DialogTitle>
+            <span className="flex items-center gap-2">
+              {page ? t.dialogTitleEdit : t.dialogTitleCreate}
+              {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+            </span>
+          </DialogTitle>
           <DialogDescription>{t.dialogDescription}</DialogDescription>
         </DialogHeader>
 
@@ -332,7 +339,7 @@ export function PageEditorDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t.cancel}
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button onClick={handleSubmit} disabled={isPending || !canEdit}>
             {isPending ? t.saving : page ? t.save : t.create}
           </Button>
         </DialogFooter>

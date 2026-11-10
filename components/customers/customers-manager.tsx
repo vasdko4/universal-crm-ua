@@ -106,8 +106,9 @@ export function CustomersManager({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { dict, locale } = useAdminI18n()
+  const { dict, locale, canWrite } = useAdminI18n()
   const t = dict.customers
+  const canEdit = canWrite('customers')
   const CONTACT_LABELS: Record<string, string> = {
     viber: t.contactViber,
     skype: t.contactSkype,
@@ -206,11 +207,18 @@ export function CustomersManager({
           <p className="text-sm text-muted-foreground">
             {data.total} {pluralize(data.total, t.countOne, t.countFew, t.countMany)}
           </p>
+          {!canEdit && (
+            <Badge variant="secondary" className="mt-1.5">
+              {dict.common.readOnly}
+            </Badge>
+          )}
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          {t.addCustomer}
-        </Button>
+        {canEdit && (
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            {t.addCustomer}
+          </Button>
+        )}
       </header>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -284,14 +292,16 @@ export function CustomersManager({
                               className="gap-1 pr-1 text-xs font-normal"
                             >
                               {tg}
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveTag(c.id, tg)}
-                                className="rounded-full p-0.5 hover:bg-muted-foreground/20"
-                                aria-label={`${t.removeTagAria} ${tg}`}
-                              >
-                                <X className="size-3" />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTag(c.id, tg)}
+                                  className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                                  aria-label={`${t.removeTagAria} ${tg}`}
+                                >
+                                  <X className="size-3" />
+                                </button>
+                              )}
                             </Badge>
                           ))}
                         </div>
@@ -331,36 +341,38 @@ export function CustomersManager({
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(c.lastOrderDate, locale)}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8" aria-label={t.actionsAria}>
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(c)}>
-                          <Pencil className="size-4" />
-                          {t.edit}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setTagTarget(c)
-                            setTagValue('')
-                          }}
-                        >
-                          <Tag className="size-4" />
-                          {t.addTag}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeleteTarget(c)}
-                        >
-                          <Trash2 className="size-4" />
-                          {t.delete}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {canEdit && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-8" aria-label={t.actionsAria}>
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(c)}>
+                            <Pencil className="size-4" />
+                            {t.edit}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setTagTarget(c)
+                              setTagValue('')
+                            }}
+                          >
+                            <Tag className="size-4" />
+                            {t.addTag}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setDeleteTarget(c)}
+                          >
+                            <Trash2 className="size-4" />
+                            {t.delete}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -439,7 +451,7 @@ export function CustomersManager({
               <Button type="button" variant="outline" onClick={() => setTagTarget(null)}>
                 {t.cancel}
               </Button>
-              <Button type="submit" disabled={isPending || !tagValue.trim()}>
+              <Button type="submit" disabled={isPending || !tagValue.trim() || !canEdit}>
                 {t.add}
               </Button>
             </DialogFooter>

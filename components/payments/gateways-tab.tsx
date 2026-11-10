@@ -118,7 +118,8 @@ function GatewayUrls({ code }: { code: string }) {
 type GatewayView = PaymentGateway & { hasSecret?: Record<string, boolean> }
 
 function GatewayCard({ gateway }: { gateway: GatewayView }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('payments')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const fields = gatewayFields(t)[gateway.code] ?? []
@@ -197,6 +198,7 @@ function GatewayCard({ gateway }: { gateway: GatewayView }) {
                 value={config[f.key] ?? ''}
                 placeholder={f.secret ? '••••••••' : ''}
                 onChange={(e) => setConfig((c) => ({ ...c, [f.key]: e.target.value }))}
+                disabled={!canEdit}
               />
               {f.secret && storedSecret[f.key] && !(config[f.key] ?? '').trim() && (
                 <p className="text-xs text-muted-foreground">Секрет збережено. Залиште порожнім, щоб не змінювати, або введіть __CLEAR__ щоб стерти.</p>
@@ -212,7 +214,12 @@ function GatewayCard({ gateway }: { gateway: GatewayView }) {
               <Label htmlFor={`${gateway.code}-active`}>{t.payments.activeSwitchLabel}</Label>
               <p className="text-xs text-muted-foreground">{t.payments.activeSwitchDesc}</p>
             </div>
-            <Switch id={`${gateway.code}-active`} checked={isActive} onCheckedChange={setIsActive} />
+            <Switch
+              id={`${gateway.code}-active`}
+              checked={isActive}
+              onCheckedChange={setIsActive}
+              disabled={!canEdit}
+            />
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
@@ -223,11 +230,12 @@ function GatewayCard({ gateway }: { gateway: GatewayView }) {
               id={`${gateway.code}-test`}
               checked={isTestMode}
               onCheckedChange={setIsTestMode}
+              disabled={!canEdit}
             />
           </div>
         </div>
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={isPending}>
+          <Button onClick={handleSave} disabled={isPending || !canEdit}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             {t.common.save}
           </Button>

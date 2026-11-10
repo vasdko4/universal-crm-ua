@@ -60,6 +60,8 @@ import {
 import type { SectionProps } from './settings-types'
 
 export function GoogleAuthSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const g = data.googleAuth
   const set = (patch: Partial<StoreSettingsData['googleAuth']>) =>
     setData((d) => ({ ...d, googleAuth: { ...d.googleAuth, ...patch } }))
@@ -93,7 +95,7 @@ export function GoogleAuthSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={g.enabled}
-          disabled={!configured && !g.enabled}
+          disabled={!canEdit || (!configured && !g.enabled)}
           onCheckedChange={(v) => set({ enabled: v })}
         />
       </div>

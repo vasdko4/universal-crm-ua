@@ -96,7 +96,7 @@ function validate(input: PromotionInput): string | null {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function generatePromoCode(): Promise<string> {
-  await assertPermission('promotions')
+  await assertWritePermission('promotions')
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
   for (let i = 0; i < 8; i++) code += chars[randomInt(chars.length)]

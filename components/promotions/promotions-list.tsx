@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
@@ -86,7 +87,8 @@ export function PromotionsList({
   search: string
   status: 'all' | 'active' | 'inactive'
 }) {
-  const { dict: t, locale } = useAdminI18n()
+  const { dict: t, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('promotions')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState(search)
@@ -142,13 +144,15 @@ export function PromotionsList({
           </div>
           <h2 className="text-xl font-bold text-slate-900">{t.promotions.emptyTitle}</h2>
           <p className="mt-2 max-w-sm text-sm text-slate-500">{t.promotions.emptyDesc}</p>
-          <Link
-            href="/admin/promotions/new"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition-all hover:shadow-xl hover:shadow-violet-600/30 hover:brightness-110"
-          >
-            <Plus className="size-4" />
-            {t.promotions.addButton}
-          </Link>
+          {canEdit && (
+            <Link
+              href="/admin/promotions/new"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition-all hover:shadow-xl hover:shadow-violet-600/30 hover:brightness-110"
+            >
+              <Plus className="size-4" />
+              {t.promotions.addButton}
+            </Link>
+          )}
         </div>
       </div>
     )
@@ -255,7 +259,8 @@ export function PromotionsList({
 }
 
 function Hero({ totalCount }: { totalCount: number }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('promotions')
   return (
     <header className="relative overflow-hidden bg-gradient-to-r from-violet-700 via-purple-700 to-fuchsia-700">
       <div aria-hidden className="pointer-events-none absolute -left-20 -top-24 size-72 rounded-full bg-white/10 blur-3xl" />
@@ -269,6 +274,11 @@ function Hero({ totalCount }: { totalCount: number }) {
           <div>
             <h1 className="text-xl font-bold text-white sm:text-2xl">{t.promotions.pageTitle}</h1>
             <p className="mt-0.5 text-sm text-white/75">{t.promotions.pageSubtitle}</p>
+            {!canEdit && (
+              <Badge variant="secondary" className="mt-2">
+                {t.common.readOnly}
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -276,13 +286,15 @@ function Hero({ totalCount }: { totalCount: number }) {
             <span className="text-2xl font-bold text-white">{totalCount}</span>
             <span className="text-xs leading-tight text-white/70">{t.promotions.statTotal}</span>
           </div>
-          <Link
-            href="/admin/promotions/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-700 shadow-lg transition-all hover:bg-violet-50 hover:shadow-xl"
-          >
-            <Plus className="size-4" />
-            {t.promotions.addButton}
-          </Link>
+          {canEdit && (
+            <Link
+              href="/admin/promotions/new"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-700 shadow-lg transition-all hover:bg-violet-50 hover:shadow-xl"
+            >
+              <Plus className="size-4" />
+              {t.promotions.addButton}
+            </Link>
+          )}
         </div>
       </div>
     </header>
@@ -300,7 +312,8 @@ function PromotionCard({
   onToggle: (id: number, value: boolean) => void
   onDelete: () => void
 }) {
-  const { dict: t, locale } = useAdminI18n()
+  const { dict: t, locale, canWrite } = useAdminI18n()
+  const canEdit = canWrite('promotions')
   async function copyPromoCode(code: string) {
     try {
       await navigator.clipboard.writeText(code)
@@ -354,12 +367,16 @@ function PromotionCard({
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/admin/promotions/${p.id}/edit`}
-            className="truncate font-bold text-slate-900 hover:text-violet-700"
-          >
-            {p.name}
-          </Link>
+          {canEdit ? (
+            <Link
+              href={`/admin/promotions/${p.id}/edit`}
+              className="truncate font-bold text-slate-900 hover:text-violet-700"
+            >
+              {p.name}
+            </Link>
+          ) : (
+            <span className="truncate font-bold text-slate-900">{p.name}</span>
+          )}
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold text-white shadow-sm ${
               isPromo
@@ -429,45 +446,47 @@ function PromotionCard({
         <p className="font-bold text-slate-900">{formatMoney(Number(p.totalDiscountAmount), locale)} ₴</p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
-        <Switch
-          checked={!!p.isActive}
-          disabled={busy}
-          onCheckedChange={(v) => onToggle(p.id, v)}
-          aria-label={t.promotions.statusSr}
-          className="data-[state=checked]:bg-violet-600"
-        />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              aria-label={t.promotions.actionsAria}
-            >
-              <MoreVertical className="size-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/admin/promotions/${p.id}/edit`}>
-                <Pencil className="size-4" />
-                {t.common.edit}
-              </Link>
-            </DropdownMenuItem>
-            {p.promoCode && (
-              <DropdownMenuItem
-                onClick={() => void copyPromoCode(p.promoCode!)}
+      {canEdit && (
+        <div className="flex shrink-0 items-center gap-1">
+          <Switch
+            checked={!!p.isActive}
+            disabled={busy}
+            onCheckedChange={(v) => onToggle(p.id, v)}
+            aria-label={t.promotions.statusSr}
+            className="data-[state=checked]:bg-violet-600"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                aria-label={t.promotions.actionsAria}
               >
-                <Copy className="size-4" />
-                {t.promotions.copyCodeAction}
+                <MoreVertical className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/admin/promotions/${p.id}/edit`}>
+                  <Pencil className="size-4" />
+                  {t.common.edit}
+                </Link>
               </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600">
-              <Trash2 className="size-4" />
-              {t.common.delete}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+              {p.promoCode && (
+                <DropdownMenuItem
+                  onClick={() => void copyPromoCode(p.promoCode!)}
+                >
+                  <Copy className="size-4" />
+                  {t.promotions.copyCodeAction}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600">
+                <Trash2 className="size-4" />
+                {t.common.delete}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
     </div>
   )
 }

@@ -84,8 +84,9 @@ const emptyForm: FormState = {
 
 export function CategoriesManager({ categories }: { categories: CategoryWithCount[] }) {
   const router = useRouter()
-  const { dict, locale } = useAdminI18n()
+  const { dict, locale, canWrite } = useAdminI18n()
   const t = dict.categories
+  const canEdit = canWrite('categories')
   const catName = (c: { nameUk: string; nameRu: string }) => pickLocalized(locale, c.nameUk, c.nameRu)
   const [isPending, startTransition] = useTransition()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -169,15 +170,20 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-balance">{t.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight text-balance">{t.title}</h1>
+            {!canEdit && <Badge variant="secondary">{dict.common.readOnly}</Badge>}
+          </div>
           <p className="text-sm text-muted-foreground">
             {categories.length} {pluralize(categories.length, t.countOne, t.countFew, t.countMany)}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          {t.addCategory}
-        </Button>
+        {canEdit && (
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            {t.addCategory}
+          </Button>
+        )}
       </header>
 
       <div className="overflow-hidden rounded-lg border bg-card">
@@ -190,13 +196,13 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
               <TableHead className="hidden sm:table-cell">{t.colParent}</TableHead>
               <TableHead className="text-right">{t.colProducts}</TableHead>
               <TableHead>{t.colVisibility}</TableHead>
-              <TableHead className="w-24 text-right">{t.colActions}</TableHead>
+              {canEdit && <TableHead className="w-24 text-right">{t.colActions}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {categories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center">
+                <TableCell colSpan={canEdit ? 7 : 6} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <FolderTree className="size-8" />
                     <p className="text-sm">{t.notFound}</p>
@@ -228,44 +234,54 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{cat.productCount}</TableCell>
                   <TableCell>
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(cat)}
-                      disabled={isPending}
-                      className="cursor-pointer"
-                      aria-label={cat.isVisible ? t.hideAria : t.showAria}
-                    >
-                      {cat.isVisible ? (
-                        <Badge className="bg-success/15 text-success hover:bg-success/25">
-                          {t.visible}
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">{t.hidden}</Badge>
-                      )}
-                    </button>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        onClick={() => openEdit(cat)}
-                        aria-label={`${t.editAria} ${catName(cat)}`}
+                    {canEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => handleToggle(cat)}
+                        disabled={isPending}
+                        className="cursor-pointer"
+                        aria-label={cat.isVisible ? t.hideAria : t.showAria}
                       >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleting(cat)}
-                        aria-label={`${t.deleteAria} ${catName(cat)}`}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
+                        {cat.isVisible ? (
+                          <Badge className="bg-success/15 text-success hover:bg-success/25">
+                            {t.visible}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">{t.hidden}</Badge>
+                        )}
+                      </button>
+                    ) : cat.isVisible ? (
+                      <Badge className="bg-success/15 text-success hover:bg-success/25">
+                        {t.visible}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">{t.hidden}</Badge>
+                    )}
                   </TableCell>
+                  {canEdit && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => openEdit(cat)}
+                          aria-label={`${t.editAria} ${catName(cat)}`}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleting(cat)}
+                          aria-label={`${t.deleteAria} ${catName(cat)}`}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -373,7 +389,7 @@ export function CategoriesManager({ categories }: { categories: CategoryWithCoun
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 {t.cancel}
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || !canEdit}>
                 {isPending && <Loader2 className="size-4 animate-spin" />}
                 {editing ? t.save : t.create}
               </Button>

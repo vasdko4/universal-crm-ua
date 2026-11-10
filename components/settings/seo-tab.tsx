@@ -61,6 +61,8 @@ import type { SectionProps } from './settings-types'
 import { ImageField } from './image-field'
 
 export function SeoSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const seo = data.seo
   const setSeo = (patch: Partial<StoreSettingsData['seo']>) =>
     setData((d) => ({ ...d, seo: { ...d.seo, ...patch } }))
@@ -128,6 +130,7 @@ export function SeoSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={seo.indexingEnabled}
+          disabled={!canEdit}
           onCheckedChange={(v) => setSeo({ indexingEnabled: v })}
         />
       </div>

@@ -61,6 +61,8 @@ import {
 import type { SectionProps } from './settings-types'
 
 export function AdsSection({ data, setData, t }: SectionProps) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const g = data.googleAds
   const set = (patch: Partial<StoreSettingsData['googleAds']>) =>
     setData((d) => ({ ...d, googleAds: { ...d.googleAds, ...patch } }))
@@ -72,7 +74,7 @@ export function AdsSection({ data, setData, t }: SectionProps) {
           <p className="text-sm font-medium text-foreground">{t.convTitle}</p>
           <p className="text-xs text-muted-foreground">{t.convDesc}</p>
         </div>
-        <Switch checked={g.enabled} onCheckedChange={(v) => set({ enabled: v })} />
+        <Switch checked={g.enabled} disabled={!canEdit} onCheckedChange={(v) => set({ enabled: v })} />
       </div>
       <div className="flex flex-col gap-2">
         <Label>{t.conversionIdLabel}</Label>
@@ -97,6 +99,7 @@ export function AdsSection({ data, setData, t }: SectionProps) {
         </div>
         <Switch
           checked={g.enhancedConversionsEnabled}
+          disabled={!canEdit}
           onCheckedChange={(v) => set({ enhancedConversionsEnabled: v })}
         />
       </div>
@@ -107,7 +110,7 @@ export function AdsSection({ data, setData, t }: SectionProps) {
             <p className="text-sm font-medium text-foreground">{t.gaTitle}</p>
             <p className="text-xs text-muted-foreground">{t.gaDesc}</p>
           </div>
-          <Switch checked={g.gaEnabled} onCheckedChange={(v) => set({ gaEnabled: v })} />
+          <Switch checked={g.gaEnabled} disabled={!canEdit} onCheckedChange={(v) => set({ gaEnabled: v })} />
         </div>
         <div className="mt-3 flex flex-col gap-2">
           <Label>{t.gaMeasurementLabel}</Label>

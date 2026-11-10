@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { toast } from 'sonner'
 import { ImageIcon, Loader2, Upload, X } from 'lucide-react'
 import type { AdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,6 +25,8 @@ export function ImageField({
   size?: number
   t: AdminDictionary['settings']
 }) {
+  const { canWrite } = useAdminI18n()
+  const canEdit = canWrite('settings')
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
@@ -61,7 +64,7 @@ export function ImageField({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || !canEdit}
           aria-label={value ? `${t.imageReplaceAria}: ${label}` : `${t.imageUploadAria}: ${label}`}
           className="group relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-border bg-muted transition-colors hover:border-primary disabled:opacity-60"
           style={{ width: size, height: size }}
@@ -96,13 +99,13 @@ export function ImageField({
               type="button"
               variant="outline"
               size="sm"
-              disabled={uploading}
+              disabled={uploading || !canEdit}
               onClick={() => inputRef.current?.click()}
             >
               {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
               {value ? t.imageReplace : t.imageChooseFile}
             </Button>
-            {value && (
+            {value && canEdit && (
               <Button
                 type="button"
                 variant="ghost"
@@ -118,6 +121,7 @@ export function ImageField({
           <Input
             value={value ?? ''}
             placeholder={t.imageUrlPlaceholder}
+            disabled={!canEdit}
             onChange={(e) => onChange(e.target.value)}
           />
         </div>

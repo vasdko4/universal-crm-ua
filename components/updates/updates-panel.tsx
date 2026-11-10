@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Rocket } from 'lucide-react'
 import { useAdminI18n } from '@/lib/i18n/admin/context'
 import { isNewerVersion } from '@/lib/version'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { triggerSelfUpdate } from '@/app/actions/system-update'
 import { DbSchemaPanel } from '@/components/updates/db-schema-panel'
@@ -21,7 +22,8 @@ export function UpdatesPanel({
   changelogUrl: string
   updaterConfigured: boolean
 }) {
-  const { dict: t } = useAdminI18n()
+  const { dict: t, canWrite } = useAdminI18n()
+  const canEdit = canWrite('system_updates')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [updateStarted, setUpdateStarted] = useState(false)
@@ -49,7 +51,10 @@ export function UpdatesPanel({
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.updates.title}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t.updates.title}</h1>
+          {!canEdit && <Badge variant="secondary">{t.common.readOnly}</Badge>}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">{t.updates.subtitle}</p>
       </div>
 
@@ -112,7 +117,7 @@ export function UpdatesPanel({
                 <RefreshCw className={`size-4 ${isPending ? 'animate-spin' : ''}`} />
                 {t.updates.recheckButton}
               </Button>
-              {hasUpdate && (
+              {hasUpdate && canEdit && (
                 <Button
                   type="button"
                   onClick={handleUpdate}
