@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { LoadingImage } from '@/components/shop/loading-image'
 import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -42,24 +43,16 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
 
   // The src that has actually finished loading. The frame keeps showing
   // the previous photo until the next one arrives (no `key` remount below),
-  // so switching never flashes a spinner — and neighbours are only warmed
-  // up once the current photo is in, so they never steal bandwidth from it
-  // (preloading ALL photos up front is what used to hurt the LCP photo).
+  // so switching never flashes a spinner — and the other photos are only
+  // warmed up once the current photo is in, so they never steal bandwidth
+  // from it (preloading ALL photos up front is what used to hurt the LCP
+  // photo). Warming happens through hidden <Image>s below, with the same
+  // props as the main frame — NOT through `new Image()` on the raw file
+  // URL: for local uploads the frame requests the optimizer URL
+  // `/_next/image?url=…&w=…&q=85`, a different cache entry, so preloading
+  // the raw file warmed nothing and every switch was a ~2s cold
+  // round-trip to the origin.
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null)
-  const galleryRef = useRef(gallery)
-  // Keep the ref fresh without writing it during render (react-hooks/refs).
-  useEffect(() => {
-    galleryRef.current = gallery
-  })
-  useEffect(() => {
-    if (loadedSrc !== current || count < 2 || !current) return
-    const g = galleryRef.current
-    for (const src of [g[(safeActive + 1) % count], g[(safeActive - 1 + count) % count]]) {
-      if (!src) continue
-      const img = new window.Image()
-      img.src = src
-    }
-  }, [loadedSrc, current, safeActive, count])
 
   function goTo(i: number) {
     setActive(((i % count) + count) % count)
@@ -107,10 +100,10 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
 
   return (
     <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
-      {/* Neighbour photos are preloaded only after the current one has
-          loaded (see the loadedSrc effect above) — never all of them up
-          front: on slow connections the hidden full-size images used to
-          compete with the main (LCP) photo for bandwidth. */}
+      {/* The other photos are warmed up only after the current one has
+          loaded (see the hidden <Image>s in the main frame below) — never
+          all of them up front: on slow connections the hidden full-size
+          images used to compete with the main (LCP) photo for bandwidth. */}
       {hasThumbs && (
         <div
           ref={thumbStripRef}
@@ -192,6 +185,33 @@ export function ProductGallery({ images, alt, discount = 0, noPhotoLabel, select
           </button>
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">{noPhotoLabel}</div>
+        )}
+
+        {/* Preload the other photos once the current one is in, so
+            switching is instant. Same <Image> props as the main frame
+            (sizes/quality/unoptimized), so the browser fetches exactly
+            the srcset URL the frame will request for each photo. */}
+        {hasImages && loadedSrc === current && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0"
+          >
+            {gallery.map((src, i) =>
+              i === safeActive ? null : (
+                <div key={src + i} className="relative h-px w-px">
+                  <Image
+                    src={src || '/placeholder.svg'}
+                    alt=""
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    quality={85}
+                    loading="eager"
+                    unoptimized={isProxiedMedia(src)}
+                  />
+                </div>
+              ),
+            )}
+          </div>
         )}
 
         {count > 1 && current && (
