@@ -941,12 +941,40 @@ export function StatsDashboard({
             <div className="flex flex-col gap-3">
               {topPaths.map((p) => (
                 <div key={p.path} className="flex items-center gap-3">
-                  <span
-                    className="min-w-0 basis-2/5 shrink-0 break-all font-mono text-sm text-foreground"
-                    title={p.path}
-                  >
-                    {p.path}
-                  </span>
+                  {p.product ? (
+                    <>
+                      <div className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                        {p.product.image ? (
+                          <Image
+                            src={p.product.image}
+                            alt=""
+                            fill
+                            sizes="40px"
+                            unoptimized={isProxiedMedia(p.product.image)}
+                            className="object-contain p-0.5"
+                          />
+                        ) : (
+                          <Package className="absolute inset-0 m-auto size-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <a
+                        href={p.path}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={p.product.name}
+                        className="min-w-0 basis-2/5 shrink-0 truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+                      >
+                        {p.product.name}
+                      </a>
+                    </>
+                  ) : (
+                    <span
+                      className="min-w-0 basis-2/5 shrink-0 break-all font-mono text-sm text-foreground"
+                      title={p.path}
+                    >
+                      {p.path}
+                    </span>
+                  )}
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-primary"

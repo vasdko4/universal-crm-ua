@@ -1,6 +1,7 @@
 'use server'
 
 import { pool } from '@/lib/db'
+import { extractProductSlug } from '@/lib/shop/product-path'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { assertPermission, assertWritePermission, getAdminUser } from '@/lib/session'
@@ -156,7 +157,12 @@ export type StatsSummary = {
 }
 
 export type TimeseriesPoint = { date: string; pageViews: number; visitors: number; orders: number }
-export type TopPathRow = { path: string; views: number }
+export type TopPathRow = {
+  path: string
+  views: number
+  /** Product behind a /product/<slug> path, if it still exists. */
+  product?: { name: string; image: string | null } | null
+}
 export type ReferrerRow = { source: string; visits: number }
 
 function trend(current: number, previous: number): number | null {
@@ -427,7 +433,35 @@ export async function getTopPaths(
      LIMIT $2`,
     [days, limit, !opts.humansOnly],
   )
-  return res.rows.map((r) => ({ path: r.path, views: r.views }))
+  const rows = res.rows.map((r) => ({ path: r.path as string, views: r.views as number }))
+  // Product pages show as a thumbnail + name + link in the dashboard
+  // instead of the raw slug, so resolve the slugs behind them.
+  const slugs = [
+    ...new Set(rows.map((r) => extractProductSlug(r.path)).filter((s): s is string => s !== null)),
+  ]
+  if (slugs.length === 0) return rows
+  const locale = await adminLocale()
+  const nameExpr =
+    locale === 'ru'
+      ? "COALESCE(NULLIF(name_ru, ''), name_uk)"
+      : "COALESCE(NULLIF(name_uk, ''), name_ru)"
+  const found = await pool.query(
+    `SELECT slug, ${nameExpr} AS name, image
+     FROM products
+     WHERE slug = ANY($1::text[]) AND deleted_at IS NULL`,
+    [slugs],
+  )
+  const bySlug = new Map<string, { name: string; image: string | null }>(
+    found.rows.map((r) => [
+      r.slug as string,
+      { name: (r.name as string) || '', image: (r.image as string) || null },
+    ]),
+  )
+  return rows.map((r) => {
+    const slug = extractProductSlug(r.path)
+    const product = slug ? (bySlug.get(slug) ?? null) : null
+    return { ...r, product: product && product.name ? product : null }
+  })
 }
 
 /* --------------------- Visitor detail: bots vs humans + geo --------------------- */
