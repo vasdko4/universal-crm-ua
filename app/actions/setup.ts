@@ -12,6 +12,7 @@ import { TEMPLATES } from '@/lib/shop/templates'
 import { getLocale } from '@/lib/i18n/server'
 import { getSetupDictionary } from '@/lib/i18n/setup'
 import { authorizeSetupToken, revokeSetupToken } from '@/lib/setup-token'
+import { tryAdvisoryLock, type AdvisoryLock } from '@/lib/db/advisory-lock'
 import { encryptSecret } from '@/lib/secrets'
 
 // Essential operational data every fresh install needs to function: admin/staff
@@ -109,6 +110,13 @@ async function detectSiteUrl(): Promise<string> {
   }
 }
 
+// Advisory-lock namespace for the setup single-flight guard. Shares the
+// 20261111 family with the cron-run locks (lib/cron/with-cron-lock.ts),
+// but the key 'setup' is distinct from every 'cron-run:<id>' key, so the
+// locks never interfere with each other.
+const SETUP_LOCK_NS = 20261111
+const SETUP_LOCK_KEY = 'setup'
+
 export async function runSetup(input: SetupInput) {
   const t = getSetupDictionary(await getLocale())
 
@@ -116,98 +124,129 @@ export async function runSetup(input: SetupInput) {
     return { success: false as const, error: t.errors.setupTokenRequired }
   }
 
-  // Hard guard: setup can only run on a fresh install with no users.
-  const needed = await isSetupNeeded()
-  if (!needed) {
-    return { success: false as const, error: t.errors.alreadyConfigured }
-  }
-
-  const email = input.admin.email.trim().toLowerCase()
-  if (!input.admin.name.trim()) return { success: false as const, error: t.admin.nameRequired }
-  if (!email) return { success: false as const, error: t.errors.emailRequired }
-  if (input.admin.password.length < 8)
-    return { success: false as const, error: t.admin.passwordShort }
-
+  // Single-flight guard (audit P2, 3.4.96): without it, two concurrent
+  // runSetup calls both pass the "no users" check below before either one
+  // creates the admin — with different emails both succeed and the store
+  // ends up with two initial administrators. Token revocation (3.4.95)
+  // does not close this race: it happens at the end of a successful run,
+  // after both requests already passed the check. The advisory lock is
+  // held on a dedicated pool client, so it serializes setup across
+  // processes/instances and correctly spans the Better Auth signUpEmail
+  // call below (which uses its own connection).
+  let lock: AdvisoryLock | null = null
   try {
-    // 1) Seed essential system data (roles / delivery / payment).
-    await pool.query(SYSTEM_SQL)
-
-    // 2) Optionally install the full demo dataset (catalog, sample orders, etc).
-    if (input.installDemo) {
-      try {
-        const seed = readFileSync(join(process.cwd(), 'db', 'seed.sql'), 'utf8')
-        if (seed.trim()) await pool.query(seed)
-        // seed.sql is catalog/orders only — no login accounts. The operator
-        // admin created below is the first (and only) user.
-        // Re-apply migrate.sql so seeded products get slugs / indexes that
-        // the empty-table pass could not backfill.
-        const migrate = readFileSync(join(process.cwd(), 'db', 'migrate.sql'), 'utf8')
-        if (migrate.trim()) await pool.query(migrate)
-      } catch {
-        // Demo data is optional; ignore if the file is missing in this deploy.
-      }
-    }
-
-    // 3) Create the administrator account via Better Auth, then promote it.
-    const auth = await getAuth()
-    await auth.api.signUpEmail({
-      body: { name: input.admin.name.trim(), email, password: input.admin.password },
-    })
-    await pool.query(`UPDATE "user" SET role = 'admin' WHERE email = $1`, [email])
-
-    // 4) Save store settings: name/description, auto-detected domain and SEO.
-    // Written directly with SQL — runSetup is already guarded by isSetupNeeded
-    // above, and the demo seed may add users which would trip other guards.
-    const siteUrl = await detectSiteUrl()
-    const seoJson = JSON.stringify({
-      siteUrl,
-      metaTitle: input.seo.metaTitle.trim(),
-      metaDescription: input.seo.metaDescription.trim(),
-      keywords: '',
-      googleVerification: input.seo.googleVerification.trim(),
-      indexingEnabled: input.seo.indexingEnabled,
-    })
-    // Storefront template: only accept known preset ids.
-    const templateId = TEMPLATES.some((t) => t.id === input.design?.templateId)
-      ? input.design.templateId
-      : 'classic'
-    await pool.query(
-      `INSERT INTO "store_settings" ("id","store_name","store_description","active_template","seo","updated_at")
-       VALUES (1,$1,$2,$3,$4::jsonb,now())
-       ON CONFLICT ("id") DO UPDATE SET
-         "store_name" = EXCLUDED."store_name",
-         "store_description" = EXCLUDED."store_description",
-         "active_template" = EXCLUDED."active_template",
-         "seo" = EXCLUDED."seo",
-         "updated_at" = now()`,
-      [
-        input.store.name.trim() || t.storeDefaultName,
-        input.store.description.trim() || null,
-        templateId,
-        seoJson,
-      ],
-    )
-    revalidateTag('store-settings', 'max')
-    const npKey = input.store.novaPoshtaApiKey.trim()
-    if (npKey) {
-      // SECURITY: encrypt the API key at rest — lib/secrets.ts.
-      await pool.query(
-        `UPDATE "delivery_methods" SET config = jsonb_set(COALESCE(config,'{}'::jsonb), '{apiKey}', to_jsonb($1::text)), is_active = true WHERE code = 'nova_poshta'`,
-        [encryptSecret(npKey)],
-      )
-    }
-
-    revalidatePath('/', 'layout')
-    // Setup is complete: the first admin exists, so the install token has
-    // served its purpose. Revoke it now — a token that leaked during the
-    // install window must not stay valid forever. Success path only: a
-    // failed setup leaves the token in place so the operator can retry.
-    revokeSetupToken()
-    return { success: true as const }
+    lock = await tryAdvisoryLock(SETUP_LOCK_NS, SETUP_LOCK_KEY)
   } catch (e) {
+    // The database is unreachable: setup cannot proceed at all. Return an
+    // error, never throw — the wizard renders the message.
     return {
       success: false as const,
       error: e instanceof Error ? e.message : t.nav.setupFailed,
     }
+  }
+  if (!lock) {
+    return { success: false as const, error: t.errors.setupInProgress }
+  }
+
+  try {
+    // Hard guard: setup can only run on a fresh install with no users.
+    // Checked under the lock: a concurrent runSetup that already created
+    // the admin makes this return false here, so the second caller stops
+    // instead of creating a second admin.
+    const needed = await isSetupNeeded()
+    if (!needed) {
+      return { success: false as const, error: t.errors.alreadyConfigured }
+    }
+
+    const email = input.admin.email.trim().toLowerCase()
+    if (!input.admin.name.trim()) return { success: false as const, error: t.admin.nameRequired }
+    if (!email) return { success: false as const, error: t.errors.emailRequired }
+    if (input.admin.password.length < 8)
+      return { success: false as const, error: t.admin.passwordShort }
+
+    try {
+      // 1) Seed essential system data (roles / delivery / payment).
+      await pool.query(SYSTEM_SQL)
+
+      // 2) Optionally install the full demo dataset (catalog, sample orders, etc).
+      if (input.installDemo) {
+        try {
+          const seed = readFileSync(join(process.cwd(), 'db', 'seed.sql'), 'utf8')
+          if (seed.trim()) await pool.query(seed)
+          // seed.sql is catalog/orders only — no login accounts. The operator
+          // admin created below is the first (and only) user.
+          // Re-apply migrate.sql so seeded products get slugs / indexes that
+          // the empty-table pass could not backfill.
+          const migrate = readFileSync(join(process.cwd(), 'db', 'migrate.sql'), 'utf8')
+          if (migrate.trim()) await pool.query(migrate)
+        } catch {
+          // Demo data is optional; ignore if the file is missing in this deploy.
+        }
+      }
+
+      // 3) Create the administrator account via Better Auth, then promote it.
+      const auth = await getAuth()
+      await auth.api.signUpEmail({
+        body: { name: input.admin.name.trim(), email, password: input.admin.password },
+      })
+      await pool.query(`UPDATE "user" SET role = 'admin' WHERE email = $1`, [email])
+
+      // 4) Save store settings: name/description, auto-detected domain and SEO.
+      // Written directly with SQL — runSetup is already guarded by isSetupNeeded
+      // above, and the demo seed may add users which would trip other guards.
+      const siteUrl = await detectSiteUrl()
+      const seoJson = JSON.stringify({
+        siteUrl,
+        metaTitle: input.seo.metaTitle.trim(),
+        metaDescription: input.seo.metaDescription.trim(),
+        keywords: '',
+        googleVerification: input.seo.googleVerification.trim(),
+        indexingEnabled: input.seo.indexingEnabled,
+      })
+      // Storefront template: only accept known preset ids.
+      const templateId = TEMPLATES.some((t) => t.id === input.design?.templateId)
+        ? input.design.templateId
+        : 'classic'
+      await pool.query(
+        `INSERT INTO "store_settings" ("id","store_name","store_description","active_template","seo","updated_at")
+         VALUES (1,$1,$2,$3,$4::jsonb,now())
+         ON CONFLICT ("id") DO UPDATE SET
+           "store_name" = EXCLUDED."store_name",
+           "store_description" = EXCLUDED."store_description",
+           "active_template" = EXCLUDED."active_template",
+           "seo" = EXCLUDED."seo",
+           "updated_at" = now()`,
+        [
+          input.store.name.trim() || t.storeDefaultName,
+          input.store.description.trim() || null,
+          templateId,
+          seoJson,
+        ],
+      )
+      revalidateTag('store-settings', 'max')
+      const npKey = input.store.novaPoshtaApiKey.trim()
+      if (npKey) {
+        // SECURITY: encrypt the API key at rest — lib/secrets.ts.
+        await pool.query(
+          `UPDATE "delivery_methods" SET config = jsonb_set(COALESCE(config,'{}'::jsonb), '{apiKey}', to_jsonb($1::text)), is_active = true WHERE code = 'nova_poshta'`,
+          [encryptSecret(npKey)],
+        )
+      }
+
+      revalidatePath('/', 'layout')
+      // Setup is complete: the first admin exists, so the install token has
+      // served its purpose. Revoke it now — a token that leaked during the
+      // install window must not stay valid forever. Success path only: a
+      // failed setup leaves the token in place so the operator can retry.
+      revokeSetupToken()
+      return { success: true as const }
+    } catch (e) {
+      return {
+        success: false as const,
+        error: e instanceof Error ? e.message : t.nav.setupFailed,
+      }
+    }
+  } finally {
+    await lock.release()
   }
 }

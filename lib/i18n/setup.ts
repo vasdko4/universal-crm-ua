@@ -113,6 +113,7 @@ export type SetupDictionary = {
   }
   errors: {
     alreadyConfigured: string
+    setupInProgress: string
     emailRequired: string
     alreadyInstalled: string
     setupTokenRequired: string
@@ -269,6 +270,7 @@ const uk: SetupDictionary = {
   },
   errors: {
     alreadyConfigured: 'Магазин уже налаштований',
+    setupInProgress: 'Встановлення вже виконується. Зачекайте кілька секунд і спробуйте знову.',
     emailRequired: 'Вкажіть email',
     alreadyInstalled:
       'Встановлення вже виконано. Підключення до БД змінюється через .env.local на сервері.',
@@ -441,6 +443,7 @@ const ru: SetupDictionary = {
   },
   errors: {
     alreadyConfigured: 'Магазин уже настроен',
+    setupInProgress: 'Установка уже выполняется. Подождите несколько секунд и попробуйте снова.',
     emailRequired: 'Укажите email',
     alreadyInstalled:
       'Установка уже выполнена. Подключение к БД меняется через .env.local на сервере.',

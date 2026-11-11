@@ -1,7 +1,10 @@
 /**
  * Applies db/schema.sql, then db/migrate.sql, and (optionally) db/seed.sql to
  * the database pointed to by DATABASE_URL. No `psql` binary required — uses
- * the `pg` driver.
+ * the `pg` driver. Finally it stamps the migration-version marker
+ * (schema_migrations id = 1) with the sha256 of db/migrate.sql, so the admin
+ * "Check DB version" panel and the backup manifest see the database as up
+ * to date.
  *
  * This runs on every container start (see the "app" service command in
  * docker-compose.yml), including the auto-update sidecar's "recreate
@@ -27,6 +30,7 @@
  *   node --env-file=.env.local scripts/db-setup.mjs --seed   # schema + migrations + demo data
  *   node --env-file=.env.local scripts/db-setup.mjs --reset  # drop public schema first
  */
+import { createHash } from 'node:crypto'
 import { Pool } from 'pg'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -80,6 +84,34 @@ async function run(label, sql) {
   console.log('ok')
 }
 
+/**
+ * sha256 of db/migrate.sql, exactly as lib/db/migrate-runner.ts
+ * migrationSqlHash() computes it: that function hashes the *bundle*
+ * (lib/db/migrate-bundle.ts), and the bundle is generated from
+ * db/migrate.sql with CRLF → LF normalization
+ * (scripts/sync-migrate-bundle.mjs). Hashing the raw file bytes would
+ * write a non-matching hash on a CRLF checkout, and the admin panel
+ * would keep reporting "migration available" forever.
+ */
+function migrationSqlHash() {
+  const sql = readFileSync(join(root, 'db', 'migrate.sql'), 'utf8').replace(/\r\n/g, '\n')
+  return createHash('sha256').update(sql, 'utf8').digest('hex')
+}
+
+async function stampMigrationMarker() {
+  process.stdout.write('→ stamping migration marker... ')
+  // Same statement as applyMigrations() in lib/db/migrate-runner.ts.
+  // migrate.sql itself creates the table, so by this point it exists.
+  await pool.query(
+    `INSERT INTO public.schema_migrations (id, migrate_sql_sha256, applied_at)
+     VALUES (1, $1, now())
+     ON CONFLICT (id) DO UPDATE
+     SET migrate_sql_sha256 = EXCLUDED.migrate_sql_sha256, applied_at = now()`,
+    [migrationSqlHash()],
+  )
+  console.log('ok')
+}
+
 async function main() {
   try {
     if (reset) {
@@ -93,6 +125,14 @@ async function main() {
       // `UPDATE ... WHERE slug IS NULL` only ran on the empty table above.
       await run('re-applying migrate.sql after seed', readFileSync(join(root, 'db/migrate.sql'), 'utf8'))
     }
+    // Stamp the migration-version marker (audit P2, 3.4.96): the admin
+    // "Check DB version" panel — and the backup manifest — treat only a
+    // matching schema_migrations.id = 1 row as "up to date". Only
+    // applyMigrations() used to write it, so a normal db:setup install
+    // permanently showed "migration available" — including on the VPS,
+    // where this script runs on every container start. Must run after the
+    // FINAL migrate.sql application, including the post-seed re-apply.
+    await stampMigrationMarker()
     console.log('\n✓ Database ready.')
     if (withSeed) {
       console.log('  Demo catalog loaded (no login accounts).')

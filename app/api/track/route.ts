@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { trackEvent } from '@/app/actions/analytics'
 import { readJson } from '@/lib/api/helpers'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
+import { isValidTrackPath } from '@/lib/analytics/track-validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,12 @@ export async function POST(req: NextRequest) {
 
   if (typeof body.type !== 'string') {
     return NextResponse.json({ success: false, error: 'type is required' }, { status: 400 })
+  }
+
+  // Shop pathnames always start with '/'; anything else (absolute URL,
+  // garbage) is a forgery attempt aimed at the top-paths report.
+  if (typeof body.path === 'string' && !isValidTrackPath(body.path)) {
+    return NextResponse.json({ success: false, error: 'Invalid path' }, { status: 400 })
   }
 
   // Client events never carry order/amount data — those are written server-side.

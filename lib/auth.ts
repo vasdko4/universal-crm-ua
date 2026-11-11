@@ -16,9 +16,9 @@ import { buildPasswordResetMail } from '@/lib/shop/auth-emails'
  * headers. The TRUSTED_PROXIES env override wins; the default covers the
  * deployments we run.
  *
- * The container's only ingress is the Docker-mapped port, so the TCP peer
- * the app ever sees on the VPS is a Docker bridge gateway (172.16.0.0/12) —
- * a real client can never be the peer here, so trusting that range cannot
+ * The app port is bound to loopback only (docker-compose.yml), so the TCP
+ * peer the app ever sees on the VPS is a Docker bridge gateway (172.16.0.0/12)
+ * — a real client can never be the peer here, so trusting that range cannot
  * mistake a client for a proxy. On Vercel/dev the peer is never in this
  * range, so the entry is inert there. Without it the XFF walk has no
  * trusted peer at all and every visitor shares one rate-limit counter.
@@ -39,13 +39,14 @@ export function trustedAuthProxies(): string[] {
 // Better Auth reads the first header carrying a valid address, so this
 // order IS the trust order. cf-connecting-ip comes first: Cloudflare
 // overwrites any client-sent value with the real TCP source, so it is
-// trustworthy — but ONLY because the origin is reachable solely via
-// Cloudflare (the same assumption clientIpFromHeaders in
-// lib/api/rate-limit.ts relies on, gated there on cf-ray). Direct origin
-// access must stay blocked: if the origin ever becomes directly reachable,
-// a client could spoof this header. The rest are fallbacks for Vercel
-// (x-vercel-forwarded-for) and dev (x-real-ip / x-forwarded-for, walked
-// with trustedProxies — never trusted blindly).
+// trustworthy — and the origin is reachable only via the loopback-bound
+// port (docker-compose.yml), so a client cannot reach the app directly to
+// spoof it. The rest are fallbacks for Vercel (x-vercel-forwarded-for)
+// and dev (x-real-ip / x-forwarded-for, walked with trustedProxies —
+// never trusted blindly). Note this list is Better Auth's own IP
+// resolution; the rate limiter and session binding use clientIpFromHeaders
+// (lib/api/rate-limit.ts), which additionally refuses x-real-ip outright
+// and gates x-vercel-forwarded-for on VERCEL=1.
 export const AUTH_IP_ADDRESS_HEADERS: string[] = [
   'cf-connecting-ip',
   'x-vercel-forwarded-for',

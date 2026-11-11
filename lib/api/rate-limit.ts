@@ -12,8 +12,16 @@ import { pool } from '@/lib/db'
  *   3. Process memory, only if both shared stores fail — still better than
  *      no limit, but not multi-instance safe
  *
- * `x-forwarded-for` is trivially spoofable. Prefer the platform-provided
- * client IP (Vercel), then X-Real-IP, then the last XFF hop.
+ * Client-IP resolution (`clientIpFromHeaders`) trusts only headers a proxy
+ * in our chain sets authoritatively: Cloudflare's cf-connecting-ip (only
+ * when cf-ray proves the request came through Cloudflare) and Vercel's
+ * x-vercel-forwarded-for (only when actually running on Vercel, VERCEL=1).
+ * `x-real-ip` is never trusted — no proxy in the chain sets it, so it is
+ * purely client-controlled. Otherwise the last X-Forwarded-For hop is used:
+ * the proxy appends the address it actually saw, so the first hop
+ * (client-controlled) can never mint a fresh rate-limit bucket. This holds
+ * even with direct origin access: a spoofed header can only fall through
+ * to the last XFF hop or 'unknown'.
  */
 
 type Bucket = { count: number; resetAt: number }
@@ -39,8 +47,12 @@ function isValidIp(value: string): boolean {
 }
 
 export function clientIpFromHeaders(h: { get(name: string): string | null }): string {
-  const vercel = h.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
-  if (vercel) return vercel
+  // Vercel only: the platform sets VERCEL=1 and overwrites this header
+  // itself. Anywhere else the header is client-controlled, so it is ignored.
+  if (process.env.VERCEL === '1') {
+    const vercel = h.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
+    if (vercel && isValidIp(vercel)) return vercel
+  }
   // Cloudflare fast path. Behind Cloudflare, x-forwarded-for ends with a
   // Cloudflare edge IP (the last hop is the edge, not the shopper), so
   // every visitor used to share a handful of edge IPs: rate-limit buckets
@@ -49,17 +61,19 @@ export function clientIpFromHeaders(h: { get(name: string): string | null }): st
   // overwrites cf-connecting-ip with the real client IP, so it is trusted
   // ONLY when cf-ray is present — that header is set by Cloudflare itself
   // and proves the request actually came through the proxy. Without cf-ray
-  // a directly-sent cf-connecting-ip is ignored as spoofed. This assumes
-  // the origin is reachable only via Cloudflare (the production setup).
+  // a directly-sent cf-connecting-ip is ignored as spoofed.
   const cfRay = h.get('cf-ray')?.trim()
   const cfIp = h.get('cf-connecting-ip')?.trim()
   if (cfRay && cfIp && isValidIp(cfIp)) return cfIp
-  const real = h.get('x-real-ip')?.trim()
-  if (real) return real
-  // nginx `$proxy_add_x_forwarded_for` prepends the caller, so the last hop
-  // is the address the proxy actually saw. The first hop is client-controlled.
+  // x-real-ip is deliberately NOT trusted: neither Cloudflare nor Caddy
+  // sets it authoritatively (Caddy passes a client-sent value through
+  // unchanged), so it is purely client-controlled.
+  // XFF last hop: the proxy appends the address it actually saw, so the
+  // first hop (client-controlled) can never mint a fresh bucket. Validated
+  // — garbage never becomes a rate-limit key.
   const forwarded = lastForwardedHop(h.get('x-forwarded-for'))
-  return forwarded || 'unknown'
+  if (forwarded && isValidIp(forwarded)) return forwarded
+  return 'unknown'
 }
 
 /** Higher ceiling when the IP cannot be resolved, so shoppers sharing

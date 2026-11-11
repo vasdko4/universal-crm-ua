@@ -620,6 +620,10 @@ export function StatsDashboard({
                   {t.statistics.funnelDepthLabel}: {summary.productViewsPerVisitor.toFixed(1)} ·{' '}
                   <span className="opacity-80">{t.statistics.funnelDepthHint}</span>
                 </p>
+                {/* Traffic, funnel and conversion come from client-side
+                    browser events (forgeable, no session→order link), so the
+                    numbers are approximate, not audited. */}
+                <p title={t.statistics.statsApproximateNote}>{t.statistics.statsApproximateNote}</p>
               </div>
             </div>
           </div>

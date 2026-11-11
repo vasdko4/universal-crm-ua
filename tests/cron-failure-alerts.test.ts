@@ -27,7 +27,10 @@ describe('cron failure alerts (second code review)', () => {
     const start = src.indexOf('export async function getProductAnalytics')
     expect(start).toBeGreaterThan(-1)
     const fn = src.slice(start, src.indexOf('\nexport async function', start + 10))
-    expect(fn).toContain("AND o.status NOT IN ('cancelled', 'pending_payment')")
+    // Audit P1, 3.4.96: the literal predicate moved into the shared
+    // financialOrdersWhere() helper, which keeps this exclusion and
+    // additionally drops fully-refunded orders.
+    expect(fn).toContain("AND ${financialOrdersWhere('o')}")
     // The old predicate survives only inside the BUGFIX comment, never as code.
     expect(fn).not.toContain("AND o.status <> 'cancelled'")
   })

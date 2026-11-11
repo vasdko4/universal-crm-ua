@@ -7,6 +7,7 @@ import {
   orders,
   orderItems,
   orderHistory,
+  payments,
   products,
   productVariants,
   customers,
@@ -621,6 +622,25 @@ export async function updateOrderPayment(id: number, paymentStatus: string): Pro
       // is idempotent via claim; cancelled orders already restored at cancel).
       if (current.status !== 'cancelled') {
         await restoreStockOnce(id, client)
+      }
+      // BUGFIX (audit P1, 3.4.96): stamp the refunded amount on the payment
+      // row, like the gateway/admin refund paths do (finalizeRefundReserve).
+      // Analytics nets order revenue by payments.refunded_amount — without
+      // this stamp a manually marked refund kept its full total in every
+      // report while orders.payment_status said 'refunded'. Cash-on-delivery
+      // orders never create a payment row, so there is nothing to stamp
+      // there; those orders are still excluded from financial reports by
+      // the payment_status predicate.
+      const [payment] = await tx
+        .select({ amount: payments.amount })
+        .from(payments)
+        .where(eq(payments.orderReference, current.orderNumber))
+        .limit(1)
+      if (payment) {
+        await tx
+          .update(payments)
+          .set({ refundedAmount: payment.amount, updatedAt: new Date() })
+          .where(eq(payments.orderReference, current.orderNumber))
       }
     }
     return {

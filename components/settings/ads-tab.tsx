@@ -120,6 +120,11 @@ export function AdsSection({ data, setData, t }: SectionProps) {
             onChange={(e) => set({ gaMeasurementId: e.target.value })}
           />
           <p className="text-xs text-muted-foreground">{t.gaHint}</p>
+          {/* Audit P2 (3.4.96): the server-side GA4 purchase (Measurement
+              Protocol) is NOT deduplicated against this browser pixel — with
+              GA4_MEASUREMENT_ID / GA4_API_SECRET set on the server, every
+              purchase counts twice until the dedup design lands. */}
+          <p className="text-xs text-amber-700 dark:text-amber-400">{t.gaDoubleCountWarning}</p>
         </div>
       </div>
 

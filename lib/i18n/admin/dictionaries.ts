@@ -691,6 +691,7 @@ export type AdminDictionary = {
     gaDesc: string
     gaMeasurementLabel: string
     gaHint: string
+    gaDoubleCountWarning: string
     enhancedConvTitle: string
     enhancedConvDesc: string
     merchantTitle: string
@@ -1086,6 +1087,7 @@ export type AdminDictionary = {
     funnelDepthHint: string
     conversionOverallPrefix: string
     conversionCartPrefix: string
+    statsApproximateNote: string
     orderStatusesTitle: string
     noOrdersPeriod: string
     topProductsTitle: string
@@ -2714,6 +2716,8 @@ const uk: AdminDictionary = {
     gaDesc: 'Перегляди сторінок, товарів, додавання в кошик, покупки — воронка продажів прямо в GA4',
     gaMeasurementLabel: 'Measurement ID',
     gaHint: 'Знайдіть у Google Analytics: Адміністратор → Потоки даних → ваш веб-потік.',
+    gaDoubleCountWarning:
+      'Увага: якщо на сервері задано GA4_MEASUREMENT_ID і GA4_API_SECRET, покупки рахуватимуться двічі — браузерний піксель і серверний Measurement Protocol не дедуплікуються. Не вмикайте серверну відправку без дизайну дедуплікації (client_id браузера + transaction_id).',
     enhancedConvTitle: 'Enhanced Conversions',
     enhancedConvDesc:
       'Надсилає захешований email/телефон покупця разом із конверсією покупки — Google точніше зіставляє конверсії з обліковими записами та краще оптимізує ставки. Працює лише разом із конверсією вище.',
@@ -3116,6 +3120,8 @@ const uk: AdminDictionary = {
     funnelDepthHint: 'Глибина перегляду, а не конверсія',
     conversionOverallPrefix: 'Загальна конверсія відвідувача в сплачене замовлення',
     conversionCartPrefix: 'Конверсія кошика в замовлення',
+    statsApproximateNote:
+      'Орієнтовно: трафік, воронка та конверсія рахуються з подій браузера і не є перевіреними даними.',
     orderStatusesTitle: 'Статуси замовлень',
     noOrdersPeriod: 'Немає замовлень за період',
     topProductsTitle: 'Топ товарів за період',
@@ -4753,6 +4759,8 @@ const ru: AdminDictionary = {
     gaDesc: 'Просмотры страниц, товаров, добавления в корзину, покупки — воронка продаж прямо в GA4',
     gaMeasurementLabel: 'Measurement ID',
     gaHint: 'Найдите в Google Analytics: Администратор → Потоки данных → ваш веб-поток.',
+    gaDoubleCountWarning:
+      'Внимание: если на сервере заданы GA4_MEASUREMENT_ID и GA4_API_SECRET, покупки будут считаться дважды — браузерный пиксель и серверный Measurement Protocol не дедуплицируются. Не включайте серверную отправку без дизайна дедупликации (client_id браузера + transaction_id).',
     enhancedConvTitle: 'Enhanced Conversions',
     enhancedConvDesc:
       'Отправляет захешированный email/телефон покупателя вместе с конверсией покупки — Google точнее сопоставляет конверсии с аккаунтами и лучше оптимизирует ставки. Работает только вместе с конверсией выше.',
@@ -5155,6 +5163,8 @@ const ru: AdminDictionary = {
     funnelDepthHint: 'Глубина просмотра, а не конверсия',
     conversionOverallPrefix: 'Общая конверсия посетителя в оплаченный заказ',
     conversionCartPrefix: 'Конверсия корзины в заказ',
+    statsApproximateNote:
+      'Ориентировочно: трафик, воронка и конверсия считаются по событиям браузера и не являются проверенными данными.',
     orderStatusesTitle: 'Статусы заказов',
     noOrdersPeriod: 'Нет заказов за период',
     topProductsTitle: 'Топ товаров за период',

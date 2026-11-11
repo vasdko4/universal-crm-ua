@@ -1194,28 +1194,15 @@ export async function markOrderPaid(_orderNumber: string) {
 // still a high-entropy capability (see lib/orders/order-number.ts), but the
 // page also leaks PII (phone, email, address). Require the shopper who just
 // checked out (pf_last_order cookie) or the logged-in owner. Rate-limit
-// leftover guesses.
-const ORDER_LOOKUP_WINDOW_MS = 60_000
-const ORDER_LOOKUP_MAX_PER_WINDOW = 20
-const orderLookupHits = new Map<string, { count: number; resetAt: number }>()
-
-async function isOrderLookupRateLimited(): Promise<boolean> {
-  const ip = clientIpFromHeaders(await headers())
-  const now = Date.now()
-  const entry = orderLookupHits.get(ip)
-  if (!entry || now > entry.resetAt) {
-    orderLookupHits.set(ip, { count: 1, resetAt: now + ORDER_LOOKUP_WINDOW_MS })
-    if (orderLookupHits.size > 10_000) {
-      for (const [k, v] of orderLookupHits) if (now > v.resetAt) orderLookupHits.delete(k)
-    }
-    return false
-  }
-  entry.count++
-  return entry.count > ORDER_LOOKUP_MAX_PER_WINDOW
-}
+// leftover guesses with the shared limiter (audit: lookup limiter, 3.4.96):
+// the previous in-process Map was keyed by a spoofable header value, grew
+// without bound, and ran a full-map sweep on every insert past 10k entries.
+// The shared limiter is Postgres-backed on prod, so buckets live in the
+// rate_limits table (pruned daily by analytics-retention) and expired keys
+// are reused by the upsert instead of accumulating.
 
 export async function getOrderByNumber(orderNumber: string) {
-  if (await isOrderLookupRateLimited()) return null
+  if (await isRateLimited('order-lookup', await actionClientIp(), 20)) return null
   const [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1)
   if (!order) return null
   if (!(await canAccessGuestOrder(order))) return null

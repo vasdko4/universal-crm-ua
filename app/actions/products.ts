@@ -883,34 +883,40 @@ export async function updateProductStock(id: number, quantity: number) {
   const { skipped } = await splitVariantProducts([id])
   if (skipped) return { success: false, error: t.errVariantMatrixStock }
   const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
-  // Absolute set in ONE statement — no stale read, no lost update. Two
-  // admins setting 15 from a base of 10 both end at 15 (last write wins on
-  // the absolute value), never 20. The ledger records the ACTUAL delta.
+  // Lock-then-update in TWO statements: SELECT ... FOR UPDATE first, so
+  // qty_before is the true "before" even when a concurrent transaction
+  // commits between our read and our update. The old single-statement CTE
+  // read qty_before from the statement-start snapshot while EvalPlanQual
+  // applied the UPDATE on the newest row version, so the ledger delta could
+  // exceed the actual change (two +5 adjusts from 10 wrote deltas +5 and
+  // +10, summing to +15 for a +10 stock move). A SELECT ... FOR UPDATE that
+  // blocks returns the newest committed version after the locker commits.
+  // (Do NOT move the FOR UPDATE into the CTE: CTE evaluation order is
+  // unpredictable and the CTE would still see the pre-statement snapshot.)
   const changed = await withDbClient(async (client) => {
-    const res = await client.query<{ id: number; qty_after: number; qty_before: number }>(
-      `WITH target AS (
-         SELECT id, quantity AS qty_before FROM products WHERE id = $1
-       ),
-       upd AS (
-         UPDATE products p SET
-           quantity = $2,
-           is_in_stock = $2 > 0,
-           stock_status = CASE
-             WHEN $2 = 0 THEN 'Немає в наявності'
-             WHEN p.stock_status = 'Немає в наявності' THEN 'В наявності'
-             ELSE p.stock_status
-           END,
-           updated_at = NOW()
-         WHERE p.id = $1
-         RETURNING p.id, p.quantity AS qty_after
-       )
-       SELECT upd.id, upd.qty_after, target.qty_before
-       FROM upd JOIN target ON target.id = upd.id`,
+    const locked = await client.query<{ id: number; quantity: number }>(
+      'SELECT id, quantity FROM products WHERE id = $1 FOR UPDATE',
+      [id],
+    )
+    if (locked.rows.length === 0) return null
+    const qtyBefore = Number(locked.rows[0].quantity)
+    const res = await client.query<{ id: number; qty_after: number }>(
+      `UPDATE products p SET
+         quantity = $2,
+         is_in_stock = $2 > 0,
+         stock_status = CASE
+           WHEN $2 = 0 THEN 'Немає в наявності'
+           WHEN p.stock_status = 'Немає в наявності' THEN 'В наявності'
+           ELSE p.stock_status
+         END,
+         updated_at = NOW()
+       WHERE p.id = $1
+       RETURNING p.id, p.quantity AS qty_after`,
       [id, qty],
     )
     if (res.rows.length === 0) return null
     const row = res.rows[0]
-    const actualDelta = Number(row.qty_after) - Number(row.qty_before)
+    const actualDelta = Number(row.qty_after) - qtyBefore
     if (actualDelta !== 0) {
       await recordStockMovement(
         {
@@ -974,29 +980,39 @@ export async function bulkAdjustProductStock(ids: number[], delta: number, reaso
       // GREATEST(0, …) clamped the result — record the ACTUAL delta. Also
       // keeps the stock_status text consistent (was stuck on 'В наявності'
       // after the stock hit zero).
-      const res = await client.query<{ id: number; qty_after: number; qty_before: number }>(
-        `WITH target AS (
-           SELECT id, quantity AS qty_before FROM products WHERE id = ANY($2::int[])
-         ),
-         upd AS (
-           UPDATE products p SET
-             quantity = GREATEST(0, p.quantity + $1),
-             is_in_stock = GREATEST(0, p.quantity + $1) > 0,
-             stock_status = CASE
-               WHEN GREATEST(0, p.quantity + $1) = 0 THEN 'Немає в наявності'
-               WHEN p.stock_status = 'Немає в наявності' THEN 'В наявності'
-               ELSE p.stock_status
-             END,
-             updated_at = NOW()
-           WHERE p.id = ANY($2::int[])
-           RETURNING p.id, p.quantity AS qty_after
-         )
-         SELECT upd.id, upd.qty_after, target.qty_before
-         FROM upd JOIN target ON target.id = upd.id`,
+      // Lock-then-update (audit P2, 3.4.96): SELECT ... FOR UPDATE first —
+      // the old single-statement CTE read qty_before from the
+      // statement-start snapshot while EvalPlanQual applied the UPDATE on
+      // the newest row version, so concurrent adjusts wrote inflated ledger
+      // deltas. ORDER BY id locks the set in a deterministic order, so two
+      // overlapping bulk adjusts cannot deadlock each other.
+      const locked = await client.query<{ id: number; quantity: number }>(
+        'SELECT id, quantity FROM products WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE',
+        [plain],
+      )
+      const qtyBeforeById = new Map(locked.rows.map((r) => [Number(r.id), Number(r.quantity)]))
+      const res = await client.query<{ id: number; qty_after: number }>(
+        `UPDATE products p SET
+           quantity = GREATEST(0, p.quantity + $1),
+           is_in_stock = GREATEST(0, p.quantity + $1) > 0,
+           stock_status = CASE
+             WHEN GREATEST(0, p.quantity + $1) = 0 THEN 'Немає в наявності'
+             WHEN p.stock_status = 'Немає в наявності' THEN 'В наявності'
+             ELSE p.stock_status
+           END,
+           updated_at = NOW()
+         WHERE p.id = ANY($2::int[])
+         RETURNING p.id, p.quantity AS qty_after`,
         [d, plain],
       )
       for (const row of res.rows) {
-        const actualDelta = Number(row.qty_after) - Number(row.qty_before)
+        const qtyBefore = qtyBeforeById.get(Number(row.id))
+        if (qtyBefore === undefined) {
+          // Unreachable: the UPDATE covers exactly the locked set in the
+          // same transaction. Fail loudly instead of writing a wrong delta.
+          throw new Error(`Stock ledger: no locked row for updated product ${Number(row.id)}`)
+        }
+        const actualDelta = Number(row.qty_after) - qtyBefore
         await recordStockMovement(
           {
             productId: Number(row.id),

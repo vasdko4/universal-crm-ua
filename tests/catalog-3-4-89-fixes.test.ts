@@ -125,11 +125,17 @@ describe('catalog 3.4.89 structural checks', () => {
     expect(products).toContain('MONEY_10_3_MAX')
   })
 
-  it('products: stock is set absolutely in one statement (no stale-read delta)', () => {
+  it('products: stock lock-then-update records the true delta (no stale-read delta)', () => {
     const products = source('app/actions/products.ts')
     expect(products).not.toContain('bulkAdjustProductStock([id], delta,')
-    expect(products).toContain('WITH target AS')
-    expect(products).toContain('qty_before')
+    // Lock-then-update (audit P2, 3.4.96): the old single-statement CTE read
+    // qty_before from the statement-start snapshot while EvalPlanQual applied
+    // the UPDATE on the newest row version, so concurrent adjusts wrote
+    // inflated ledger deltas. The row is now locked before the UPDATE.
+    expect(products).not.toContain('WITH target AS')
+    expect(products).not.toContain('SELECT id, quantity AS qty_before')
+    expect(products).toContain('SELECT id, quantity FROM products WHERE id = $1 FOR UPDATE')
+    expect(products).toContain('ORDER BY id FOR UPDATE')
     expect(products).toContain('Категорію #${categoryId} не знайдено')
   })
 

@@ -23,11 +23,20 @@ const OUTBOX_DEAD_RETENTION_DAYS = 90
 const GEO_CACHE_RETENTION_DAYS = 90
 
 /**
+ * rate_limits rows are keyed by scope:ip and are reused by the limiter's
+ * upsert once their window expires — but nothing ever deleted them, so a
+ * distinct spoofed key per request would accumulate as a small row on disk
+ * forever (audit: lookup limiter, 3.4.96). Windows are at most minutes
+ * long, so a 1-day grace is far past any live bucket.
+ */
+const RATE_LIMITS_RETENTION_DAYS = 1
+
+/**
  * Drops storefront analytics_events older than 90 days so `/api/track`
  * cannot grow the table without bound (FIX-32). Also prunes the
  * notification_outbox terminal rows (sent/dead — the retry worker never
- * reads them again) and stale geo_cache rows, so neither table grows
- * without bound either.
+ * reads them again), stale geo_cache rows, and expired rate_limits buckets,
+ * so no table grows without bound either.
  */
 export async function GET(req: NextRequest) {
   const auth = authorizeCronRequest(process.env.CRON_SECRET, req.headers.get('authorization'))
@@ -75,6 +84,14 @@ export async function GET(req: NextRequest) {
        WHERE resolved_at < NOW() - ($1::text || ' days')::interval`,
         [String(GEO_CACHE_RETENTION_DAYS)],
       )
+      // Expired rate-limit buckets: the limiter's upsert reuses a key once
+      // its window passes, but keys that are never seen again would sit in
+      // the table forever. Same style as the geo_cache prune above.
+      const rateLimits = await pool.query(
+        `DELETE FROM rate_limits
+       WHERE reset_at < NOW() - ($1::text || ' days')::interval`,
+        [String(RATE_LIMITS_RETENTION_DAYS)],
+      )
       await recordCronRun('analytics-retention', 'ok')
       return NextResponse.json({
         ok: true,
@@ -82,6 +99,7 @@ export async function GET(req: NextRequest) {
         deletedOutboxSent: outboxSent.rowCount ?? 0,
         deletedOutboxDead: outboxDead.rowCount ?? 0,
         deletedGeoCache: geoCache.rowCount ?? 0,
+        deletedRateLimits: rateLimits.rowCount ?? 0,
       })
     } catch (e) {
       await recordCronRun('analytics-retention', 'error', (e as Error).message)

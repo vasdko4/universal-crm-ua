@@ -32,7 +32,11 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      # Loopback only — do not publish the app on 0.0.0.0. The origin must
+      # never be directly reachable: Caddy (or an external reverse proxy on
+      # localhost) is the only ingress, so forwarded headers cannot be
+      # spoofed by a direct request to :3000. Same rule as Postgres above.
+      - "127.0.0.1:3000:3000"
     volumes:
       # Persist admin-uploaded product photos across restarts/rebuilds.
       # Only used when BLOB_READ_WRITE_TOKEN is unset (the default for

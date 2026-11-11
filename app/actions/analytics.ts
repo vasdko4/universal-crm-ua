@@ -7,6 +7,7 @@ import { headers } from 'next/headers'
 import { assertPermission, assertWritePermission, getAdminUser } from '@/lib/session'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { detectBot, botName, resolveVisitorGeo } from '@/lib/analytics/visitor'
+import { isValidTrackPath, normalizeTrackReferrer } from '@/lib/analytics/track-validation'
 import { hasPermission } from '@/lib/permissions'
 import type { Locale } from '@/lib/i18n/config'
 import {
@@ -25,6 +26,11 @@ import {
 import { getStoreSettingsInternal, normalizeAdsSpend } from '@/lib/store-settings'
 import { normDays, normLimit } from '@/lib/api/helpers'
 import { auditLog } from '@/lib/audit-log'
+import {
+  financialOrdersWhere,
+  financialPaymentsJoin,
+  netOrderTotal,
+} from '@/lib/analytics/financial'
 
 async function adminLocale(): Promise<Locale> {
   const user = await getAdminUser()
@@ -88,7 +94,9 @@ export async function getBestsellers(limit = 20): Promise<BestsellerRow[]> {
      LEFT JOIN products p ON p.id = oi.product_id
      -- BUGFIX: was o.status <> 'cancelled' — unpaid pending_payment orders
      -- inflated bestsellers. Same exclusion as every neighboring report.
-     WHERE o.status NOT IN ('cancelled', 'pending_payment')
+     -- Audit P1, 3.4.96: fully-refunded orders also counted as sold here
+     -- (refund state lives on payment_status — see lib/analytics/financial).
+     WHERE ${financialOrdersWhere('o')}
      GROUP BY oi.product_id, p.name_ru, p.name_uk, oi.name, p.image, oi.image, p.price, oi.price, p.is_popular
      ORDER BY units_sold DESC
      LIMIT $1`,
@@ -172,15 +180,22 @@ function trend(current: number, previous: number): number | null {
 
 /**
  * SQL fragment: start of the statistics window — midnight Europe/Kyiv
- * `days` ago, as an absolute timestamp. `daysParam` is the $n placeholder
- * holding the day count. Every statistics query uses this instead of the
- * rolling `NOW() - days` window, so cards, charts and breakdowns all count
- * exactly the same calendar days: the charts already used Kyiv days while
- * the totals used rolling 24h windows, so one "30 days" view disagreed
- * with itself by up to a day of boundary traffic.
+ * (days - 1) days ago, as an absolute timestamp. `daysParam` is the $n
+ * placeholder holding the day count. Every statistics query uses this
+ * instead of the rolling `NOW() - days` window, so cards, charts and
+ * breakdowns all count exactly the same calendar days: the charts already
+ * used Kyiv days while the totals used rolling 24h windows, so one "30
+ * days" view disagreed with itself by up to a day of boundary traffic.
+ *
+ * The window covers exactly `days` calendar days INCLUDING today
+ * (audit P1, 3.4.96): days=1 is today only, days=7 is today + the 6 days
+ * before it. Subtracting `days` instead of `days - 1` used to include a
+ * whole extra day — "Сегодня" summed yesterday + today in every block.
+ * The previous-period window is derived from this start ([start - N days,
+ * start)), so it is fixed by the same change and needs no separate edit.
  */
 function kyivWindowStart(daysParam: string): string {
-  return `((date_trunc('day', NOW() AT TIME ZONE 'Europe/Kyiv') - (${daysParam} || ' days')::interval) AT TIME ZONE 'Europe/Kyiv')`
+  return `((date_trunc('day', NOW() AT TIME ZONE 'Europe/Kyiv') - ((${daysParam}::int - 1) || ' days')::interval) AT TIME ZONE 'Europe/Kyiv')`
 }
 
 /** Storefront traffic events older than this are deleted by the
@@ -229,13 +244,23 @@ export async function getStatsSummary(
     ),
     pool.query(
       `SELECT
-        COUNT(*) FILTER (WHERE created_at >= ${kyivWindowStart('$1')})::int AS orders,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= ${kyivWindowStart('$1')}), 0)::float AS revenue,
-        COUNT(*) FILTER (WHERE created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND created_at < ${kyivWindowStart('$1')})::int AS prev_orders,
-        COALESCE(SUM(total) FILTER (WHERE created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND created_at < ${kyivWindowStart('$1')}), 0)::float AS prev_revenue
-       FROM orders
-       WHERE status NOT IN ('cancelled', 'pending_payment')
-         AND created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval)`,
+        COUNT(*) FILTER (WHERE o.created_at >= ${kyivWindowStart('$1')})::int AS orders,
+        -- Net revenue (audit P1, 3.4.96): partially-refunded orders count
+        -- at total minus refunded_amount; fully-refunded ones are excluded
+        -- by the predicate below, so their refunded_amount never lands here.
+        COALESCE(SUM(${netOrderTotal('o', 'p')}) FILTER (WHERE o.created_at >= ${kyivWindowStart('$1')}), 0)::float AS revenue,
+        COUNT(*) FILTER (WHERE o.created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND o.created_at < ${kyivWindowStart('$1')})::int AS prev_orders,
+        COALESCE(SUM(${netOrderTotal('o', 'p')}) FILTER (WHERE o.created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND o.created_at < ${kyivWindowStart('$1')}), 0)::float AS prev_revenue,
+        -- Refunded sums for the profit query below: profit nets the same
+        -- partial refunds (its item sums cannot be allocated per line).
+        -- Only partially_refunded orders contribute — fully-refunded ones
+        -- are excluded by the predicate, so nothing is subtracted twice.
+        COALESCE(SUM(p.refunded_amount) FILTER (WHERE o.created_at >= ${kyivWindowStart('$1')}), 0)::float AS refunded,
+        COALESCE(SUM(p.refunded_amount) FILTER (WHERE o.created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval) AND o.created_at < ${kyivWindowStart('$1')}), 0)::float AS prev_refunded
+       FROM orders o
+       ${financialPaymentsJoin('o', 'p')}
+       WHERE ${financialOrdersWhere('o')}
+         AND o.created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval)`,
       [days],
     ),
   ])
@@ -271,13 +296,25 @@ export async function getStatsSummary(
       COUNT(*) FILTER (WHERE o.created_at >= ${kyivWindowStart('$1')} AND oi.cost_price IS NULL)::int AS cost_unknown_items
      FROM order_items oi
      JOIN orders o ON o.id = oi.order_id
-     WHERE o.status NOT IN ('cancelled', 'pending_payment')
+     -- Audit P1, 3.4.96: fully-refunded orders are excluded (their items
+     -- are not sales); partial refunds cannot be allocated to lines, so
+     -- the refunded sums from the orders query above are subtracted from
+     -- profit in JS instead — see the profit computation below.
+     WHERE ${financialOrdersWhere('o')}
        AND o.created_at >= (${kyivWindowStart('$1')} - ($1 || ' days')::interval)`,
     [days],
   )
   const pr = profitRes.rows[0]
   const costTotal = pr.cost_total ?? 0
-  const profit = pr.profit ?? 0
+  // Partial refunds are money back without a matching cost reversal
+  // (per-line refund amounts are not tracked): the order-level revenue
+  // figures above are already net, so profit nets here too. Fully-refunded
+  // orders are excluded from the profit query itself by the financial
+  // predicate, and `refunded` only sums partially_refunded ones — so
+  // nothing is subtracted twice.
+  const refunded = r.refunded ?? 0
+  const prevRefunded = r.prev_refunded ?? 0
+  const profit = (pr.profit ?? 0) - refunded
   const itemsRevenue = pr.items_revenue ?? 0
 
   const pageViews = r.page_views ?? 0
@@ -304,7 +341,10 @@ export async function getStatsSummary(
     revenue,
     costTotal,
     profit,
-    profitMargin: itemsRevenue > 0 ? (profit / itemsRevenue) * 100 : 0,
+    // Margin against net revenue: the numerator (profit) is already net of
+    // partial refunds, so the denominator must be too.
+    profitMargin:
+      itemsRevenue - refunded > 0 ? (profit / (itemsRevenue - refunded)) * 100 : 0,
     visitors,
     // visitor -> paid order (was: orders / pageviews).
     conversionRate: funnel.overallConversion ?? 0,
@@ -324,7 +364,7 @@ export async function getStatsSummary(
       visitors: days * 2 <= TRAFFIC_RETENTION_DAYS ? trend(visitors, r.prev_visitors ?? 0) : null,
       orders: trend(orders, r.prev_orders ?? 0),
       revenue: trend(revenue, r.prev_revenue ?? 0),
-      profit: trend(profit, pr.prev_profit ?? 0),
+      profit: trend(profit, (pr.prev_profit ?? 0) - prevRefunded),
     },
   }
 }
@@ -370,7 +410,10 @@ export async function getTimeseries(
     // dates in Europe/Kyiv — an order at 23:30 Kyiv time landed on "tomorrow".
     // All day groupings now use the shop timezone (Kyiv).
     `WITH bounds AS (
-       SELECT ((date_trunc('day', NOW() AT TIME ZONE 'Europe/Kyiv') - ($1 || ' days')::interval) AT TIME ZONE 'Europe/Kyiv') AS start_ts
+       -- Single source of truth for the window start (audit P1, 3.4.96):
+       -- an inline copy of the kyivWindowStart arithmetic used to live
+       -- here and drifted by the same off-by-one (days=1 yielded 2 dates).
+       SELECT ${kyivWindowStart('$1')} AS start_ts
      ),
      days AS (
        SELECT generate_series(
@@ -389,10 +432,10 @@ export async function getTimeseries(
        GROUP BY 1
      ),
      orders_by_day AS (
-       SELECT date_trunc('day', created_at AT TIME ZONE 'Europe/Kyiv') AS day, COUNT(*) AS orders
-       FROM orders, bounds
-       WHERE status NOT IN ('cancelled', 'pending_payment')
-         AND created_at >= bounds.start_ts
+       SELECT date_trunc('day', o.created_at AT TIME ZONE 'Europe/Kyiv') AS day, COUNT(*) AS orders
+       FROM orders o, bounds
+       WHERE ${financialOrdersWhere('o')}
+         AND o.created_at >= bounds.start_ts
        GROUP BY 1
      )
      SELECT
@@ -611,6 +654,12 @@ export async function trackEvent(input: {
   if (!ALLOWED_EVENT_TYPES.has(input.type)) {
     return { success: false, error: 'Неизвестный тип события' }
   }
+  // Defense in depth (the route checks this too): shop pathnames always
+  // start with '/'; an absolute URL or garbage is a forgery attempt aimed
+  // at the top-paths report.
+  if (typeof input.path === 'string' && !isValidTrackPath(input.path)) {
+    return { success: false, error: 'Неверный путь события' }
+  }
   const path = typeof input.path === 'string' ? input.path.slice(0, 500) : null
   // Visitors without localStorage all send the literal 'anonymous' id —
   // storing it would collapse every one of them into a single fake
@@ -620,7 +669,10 @@ export async function trackEvent(input: {
     typeof input.sessionId === 'string' && input.sessionId !== 'anonymous'
       ? input.sessionId.slice(0, 64)
       : null
-  const referrer = typeof input.referrer === 'string' ? input.referrer.slice(0, 300) : null
+  // Client-supplied referrer is untrusted: keep it only when it parses as
+  // an http(s) URL (see normalizeTrackReferrer — the request's own Referer
+  // header would be the shop page itself, not the traffic source).
+  const referrer = normalizeTrackReferrer(input.referrer)
   const productId = Number.isInteger(input.productId) ? input.productId : null
   // Visitor detail: bot detection from User-Agent and geo (country from
   // Cloudflare fast path, region/city via cached lookup). Resolved inline —
@@ -659,17 +711,27 @@ export async function getRevenueTimeseries(days = 30): Promise<RevenuePoint[]> {
   const res = await pool.query(
     `SELECT
       to_char(d.day, 'YYYY-MM-DD') AS date,
-      COALESCE(SUM(o.total) FILTER (WHERE o.id IS NOT NULL), 0)::float AS revenue,
-      COALESCE(SUM(op.profit), 0)::float AS profit,
+      -- Net revenue (audit P1, 3.4.96): partially-refunded orders count at
+      -- total minus refunded_amount; fully-refunded ones never join in.
+      COALESCE(SUM(${netOrderTotal('o', 'p')}) FILTER (WHERE o.id IS NOT NULL), 0)::float AS revenue,
+      -- Net profit: per-order item profit minus the order's refunded amount
+      -- (same treatment as getStatsSummary — per-line refunds are not
+      -- tracked). Each order contributes its refund exactly once: the
+      -- orders/payments/lateral joins are all 1:1 per (day, order).
+      COALESCE(SUM(op.profit), 0)::float - COALESCE(SUM(p.refunded_amount), 0)::float AS profit,
       COUNT(DISTINCT o.id)::int AS orders
      FROM generate_series(
-       date_trunc('day', (NOW() - ($1 || ' days')::interval) AT TIME ZONE 'Europe/Kyiv'),
+       -- Same window start as every other report (audit P1, 3.4.96): the
+       -- old inline copy subtracted absolute time before truncating and
+       -- yielded N+1 dates, like the other two copies of this expression.
+       date_trunc('day', (${kyivWindowStart('$1')}) AT TIME ZONE 'Europe/Kyiv'),
        date_trunc('day', NOW() AT TIME ZONE 'Europe/Kyiv'),
        '1 day'
      ) AS d(day)
      LEFT JOIN orders o
        ON date_trunc('day', o.created_at AT TIME ZONE 'Europe/Kyiv') = d.day
-      AND o.status NOT IN ('cancelled', 'pending_payment')
+      AND ${financialOrdersWhere('o')}
+     ${financialPaymentsJoin('o', 'p')}
      LEFT JOIN LATERAL (
        -- Snapshot-only cost, same rule as getStatsSummary: items without a
        -- cost snapshot contribute no profit instead of today's cost.
@@ -711,11 +773,12 @@ export async function getDeliveryBreakdown(days = 30): Promise<MethodBreakdownRo
   days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
-    `SELECT COALESCE(NULLIF(delivery_method, ''), 'unspecified') AS method,
-            COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
-     FROM orders
-     WHERE created_at >= ${kyivWindowStart('$1')}
-       AND status NOT IN ('cancelled', 'pending_payment')
+    `SELECT COALESCE(NULLIF(o.delivery_method, ''), 'unspecified') AS method,
+            COUNT(*)::int AS count, COALESCE(SUM(${netOrderTotal('o', 'p')}), 0)::float AS total
+     FROM orders o
+     ${financialPaymentsJoin('o', 'p')}
+     WHERE o.created_at >= ${kyivWindowStart('$1')}
+       AND ${financialOrdersWhere('o')}
      GROUP BY 1 ORDER BY count DESC`,
     [days],
   )
@@ -726,11 +789,12 @@ export async function getPaymentBreakdown(days = 30): Promise<MethodBreakdownRow
   days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
-    `SELECT COALESCE(NULLIF(payment_method, ''), 'unspecified') AS method,
-            COUNT(*)::int AS count, COALESCE(SUM(total), 0)::float AS total
-     FROM orders
-     WHERE created_at >= ${kyivWindowStart('$1')}
-       AND status NOT IN ('cancelled', 'pending_payment')
+    `SELECT COALESCE(NULLIF(o.payment_method, ''), 'unspecified') AS method,
+            COUNT(*)::int AS count, COALESCE(SUM(${netOrderTotal('o', 'p')}), 0)::float AS total
+     FROM orders o
+     ${financialPaymentsJoin('o', 'p')}
+     WHERE o.created_at >= ${kyivWindowStart('$1')}
+       AND ${financialOrdersWhere('o')}
      GROUP BY 1 ORDER BY count DESC`,
     [days],
   )
@@ -763,7 +827,10 @@ export async function getTopProductsPeriod(days = 30, limit = 10): Promise<TopPr
      FROM order_items oi
      JOIN orders o ON o.id = oi.order_id
      LEFT JOIN products p ON p.id = oi.product_id
-     WHERE o.status NOT IN ('cancelled', 'pending_payment')
+     -- Audit P1, 3.4.96: fully-refunded orders are not sales. Item-level
+     -- sums cannot be netted for partial refunds (per-line amounts are
+     -- not tracked) — the order-level figures are the authoritative ones.
+     WHERE ${financialOrdersWhere('o')}
        AND o.created_at >= ${kyivWindowStart('$1')}
      GROUP BY oi.product_id, p.name_ru, p.name_uk, oi.name, p.image, oi.image
      ORDER BY revenue DESC
@@ -798,7 +865,9 @@ export async function getCategorySales(days = 30, limit = 8): Promise<CategorySa
      JOIN orders o ON o.id = oi.order_id
      JOIN product_category pc ON pc.product_id = oi.product_id
      JOIN categories c ON c.id = pc.category_id
-     WHERE o.status NOT IN ('cancelled', 'pending_payment')
+     -- Audit P1, 3.4.96: fully-refunded orders are not sales (see the
+     -- same note on getTopProductsPeriod for partial refunds).
+     WHERE ${financialOrdersWhere('o')}
        AND o.created_at >= ${kyivWindowStart('$1')}
      GROUP BY c.id, c.name_ru, c.name_uk
      ORDER BY revenue DESC
@@ -824,32 +893,39 @@ export async function getCustomerInsights(days = 30): Promise<CustomerInsights> 
   const [agg, top] = await Promise.all([
     pool.query(
       `WITH period_orders AS (
-         SELECT * FROM orders
-         WHERE created_at >= ${kyivWindowStart('$1')}
-           AND status NOT IN ('cancelled', 'pending_payment')
+         -- Audit P1, 3.4.96: net_total carries the order value minus
+         -- refunds (partially-refunded orders count at net value).
+         SELECT o.*, ${netOrderTotal('o', 'p')} AS net_total
+         FROM orders o
+         ${financialPaymentsJoin('o', 'p')}
+         WHERE o.created_at >= ${kyivWindowStart('$1')}
+           AND ${financialOrdersWhere('o')}
        ),
        customer_first AS (
-         SELECT customer_phone, MIN(created_at) AS first_order
-         FROM orders
-         WHERE status NOT IN ('cancelled', 'pending_payment')
-         GROUP BY customer_phone
+         -- A fully-refunded first order does not make the customer "new":
+         -- the refund voids the sale, so it cannot be their first order.
+         SELECT o.customer_phone, MIN(o.created_at) AS first_order
+         FROM orders o
+         WHERE ${financialOrdersWhere('o')}
+         GROUP BY o.customer_phone
        )
        SELECT
          (SELECT COUNT(*) FROM period_orders)::int AS total_orders,
          (SELECT COUNT(DISTINCT customer_phone) FROM period_orders)::int AS unique_customers,
          (SELECT COUNT(*) FROM customer_first
            WHERE first_order >= ${kyivWindowStart('$1')})::int AS new_customers,
-         COALESCE((SELECT AVG(total) FROM period_orders), 0)::float AS avg_order_value,
+         COALESCE((SELECT AVG(net_total) FROM period_orders), 0)::float AS avg_order_value,
          COALESCE((SELECT AVG(items_count) FROM period_orders), 0)::float AS avg_items`,
       [days],
     ),
     pool.query(
-      `SELECT customer_name AS name, customer_phone AS phone,
-              COUNT(*)::int AS orders, COALESCE(SUM(total), 0)::float AS total
-       FROM orders
-       WHERE created_at >= ${kyivWindowStart('$1')}
-         AND status NOT IN ('cancelled', 'pending_payment')
-       GROUP BY customer_name, customer_phone
+      `SELECT o.customer_name AS name, o.customer_phone AS phone,
+              COUNT(*)::int AS orders, COALESCE(SUM(${netOrderTotal('o', 'p')}), 0)::float AS total
+       FROM orders o
+       ${financialPaymentsJoin('o', 'p')}
+       WHERE o.created_at >= ${kyivWindowStart('$1')}
+         AND ${financialOrdersWhere('o')}
+       GROUP BY o.customer_name, o.customer_phone
        ORDER BY total DESC
        LIMIT 5`,
       [days],
@@ -881,11 +957,12 @@ export async function getWeekdayActivity(days = 30): Promise<WeekdayRow[]> {
   days = normDays(days)
   await assertPermission('statistics')
   const res = await pool.query(
-    `SELECT EXTRACT(ISODOW FROM created_at AT TIME ZONE 'Europe/Kyiv')::int AS weekday,
-            COUNT(*)::int AS orders, COALESCE(SUM(total), 0)::float AS revenue
-     FROM orders
-     WHERE created_at >= ${kyivWindowStart('$1')}
-       AND status NOT IN ('cancelled', 'pending_payment')
+    `SELECT EXTRACT(ISODOW FROM o.created_at AT TIME ZONE 'Europe/Kyiv')::int AS weekday,
+            COUNT(*)::int AS orders, COALESCE(SUM(${netOrderTotal('o', 'p')}), 0)::float AS revenue
+     FROM orders o
+     ${financialPaymentsJoin('o', 'p')}
+     WHERE o.created_at >= ${kyivWindowStart('$1')}
+       AND ${financialOrdersWhere('o')}
      GROUP BY 1 ORDER BY 1`,
     [days],
   )
@@ -995,8 +1072,10 @@ export async function getProductAnalytics(productId: number, days = 30): Promise
        WHERE oi.product_id = $1
          -- BUGFIX: was o.status <> 'cancelled' — unpaid pending_payment
          -- orders inflated per-product sales. Same exclusion as every
-         -- neighboring report (see getBestsellers).
-         AND o.status NOT IN ('cancelled', 'pending_payment')
+         -- neighboring report (see getBestsellers). Audit P1, 3.4.96:
+         -- fully-refunded orders are not sales either (item-level sums
+         -- cannot be netted for partial refunds — see getTopProductsPeriod).
+         AND ${financialOrdersWhere('o')}
          AND o.created_at >= NOW() - ($2 || ' days')::interval`,
       [productId, days],
     ),
@@ -1101,15 +1180,16 @@ export async function getCampaignReport(
   const { from, to, fromTs, toTs } = parseDateRange(fromRaw, toRaw)
   const res = await pool.query(
     `SELECT
-       COALESCE(NULLIF(utm_source, ''), '${DIRECT_SOURCE_SENTINEL}') AS source,
-       COALESCE(NULLIF(utm_medium, ''), '') AS medium,
-       COALESCE(NULLIF(utm_campaign, ''), '') AS campaign,
+       COALESCE(NULLIF(o.utm_source, ''), '${DIRECT_SOURCE_SENTINEL}') AS source,
+       COALESCE(NULLIF(o.utm_medium, ''), '') AS medium,
+       COALESCE(NULLIF(o.utm_campaign, ''), '') AS campaign,
        COUNT(*)::int AS orders,
-       COALESCE(SUM(total), 0)::float AS revenue
-     FROM orders
-     WHERE status NOT IN ('cancelled', 'pending_payment')
-       AND created_at >= $1
-       AND created_at <= $2
+       COALESCE(SUM(${netOrderTotal('o', 'p')}), 0)::float AS revenue
+     FROM orders o
+     ${financialPaymentsJoin('o', 'p')}
+     WHERE ${financialOrdersWhere('o')}
+       AND o.created_at >= $1
+       AND o.created_at <= $2
      GROUP BY 1, 2, 3
      ORDER BY revenue DESC`,
     [fromTs, toTs],
