@@ -36,6 +36,8 @@ export type PromSyncResult = {
   unchanged: number
   unmatched: number
   newOnProm: number
+  /** Prom variation rows skipped by the audit-71 guard (no variant mapping). */
+  variationsSkipped: number
   errors: string[]
 }
 
@@ -147,6 +149,7 @@ function newSyncResult(): PromSyncResult {
     unchanged: 0,
     unmatched: 0,
     newOnProm: 0,
+    variationsSkipped: 0,
     errors: [],
   }
 }
@@ -204,6 +207,22 @@ async function runSyncPromProducts(
   }
   if (promProducts.length === 0) {
     return { ...result, ok: false, reason: 'Prom API повернув 0 товарів — перевірте токен і каталог' }
+  }
+
+  // Audit 71 guard: Prom lists variants as separate product rows
+  // (is_variation + variation_group_id / variation_base_id — confirmed by
+  // live probe 11.11.2026), but the API sync has no variant mapping: a
+  // variant row must never match an engine product by SKU or prom_id and
+  // overwrite its price/stock with the variant's values. Skip variation
+  // rows (with a log) until variant grouping is implemented. The base
+  // product itself has is_variation=false and still syncs normally.
+  const variationRows = promProducts.filter((p) => p.isVariation)
+  if (variationRows.length > 0) {
+    result.variationsSkipped = variationRows.length
+    console.warn(
+      `[prom] skipped ${variationRows.length} variation rows (no variant mapping yet): ${variationRows.slice(0, 10).map((p) => `#${p.id}`).join(', ')}${variationRows.length > 10 ? ` (+${variationRows.length - 10} more)` : ''}`,
+    )
+    promProducts = promProducts.filter((p) => !p.isVariation)
   }
 
   // 2) Load engine products. Match key is the SKU (normalized); prom_id is a
@@ -417,6 +436,7 @@ async function runSyncPromProducts(
   ]
   if (result.unmatched > 0) parts.push(`немає в Prom: ${result.unmatched}`)
   if (result.newOnProm > 0) parts.push(`нових в Prom: ${result.newOnProm}`)
+  if (result.variationsSkipped > 0) parts.push(`варіантів пропущено: ${result.variationsSkipped}`)
   if (result.errors.length > 0) parts.push(`помилок: ${result.errors.length}`)
   if (promTruncated) parts.push('увага: каталог Prom усічено лімітом 50 сторінок')
   result.summary = parts.join('; ')

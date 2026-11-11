@@ -28,6 +28,17 @@ export type PromProduct = {
   quantity: number | null
   /** Raw availability marker from Prom (e.g. "available"). */
   presence: string | null
+  /**
+   * True when this row is a variant of another product. Prom lists
+   * variants as separate product rows linked by `variation_group_id` /
+   * `variation_base_id` (confirmed by live probe 11.11.2026). The API
+   * sync has no variant mapping yet — see the guard in lib/prom/sync.ts.
+   */
+  isVariation: boolean
+  /** Variation family id shared by the base product and its variants. */
+  variationGroupId: number | null
+  /** Id of the base product this variant belongs to. */
+  variationBaseId: number | null
   characteristics: PromCharacteristic[]
 }
 
@@ -90,6 +101,9 @@ export function normalizePromProduct(raw: unknown): PromProduct | null {
     oldPrice: asNumber(pick(r, 'old_price', 'oldPrice', 'discount_price')) ?? null,
     quantity: asNumber(pick(r, 'quantity', 'quantity_in_stock', 'stock', 'count')),
     presence: asString(pick(r, 'presence', 'availability', 'status')),
+    isVariation: r.is_variation === true || r.is_variation === 'true' || r.is_variation === 1,
+    variationGroupId: asNumber(pick(r, 'variation_group_id')),
+    variationBaseId: asNumber(pick(r, 'variation_base_id')),
     characteristics,
   }
 }

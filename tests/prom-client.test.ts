@@ -50,6 +50,32 @@ describe('normalizePromProduct', () => {
     expect(p!.price).toBeNull()
     expect(p!.quantity).toBeNull()
     expect(p!.characteristics).toEqual([])
+    expect(p!.isVariation).toBe(false)
+    expect(p!.variationGroupId).toBeNull()
+    expect(p!.variationBaseId).toBeNull()
+  })
+
+  it('parses variation fields from the live API shape (audit 71)', () => {
+    const p = normalizePromProduct({
+      id: 3269028465,
+      name: 'Лампа',
+      is_variation: true,
+      variation_group_id: 3269028000,
+      variation_base_id: 3269027000,
+    })
+    expect(p!.isVariation).toBe(true)
+    expect(p!.variationGroupId).toBe(3269028000)
+    expect(p!.variationBaseId).toBe(3269027000)
+    const base = normalizePromProduct({
+      id: 3269027000,
+      name: 'Лампа',
+      is_variation: false,
+      variation_group_id: null,
+      variation_base_id: null,
+    })
+    expect(base!.isVariation).toBe(false)
+    expect(base!.variationGroupId).toBeNull()
+    expect(base!.variationBaseId).toBeNull()
   })
 })
 
