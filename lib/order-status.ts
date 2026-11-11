@@ -47,6 +47,30 @@ export const PAYMENT_STATUS_LABELS_UK: Record<string, string> = Object.fromEntri
 export type OrderStatus = (typeof ORDER_STATUSES)[number]['value']
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number]['value']
 
+/**
+ * Allowed order-status transitions for the admin action updateOrderStatus.
+ * The point is to block the nonsensical ones, not to force a rigid pipeline:
+ * an admin may skip steps forward (new → shipped, processing → done) and
+ * reopen a cancelled order (cancelled → new, the restore/re-deduct flow).
+ * Forbidden: anything out of pending_payment except paid/cancelled (skips
+ * payment), anything out of done (terminal), anything back to
+ * pending_payment, and anything out of cancelled except reopen.
+ */
+export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  pending_payment: ['new', 'cancelled'],
+  new: ['accepted', 'processing', 'shipped', 'done', 'cancelled'],
+  accepted: ['processing', 'shipped', 'done', 'cancelled'],
+  processing: ['shipped', 'done', 'cancelled'],
+  shipped: ['done', 'cancelled'],
+  done: [],
+  cancelled: ['new'],
+}
+
+export function isOrderStatusTransitionAllowed(from: string, to: string): boolean {
+  const allowed = (ORDER_STATUS_TRANSITIONS as Record<string, string[]>)[from]
+  return Array.isArray(allowed) && allowed.includes(to)
+}
+
 /** Admin-panel order status label. Default locale is Ukrainian. */
 export function getOrderStatusLabel(status: string, locale: Locale): string {
   if (locale === 'ru') return ORDER_STATUS_LABELS_RU[status] ?? status

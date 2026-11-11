@@ -57,8 +57,30 @@ export async function fetchAllowedImage(src: string): Promise<ProxyImageResult> 
 
     if (!upstream.ok) return { ok: false, status: 502, message: 'Upstream error' }
 
-    const buf = new Uint8Array(await upstream.arrayBuffer())
-    if (buf.byteLength === 0 || buf.byteLength > MAX_BYTES) {
+    // Stream the body with a running size cap — the old code buffered the
+    // whole response with arrayBuffer() before checking 8 MB, so an
+    // oversized upstream body was fully downloaded first.
+    const reader = upstream.body?.getReader()
+    if (!reader) return { ok: false, status: 502, message: 'Upstream error' }
+    const chunks: Uint8Array[] = []
+    let total = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > MAX_BYTES) {
+        await reader.cancel().catch(() => {})
+        return { ok: false, status: 502, message: 'Upstream error' }
+      }
+      chunks.push(value)
+    }
+    const buf = new Uint8Array(total)
+    let offset = 0
+    for (const chunk of chunks) {
+      buf.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+    if (buf.byteLength === 0) {
       return { ok: false, status: 502, message: 'Upstream error' }
     }
     const kind = detectImageKind(buf)

@@ -483,18 +483,23 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       if (existingCustomer) {
         customerId = existingCustomer.id
       } else {
-        try {
-          const [c] = await tx
-            .insert(customers)
-            .values({
-              firstName: input.firstName.trim(),
-              lastName: input.lastName?.trim() || null,
-              phone: input.phone.trim(),
-              email: customerEmail,
-            })
-            .returning()
+        // ON CONFLICT DO NOTHING: a plain failed INSERT aborts the whole
+        // transaction (25P02), so the retry SELECT below would fail too.
+        // With DO NOTHING no error is raised and the SELECT sees the row
+        // the concurrent insert just created.
+        const [c] = await tx
+          .insert(customers)
+          .values({
+            firstName: input.firstName.trim(),
+            lastName: input.lastName?.trim() || null,
+            phone: input.phone.trim(),
+            email: customerEmail,
+          })
+          .onConflictDoNothing()
+          .returning()
+        if (c) {
           customerId = c.id
-        } catch {
+        } else {
           const [again] = await tx
             .select()
             .from(customers)
@@ -884,18 +889,21 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
       if (existingCustomer) {
         customerId = existingCustomer.id
       } else {
-        try {
-          const [c] = await tx
-            .insert(customers)
-            .values({
-              firstName: name,
-              lastName: null,
-              phone,
-              email: customerEmail,
-            })
-            .returning()
+        // ON CONFLICT DO NOTHING: a plain failed INSERT aborts the whole
+        // transaction (25P02), so the retry SELECT below would fail too.
+        const [c] = await tx
+          .insert(customers)
+          .values({
+            firstName: name,
+            lastName: null,
+            phone,
+            email: customerEmail,
+          })
+          .onConflictDoNothing()
+          .returning()
+        if (c) {
           customerId = c.id
-        } catch {
+        } else {
           const [again] = await tx
             .select()
             .from(customers)

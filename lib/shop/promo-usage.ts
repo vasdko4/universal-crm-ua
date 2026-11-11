@@ -37,6 +37,9 @@ export async function recordPromotionUsageInternal(
     discountAmount: String(input.discountAmount),
   }
 
+  // The ledger row is written only when the counter bump actually happened:
+  // an uncounted usage (limit reached) used to be recorded anyway, and the
+  // release path then freed a slot that was never taken.
   let counted: boolean
   if (client) {
     const tx = dbForClient(client)
@@ -45,8 +48,8 @@ export async function recordPromotionUsageInternal(
       .set(values)
       .where(and(eq(promotions.id, input.promotionId), withinLimit))
       .returning({ id: promotions.id })
-    await tx.insert(promotionUsages).values(usageRow)
     counted = Boolean(updated)
+    if (counted) await tx.insert(promotionUsages).values(usageRow)
   } else {
     counted = await db.transaction(async (tx) => {
       const [updated] = await tx
@@ -54,7 +57,7 @@ export async function recordPromotionUsageInternal(
         .set(values)
         .where(and(eq(promotions.id, input.promotionId), withinLimit))
         .returning({ id: promotions.id })
-      await tx.insert(promotionUsages).values(usageRow)
+      if (updated) await tx.insert(promotionUsages).values(usageRow)
       return Boolean(updated)
     })
   }

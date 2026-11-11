@@ -36,7 +36,10 @@ export async function recordStockMovement(
     )
   } catch (e) {
     // The ledger is the audit trail for stock — a failed write must be
-    // visible in production logs, not buried in console.log.
+    // visible in production logs, not buried in console.log. And it must
+    // not be swallowed: the stock change and its ledger entry are one
+    // atomic unit, so a failed INSERT rolls the enclosing transaction back
+    // instead of leaving the ledger diverging from the stock.
     await reportError('stock.ledger-write-failed', e, {
       context: {
         productId: input.productId,
@@ -44,5 +47,6 @@ export async function recordStockMovement(
         orderId: input.orderId ?? undefined,
       },
     })
+    throw e
   }
 }

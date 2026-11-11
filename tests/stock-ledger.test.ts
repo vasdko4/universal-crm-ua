@@ -37,9 +37,9 @@ describe('recordStockMovement', () => {
     expect(mockedReport).not.toHaveBeenCalled()
   })
 
-  it('reports a structured error (no throw) when the write fails', async () => {
+  it('reports a structured error and rethrows when the write fails', async () => {
     mockedQuery.mockRejectedValueOnce(new Error('db down'))
-    await expect(recordStockMovement(input)).resolves.toBeUndefined()
+    await expect(recordStockMovement(input)).rejects.toThrow('db down')
     expect(mockedReport).toHaveBeenCalledTimes(1)
     const [tag, err, opts] = mockedReport.mock.calls[0]
     expect(tag).toBe('stock.ledger-write-failed')

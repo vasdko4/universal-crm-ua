@@ -13,7 +13,7 @@ import {
 } from '@/lib/db/schema'
 import { getAdminUser, assertPermission, assertWritePermission } from '@/lib/session'
 import { escapeLikeWildcards, ilikeEscaped } from '@/lib/api/helpers'
-import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel } from '@/lib/order-status'
+import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel, isOrderStatusTransitionAllowed } from '@/lib/order-status'
 import { computeOrderTotals } from '@/lib/shop/order-totals'
 import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
 import { fillAuditTemplate } from '@/lib/audit-log'
@@ -482,6 +482,10 @@ export async function updateOrderStatus(id: number, status: string) {
         trackingNumber: current.tracking_number,
         orderNumber: current.order_number,
       }
+    }
+
+    if (!isOrderStatusTransitionAllowed(current.status, status)) {
+      return { success: false as const, error: 'Недопустимий перехід статусу' }
     }
 
     await tx.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id))
