@@ -214,11 +214,35 @@ export async function claimStockRededuct(orderId: number, client?: PoolClient): 
 /**
  * Restore stock for a fully refunded / cancelled order exactly once.
  * Safe to call from admin cancel, admin refund, and gateway webhooks.
+ *
+ * The claim and the restore are atomic: with a transaction client they run
+ * on the caller's transaction; without one this function opens its own
+ * (BEGIN … COMMIT), so a transient DB error mid-restore rolls the claim
+ * back and a retry can redo the work instead of leaving stock partially
+ * restored with the flag already consumed and invisible.
  */
 export async function restoreStockOnce(orderId: number, client?: PoolClient): Promise<boolean> {
-  if (!(await claimStockRestore(orderId, client))) return false
-  await adjustStockForOrder(orderId, 1, client)
-  return true
+  if (client) {
+    if (!(await claimStockRestore(orderId, client))) return false
+    await adjustStockForOrder(orderId, 1, client)
+    return true
+  }
+  const owned = await pool.connect()
+  try {
+    await owned.query('BEGIN')
+    if (!(await claimStockRestore(orderId, owned))) {
+      await owned.query('ROLLBACK')
+      return false
+    }
+    await adjustStockForOrder(orderId, 1, owned)
+    await owned.query('COMMIT')
+    return true
+  } catch (e) {
+    await owned.query('ROLLBACK').catch(() => {})
+    throw e
+  } finally {
+    owned.release()
+  }
 }
 
 export type OversoldItem = { name: string; variantLabel: string | null; requested: number }
@@ -451,6 +475,22 @@ export async function applyOrderFulfillment(
 }
 
 /**
+ * The claim + fulfillment half of finalizePaidOrder, on a caller-owned
+ * connection. Returns the finalized order id, or null when another caller
+ * already claimed the order (status no longer pending_payment).
+ */
+async function claimAndFulfillPaidOrder(orderNumber: string, client: PoolClient): Promise<number | null> {
+  const claim = await client.query(
+    `UPDATE orders SET status = 'new', updated_at = NOW() WHERE order_number = $1 AND status = 'pending_payment' RETURNING id`,
+    [orderNumber],
+  )
+  if (!claim.rowCount || !claim.rows[0]) return null
+  const orderId = Number(claim.rows[0].id)
+  await applyOrderFulfillment(orderId, client)
+  return orderId
+}
+
+/**
  * Promotes an online order from "pending_payment" to a real order once payment
  * is confirmed. The claim and the fulfillment run in ONE transaction, so a
  * fulfillment failure rolls the order back to pending_payment instead of
@@ -458,32 +498,32 @@ export async function applyOrderFulfillment(
  * (`UPDATE ... WHERE status = 'pending_payment'`) only matches an unclaimed
  * order, so a later retry (webhook/status check) safely re-runs it. The
  * notification stays outside the transaction — best-effort, after commit.
+ *
+ * Pass a transaction client when the caller already holds one
+ * (updateOrderPayment): the claim + fulfillment then commit (or roll back)
+ * with the caller's change, the claimed order id is returned, and the caller
+ * notifies after ITS commit. Without a client the old behavior is kept: own
+ * transaction + notify after commit. Returns the finalized order id, or null
+ * when nothing was claimed.
  */
-export async function finalizePaidOrder(orderNumber: string): Promise<void> {
-  const client = await pool.connect()
+export async function finalizePaidOrder(orderNumber: string, client?: PoolClient): Promise<number | null> {
+  if (client) return claimAndFulfillPaidOrder(orderNumber, client)
+  const owned = await pool.connect()
   let orderId: number | null = null
   try {
-    await client.query('BEGIN')
-    const claim = await client.query(
-      `UPDATE orders SET status = 'new', updated_at = NOW() WHERE order_number = $1 AND status = 'pending_payment' RETURNING id`,
-      [orderNumber],
-    )
-    if (!claim.rowCount || !claim.rows[0]) {
-      await client.query('ROLLBACK')
-      return
-    }
-    orderId = Number(claim.rows[0].id)
-    await applyOrderFulfillment(orderId, client)
-    await client.query('COMMIT')
+    await owned.query('BEGIN')
+    orderId = await claimAndFulfillPaidOrder(orderNumber, owned)
+    await owned.query('COMMIT')
   } catch (e) {
-    await client.query('ROLLBACK').catch(() => {})
+    await owned.query('ROLLBACK').catch(() => {})
     throw e
   } finally {
-    client.release()
+    owned.release()
   }
   if (orderId != null) {
     // Online orders notify only after the payment is confirmed.
     const { notifyNewOrder } = await import('@/lib/notifications')
     void notifyNewOrder(orderId)
   }
+  return orderId
 }

@@ -19,6 +19,7 @@ function product(overrides: Partial<OneClickProductRow> = {}): OneClickProductRo
     quantity: 10,
     inStock: true,
     variantsEnabled: false,
+    isPreorder: false,
     ...overrides,
   }
 }
@@ -148,6 +149,35 @@ describe('resolveOneClickLine', () => {
       resolveOneClickLine(product({ variantsEnabled: true }), variant({ isInStock: false })).ok,
     ).toBe(false)
     expect(resolveOneClickLine(product({ quantity: 0, inStock: false }), null).ok).toBe(false)
+  })
+
+  it('allows preorder products at zero stock, like the regular checkout', () => {
+    const r = resolveOneClickLine(product({ quantity: 0, inStock: false, isPreorder: true }), null)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.line.price).toBe(1234.5)
+  })
+
+  it('allows preorder variants at zero stock (exception is product-level)', () => {
+    const r = resolveOneClickLine(
+      product({ variantsEnabled: true, quantity: 0, inStock: false, isPreorder: true }),
+      variant({ quantity: 0, isInStock: false }),
+    )
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.line.variantId).toBe(42)
+  })
+
+  it('still rejects zero stock when the product is not preorder', () => {
+    expect(
+      resolveOneClickLine(product({ quantity: 0, inStock: false, isPreorder: false }), null).ok,
+    ).toBe(false)
+    expect(
+      resolveOneClickLine(
+        product({ variantsEnabled: true, quantity: 0, inStock: false, isPreorder: false }),
+        variant({ quantity: 0, isInStock: false }),
+      ).ok,
+    ).toBe(false)
   })
 })
 

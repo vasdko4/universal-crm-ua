@@ -991,7 +991,10 @@ export async function getProductAnalytics(productId: number, days = 30): Promise
        FROM order_items oi
        JOIN orders o ON o.id = oi.order_id
        WHERE oi.product_id = $1
-         AND o.status <> 'cancelled'
+         -- BUGFIX: was o.status <> 'cancelled' — unpaid pending_payment
+         -- orders inflated per-product sales. Same exclusion as every
+         -- neighboring report (see getBestsellers).
+         AND o.status NOT IN ('cancelled', 'pending_payment')
          AND o.created_at >= NOW() - ($2 || ' days')::interval`,
       [productId, days],
     ),

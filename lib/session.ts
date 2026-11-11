@@ -66,14 +66,65 @@ async function validateSessionBinding(
   }
 }
 
-function sameSubnet24(a: string, b: string): boolean {
+/**
+ * Same-subnet check for session binding: IPv4 tolerates a /24 rotation,
+ * IPv6 a /64 rotation (privacy extensions rotate the interface ID
+ * routinely — treating any IPv6 change as theft logged admins out on
+ * every rotation). IPv4-mapped IPv6 (::ffff:a.b.c.d) compares as its
+ * plain IPv4 twin.
+ */
+export function sameSubnet24(a: string, b: string): boolean {
   if (a === b) return true
-  const pa = a.split('.')
-  const pb = b.split('.')
-  if (pa.length === 4 && pb.length === 4) {
-    return pa[0] === pb[0] && pa[1] === pb[1] && pa[2] === pb[2]
+  const v4a = parseIPv4(a)
+  const v4b = parseIPv4(b)
+  if (v4a && v4b) {
+    return v4a[0] === v4b[0] && v4a[1] === v4b[1] && v4a[2] === v4b[2]
+  }
+  const v6a = parseIPv6(a)
+  const v6b = parseIPv6(b)
+  if (v6a && v6b) {
+    // /64: the first four 16-bit groups (network prefix) must match.
+    return v6a[0] === v6b[0] && v6a[1] === v6b[1] && v6a[2] === v6b[2] && v6a[3] === v6b[3]
   }
   return false
+}
+
+// Dotted quad, or an IPv4-mapped IPv6 address (::ffff:192.0.2.1).
+function parseIPv4(value: string): number[] | null {
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(value.trim())
+  const parts = (mapped?.[1] ?? value.trim()).split('.')
+  if (parts.length !== 4) return null
+  const octets = parts.map((p) => (/^\d{1,3}$/.test(p) ? Number(p) : NaN))
+  if (octets.some((o) => !Number.isInteger(o) || o < 0 || o > 255)) return null
+  return octets
+}
+
+// Expands :: compression; returns the eight 16-bit groups, or null for
+// anything that is not a plain IPv6 address (zone ids are stripped).
+function parseIPv6(value: string): number[] | null {
+  let v = value.trim().toLowerCase()
+  const zone = v.indexOf('%')
+  if (zone !== -1) v = v.slice(0, zone)
+  if (!v.includes(':') || /[^0-9a-f:]/.test(v)) return null
+  // At most one '::'; splitting on it must leave no empty segment behind
+  // (that is what rejects ':::' and a stray leading/trailing ':').
+  const parts = v.split('::')
+  if (parts.length > 2) return null
+  let groups: string[]
+  if (parts.length === 2) {
+    const head = parts[0] === '' ? [] : parts[0].split(':')
+    const tail = parts[1] === '' ? [] : parts[1].split(':')
+    const missing = 8 - head.length - tail.length
+    if (missing < 0) return null
+    groups = [...head, ...Array<string>(missing).fill('0'), ...tail]
+  } else {
+    groups = v.split(':')
+    if (groups.length !== 8) return null
+  }
+  if (groups.length !== 8) return null
+  const nums = groups.map((g) => (/^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN))
+  if (nums.some((n) => Number.isNaN(n))) return null
+  return nums
 }
 
 async function killSession(sessionId: string, reason: string): Promise<void> {

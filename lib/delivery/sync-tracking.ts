@@ -1,10 +1,7 @@
 import { pool } from '@/lib/db'
-import type { Order, OrderItem } from '@/lib/db/schema'
 import { trackDocuments } from '@/lib/delivery/nova-poshta'
-import { sendMail } from '@/lib/mailer'
-import { buildOrderMessage } from '@/lib/order-messages'
+import { enqueueNotification } from '@/lib/notifications'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
-import { getProductSlugMap } from '@/lib/shop/queries'
 import { decryptSecret } from '@/lib/secrets'
 
 export type DeliverySyncResult = {
@@ -12,40 +9,19 @@ export type DeliverySyncResult = {
   reason?: string
   checked: number
   updated: number
+  /** Delivery-status emails queued in the notification outbox (the retry worker sends them). */
   emailed: number
   errors: string[]
-}
-
-/** pg snake_case row -> camelCase shape expected by the email templates. */
-function normalizeOrder(r: Record<string, unknown>): Order {
-  return {
-    ...r,
-    orderNumber: r.order_number,
-    customerName: r.customer_name,
-    customerPhone: r.customer_phone,
-    customerEmail: r.customer_email,
-    deliveryMethod: r.delivery_method,
-    deliveryCity: r.delivery_city,
-    deliveryBranch: r.delivery_branch,
-    deliveryAddress: r.delivery_address,
-    deliveryCost: r.delivery_cost,
-    deliveryStatus: r.delivery_status,
-    trackingNumber: r.tracking_number,
-    paymentMethod: r.payment_method,
-    paymentStatus: r.payment_status,
-    itemsTotal: r.items_total,
-  } as Order
-}
-
-function normalizeItem(r: Record<string, unknown>): OrderItem {
-  return { ...r, variantLabel: r.variant_label, productId: r.product_id } as OrderItem
 }
 
 /**
  * Synchronizes Nova Poshta delivery statuses for all in-flight orders with a
  * TTN. When the status text changes, the order row is updated and (if the
- * customer left an email and customer notifications are enabled) an email is
- * sent. Delivered parcels also move shipped orders to "done".
+ * customer left an email and customer notifications are enabled) the email is
+ * queued in the notification outbox for the retry worker — a failed send is
+ * retried instead of lost, which matters because the status is already
+ * committed and the next sync would skip the order. Delivered parcels also
+ * move shipped orders to "done".
  */
 export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
   const result: DeliverySyncResult = { ok: true, checked: 0, updated: 0, emailed: 0, errors: [] }
@@ -64,21 +40,12 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
   }
 
   const settings = await getStoreSettingsInternal().catch(() => null)
-  const notifyCustomers = Boolean(settings?.notifications?.customerEmailEnabled)
-
-  const envUrl = process.env.NEXT_PUBLIC_SITE_URL
-    ? String(process.env.NEXT_PUBLIC_SITE_URL)
-    : process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : ''
-  const siteUrl = (settings?.seo?.siteUrl || envUrl).replace(/\/$/, '')
-  const storeCtx = {
-    storeName: settings?.storeName,
-    siteUrl,
-    logoUrl: settings?.logoUrl,
-    phone: settings?.contact?.phones?.find(Boolean) ?? null,
-    supportEmail: (settings?.emailSettings?.fromEmail as string) || null,
-  }
+  // Both toggles: the master "Email-сповіщення" switch (Settings → Email)
+  // stops all customer order emails, and "Лист покупцю" (Settings →
+  // Сповіщення) gates customer emails on top of it.
+  const notifyCustomers = Boolean(
+    settings?.emailSettings?.enabled && settings?.notifications?.customerEmailEnabled,
+  )
 
   // 2) In-flight orders, in pages of 100 by id cursor — the old LIMIT 300
   // silently skipped everything past the first 300 rows.
@@ -133,28 +100,23 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
         if (res.rowCount === 0) continue
         result.updated++
 
-        // Notify the customer by email when they left one.
+        // Notify the customer by email when they left one — via the
+        // notification outbox (lib/notifications.ts) so a failed send is
+        // retried by the notification-retry worker instead of lost: the
+        // status is already committed above, so the next sync would skip
+        // this order and never get a second chance. Dedup is (kind,
+        // channel, order_id) under the pending-only unique index — at most
+        // one pending delivery-status notification per order, so a retry
+        // never double-sends; the worker builds the message from the live
+        // order row, so rapid successive status changes coalesce into a
+        // single email carrying the latest status.
         const email = String(row.customer_email ?? '').trim()
         if (notifyCustomers && email) {
-          const itemsRes = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [
-            row.id,
-          ])
-          const order = normalizeOrder({
-            ...row,
-            delivery_status: tracked.status,
-            status: newOrderStatus,
-          })
-          const items = itemsRes.rows.map(normalizeItem)
-          const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
-          const msg = buildOrderMessage('status', order, items, storeCtx, productSlugs)
-          const sent = await sendMail({ to: email, subject: msg.subject, text: msg.text, html: msg.html })
-          if (sent.sent) {
+          const queued = await enqueueNotification('delivery-status', 'customer-email', Number(row.id))
+          if (queued) {
             result.emailed++
           } else {
-            // The delivery status is already updated in the DB, so the next
-            // sync won't retry this email — surface the failure instead of
-            // counting it as sent.
-            result.errors.push(`Заказ №${row.order_number}: не удалось отправить письмо о статусе доставки`)
+            result.errors.push(`Заказ №${row.order_number}: не удалось поставить письмо о статусе доставки в очередь`)
           }
         }
       } catch (e) {

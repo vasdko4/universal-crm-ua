@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { pool } from '@/lib/db'
 import { authorizeCronRequest } from '@/lib/cron-auth'
 import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
+import { reportError } from '@/lib/server-errors'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -34,7 +35,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, deleted: result.rowCount ?? 0 })
   } catch (e) {
     await recordCronRun('analytics-retention', 'error', (e as Error).message)
-    console.error('[cron] analytics-retention failed:', (e as Error).message)
+    // A dead analytics-retention lets analytics_events grow without bound —
+    // ping the admin, not just the logs.
+    void reportError('cron.analytics-retention', e, { alertAdmin: true })
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
   }
 }

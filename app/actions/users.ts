@@ -171,7 +171,12 @@ export async function deleteUser(userId: string) {
     // deletes are harmless and keep the intent visible.
     await client.query(`DELETE FROM user_favorites WHERE user_id = $1`, [userId])
     await client.query(`DELETE FROM user_addresses WHERE user_id = $1`, [userId])
-    await client.query(`DELETE FROM "user" WHERE id = $1`, [userId])
+    const userRes = await client.query(`DELETE FROM "user" WHERE id = $1`, [userId])
+    // BUGFIX: reported success even when the user id didn't exist (0 rows).
+    if ((userRes.rowCount ?? 0) === 0) {
+      await client.query('ROLLBACK').catch(() => {})
+      return { success: false, error: getAdminDictionary(me.locale).users.userNotFound }
+    }
     await client.query('COMMIT')
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {})
@@ -211,27 +216,29 @@ export async function saveRole(input: {
   description?: string
   permissions: string[]
 }) {
-  await requireAdminGuard()
+  const me = await requireAdminGuard()
+  const dict = getAdminDictionary(me.locale).users
   try {
   if (input.id) {
     const [existing] = await db.select().from(roles).where(eq(roles.id, input.id)).limit(1)
-    if (existing?.isSystem && existing.code === 'admin') {
-      // keep admin permissions as '*'
-      await db
-        .update(roles)
-        .set({ name: input.name, description: input.description, updatedAt: new Date() })
-        .where(eq(roles.id, input.id))
-    } else {
-      await db
-        .update(roles)
-        .set({
-          name: input.name,
-          description: input.description,
-          permissions: input.permissions,
-          updatedAt: new Date(),
-        })
-        .where(eq(roles.id, input.id))
-    }
+    // BUGFIX: reported success even when the role id didn't exist.
+    if (!existing) return { success: false as const, error: dict.unknownRole }
+    const updated = await db
+      .update(roles)
+      .set(
+        existing.isSystem && existing.code === 'admin'
+          // keep admin permissions as '*'
+          ? { name: input.name, description: input.description, updatedAt: new Date() }
+          : {
+              name: input.name,
+              description: input.description,
+              permissions: input.permissions,
+              updatedAt: new Date(),
+            },
+      )
+      .where(eq(roles.id, input.id))
+      .returning({ id: roles.id })
+    if (updated.length === 0) return { success: false as const, error: dict.unknownRole }
   } else {
     await db.insert(roles).values({
       code: input.code,
@@ -244,7 +251,6 @@ export async function saveRole(input: {
   revalidatePath('/admin/users')
   return { success: true as const, error: undefined as string | undefined }
   } catch (e) {
-    const dict = getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users
     return { success: false as const, error: e instanceof Error ? e.message : dict.roleSaveFailed }
   }
 }
@@ -252,14 +258,17 @@ export async function saveRole(input: {
 export async function deleteRole(id: number) {
   await requireAdminGuard()
   const [existing] = await db.select().from(roles).where(eq(roles.id, id)).limit(1)
-  if (existing?.isSystem) return { success: false, error: getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users.cannotDeleteSystemRole }
+  // BUGFIX: reported success even when the role id didn't exist (0 rows).
+  if (!existing) return { success: false, error: getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users.unknownRole }
+  if (existing.isSystem) return { success: false, error: getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users.cannotDeleteSystemRole }
   const inUse = await pool.query(`SELECT COUNT(*)::int AS c FROM "user" WHERE role = $1`, [
-    existing?.code,
+    existing.code,
   ])
   if ((inUse.rows[0]?.c ?? 0) > 0) {
     return { success: false, error: getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users.roleInUse }
   }
-  await db.delete(roles).where(eq(roles.id, id))
+  const deleted = await db.delete(roles).where(eq(roles.id, id)).returning({ id: roles.id })
+  if (deleted.length === 0) return { success: false, error: getAdminDictionary((await getAdminUser())?.locale ?? (await getLocale())).users.unknownRole }
   revalidatePath('/admin/users')
   return { success: true }
 }

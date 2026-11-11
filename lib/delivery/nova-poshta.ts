@@ -1,4 +1,5 @@
 import { fetchWithTimeout } from '@/lib/http'
+import { digitsPhone } from './ttn'
 
 const NP_ENDPOINT = 'https://api.novaposhta.ua/v2.0/json/'
 
@@ -174,17 +175,21 @@ function npDate(d: Date): string {
 
 /**
  * Lists the sender's waybills created in the last `daysBack` days, filtered
- * to the recipient phone (normalized to digits). Used to reconcile a TTN
- * create whose response was lost: if Nova Poshta already created the
- * waybill, the retry binds it instead of creating a second one.
+ * to the recipient phone. Both sides are normalized with digitsPhone() to
+ * the 380… form, so 067…, +380… and 380… all match the phone Nova Poshta
+ * stored at creation time. Used to reconcile a TTN create whose response
+ * was lost: if Nova Poshta already created the waybill, the retry binds it
+ * instead of creating a second one.
  * Never throws for an empty result — returns [] when nothing matches.
+ * Throws when the NP request itself fails, so the caller can abort instead
+ * of treating "lookup failed" as "no waybill exists".
  */
 export async function findRecentDocumentsByPhone(
   apiKey: string,
   phone: string,
   daysBack = 2,
 ): Promise<NpRecentDocument[]> {
-  const digits = phone.replace(/\D/g, '')
+  const digits = digitsPhone(phone)
   if (!digits) return []
   const to = new Date()
   const from = new Date()
@@ -200,7 +205,7 @@ export async function findRecentDocumentsByPhone(
   const out: NpRecentDocument[] = []
   for (const row of resp.data) {
     const ttn = String(row.IntDocNumber ?? '').trim()
-    const rowPhone = String(row.RecipientsPhone ?? '').replace(/\D/g, '')
+    const rowPhone = digitsPhone(String(row.RecipientsPhone ?? ''))
     if (!ttn || rowPhone !== digits) continue
     const costRaw = row.Cost
     const cost = typeof costRaw === 'number' ? costRaw : costRaw != null ? Number(String(costRaw).replace(',', '.')) : NaN
@@ -212,6 +217,31 @@ export async function findRecentDocumentsByPhone(
     })
   }
   return out
+}
+
+/**
+ * Picks the waybill to bind when reconciling a TTN create whose response
+ * was lost. A document matches only when its recipient phone (normalized
+ * to the 380… form) and its declared value agree with the order — the
+ * declared value is the one Nova Poshta stores, i.e. the cost rounded to
+ * whole hryvnias (see declaredCost in ./ttn), compared with a small
+ * tolerance for float noise only. Among matches the newest by dateTime
+ * wins (same lexicographic order the list used before). Pure — no network,
+ * no DB. Returns null when nothing matches; never throws.
+ */
+export function matchRecentDocument(
+  docs: NpRecentDocument[],
+  opts: { declaredCost: number; phone: string; tolerance?: number },
+): NpRecentDocument | null {
+  const phone = digitsPhone(opts.phone)
+  const tolerance = opts.tolerance ?? 0.01
+  let best: NpRecentDocument | null = null
+  for (const d of docs) {
+    if (d.cost == null || Math.abs(d.cost - opts.declaredCost) > tolerance) continue
+    if (digitsPhone(d.phone) !== phone) continue
+    if (!best || d.dateTime > best.dateTime) best = d
+  }
+  return best
 }
 
 export async function fetchSenderProfile(apiKey: string) {

@@ -257,6 +257,15 @@ export const payments = pgTable('payments', {
   customerPhone: varchar('customer_phone', { length: 50 }),
   paymentUrl: text('payment_url'),
   refundedAmount: numeric('refunded_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  // Amount reserved for a refund whose gateway call has not confirmed yet.
+  // refunded_amount/status are written only after gateway success, so a
+  // crash between the reserve and the gateway response never blocks a retry:
+  // refundPayment reconciles the pending reserve against the gateway
+  // (CHECK_STATUS) before trusting it. The admin payments list shows a
+  // nonzero pending amount as "refund pending", distinct from a completed
+  // refund.
+  pendingRefundAmount: numeric('pending_refund_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  pendingRefundAt: timestamp('pending_refund_at', { withTimezone: true }),
   // Real fiscal check URL, when the gateway's API actually returns one for
   // this transaction (WayForPay/Monobank card payments with fiscalization
   // enabled on the merchant's account). Null when unavailable — the order

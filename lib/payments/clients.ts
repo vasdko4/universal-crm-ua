@@ -55,6 +55,70 @@ const WFP_STATUS_MAP: Record<string, string> = {
   RefundInProcessing: 'pending',
 }
 
+/**
+ * Maps a raw WayForPay transactionStatus to our internal status, or null when
+ * the answer carries no known status (error payload, empty body, a new status
+ * we don't know yet). Callers must treat null as "unknown, retry later" —
+ * never as 'pending': mapping garbage to 'pending' let expire-pending treat
+ * a dead invoice as still payable forever. Pure so the rule is unit-testable.
+ */
+export function wfpStatusFromTransaction(transactionStatus: unknown): string | null {
+  const mapped = typeof transactionStatus === 'string' ? WFP_STATUS_MAP[transactionStatus] : undefined
+  return typeof mapped === 'string' ? mapped : null
+}
+
+// Monobank invoice status -> internal status.
+const MONO_STATUS_MAP: Record<string, string> = {
+  created: 'pending',
+  processing: 'pending',
+  hold: 'pending',
+  success: 'paid',
+  failure: 'failed',
+  reversed: 'refunded',
+  expired: 'expired',
+}
+
+/** Same rule as wfpStatusFromTransaction, for Monobank invoice statuses. Pure. */
+export function monoStatusFromInvoice(status: unknown): string | null {
+  const mapped = typeof status === 'string' ? MONO_STATUS_MAP[status] : undefined
+  return typeof mapped === 'string' ? mapped : null
+}
+
+export type PendingRefundDecision =
+  | { outcome: 'finalized' }
+  | { outcome: 'cleared' }
+  | { outcome: 'unknown' }
+
+/**
+ * Decides what a retry may do with a pending refund reserve, from the
+ * gateway's normalized CHECK_STATUS answer (refundPayment reconciles the
+ * reserve before trusting any local flag).
+ *
+ * - 'refunded' at the gateway proves the money moved: finalize the reserve.
+ * - 'paid' at the gateway proves a FULL pending refund never executed (a
+ *   full refund would have flipped the gateway status): release the reserve
+ *   and retry fresh.
+ * - anything else cannot prove either way: a PARTIAL pending refund behind
+ *   a still-'paid' invoice cannot be disproved from the status alone, and a
+ *   failed/expired invoice answer is not proof the refund didn't happen.
+ *   Keep the reserve and let the admin reconcile in the gateway cabinet.
+ * Pure so the rule is unit-testable.
+ */
+export function reconcilePendingRefund(input: {
+  gatewayStatus: string | null | undefined
+  pendingAmount: number
+  alreadyRefunded: number
+  total: number
+}): PendingRefundDecision {
+  const { gatewayStatus, pendingAmount, alreadyRefunded, total } = input
+  if (gatewayStatus === 'refunded') return { outcome: 'finalized' }
+  if (gatewayStatus === 'paid') {
+    const pendingTotal = Number(alreadyRefunded) + Number(pendingAmount)
+    if (pendingTotal >= Number(total) - 0.001) return { outcome: 'cleared' }
+  }
+  return { outcome: 'unknown' }
+}
+
 const WFP_API = 'https://api.wayforpay.com/api'
 
 function wfpSignature(secret: string, fields: (string | number)[]): string {
@@ -172,9 +236,23 @@ export async function wayforpayCheckStatus(
       merchantSignature: signature,
       apiVersion: 1,
     })
+    // An error/empty body (invoice not found, bad signature, unexpected
+    // status) is NOT "still pending" — report it as unknown so every caller
+    // (status refresh, storefront check, expire-pending) retries later
+    // instead of treating a dead invoice as payable.
+    const status = wfpStatusFromTransaction(data?.transactionStatus)
+    if (status == null) {
+      return {
+        ok: false,
+        message:
+          data?.reason ||
+          `WayForPay: невідомий статус платежу «${typeof data?.transactionStatus === 'string' ? data.transactionStatus : 'порожня відповідь'}»`,
+        raw: data,
+      }
+    }
     return {
       ok: true,
-      status: WFP_STATUS_MAP[data?.transactionStatus] || 'pending',
+      status,
       message: data?.transactionStatus,
       raw: data,
       amount: data?.amount != null ? Number(data.amount) : undefined,
@@ -357,18 +435,21 @@ export async function monobankCheckStatus(
       'GET',
     )
     if (!ok) return { ok: false, message: data?.errText || 'Ошибка запроса статуса', raw: data }
-    const map: Record<string, string> = {
-      created: 'pending',
-      processing: 'pending',
-      hold: 'pending',
-      success: 'paid',
-      failure: 'failed',
-      reversed: 'refunded',
-      expired: 'expired',
+    // Same rule as WayForPay: an unknown status in a 200 answer is "unknown,
+    // retry later", never 'pending'.
+    const status = monoStatusFromInvoice(data?.status)
+    if (status == null) {
+      return {
+        ok: false,
+        message:
+          data?.errText ||
+          `Monobank: невідомий статус «${typeof data?.status === 'string' ? data.status : 'порожня відповідь'}»`,
+        raw: data,
+      }
     }
     return {
       ok: true,
-      status: map[data?.status] || 'pending',
+      status,
       message: data?.status,
       raw: data,
       amount: data?.amount != null ? Number(data.amount) / 100 : undefined,

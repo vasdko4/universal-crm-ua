@@ -19,6 +19,18 @@ export async function sendMail(payload: MailPayload): Promise<{ sent: boolean; f
   const settings = await getStoreSettingsInternal()
   const email = (settings.emailSettings ?? {}) as Record<string, string | boolean>
 
+  // "Configured" here means only "we have enough SMTP settings to attempt a
+  // send" — it is NOT the order-email kill-switch. The master toggle
+  // (Settings → Email → "Email-сповіщення", emailSettings.enabled) is a
+  // notification-policy flag, enforced at the order-email callers
+  // (lib/notifications.ts, lib/delivery/sync-tracking.ts): confirmation,
+  // shipped and delivery-status emails never reach sendMail while it is off.
+  // It must stay out of this transport check — account emails (password
+  // reset / verification codes in app/actions/shop-auth.ts and lib/auth.ts)
+  // and the admin test email (app/actions/settings-store.ts) have to keep
+  // working while order emails are off, and they do so exactly when a
+  // password is saved. A host + user with neither the toggle nor a password
+  // is not worth attempting (a no-password relay is covered by the toggle).
   const configured = Boolean(email.smtpHost && email.smtpUser && (email.enabled || email.smtpPassword))
   if (!configured) {
     if (process.env.NODE_ENV === 'production') {

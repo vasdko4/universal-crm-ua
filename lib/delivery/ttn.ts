@@ -33,6 +33,17 @@ export function digitsPhone(phone: string): string {
   return d
 }
 
+/**
+ * The declared value Nova Poshta actually stores for a waybill: the cost
+ * rounded to whole hryvnias, at least 1. The TTN reconciliation must
+ * compare against this value — not the raw order total, whose kopecks NP
+ * never sees (e.g. 1500.50 is stored as 1501). Shared by the payload
+ * builder and the reconcile block so the two can never drift apart.
+ */
+export function declaredCost(cost: number): number {
+  return Math.max(1, Math.round(cost))
+}
+
 function todayUa(): string {
   const now = new Date()
   const kyiv = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Kyiv' }))
@@ -54,7 +65,7 @@ export function buildInternetDocumentPayload(input: {
 }): InternetDocumentProperties {
   const phone = digitsPhone(input.recipient.phone)
   const senderPhone = digitsPhone(input.sender.phone)
-  const cost = Math.max(1, Math.round(input.cargo.cost))
+  const cost = declaredCost(input.cargo.cost)
   const weight = Math.max(0.1, Number(input.cargo.weightKg.toFixed(2)))
   const seats = Math.max(1, Math.floor(input.cargo.seats))
   const serviceType = input.recipient.warehouseRef || input.recipient.warehouseName ? 'WarehouseWarehouse' : 'WarehouseDoors'

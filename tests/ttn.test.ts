@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildInternetDocumentPayload,
+  declaredCost,
   parseTtnFromSaveResponse,
   parcelWeightKg,
   novaPoshtaPrintUrl,
@@ -72,6 +73,33 @@ describe('buildInternetDocumentPayload', () => {
   })
 })
 
+describe('declaredCost', () => {
+  it('rounds to whole hryvnias — the value Nova Poshta actually stores', () => {
+    // The reconcile bug: a 1500.50 total is stored by NP as 1501, so the
+    // retry must compare against the rounded value, not the raw total.
+    expect(declaredCost(1500.5)).toBe(1501)
+    expect(declaredCost(1499.4)).toBe(1499)
+    expect(declaredCost(1499.5)).toBe(1500)
+    expect(declaredCost(100)).toBe(100)
+  })
+
+  it('never drops below 1', () => {
+    expect(declaredCost(0)).toBe(1)
+    expect(declaredCost(0.4)).toBe(1)
+    expect(declaredCost(-5)).toBe(1)
+  })
+
+  it('payload Cost and declaredCost agree (same helper, no drift)', () => {
+    const props = buildInternetDocumentPayload({
+      sender,
+      recipient: { name: 'Іван', phone: '0671234567', cityName: 'Київ', warehouseRef: 'wh-1' },
+      cargo: { description: 'x', cost: 1500.5, weightKg: 1, seats: 1 },
+    })
+    expect(props.Cost).toBe(String(declaredCost(1500.5)))
+    expect(props.Cost).toBe('1501')
+  })
+})
+
 describe('parcelWeightKg', () => {
   it('sums product weights by quantity', () => {
     expect(
@@ -135,6 +163,18 @@ describe('audit 63: TTN create reconciles instead of duplicating', () => {
     expect(digitsPhone('0671234567')).toBe('380671234567')
     expect(digitsPhone('671234567')).toBe('380671234567')
     expect(digitsPhone('380 67 123-45-67')).toBe('380671234567')
+  })
+
+  it('reconcile never swallows a failed NP lookup and uses the matcher', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    const src = readFileSync(resolve(import.meta.dirname, '..', 'app/actions/ttn.ts'), 'utf8')
+    // No `.catch(() => null)` on the reconcile lookup: a failed lookup aborts
+    // the creation instead of silently creating a second waybill.
+    expect(src).not.toContain("findRecentDocumentsByPhone(apiKey, order.customerPhone || '').catch")
+    expect(src).toContain("reportError('ttn.reconcile-lookup'")
+    expect(src).toContain('matchRecentDocument')
+    expect(src).toContain('declaredCost(Number(order.total)')
   })
 
   it('creates under an advisory lock, journals attempts, never calls the API inside a transaction', async () => {

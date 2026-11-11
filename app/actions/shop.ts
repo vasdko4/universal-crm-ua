@@ -36,7 +36,7 @@ import { resolveOneClickLine, validateOneClickInput } from '@/lib/shop/one-click
 import { isUniqueViolation } from '@/lib/db/errors'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getLocale } from '@/lib/i18n/server'
-import { localizedPath } from '@/lib/i18n/config'
+import { localizedPath, type Locale } from '@/lib/i18n/config'
 import { decryptConfigSecrets, GATEWAY_CONFIG_SECRET_KEYS } from '@/lib/secrets'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { formatPrice } from '@/lib/shop/format'
@@ -187,6 +187,60 @@ export type CheckoutResult =
       requisites?: string
     }
 
+/** Row shape the idempotency lookup and the unique-violation catch share. */
+type IdempotentCheckoutOrder = {
+  id: number
+  orderNumber: string
+  total: string | number
+  itemsTotal: string | number
+  discountTotal: string | number
+  promoCode: string | null
+  paymentMethod: string | null
+}
+
+/**
+ * Success payload for an already-created order found by idempotency key
+ * (lookup hit or unique-violation winner): payment URL, requisites preview
+ * and the last-order cookie, same as a fresh checkout.
+ */
+async function buildIdempotentCheckoutResult(
+  existing: IdempotentCheckoutOrder,
+  locale: Locale,
+): Promise<Extract<CheckoutResult, { success: true }>> {
+  const [pay] = await db
+    .select({ paymentUrl: payments.paymentUrl })
+    .from(payments)
+    .where(eq(payments.orderReference, existing.orderNumber))
+    .orderBy(desc(payments.createdAt))
+    .limit(1)
+  let requisites: string | undefined
+  if (existing.paymentMethod === 'requisites') {
+    const { rows } = await pool.query(`SELECT config FROM payment_methods WHERE code='requisites'`)
+    const cfg = (rows[0]?.config as Record<string, string> | null) ?? {}
+    const { formatRequisitesPreview } = await import('@/lib/payments/public-requisites')
+    const loc = locale === 'ru' ? 'ru' as const : 'uk' as const
+    requisites = formatRequisitesPreview(cfg, {
+      amount: Number(existing.total),
+      locale: loc,
+      orderNumber: existing.orderNumber,
+    })
+  }
+  await rememberLastOrder(existing.orderNumber)
+  return {
+    success: true,
+    orderId: existing.id,
+    orderNumber: existing.orderNumber,
+    total: Number(existing.total),
+    itemsTotal: Number(existing.itemsTotal),
+    discount: Number(existing.discountTotal),
+    promoCode: existing.promoCode ?? undefined,
+    // Column is nullable in the schema; the insert always sets it.
+    paymentMethod: existing.paymentMethod ?? 'cod',
+    paymentUrl: pay?.paymentUrl ?? undefined,
+    requisites,
+  }
+}
+
 // Creates a storefront order: validates stock against the DB (never trusts
 // client prices), decrements inventory, links the customer + account, records
 // history, and prepares payment info depending on the chosen method.
@@ -214,7 +268,11 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
 
   // Idempotency: a retried submit (double-tap on slow network, lost
   // response) carries the same key — return the already-created order
-  // instead of a duplicate, same pattern as one-click.
+  // instead of a duplicate, same pattern as one-click. A CANCELLED order is
+  // never returned as success: its gateway invoice creation failed, so it
+  // has no payment URL and the shopper would be stuck. The retry creates a
+  // fresh order instead, and the key is released from the cancelled row
+  // inside the creation transaction below.
   const idempotencyKey = input.idempotencyKey ?? null
   if (idempotencyKey) {
     const [existing] = await db
@@ -226,43 +284,13 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         discountTotal: orders.discountTotal,
         promoCode: orders.promoCode,
         paymentMethod: orders.paymentMethod,
+        status: orders.status,
       })
       .from(orders)
       .where(eq(orders.idempotencyKey, idempotencyKey))
       .limit(1)
-    if (existing) {
-      const [pay] = await db
-        .select({ paymentUrl: payments.paymentUrl })
-        .from(payments)
-        .where(eq(payments.orderReference, existing.orderNumber))
-        .orderBy(desc(payments.createdAt))
-        .limit(1)
-      let requisites: string | undefined
-      if (existing.paymentMethod === 'requisites') {
-        const { rows } = await pool.query(`SELECT config FROM payment_methods WHERE code='requisites'`)
-        const cfg = (rows[0]?.config as Record<string, string> | null) ?? {}
-        const { formatRequisitesPreview } = await import('@/lib/payments/public-requisites')
-        const loc = locale === 'ru' ? 'ru' as const : 'uk' as const
-        requisites = formatRequisitesPreview(cfg, {
-          amount: Number(existing.total),
-          locale: loc,
-          orderNumber: existing.orderNumber,
-        })
-      }
-      await rememberLastOrder(existing.orderNumber)
-      return {
-        success: true,
-        orderId: existing.id,
-        orderNumber: existing.orderNumber,
-        total: Number(existing.total),
-        itemsTotal: Number(existing.itemsTotal),
-        discount: Number(existing.discountTotal),
-        promoCode: existing.promoCode ?? undefined,
-        // Column is nullable in the schema; the insert always sets it.
-        paymentMethod: existing.paymentMethod ?? 'cod',
-        paymentUrl: pay?.paymentUrl ?? undefined,
-        requisites,
-      }
+    if (existing && existing.status !== 'cancelled') {
+      return buildIdempotentCheckoutResult(existing, locale)
     }
   }
 
@@ -476,6 +504,21 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     order = await withDbClient(async (client) => {
       const tx = dbForClient(client)
 
+      // A retried submit after a failed gateway invoice creation: the old
+      // order was cancelled, but its idempotency key still blocks the insert
+      // (unique index idx_orders_idempotency_key). Release the key from the
+      // cancelled row so the fresh order can reuse it — the cancelled row
+      // keeps its history, just not the key. A concurrent retry releases the
+      // same no-op; the loser of the insert race is handled by the
+      // unique-violation catch below. If this transaction rolls back, the
+      // release rolls back with it.
+      if (idempotencyKey) {
+        await tx
+          .update(orders)
+          .set({ idempotencyKey: null })
+          .where(and(eq(orders.idempotencyKey, idempotencyKey), eq(orders.status, 'cancelled')))
+      }
+
       // Upsert a customer record by phone. Unique on phone is not guaranteed
       // on every install, so a concurrent insert can still collide — retry
       // by selecting the existing row.
@@ -585,6 +628,30 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     // reservation: the transaction rolled back, tell the shopper plainly.
     if (e instanceof InsufficientStockError) {
       return { success: false, error: t.someItemsUnavailable }
+    }
+    // Idempotency race: a parallel submit with the same key won the insert.
+    // Return the winner instead of an error — same pattern as one-click.
+    if (idempotencyKey && isUniqueViolation(e)) {
+      const [winner] = await db
+        .select({
+          id: orders.id,
+          orderNumber: orders.orderNumber,
+          total: orders.total,
+          itemsTotal: orders.itemsTotal,
+          discountTotal: orders.discountTotal,
+          promoCode: orders.promoCode,
+          paymentMethod: orders.paymentMethod,
+          status: orders.status,
+        })
+        .from(orders)
+        .where(eq(orders.idempotencyKey, idempotencyKey))
+        .limit(1)
+      if (winner && winner.status !== 'cancelled') {
+        return buildIdempotentCheckoutResult(winner, locale)
+      }
+      // The winner is the cancelled row itself (its key was never released):
+      // fall through to the generic error — the shopper retries with a
+      // fresh key.
     }
     console.error('[checkout] order write failed:', (e as Error).message)
     return { success: false, error: t.paymentInvoiceFailed }
@@ -807,6 +874,7 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
       quantity: products.quantity,
       isInStockFlag: products.isInStock,
       variantsEnabled: products.variantsEnabled,
+      availabilityMode: products.availabilityMode,
       salesType: products.salesType,
     })
     .from(products)
@@ -814,10 +882,15 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
   const first = productRow[0]
   if (!first) return { success: false, error: t.someItemsUnavailable }
   // Same storefront rule as lib/shop/queries.ts toShopProduct: genuinely out
-  // of stock when the admin flag is off or quantity is 0. (Pre-order products
-  // stay purchasable at 0 on the storefront, but the checkout's own stock
-  // pre-check rejects them too — mirrored here.)
-  const p = { ...first, inStock: Boolean(first.isInStockFlag) && first.quantity > 0 }
+  // of stock when the admin flag is off or quantity is 0. Preorder products
+  // stay purchasable at 0 — the same exception the regular checkout applies
+  // (availability_mode = 'preorder'), carried on the row so
+  // resolveOneClickLine mirrors the checkout line for line.
+  const p = {
+    ...first,
+    inStock: Boolean(first.isInStockFlag) && first.quantity > 0,
+    isPreorder: first.availabilityMode === 'preorder',
+  }
 
   // Load the variant referenced by the shopper (if any) to validate
   // per-variant stock/price — same rule as the checkout.

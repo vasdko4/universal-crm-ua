@@ -71,6 +71,28 @@ export function isOrderStatusTransitionAllowed(from: string, to: string): boolea
   return Array.isArray(allowed) && allowed.includes(to)
 }
 
+/**
+ * Allowed payment-status transitions for updateOrderPayment, mirroring
+ * ORDER_STATUS_TRANSITIONS (item 54). The point is to block the nonsensical
+ * ones: money can only move forward (unpaid -> paid -> refunded), a refunded
+ * payment is terminal, and a paid order can never be silently marked unpaid
+ * while its stock stays deducted and its promo usage counted. Re-saving the
+ * same status is allowed (harmless no-op that still lets a `paid` re-save
+ * repair a paid-but-pending_payment order).
+ */
+export const PAYMENT_STATUS_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
+  unpaid: ['paid'],
+  paid: ['partially_refunded', 'refunded'],
+  partially_refunded: ['refunded'],
+  refunded: [],
+}
+
+export function isPaymentStatusTransitionAllowed(from: string, to: string): boolean {
+  if (from === to) return true
+  const allowed = (PAYMENT_STATUS_TRANSITIONS as Record<string, string[]>)[from]
+  return Array.isArray(allowed) && allowed.includes(to)
+}
+
 /** Admin-panel order status label. Default locale is Ukrainian. */
 export function getOrderStatusLabel(status: string, locale: Locale): string {
   if (locale === 'ru') return ORDER_STATUS_LABELS_RU[status] ?? status

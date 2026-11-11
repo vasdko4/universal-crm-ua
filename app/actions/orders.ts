@@ -13,7 +13,7 @@ import {
 } from '@/lib/db/schema'
 import { getAdminUser, assertPermission, assertWritePermission } from '@/lib/session'
 import { escapeLikeWildcards, ilikeEscaped } from '@/lib/api/helpers'
-import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel, isOrderStatusTransitionAllowed } from '@/lib/order-status'
+import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel, isOrderStatusTransitionAllowed, isPaymentStatusTransitionAllowed } from '@/lib/order-status'
 import { computeOrderTotals } from '@/lib/shop/order-totals'
 import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
 import { fillAuditTemplate } from '@/lib/audit-log'
@@ -570,45 +570,78 @@ export async function updateOrderPayment(id: number, paymentStatus: string): Pro
   if (!PAYMENT_STATUSES.some((s) => s.value === paymentStatus)) {
     return { success: false, error: 'Невідомий статус оплати' }
   }
-  const [current] = await db
-    .select({ orderNumber: orders.orderNumber, status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, id))
-    .limit(1)
-  await db.update(orders).set({ paymentStatus, updatedAt: new Date() }).where(eq(orders.id, id))
-  // BUGFIX: manually marking an order 'paid' used to leave an online order
-  // stuck in 'pending_payment' — stock never deducted, promo usage never
-  // counted, notification never sent, and the order hidden from the shop
-  // account ("paid but doesn't exist"). finalizePaidOrder is idempotent: it
-  // only acts when the status is still pending_payment.
-  if (paymentStatus === 'paid' && current?.status === 'pending_payment') {
-    const { finalizePaidOrder } = await import('@/lib/shop/order-fulfillment')
-    await finalizePaidOrder(current.orderNumber)
-    // Server-side GA4 purchase (Measurement Protocol): the browser pixel can
-    // be blocked by ad blockers, so a confirmed payment resends the purchase
-    // from the server. Best-effort and never throws. Only fires on the
-    // pending_payment -> paid transition, not on repeat saves.
+  // The status UPDATE, finalizePaidOrder and the refund side effects run in
+  // ONE transaction: a finalize failure used to leave the order `paid` but
+  // still `pending_payment` (stock never deducted, promo usage never counted,
+  // notification never sent, hidden from the buyer cabinet). Now the whole
+  // change rolls back together and a later retry can redo it.
+  const result = await withDbClient(async (client) => {
+    const tx = dbForClient(client)
+    const [current] = await tx
+      .select({
+        orderNumber: orders.orderNumber,
+        status: orders.status,
+        paymentStatus: orders.paymentStatus,
+      })
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1)
+    if (!current) return { success: false as const, error: 'Замовлення не знайдено' }
+    if (!isPaymentStatusTransitionAllowed(current.paymentStatus, paymentStatus)) {
+      return { success: false as const, error: 'Недопустимий перехід статусу оплати' }
+    }
+    await tx.update(orders).set({ paymentStatus, updatedAt: new Date() }).where(eq(orders.id, id))
+    // BUGFIX: manually marking an order 'paid' used to leave an online order
+    // stuck in 'pending_payment' — stock never deducted, promo usage never
+    // counted, notification never sent, and the order hidden from the shop
+    // account ("paid but doesn't exist"). finalizePaidOrder is idempotent: it
+    // only acts when the status is still pending_payment. It runs on this
+    // transaction's client so its claim + fulfillment commit (or roll back)
+    // with the status change; the notification and GA4 fire after commit,
+    // and only when this call actually performed the transition.
+    let finalizedOrderId: number | null = null
+    if (paymentStatus === 'paid' && current.status === 'pending_payment') {
+      const { finalizePaidOrder } = await import('@/lib/shop/order-fulfillment')
+      finalizedOrderId = await finalizePaidOrder(current.orderNumber, client)
+    }
+    // BUGFIX: a manually marked full refund voids the sale — release the promo
+    // usage like the gateway refund path does. Idempotent: already-released
+    // orders are a no-op.
+    let promoReleased: string[] = []
+    if (paymentStatus === 'refunded') {
+      const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
+      const { released } = await releasePromotionUsageForOrder(current.orderNumber, client)
+      promoReleased = released.map((r) => r.promoCode ?? `#${r.promotionId}`)
+      // Restore the stock like the gateway refund path does (restoreStockOnce
+      // is idempotent via claim; cancelled orders already restored at cancel).
+      if (current.status !== 'cancelled') {
+        await restoreStockOnce(id, client)
+      }
+    }
+    return {
+      success: true as const,
+      finalizedOrderId,
+      promoReleased,
+      orderNumber: current.orderNumber,
+    }
+  })
+  if (!result.success) return result
+  // Outside the transaction, after commit: best-effort notification and
+  // server-side GA4 purchase, only when this call performed the
+  // pending_payment -> paid transition (a concurrent webhook that won the
+  // claim fires them instead — no double conversion).
+  if (result.finalizedOrderId != null) {
+    const { notifyNewOrder } = await import('@/lib/notifications')
+    void notifyNewOrder(result.finalizedOrderId)
     const { reportGa4Purchase } = await import('@/lib/analytics/ga4')
-    await reportGa4Purchase(current.orderNumber)
+    await reportGa4Purchase(result.orderNumber)
   }
-  // BUGFIX: a manually marked full refund voids the sale — release the promo
-  // usage like the gateway refund path does. Idempotent: already-released
-  // orders are a no-op.
-  if (paymentStatus === 'refunded' && current) {
-    const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
-    const { released } = await releasePromotionUsageForOrder(current.orderNumber)
-    if (released.length > 0) {
-      await addHistory(
-        id,
-        'note',
-        `Использование промокода освобождено (возврат): ${released.map((r) => r.promoCode ?? `#${r.promotionId}`).join(', ')}`,
-      )
-    }
-    // Restore the stock like the gateway refund path does (restoreStockOnce
-    // is idempotent via claim; cancelled orders already restored at cancel).
-    if (current.status !== 'cancelled') {
-      await restoreStockOnce(id)
-    }
+  if (result.promoReleased.length > 0) {
+    await addHistory(
+      id,
+      'note',
+      `Использование промокода освобождено (возврат): ${result.promoReleased.join(', ')}`,
+    )
   }
   const label = getPaymentStatusLabel(paymentStatus, user.locale)
   await addHistory(
@@ -634,7 +667,12 @@ export async function updateOrderDelivery(
   },
 ): Promise<{ success: boolean; error?: string }> {
   const user = await assertWritePermission('orders')
-  const [current] = await db.select({ trackingNumber: orders.trackingNumber, status: orders.status }).from(orders).where(eq(orders.id, id)).limit(1)
+  // Saving delivery details NEVER changes the order status and NEVER notifies
+  // the customer: creating/entering a TTN and telling the customer the order
+  // shipped are two separate actions (3.4.83 design intent). The order moves
+  // to `shipped` — with the shipped notification — only via updateOrderStatus,
+  // when the admin actually dispatches the parcel. In particular, an unpaid
+  // online order (pending_payment) is never auto-shipped by a TTN.
   const set: Record<string, unknown> = { updatedAt: new Date() }
   if (data.deliveryMethod !== undefined) set.deliveryMethod = data.deliveryMethod
   if (data.deliveryCity !== undefined) set.deliveryCity = data.deliveryCity
@@ -642,16 +680,6 @@ export async function updateOrderDelivery(
   if (data.deliveryAddress !== undefined) set.deliveryAddress = data.deliveryAddress
   if (data.trackingNumber !== undefined) {
     set.trackingNumber = data.trackingNumber
-    // BUGFIX: never auto-ship an unpaid online order ('pending_payment').
-    // Entering a TTN used to flip pending_payment -> shipped, which skipped
-    // applyOrderFulfillment/finalizePaidOrder entirely (no stock deduction,
-    // no promo accounting). When the payment later arrived, finalizePaidOrder
-    // no-op'd on the status mismatch and the warehouse ledger diverged from
-    // reality forever. An unpaid order keeps its status; the TTN is still saved.
-    const nonShippable = new Set(['shipped', 'done', 'cancelled', 'pending_payment'])
-    if (data.trackingNumber.trim() && current && !nonShippable.has(current.status)) {
-      set.status = 'shipped'
-    }
   }
   if (data.deliveryStatus !== undefined) set.deliveryStatus = data.deliveryStatus
   await db.update(orders).set(set).where(eq(orders.id, id))
@@ -663,11 +691,6 @@ export async function updateOrderDelivery(
         number: data.trackingNumber,
       }),
     )
-    const ttn = data.trackingNumber.trim()
-    if (ttn && ttn !== (current?.trackingNumber ?? '')) {
-      const { notifyShippedOrder } = await import('@/lib/notifications')
-      void notifyShippedOrder(id)
-    }
   }
   revalidatePath(`/admin/orders/${id}`)
   revalidatePath('/account/orders')

@@ -119,8 +119,11 @@ describe('audit 19: refund reserve rollback is versioned, ambiguous answers stay
   const src = source('app/actions/payments.ts')
 
   it('rolls the reserve back only when the row still holds the reserved values', () => {
+    // 3.4.87: the reserve moved to pending_refund_amount (two-phase ledger) —
+    // the versioned rollback is now a CAS on the pending marker, so a
+    // concurrent reconcile that already finalized it is never clobbered.
     expect(src).toContain('rollbackReserve')
-    expect(src).toContain('WHERE id = $1 AND refunded_amount = $4 AND status = $5')
+    expect(src).toContain('WHERE id = $1 AND pending_refund_amount = $2')
     // No blind rollback left: the old unconditional UPDATEs are gone.
     expect(count(src, 'updated_at = NOW() WHERE id = $1`')).toBe(0)
     expect(count(src, 'await rollbackReserve()')).toBe(3)

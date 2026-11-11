@@ -90,6 +90,13 @@ export type OneClickProductRow = {
   quantity: number
   inStock: boolean
   variantsEnabled: boolean
+  /**
+   * True when products.availability_mode = 'preorder'. Preorder products are
+   * purchasable at zero stock on the storefront and in the regular checkout —
+   * the same exception applies here, otherwise one-click rejects exactly the
+   * items the storefront offers. Fulfillment skips the deduction for them.
+   */
+  isPreorder: boolean
 }
 
 /** DB-shaped row the price resolver accepts (variant). */
@@ -143,7 +150,9 @@ export function resolveOneClickLine(
       return { ok: false, error: fillTemplate(s.variantUnavailable, { name: product.name }) }
     }
     const label = variantLabel(variant.options)
-    if (!variant.isInStock || variant.quantity < 1) {
+    // Preorder exception is product-level, like the checkout: a preorder
+    // product's variants are buyable at zero stock too.
+    if ((!variant.isInStock || variant.quantity < 1) && !product.isPreorder) {
       return { ok: false, error: fillTemplate(s.variantOutOfStock, { name: product.name, label: label ?? '' }) }
     }
     const price = Number(variant.price)
@@ -166,7 +175,9 @@ export function resolveOneClickLine(
     }
   }
 
-  if (!product.inStock || product.quantity < 1) {
+  // Same preorder exception as the checkout (availability_mode = 'preorder'):
+  // purchasable at zero stock; fulfillment skips the deduction for these lines.
+  if ((!product.inStock || product.quantity < 1) && !product.isPreorder) {
     return { ok: false, error: fillTemplate(s.productOutOfStock, { name: product.name }) }
   }
   const price = Number(product.price)

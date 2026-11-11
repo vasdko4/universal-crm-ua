@@ -115,6 +115,13 @@ ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "merchant_feed" jsonb DEFA
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "min_order" jsonb DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "receipt_url" text;
 
+-- ---------- Платежи: ожидающий подтверждения возврат ----------
+-- refundPayment резервирует сумму в pending_refund_amount до ответа шлюза,
+-- а refunded_amount/status пишет только после успеха. Иначе сбой между
+-- резервом и ответом шлюза навсегда блокировал повторный возврат.
+ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "pending_refund_amount" numeric(12, 2) NOT NULL DEFAULT '0';
+ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "pending_refund_at" timestamp with time zone;
+
 -- ---------- Интеграция Prom.ua: настройки синхронизации ----------
 ALTER TABLE "store_settings" ADD COLUMN IF NOT EXISTS "prom" jsonb DEFAULT '{}'::jsonb NOT NULL;
 

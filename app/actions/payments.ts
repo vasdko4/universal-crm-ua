@@ -14,6 +14,7 @@ import {
   monobankCreateInvoice,
   monobankCheckStatus,
   monobankRefund,
+  reconcilePendingRefund,
   type GatewayResult,
 } from '@/lib/payments/clients'
 import { refundPlan } from '@/lib/payments/refund'
@@ -300,6 +301,133 @@ export async function refreshPaymentStatus(paymentId: number): Promise<ActionRes
   return { ok: false, message: result.message || 'Не удалось получить статус' }
 }
 
+/* ------------------------- Refund reserve ---------------------------- */
+
+// A refund is a two-phase ledger write: the amount is first RESERVED in
+// pending_refund_amount (visible in the admin list as "refund pending"),
+// and only moved to refunded_amount/status after the gateway confirms.
+// The old design wrote refunded_amount/status BEFORE the gateway call, so a
+// crash between the reserve UPDATE and the gateway response left the payment
+// showing as refunded with money never moved, and the retry blocked forever
+// ("already fully refunded" / recompute from the poisoned amount).
+
+/** CAS: move a pending refund reserve into confirmed refunded_amount/status. */
+async function finalizeRefundReserve(
+  paymentId: number,
+  reservedAmount: number,
+  newRefunded: number,
+  status: 'refunded' | 'partially_refunded',
+): Promise<boolean> {
+  const res = await pool.query(
+    `UPDATE payments
+        SET refunded_amount = $2,
+            status = $3,
+            pending_refund_amount = 0,
+            pending_refund_at = NULL,
+            updated_at = NOW()
+      WHERE id = $1 AND pending_refund_amount = $4
+      RETURNING id`,
+    [paymentId, newRefunded.toFixed(2), status, reservedAmount.toFixed(2)],
+  )
+  return (res.rowCount ?? 0) > 0
+}
+
+/** CAS: release a pending reserve without touching refunded_amount/status. */
+async function clearRefundReserve(paymentId: number, reservedAmount: number): Promise<boolean> {
+  const res = await pool.query(
+    `UPDATE payments
+        SET pending_refund_amount = 0,
+            pending_refund_at = NULL,
+            updated_at = NOW()
+      WHERE id = $1 AND pending_refund_amount = $2
+      RETURNING id`,
+    [paymentId, reservedAmount.toFixed(2)],
+  )
+  return (res.rowCount ?? 0) > 0
+}
+
+/**
+ * Order-side completion of a confirmed refund (gateway success, or a crashed
+ * attempt completed by reconciliation): order paymentStatus, history, stock
+ * restore and promo release for a full refund. All steps idempotent.
+ */
+async function completeRefundOrderSideEffects(
+  payment: typeof payments.$inferSelect,
+  refundAmount: number,
+  planStatus: 'refunded' | 'partially_refunded',
+): Promise<void> {
+  const [linked] = await db
+    .select({ id: orders.id, status: orders.status })
+    .from(orders)
+    .where(eq(orders.orderNumber, payment.orderReference))
+    .limit(1)
+  if (!linked) return
+  await db
+    .update(orders)
+    .set({ paymentStatus: planStatus, updatedAt: new Date() })
+    .where(eq(orders.id, linked.id))
+  await db.insert(orderHistory).values({
+    orderId: linked.id,
+    type: 'payment',
+    message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
+    actor: 'Платёжный шлюз',
+  })
+  if (planStatus === 'refunded' && linked.status !== 'cancelled') {
+    await restoreStockOnce(linked.id)
+    // BUGFIX: a full refund voids the sale but used to keep the promo usage
+    // counted against usageLimit. Release it so the code can be reused.
+    // Partial refunds keep the usage: the order is still active.
+    const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
+    const { released } = await releasePromotionUsageForOrder(payment.orderReference)
+    if (released.length > 0) {
+      await db.insert(orderHistory).values({
+        orderId: linked.id,
+        type: 'note',
+        message: `Использование промокода освобождено (полный возврат): ${released.map((r) => r.promoCode ?? `#${r.promotionId}`).join(', ')}`,
+        actor: 'Платёжный шлюз',
+      })
+    }
+  }
+}
+
+/**
+ * Reconciles a pending refund reserve against the gateway (CHECK_STATUS).
+ * A failed probe is 'unknown': the reserve stays and the admin checks the
+ * gateway cabinet — never clear or finalize on an answer we didn't get.
+ */
+async function reconcilePendingRefundAtGateway(
+  payment: typeof payments.$inferSelect,
+  config: Record<string, string>,
+): Promise<
+  | { outcome: 'finalized'; newRefunded: number; status: 'refunded' | 'partially_refunded'; check: GatewayResult }
+  | { outcome: 'cleared' }
+  | { outcome: 'unknown' }
+> {
+  const pendingAmount = Number(payment.pendingRefundAmount ?? 0)
+  let check: GatewayResult
+  if (payment.gatewayCode === 'wayforpay') {
+    check = await wayforpayCheckStatus(config, payment.orderReference)
+  } else if (payment.gatewayCode === 'monobank') {
+    if (!payment.invoiceId) return { outcome: 'unknown' }
+    check = await monobankCheckStatus(config, payment.invoiceId)
+  } else {
+    return { outcome: 'unknown' }
+  }
+  if (!check.ok || !check.status) return { outcome: 'unknown' }
+  const decision = reconcilePendingRefund({
+    gatewayStatus: check.status,
+    pendingAmount,
+    alreadyRefunded: Number(payment.refundedAmount),
+    total: Number(payment.amount),
+  })
+  if (decision.outcome === 'finalized') {
+    const plan = refundPlan(Number(payment.amount), Number(payment.refundedAmount), pendingAmount)
+    if (!plan.ok) return { outcome: 'unknown' }
+    return { outcome: 'finalized', newRefunded: plan.newRefunded, status: plan.status, check }
+  }
+  return decision
+}
+
 export async function refundPayment(
   paymentId: number,
   amount?: number,
@@ -317,7 +445,78 @@ export async function refundPayment(
   if (!gateway) return { ok: false, message: 'Шлюз не найден' }
   const config = decryptConfigSecrets((gateway.config ?? {}) as Record<string, string>, GATEWAY_SECRET_KEYS)
 
-  const plan = refundPlan(Number(payment.amount), Number(payment.refundedAmount), amount)
+  const total = Number(payment.amount)
+  const alreadyRefunded = Number(payment.refundedAmount)
+  const pendingAmount = Number(payment.pendingRefundAmount ?? 0)
+
+  // A reserve left by a crashed/ambiguous earlier attempt: reconcile it
+  // against the gateway BEFORE trusting any local flag — otherwise the retry
+  // is permanently blocked by the poisoned refunded_amount.
+  if (pendingAmount > 0) {
+    const reconciled = await reconcilePendingRefundAtGateway(payment, config)
+    if (reconciled.outcome === 'unknown') {
+      return {
+        ok: false,
+        ambiguous: true,
+        message: `Возврат ${pendingAmount.toFixed(2)} ${payment.currency} уже ожидает подтверждения у шлюза. Проверьте в кабинете шлюза перед повтором — сумма зарезервирована и не может быть возвращена дважды.`,
+      }
+    }
+    if (reconciled.outcome === 'finalized') {
+      // The gateway confirms the refund executed — complete the crashed
+      // attempt idempotently and report success instead of an error.
+      const finalized = await finalizeRefundReserve(
+        paymentId,
+        pendingAmount,
+        reconciled.newRefunded,
+        reconciled.status,
+      )
+      if (finalized) {
+        try {
+          await logEvent(
+            payment.id,
+            'refund',
+            {
+              ok: true,
+              status: 'refunded',
+              refundedAmount: pendingAmount,
+              message: 'Возврат підтверджено звіркою зі шлюзом після перерваної спроби',
+              raw: reconciled.check.raw,
+            },
+            pendingAmount,
+          )
+        } catch (e) {
+          console.error('[refundPayment] logEvent failed:', (e as Error).message, { paymentId })
+        }
+        revalidatePath('/admin/payments')
+        await completeRefundOrderSideEffects(payment, pendingAmount, reconciled.status)
+        return {
+          ok: true,
+          message: `Возврат ${pendingAmount.toFixed(2)} ${payment.currency} подтверждён у шлюза (завершена прерванная попытка)`,
+        }
+      }
+      // Another retry finalized the same reserve concurrently — re-read and
+      // report from the confirmed ledger instead of erroring.
+      const [fresh] = await db.select().from(payments).where(eq(payments.id, paymentId))
+      if (fresh && Number(fresh.refundedAmount) >= reconciled.newRefunded - 0.001) {
+        revalidatePath('/admin/payments')
+        await completeRefundOrderSideEffects(fresh, pendingAmount, reconciled.status)
+        return {
+          ok: true,
+          message: `Возврат ${pendingAmount.toFixed(2)} ${payment.currency} подтверждён у шлюза (завершена прерванная попытка)`,
+        }
+      }
+      return {
+        ok: false,
+        ambiguous: true,
+        message: 'Не удалось завершить прерванный возврат в учёте — проверьте в кабинете шлюза перед повтором.',
+      }
+    }
+    // 'cleared': the gateway proves the refund never executed — release the
+    // reserve and proceed with a fresh attempt below.
+    await clearRefundReserve(paymentId, pendingAmount)
+  }
+
+  const plan = refundPlan(total, alreadyRefunded, amount)
   if (!plan.ok) {
     return {
       ok: false,
@@ -331,43 +530,41 @@ export async function refundPayment(
   }
   const refundAmount = plan.amount
   const newRefunded = plan.newRefunded
-  const fullyRefunded = plan.status === 'refunded'
 
-  // Reserve the refund in the ledger BEFORE the gateway call. If the write
-  // after a successful gateway refund used to fail, a retry would charge the
-  // customer twice. A reserved row that the gateway later rejects is rolled
-  // back; a reserved row whose DB commit already happened is skipped on retry
-  // because refunded_amount has already moved.
+  // Reserve the refund in the pending marker BEFORE the gateway call. The
+  // reserve is a CAS on (pending = 0, refunded_amount unchanged, status
+  // payable): a concurrent refund loses the race and reports "already
+  // processing", and a webhook refund that moved refunded_amount meanwhile
+  // makes the reserve miss instead of planning from stale numbers.
+  // refunded_amount/status change only after gateway success (finalize
+  // below) — a reserved row that the gateway later rejects is simply
+  // cleared, and a crashed attempt leaves a visible "refund pending"
+  // marker that the next retry reconciles against the gateway.
   const reserved = await pool.query<{ id: number }>(
     `UPDATE payments
-        SET refunded_amount = $2,
-            status = $3,
+        SET pending_refund_amount = $2,
+            pending_refund_at = NOW(),
             updated_at = NOW()
       WHERE id = $1
-        AND refunded_amount = $4
+        AND pending_refund_amount = 0
+        AND refunded_amount = $3
         AND status IN ('paid', 'partially_refunded')
       RETURNING id`,
-    [paymentId, newRefunded.toFixed(2), plan.status, Number(payment.refundedAmount).toFixed(2)],
+    [paymentId, refundAmount.toFixed(2), alreadyRefunded.toFixed(2)],
   )
   if (!reserved.rowCount) {
+    const [fresh] = await db.select().from(payments).where(eq(payments.id, paymentId))
+    if (fresh?.status === 'refunded') {
+      return { ok: false, message: 'Платёж уже полностью возвращён' }
+    }
     return { ok: false, message: 'Возврат уже обрабатывается' }
   }
 
-  // Versioned rollback: only undo the reserve if the row still holds exactly
-  // the reserved values, so a concurrent refund that moved the row further
-  // is never clobbered by a blind UPDATE.
+  // Versioned rollback: only clear the reserve if the row still holds
+  // exactly the reserved amount, so a concurrent reconcile that already
+  // finalized it is never clobbered.
   const rollbackReserve = async (): Promise<void> => {
-    await pool.query(
-      `UPDATE payments SET refunded_amount = $2, status = $3, updated_at = NOW()
-        WHERE id = $1 AND refunded_amount = $4 AND status = $5`,
-      [
-        paymentId,
-        Number(payment.refundedAmount).toFixed(2),
-        payment.status,
-        newRefunded.toFixed(2),
-        plan.status,
-      ],
-    )
+    await clearRefundReserve(paymentId, refundAmount)
   }
 
   let result: GatewayResult
@@ -400,12 +597,13 @@ export async function refundPayment(
   } catch (e) {
     // The gateway call itself threw (network/timeout): the refund may or may
     // not have happened at the gateway — an ambiguous answer. Do NOT roll
-    // back: retrying after a rollback could double-refund. The reserve stays
-    // as the marker; the admin reconciles in the gateway cabinet first.
+    // back: retrying after a rollback could double-refund. The pending
+    // reserve stays as the marker (visible in the admin list as "refund
+    // pending"); the next retry reconciles it against the gateway first.
     return {
       ok: false,
       ambiguous: true,
-      message: `Не удалось подтвердить статус возврата у шлюза (${(e as Error).message || 'ошибка соединения'}). Возврат, возможно, уже выполнен — проверьте в кабинете шлюза перед повтором.`,
+      message: `Не удалось подтвердить статус возврата у шлюза (${(e as Error).message || 'ошибка соединения'}). Возврат, возможно, уже выполнен — сумма ${refundAmount.toFixed(2)} ${payment.currency} зарезервирована как ожидающая подтверждения, проверьте в кабинете шлюза перед повтором.`,
     }
   }
 
@@ -422,40 +620,24 @@ export async function refundPayment(
     return { ok: false, message: result.message || 'Ошибка возврата' }
   }
 
-  revalidatePath('/admin/payments')
-  const [linked] = await db
-    .select({ id: orders.id, status: orders.status })
-    .from(orders)
-    .where(eq(orders.orderNumber, payment.orderReference))
-    .limit(1)
-  if (linked) {
-    await db
-      .update(orders)
-      .set({ paymentStatus: plan.status, updatedAt: new Date() })
-      .where(eq(orders.id, linked.id))
-    await db.insert(orderHistory).values({
-      orderId: linked.id,
-      type: 'payment',
-      message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен через шлюз`,
-      actor: 'Платёжный шлюз',
-    })
-    if (fullyRefunded && linked.status !== 'cancelled') {
-      await restoreStockOnce(linked.id)
-      // BUGFIX: a full refund voids the sale but used to keep the promo usage
-      // counted against usageLimit. Release it so the code can be reused.
-      // Partial refunds keep the usage: the order is still active.
-      const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
-      const { released } = await releasePromotionUsageForOrder(payment.orderReference)
-      if (released.length > 0) {
-        await db.insert(orderHistory).values({
-          orderId: linked.id,
-          type: 'note',
-          message: `Использование промокода освобождено (полный возврат): ${released.map((r) => r.promoCode ?? `#${r.promotionId}`).join(', ')}`,
-          actor: 'Платёжный шлюз',
-        })
+  // Gateway confirmed: move the reserve into the confirmed ledger. If a
+  // concurrent retry already finalized the same reserve (reconcile path),
+  // the ledger already holds the amount — verify and continue with the
+  // order-side updates instead of failing a refund that succeeded.
+  const finalized = await finalizeRefundReserve(paymentId, refundAmount, newRefunded, plan.status)
+  if (!finalized) {
+    const [fresh] = await db.select().from(payments).where(eq(payments.id, paymentId))
+    if (!fresh || Number(fresh.refundedAmount) < newRefunded - 0.001) {
+      return {
+        ok: false,
+        ambiguous: true,
+        message: 'Возврат выполнен у шлюза, но не записан в учёт — проверьте в кабинете шлюза перед повтором.',
       }
     }
   }
+
+  revalidatePath('/admin/payments')
+  await completeRefundOrderSideEffects(payment, refundAmount, plan.status)
   return {
     ok: true,
     message: `Возврат ${refundAmount.toFixed(2)} ${payment.currency} выполнен`,

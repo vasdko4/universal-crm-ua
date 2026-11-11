@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { nextAttemptDelayMs } from '../lib/notifications'
+import { nextAttemptDelayMs, STALE_OUTBOX_CLAIM_MINUTES } from '../lib/notifications'
 import { CRON_JOBS } from '../lib/cron/registry'
 
 const root = join(__dirname, '..')
@@ -72,5 +72,61 @@ describe('notification outbox (audit item 33)', () => {
     expect(dict).toContain('notificationRetryDesc')
     expect(dict).toContain("notificationRetryName: 'Повтор сповіщень'")
     expect(dict).toContain("notificationRetryName: 'Повтор уведомлений'")
+  })
+})
+
+describe('notification outbox: stale-claim reaper (second code review)', () => {
+  it('reclaims sending claims older than 10 minutes, attempts preserved', () => {
+    // 10x the notification-retry route's 60s maxDuration, inside the
+    // 15-minute retry cadence.
+    expect(STALE_OUTBOX_CLAIM_MINUTES).toBe(10)
+    const src = read('lib/notifications.ts')
+    const start = src.indexOf('async function reapStaleOutboxClaims')
+    expect(start).toBeGreaterThan(-1)
+    const reaper = src.slice(start, src.indexOf('\n}\n', start))
+    expect(reaper).toContain("SET status = 'pending'")
+    expect(reaper).toContain("o.status = 'sending'")
+    expect(reaper).toContain("($1 || ' minutes')::interval")
+    // Attempts are preserved — the send may never have happened.
+    expect(reaper).not.toContain('attempts')
+    // The pending-only unique index must survive the reset: a second enqueue
+    // can land while a row is 'sending'.
+    expect(reaper).toContain('NOT EXISTS')
+    // Reclaimed rows are reported, and a reaper failure never breaks the run.
+    expect(reaper).toContain("reportError('notify.outbox-reaped'")
+    expect(reaper).toContain("reportError('notify.outbox-reaper'")
+    // The reaper runs before the worker claims rows.
+    const workerIdx = src.indexOf('export async function processNotificationOutbox')
+    expect(src.indexOf('await reapStaleOutboxClaims()', workerIdx)).toBeGreaterThan(workerIdx)
+  })
+
+  it('delivery-status emails go through the outbox', () => {
+    const src = read('lib/notifications.ts')
+    expect(src).toContain("'delivery-status'")
+    expect(src).toContain('async function sendDeliveryStatusEmail')
+    expect(src).toContain("if (kind === 'delivery-status') return sendDeliveryStatusEmail(ctx)")
+    expect(src).toContain('export async function enqueueNotification')
+    const sync = read('lib/delivery/sync-tracking.ts')
+    expect(sync).toContain("enqueueNotification('delivery-status', 'customer-email'")
+    expect(sync).not.toContain('sendMail')
+    expect(sync).not.toContain('buildOrderMessage')
+    expect(sync).toContain('settings?.emailSettings?.enabled')
+  })
+
+  it('master email toggle stops customer order emails', () => {
+    const src = read('lib/notifications.ts')
+    // Shipped emails respect the master toggle.
+    const shippedStart = src.indexOf('async function sendShippedOrderEmail')
+    const shipped = src.slice(shippedStart, src.indexOf('\n}\n', shippedStart))
+    expect(shipped).toContain('if (!settings.emailSettings?.enabled) return true')
+    // Confirmation: master toggle first; a blocked requisites email pages
+    // the admin instead of being silently dropped.
+    const confirmStart = src.indexOf('async function sendNewOrderCustomerEmail')
+    const confirm = src.slice(confirmStart, src.indexOf('\n}\n', confirmStart))
+    expect(confirm).toContain('if (!settings.emailSettings?.enabled) {')
+    expect(confirm).toContain("'notify.customer-email-disabled'")
+    expect(confirm).toContain('alertAdmin: true')
+    // Requisites orders still bypass the confirmation-only toggle.
+    expect(confirm).toContain('if (!(n.customerEmailEnabled || isRequisites)) return true')
   })
 })

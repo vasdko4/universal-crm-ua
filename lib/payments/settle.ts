@@ -199,24 +199,46 @@ export async function settlePayment(
           : status === 'refunded'
             ? 'refunded'
             : 'unpaid'
+    // Atomic unpaid -> paid claim: the `order` row above is a stale snapshot,
+    // so two overlapping `paid` callbacks would both see `unpaid` and both
+    // fire the conversions below. Only the caller whose UPDATE actually flips
+    // payment_status from 'unpaid' to 'paid' may fire them — the loser's
+    // UPDATE matches zero rows (READ COMMITTED sees the winner's commit), so
+    // it writes no history and fires no conversion. Sequential retries stay
+    // safe: a stale snapshot that already reads 'paid' never enters here.
+    // A 'paid' after a partial refund is deliberately NOT claimed: that is a
+    // duplicate/late webhook for an already-paid invoice, not a new payment.
+    let claimedPaidTransition = false
     if (order.paymentStatus !== paymentStatus) {
-      await db
-        .update(orders)
-        .set({ paymentStatus, updatedAt: new Date() })
-        .where(eq(orders.id, order.id))
-      await db.insert(orderHistory).values({
-        orderId: order.id,
-        type: 'payment',
-        message:
-          status === 'paid'
-            ? 'Оплата получена (онлайн-шлюз)'
-            : refundKind === 'partially_refunded'
-              ? 'Частичный возврат (онлайн-шлюз) — склад не восстановлен'
-              : status === 'refunded'
-                ? 'Средства возвращены (онлайн-шлюз)'
-                : `Статус оплаты обновлён: ${status}`,
-        actor: 'Платёжный шлюз',
-      })
+      if (status === 'paid') {
+        const claimed = await pool.query(
+          `UPDATE orders SET payment_status = 'paid', updated_at = NOW()
+            WHERE id = $1 AND payment_status = 'unpaid'
+            RETURNING id`,
+          [order.id],
+        )
+        claimedPaidTransition = (claimed.rowCount ?? 0) > 0
+      } else {
+        await db
+          .update(orders)
+          .set({ paymentStatus, updatedAt: new Date() })
+          .where(eq(orders.id, order.id))
+      }
+      if (status !== 'paid' || claimedPaidTransition) {
+        await db.insert(orderHistory).values({
+          orderId: order.id,
+          type: 'payment',
+          message:
+            status === 'paid'
+              ? 'Оплата получена (онлайн-шлюз)'
+              : refundKind === 'partially_refunded'
+                ? 'Частичный возврат (онлайн-шлюз) — склад не восстановлен'
+                : status === 'refunded'
+                  ? 'Средства возвращены (онлайн-шлюз)'
+                  : `Статус оплаты обновлён: ${status}`,
+          actor: 'Платёжный шлюз',
+        })
+      }
     }
     // On confirmed payment, promote a pending online order to a real order
     // (decrement stock, record promo usage, analytics). Idempotent.
@@ -225,21 +247,22 @@ export async function settlePayment(
       // Server-side GA4 purchase (Measurement Protocol): the browser pixel
       // can be blocked by ad blockers, so a confirmed payment resends the
       // purchase from the server. Best-effort and never throws — it must not
-      // affect settlement. Only fires on the transition to paid, so webhook
-      // retries do not resend.
-      if (order.paymentStatus !== 'paid') {
+      // affect settlement. Only fires for the caller that won the atomic
+      // unpaid -> paid claim above, so concurrent webhook retries do not
+      // resend.
+      if (claimedPaidTransition) {
         const { reportGa4Purchase } = await import('@/lib/analytics/ga4')
         await reportGa4Purchase(orderReference)
       }
     }
-    // Google Ads server-side conversion duplicate: fires only on the
-    // unpaid → paid transition (the local `order` row still carries the
-    // pre-update paymentStatus here — the UPDATE above never mutates it).
+    // Google Ads server-side conversion duplicate: fires only for the caller
+    // that won the atomic unpaid -> paid claim above — the stale `order`
+    // snapshot can no longer double-fire it for overlapping callbacks.
     // Every paid path routes through settlePayment (webhooks, status
     // checks, manual test-mode marks), so this is the single hook point.
     // Best-effort: uploadOfflineConversion reports failures internally and
     // never throws, so an Ads outage can never break settlement.
-    if (status === 'paid' && order.paymentStatus !== 'paid') {
+    if (status === 'paid' && claimedPaidTransition) {
       const { uploadOfflineConversion } = await import('@/lib/ads/offline-conversions')
       await uploadOfflineConversion({
         orderNumber: orderReference,

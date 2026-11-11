@@ -20,13 +20,15 @@ describe('audit 24: finalizePaidOrder claims and fulfills in one transaction', (
     const { readFileSync } = await import('node:fs')
     const { resolve } = await import('node:path')
     const src = readFileSync(resolve(import.meta.dirname, '..', 'lib/shop/order-fulfillment.ts'), 'utf8')
-    expect(src).toContain("await client.query('BEGIN')")
+    // 3.4.87: the claim+fulfill half moved into claimAndFulfillPaidOrder; the
+    // no-client path owns the connection as `owned` now.
+    expect(src).toContain("await owned.query('BEGIN')")
     expect(src).toContain('await applyOrderFulfillment(orderId, client)')
-    expect(src).toContain("await client.query('COMMIT')")
-    expect(src).toContain("await client.query('ROLLBACK')")
+    expect(src).toContain("await owned.query('COMMIT')")
+    expect(src).toContain("await owned.query('ROLLBACK')")
     // The notification stays outside the transaction, after commit.
     const notifyAt = src.indexOf('notifyNewOrder(orderId)')
-    const commitAt = src.indexOf("await client.query('COMMIT')")
+    const commitAt = src.indexOf("await owned.query('COMMIT')")
     expect(notifyAt).toBeGreaterThan(commitAt)
   })
 })

@@ -7,8 +7,15 @@ import { deliveryMethods, orders, orderItems, products } from '@/lib/db/schema'
 import { assertWritePermission } from '@/lib/session'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
-import { buildInternetDocumentPayload, parcelWeightKg } from '@/lib/delivery/ttn'
-import { fetchSenderProfile, findRecentDocumentsByPhone, saveInternetDocument } from '@/lib/delivery/nova-poshta'
+import { buildInternetDocumentPayload, declaredCost, parcelWeightKg } from '@/lib/delivery/ttn'
+import {
+  fetchSenderProfile,
+  findRecentDocumentsByPhone,
+  matchRecentDocument,
+  saveInternetDocument,
+} from '@/lib/delivery/nova-poshta'
+import type { NpRecentDocument } from '@/lib/delivery/nova-poshta'
+import { reportError } from '@/lib/server-errors'
 import { tryAdvisoryLock } from '@/lib/db/advisory-lock'
 import { updateOrderDelivery } from '@/app/actions/orders'
 import type { NpSenderRefs } from '@/lib/delivery/np-sender'
@@ -206,28 +213,47 @@ export async function createTtnForOrder(
     // created the waybill at NP while its response was lost. Bind it when
     // the phone and the declared value match; never bind a stranger's TTN.
     if (hasAmbiguousAttempt) {
-      const found = await findRecentDocumentsByPhone(apiKey, order.customerPhone || '').catch(() => null)
-      const declared = Number(order.total) || 1
-      const match = found
-        ?.filter((d) => d.cost != null && Math.abs(d.cost - declared) <= 0.01)
-        .sort((a, b) => (a.dateTime < b.dateTime ? 1 : -1))[0]
+      // The NP list lookup itself must not fail silently: if it throws, we
+      // cannot know whether the waybill already exists, so abort instead of
+      // creating a second one. The attempt stays 'ambiguous' and the next
+      // retry reconciles again.
+      let found: NpRecentDocument[]
+      try {
+        found = await findRecentDocumentsByPhone(apiKey, order.customerPhone || '')
+      } catch (e) {
+        void reportError('ttn.reconcile-lookup', e, { context: { orderId } })
+        return {
+          ok: false,
+          error:
+            'Не вдалося звірити накладні з Новою Поштою — нову ТТН не створено, спробуйте ще раз пізніше.',
+        }
+      }
+      // NP stores the declared value rounded to whole hryvnias — compare
+      // against declaredCost, the same value the payload builder sent, not
+      // the raw order total (1500.50 is stored as 1501).
+      const declared = declaredCost(Number(order.total) || 1)
+      const match = matchRecentDocument(found, { declaredCost: declared, phone: order.customerPhone || '' })
       if (match) {
-        const bound = await pool.query(
-          `SELECT id FROM orders WHERE tracking_number = $1 AND id <> $2 LIMIT 1`,
-          [match.ttn, orderId],
-        )
-        if (bound.rowCount === 0) {
-          let reconciledTtn: string | null = null
-          const client = await pool.connect()
-          try {
-            await client.query('BEGIN')
-            const locked = await client.query<{ tracking_number: string | null }>(
-              `SELECT tracking_number FROM orders WHERE id = $1 FOR UPDATE`,
-              [orderId],
+        // Bind inside one transaction while the order row is locked: the
+        // "already bound to another order" check runs here, so a waybill
+        // bound by a concurrent reconcile is seen and never double-bound.
+        const client = await pool.connect()
+        let reconciledTtn: string | null = null
+        try {
+          await client.query('BEGIN')
+          const locked = await client.query<{ tracking_number: string | null }>(
+            `SELECT tracking_number FROM orders WHERE id = $1 FOR UPDATE`,
+            [orderId],
+          )
+          const existingTtn = (locked.rows[0]?.tracking_number || '').trim()
+          if (existingTtn) {
+            reconciledTtn = existingTtn
+          } else {
+            const bound = await client.query(
+              `SELECT id FROM orders WHERE tracking_number = $1 AND id <> $2 LIMIT 1`,
+              [match.ttn, orderId],
             )
-            const existingTtn = (locked.rows[0]?.tracking_number || '').trim()
-            reconciledTtn = existingTtn || match.ttn
-            if (!existingTtn) {
+            if ((bound.rowCount ?? 0) === 0) {
               await client.query(
                 `UPDATE orders SET tracking_number = $2, updated_at = NOW() WHERE id = $1`,
                 [orderId, match.ttn],
@@ -236,14 +262,19 @@ export async function createTtnForOrder(
                 `UPDATE ttn_attempts SET status = 'created', ttn = $2, updated_at = NOW() WHERE order_id = $1 AND status IN ('ambiguous', 'in_progress')`,
                 [orderId, match.ttn],
               )
+              reconciledTtn = match.ttn
             }
-            await client.query('COMMIT')
-          } catch (e) {
-            await client.query('ROLLBACK').catch(() => {})
-            throw e
-          } finally {
-            client.release()
+            // Bound to another order already: fall through and create a
+            // fresh waybill below — this one is not ours to bind.
           }
+          await client.query('COMMIT')
+        } catch (e) {
+          await client.query('ROLLBACK').catch(() => {})
+          throw e
+        } finally {
+          client.release()
+        }
+        if (reconciledTtn) {
           return { ok: true, ttn: reconciledTtn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
         }
       }

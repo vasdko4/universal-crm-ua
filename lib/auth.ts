@@ -11,7 +11,19 @@ import { reportError } from '@/lib/server-errors'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { buildPasswordResetMail } from '@/lib/shop/auth-emails'
 
-function trustedAuthProxies(): string[] {
+/**
+ * Proxies Better Auth may trust when resolving the client IP from forwarded
+ * headers. The TRUSTED_PROXIES env override wins; the default covers the
+ * deployments we run.
+ *
+ * The container's only ingress is the Docker-mapped port, so the TCP peer
+ * the app ever sees on the VPS is a Docker bridge gateway (172.16.0.0/12) —
+ * a real client can never be the peer here, so trusting that range cannot
+ * mistake a client for a proxy. On Vercel/dev the peer is never in this
+ * range, so the entry is inert there. Without it the XFF walk has no
+ * trusted peer at all and every visitor shares one rate-limit counter.
+ */
+export function trustedAuthProxies(): string[] {
   const raw = process.env.TRUSTED_PROXIES?.trim()
   if (raw) {
     return raw
@@ -21,8 +33,25 @@ function trustedAuthProxies(): string[] {
   }
   // Non-empty list enables XFF chain walking (last untrusted hop = client).
   // Keep this tight — RFC1918 also covers real clients on LAN/VPN.
-  return ['127.0.0.1/32', '::1/128']
+  return ['127.0.0.1/32', '::1/128', '172.16.0.0/12']
 }
+
+// Better Auth reads the first header carrying a valid address, so this
+// order IS the trust order. cf-connecting-ip comes first: Cloudflare
+// overwrites any client-sent value with the real TCP source, so it is
+// trustworthy — but ONLY because the origin is reachable solely via
+// Cloudflare (the same assumption clientIpFromHeaders in
+// lib/api/rate-limit.ts relies on, gated there on cf-ray). Direct origin
+// access must stay blocked: if the origin ever becomes directly reachable,
+// a client could spoof this header. The rest are fallbacks for Vercel
+// (x-vercel-forwarded-for) and dev (x-real-ip / x-forwarded-for, walked
+// with trustedProxies — never trusted blindly).
+export const AUTH_IP_ADDRESS_HEADERS: string[] = [
+  'cf-connecting-ip',
+  'x-vercel-forwarded-for',
+  'x-real-ip',
+  'x-forwarded-for',
+]
 
 // Google OAuth credentials are configured in the admin center (Настройки →
 // Вход через Google) and stored in the store_settings table. Env vars remain
@@ -92,6 +121,12 @@ function buildAuth(google: GoogleCreds) {
             // Broken SMTP = broken password recovery — ping the admin.
             // No PII in the alert: the address stays out of the message.
             void reportError('auth.otp-email', e, { alertAdmin: true })
+            // ...and fail loudly: swallowing the error made the plugin
+            // report success, so the user was told the code was sent when
+            // it was not. Throwing lets the client show the failure and
+            // retry (components/shop/auth/forgot-password-form.tsx renders
+            // the endpoint error).
+            throw e
           })
         },
       }),
@@ -275,11 +310,12 @@ function buildAuth(google: GoogleCreds) {
       },
     },
     advanced: {
-      // Prefer platform / reverse-proxy headers. trustedProxies lets Better Auth
-      // walk a multi-value XFF chain instead of treating spoofed single values
-      // as the client (FIX-29).
+      // Header order is the trust order (see AUTH_IP_ADDRESS_HEADERS
+      // above). trustedProxies lets Better Auth walk a multi-value XFF
+      // chain instead of treating spoofed single values as the client
+      // (FIX-29).
       ipAddress: {
-        ipAddressHeaders: ['x-vercel-forwarded-for', 'x-real-ip', 'x-forwarded-for'],
+        ipAddressHeaders: AUTH_IP_ADDRESS_HEADERS,
         trustedProxies: trustedAuthProxies(),
       },
       // Secure cookies when the public origin is HTTPS (or Vercel). Do not key

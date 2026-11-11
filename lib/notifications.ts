@@ -285,11 +285,14 @@ export function buildAdminOrderTelegramHtml(
   return parts.join('\n')
 }
 
-export type NotificationKind = 'new-order' | 'shipped'
+export type NotificationKind = 'new-order' | 'shipped' | 'delivery-status'
 export type NotificationChannel = 'customer-email' | 'admin-email' | 'telegram'
 
 const MAX_OUTBOX_ATTEMPTS = 5
 const MAX_BACKOFF_MINUTES = 360
+
+/** A claim older than this can never be a live send (see reapStaleOutboxClaims). */
+export const STALE_OUTBOX_CLAIM_MINUTES = 10
 
 /** Retry delay for a failed send: 2^attempts minutes, capped at 6h. Pure. */
 export function nextAttemptDelayMs(attempts: number): number {
@@ -299,23 +302,29 @@ export function nextAttemptDelayMs(attempts: number): number {
 
 /**
  * Queue a failed send for the retry worker. Deduped by the partial unique
- * index on (kind, channel, order_id) WHERE status = 'pending'. Never throws:
- * the outbox must not break the notifying call (e.g. the table is missing on
- * an install whose migration has not run yet).
+ * index on (kind, channel, order_id) WHERE status = 'pending'. Returns true
+ * when the notification is queued (or an identical pending row already
+ * exists) and false when the row could not be written. Never throws: the
+ * outbox must not break the notifying call (e.g. the table is missing on an
+ * install whose migration has not run yet) — callers that can surface the
+ * failure (cron jobs) report a false return, checkout paths ignore it.
  */
-async function enqueueNotification(
+export async function enqueueNotification(
   kind: NotificationKind,
   channel: NotificationChannel,
   orderId: number,
-): Promise<void> {
-  await pool
-    .query(
+): Promise<boolean> {
+  try {
+    await pool.query(
       `INSERT INTO notification_outbox (kind, channel, order_id, status)
        VALUES ($1, $2, $3, 'pending')
        ON CONFLICT (kind, channel, order_id) WHERE status = 'pending' DO NOTHING`,
       [kind, channel, orderId],
     )
-    .catch(() => {})
+    return true
+  } catch {
+    return false
+  }
 }
 
 type OrderNotificationContext = {
@@ -371,16 +380,43 @@ async function loadOrderNotificationContext(orderId: number): Promise<OrderNotif
  * One channel of the new-order notification. Returns true when sent OR when
  * there is nothing to send (channel disabled, no address, SMTP not
  * configured) — false only on a real send failure, which the caller enqueues.
+ *
+ * Email-toggle semantics (Settings → Email / Сповіщення):
+ *
+ * - `emailSettings.enabled` ("Email-сповіщення / Надсилати листи клієнтам
+ *   про замовлення") is the MASTER switch for customer order emails. While
+ *   it is off, no confirmation, shipped or delivery-status email goes out —
+ *   the senders below return true ("nothing to send") without touching SMTP.
+ *   It does NOT gate anything else: admin alerts have their own toggle,
+ *   account emails (password reset / verification codes) and the admin test
+ *   email must keep working while order emails are off, so they bypass it
+ *   (see the `configured` note in lib/mailer.ts).
+ * - `notifications.customerEmailEnabled` ("Лист покупцю") gates only the
+ *   plain order-confirmation email. Requisites orders bypass it: the
+ *   confirmation doubles as the payment instructions, and the buyer must
+ *   get them even when confirmations are off.
+ * - Requisites + master toggle off is the one case that must NOT be silent:
+ *   the buyer cannot pay without the instructions, so the admin is paged
+ *   (reportError with alertAdmin) and the row is NOT enqueued — the channel
+ *   is off on purpose, not transiently failing, so retrying would only burn
+ *   attempts and re-page every 15 minutes.
  */
 async function sendNewOrderCustomerEmail(ctx: OrderNotificationContext): Promise<boolean> {
   const { o, items, settings, storeCtx, productSlugs } = ctx
   const n = settings.notifications
-  const smtpReady = Boolean(
-    settings.emailSettings?.enabled && settings.emailSettings?.smtpHost && settings.emailSettings?.smtpUser,
-  )
   const isRequisites = o.paymentMethod === 'requisites' || noteLooksLikeRequisites(o.note)
   if (!o.customerEmail) return true
-  if (!(n.customerEmailEnabled || (isRequisites && smtpReady))) return true
+  if (!settings.emailSettings?.enabled) {
+    if (isRequisites) {
+      void reportError(
+        'notify.customer-email-disabled',
+        new Error('Email-сповіщення вимкнено — лист із реквізитами не відправлено'),
+        { alertAdmin: true, context: { orderId: o.id } },
+      )
+    }
+    return true
+  }
+  if (!(n.customerEmailEnabled || isRequisites)) return true
   const msg = buildOrderMessage('confirmation', o, items, storeCtx, productSlugs)
   try {
     const r = await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
@@ -433,14 +469,40 @@ async function sendNewOrderTelegram(ctx: OrderNotificationContext): Promise<bool
 }
 
 async function sendShippedOrderEmail(ctx: OrderNotificationContext): Promise<boolean> {
-  const { o, items, storeCtx, productSlugs } = ctx
+  const { o, items, settings, storeCtx, productSlugs } = ctx
   if (!o.customerEmail || !o.trackingNumber) return true
+  // Master toggle (Settings → Email → "Email-сповіщення"): shipped emails
+  // are customer order emails — none while it is off. The confirmation-only
+  // customerEmailEnabled toggle does not apply here.
+  if (!settings.emailSettings?.enabled) return true
   const msg = buildOrderMessage('shipped', o, items, storeCtx, productSlugs)
   try {
     const r = await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
     return r.sent || r.fallback
   } catch (e) {
     void reportError('notify.shipped-order', e)
+    return false
+  }
+}
+
+/**
+ * Delivery-status email for a Nova Poshta status change (kind
+ * 'delivery-status', sent by the outbox worker — see
+ * lib/delivery/sync-tracking.ts for the enqueue site). The message is built
+ * from the live order row, so a coalesced retry always carries the latest
+ * status. Same gates as the enqueue site, re-applied at send time so a
+ * toggle flipped between enqueue and retry is honored.
+ */
+async function sendDeliveryStatusEmail(ctx: OrderNotificationContext): Promise<boolean> {
+  const { o, items, settings, storeCtx, productSlugs } = ctx
+  if (!o.customerEmail) return true
+  if (!settings.emailSettings?.enabled || !settings.notifications?.customerEmailEnabled) return true
+  const msg = buildOrderMessage('status', o, items, storeCtx, productSlugs)
+  try {
+    const r = await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
+    return r.sent || r.fallback
+  } catch (e) {
+    void reportError('notify.delivery-status', e)
     return false
   }
 }
@@ -516,20 +578,71 @@ async function sendOutboxRow(
   const ctx = await loadOrderNotificationContext(orderId)
   if (!ctx) return true // the order is gone — nothing left to send
   if (kind === 'shipped') return sendShippedOrderEmail(ctx)
+  if (kind === 'delivery-status') return sendDeliveryStatusEmail(ctx)
   if (channel === 'customer-email') return sendNewOrderCustomerEmail(ctx)
   if (channel === 'admin-email') return sendNewOrderAdminEmail(ctx)
   return sendNewOrderTelegram(ctx)
 }
 
 /**
+ * Reaper for claims stuck in 'sending': a worker that dies between the
+ * atomic claim and the final status UPDATE (deploy restart, OOM, the
+ * notification-retry route's 60s maxDuration killing a slow run) leaves the
+ * row 'sending' forever — nothing else ever reads it, so that channel's
+ * notification would be lost permanently.
+ *
+ * Threshold (STALE_OUTBOX_CLAIM_MINUTES = 10): a legitimate claim lasts at
+ * most the route's 60s maxDuration — a single send is seconds (Telegram
+ * aborts at 10–15s, SMTP at a few seconds) — so 10 minutes is 10x any live
+ * claim, while still sitting inside the 15-minute retry cadence, so a stuck
+ * row is recovered on the next run with at most ~10 minutes of delay.
+ * Attempts are preserved: the send may never have happened, so penalizing
+ * the row would be wrong.
+ *
+ * The NOT EXISTS guard keeps the pending-only unique index intact: a second
+ * enqueue for the same (kind, channel, order_id) can land while a row is
+ * 'sending' (the partial index only sees 'pending' rows), and resetting the
+ * stale row to 'pending' underneath it would violate the index. When a
+ * pending twin exists, the twin carries the retry and the stale row is left
+ * alone — it is reclaimed on a later run once the twin is gone.
+ */
+async function reapStaleOutboxClaims(): Promise<void> {
+  try {
+    const reaped = await pool.query<{ id: number }>(
+      `UPDATE notification_outbox o SET status = 'pending', updated_at = NOW()
+        WHERE o.status = 'sending'
+          AND o.updated_at < NOW() - ($1 || ' minutes')::interval
+          AND NOT EXISTS (
+            SELECT 1 FROM notification_outbox d
+             WHERE d.kind = o.kind AND d.channel = o.channel AND d.order_id = o.order_id
+               AND d.status = 'pending'
+          )
+        RETURNING id`,
+      [String(STALE_OUTBOX_CLAIM_MINUTES)],
+    )
+    if ((reaped.rowCount ?? 0) > 0) {
+      void reportError('notify.outbox-reaped', new Error('Stale notification_outbox claims reclaimed'), {
+        context: { reason: `${reaped.rowCount} stale sending claim(s) reset to pending` },
+      })
+    }
+  } catch (e) {
+    // The reaper must never break the retry run: a stuck row is recovered
+    // on the next run, but a failed worker retries nothing at all.
+    void reportError('notify.outbox-reaper', e)
+  }
+}
+
+/**
  * Retry worker for notification_outbox (cron job 'notification-retry').
- * Claims due rows atomically so two workers never send the same row twice,
- * re-sends the single failed channel, and backs off exponentially
- * (2/4/8/16 min, then dead after 5 attempts).
+ * Reclaims stale 'sending' claims first, then claims due rows atomically
+ * so two workers never send the same row twice, re-sends the single failed
+ * channel, and backs off exponentially (2/4/8/16 min, then dead after
+ * 5 attempts).
  */
 export async function processNotificationOutbox(
   limit = 25,
 ): Promise<{ processed: number; sent: number; failed: number }> {
+  await reapStaleOutboxClaims()
   const { rows } = await pool.query<{
     id: number
     kind: string
