@@ -24,7 +24,7 @@ import {
   monobankCheckStatus,
 } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
-import { getProductSlugMap } from '@/lib/shop/queries'
+import { getProductSlugMap, getActiveDeliveryMethods, getActivePaymentMethods } from '@/lib/shop/queries'
 import { evaluatePromoCode, findBestAutomaticDiscount } from '@/app/actions/promotions'
 import { applyOrderFulfillment, finalizePaidOrder, InsufficientStockError } from '@/lib/shop/order-fulfillment'
 import { notifyNewOrder } from '@/lib/notifications'
@@ -209,6 +209,20 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   // Sanitized values are already trimmed/capped; null vs undefined is
   // equivalent for every downstream `?.` / `||` use in this function.
   input = validated.value as unknown as CheckoutInput
+
+  // BUGFIX: the static allow-list in validateCheckoutInput is not enough — a
+  // method disabled in admin must not be orderable via a direct action call.
+  // The storefront form only shows active methods; enforce the same server-side.
+  const [activeDelivery, activePayment] = await Promise.all([
+    getActiveDeliveryMethods(),
+    getActivePaymentMethods(),
+  ])
+  if (!activeDelivery.some((m) => m.code === input.deliveryMethod)) {
+    return { success: false, error: t.invalidDeliveryMethod }
+  }
+  if (!activePayment.some((m) => m.code === input.paymentMethod)) {
+    return { success: false, error: t.invalidPaymentMethod }
+  }
 
   // Load real products to compute authoritative prices and check availability.
   const ids = input.items.map((i) => i.productId)

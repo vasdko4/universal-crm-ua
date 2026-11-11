@@ -80,11 +80,13 @@ describe('audit small fixes (source-level)', () => {
 
   it('category/group/page toggles and deletes check the affected row', () => {
     const categories = source('app/actions/categories.ts')
-    expect(count(categories, 'Категория не найдена')).toBe(2)
-    expect(count(categories, '.returning({ id: categories.id })')).toBe(2)
+    // updateCategory + toggleCategoryVisibility + deleteCategory (3.4.76).
+    expect(count(categories, 'Категория не найдена')).toBe(3)
+    expect(count(categories, '.returning({ id: categories.id })')).toBe(3)
     const groups = source('app/actions/groups.ts')
-    expect(count(groups, 'Группа не найдена')).toBe(2)
-    expect(count(groups, '.returning({ id: productGroups.id })')).toBe(2)
+    // updateGroup + toggleGroupActive + deleteGroup (3.4.76).
+    expect(count(groups, 'Группа не найдена')).toBe(3)
+    expect(count(groups, '.returning({ id: productGroups.id })')).toBe(3)
     const pages = source('app/actions/pages.ts')
     // togglePageStatus + deletePage (updatePage already checked existence).
     expect(count(pages, 'Страница не найдена')).toBe(3)

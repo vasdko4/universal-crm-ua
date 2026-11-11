@@ -40,7 +40,17 @@ export async function POST(req: Request) {
   // WayForPay may send raw JSON, or form-encoded where the whole JSON is a key.
   let body: Record<string, unknown> = {}
   try {
+    // Callbacks are small JSON payloads — reject absurd bodies BEFORE
+    // buffering them (req.text() was unbounded before the signature check).
+    const MAX_CALLBACK_BYTES = 64 * 1024
+    const contentLength = Number(req.headers.get('content-length'))
+    if (Number.isFinite(contentLength) && contentLength > MAX_CALLBACK_BYTES) {
+      return NextResponse.json({ error: 'payload too large' }, { status: 413 })
+    }
     const raw = await req.text()
+    if (raw.length > MAX_CALLBACK_BYTES) {
+      return NextResponse.json({ error: 'payload too large' }, { status: 413 })
+    }
     try {
       const parsed = JSON.parse(raw)
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {

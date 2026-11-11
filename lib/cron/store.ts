@@ -66,7 +66,9 @@ export async function isCronJobEnabled(id: string): Promise<boolean> {
     if (rows.length === 0) return true
     return Boolean(rows[0].enabled)
   } catch {
-    return true
+    // Fail closed: on a DB error a disabled job (e.g. the expire-pending
+    // kill-switch) must NOT silently switch back on.
+    return false
   }
 }
 

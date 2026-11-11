@@ -76,7 +76,12 @@ export async function createUser(input: {
     return { success: false, error: e instanceof Error ? e.message : dict.createFailed }
   }
   try {
-    await pool.query(`UPDATE "user" SET role = $1 WHERE email = $2`, [input.role, input.email])
+    const res = await pool.query(`UPDATE "user" SET role = $1 WHERE email = $2`, [input.role, input.email])
+    if (res.rowCount === 0) {
+      // No row matched (e.g. the sign-up stored a normalized email): roll the
+      // account back instead of leaving it with the wrong default role.
+      throw new Error(getAdminDictionary(me.locale).users.createFailed)
+    }
   } catch (e) {
     // BUGFIX: signup and the role UPDATE were not atomic — if the UPDATE
     // failed, a half-created account (wrong default role) stayed behind and

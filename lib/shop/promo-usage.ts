@@ -168,7 +168,20 @@ export async function releasePromotionUsageForOrder(
   orderReference: string,
   client?: PoolClient,
 ): Promise<{ released: Array<{ promotionId: number; promoCode: string | null }> }> {
-  const tx = client ? dbForClient(client) : db
+  // With a client the caller owns the transaction; without one, the DELETE +
+  // UPDATEs must still be atomic — otherwise a crash between them loses the
+  // promo slot forever (ledger row gone, counter never decremented).
+  const released = client
+    ? await releaseWith(dbForClient(client), orderReference)
+    : await db.transaction((tx) => releaseWith(tx, orderReference))
+  revalidatePath('/admin/promotions')
+  return { released }
+}
+
+async function releaseWith(
+  tx: Pick<typeof db, 'delete' | 'update'>,
+  orderReference: string,
+): Promise<Array<{ promotionId: number; promoCode: string | null }>> {
   const rows = await tx
     .delete(promotionUsages)
     .where(eq(promotionUsages.orderReference, orderReference))
@@ -177,7 +190,7 @@ export async function releasePromotionUsageForOrder(
       orderAmount: promotionUsages.orderAmount,
       discountAmount: promotionUsages.discountAmount,
     })
-  if (rows.length === 0) return { released: [] }
+  if (rows.length === 0) return []
 
   const released: Array<{ promotionId: number; promoCode: string | null }> = []
   for (const row of rows) {
@@ -194,6 +207,5 @@ export async function releasePromotionUsageForOrder(
     released.push({ promotionId: row.promotionId, promoCode: promo?.promoCode ?? null })
   }
 
-  revalidatePath('/admin/promotions')
-  return { released }
+  return released
 }

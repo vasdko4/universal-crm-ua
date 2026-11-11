@@ -328,6 +328,23 @@ export async function createOrder(input: {
       return { success: false, error: `Некоректна ціна для позиції «${item.name ?? '?'}` }
     }
   }
+  // BUGFIX: a variantId from another product used to pass through — stock was
+  // then deducted from the wrong variant row. Mirror the storefront check.
+  const variantIds = input.items
+    .map((i) => i.variantId)
+    .filter((id): id is number => typeof id === 'number')
+  if (variantIds.length > 0) {
+    const variantRows = await db
+      .select({ id: productVariants.id, productId: productVariants.productId })
+      .from(productVariants)
+      .where(inArray(productVariants.id, variantIds))
+    const variantProductId = new Map(variantRows.map((v) => [v.id, v.productId]))
+    for (const item of input.items) {
+      if (item.variantId != null && variantProductId.get(item.variantId) !== item.productId) {
+        return { success: false, error: `Варіант не належить товару «${item.name ?? '?'}»` }
+      }
+    }
+  }
   const itemsTotal = input.items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const { deliveryCost, total } = computeOrderTotals({
     itemsTotal,

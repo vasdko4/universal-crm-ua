@@ -80,6 +80,21 @@ ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "stock_restored" boolean DEFAULT f
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "idempotency_key" varchar(64);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key ON orders (idempotency_key) WHERE idempotency_key IS NOT NULL;
 
+-- ---------- Адреса: не более одного адреса по умолчанию на пользователя ----------
+-- setDefaultAddress снимает все отметки и ставит одну внутри транзакции, но
+-- два конкурентных вызова могли оставить два дефолта (индекса не было).
+-- Сначала чистим возможные дубли (остаётся самый свежий), затем индекс.
+UPDATE "user_addresses" a
+SET is_default = false
+WHERE a.is_default = true
+  AND EXISTS (
+    SELECT 1 FROM "user_addresses" b
+    WHERE b.user_id = a.user_id AND b.is_default = true
+      AND (b.updated_at, b.id) > (a.updated_at, a.id)
+  );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_addresses_one_default_per_user
+  ON "user_addresses" (user_id) WHERE is_default;
+
 -- ---------- Админ-центр: язык интерфейса на пользователя ----------
 -- Хранится в БД (user.locale), выбор не спрашивается повторно при входе.
 ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "locale" varchar(5) DEFAULT 'uk'::character varying NOT NULL;

@@ -136,8 +136,11 @@ export async function deleteCategory(id: number) {
     .limit(1)
   if (child) return { success: false, error: 'Сначала удалите или переместите подкатегории' }
 
-  await db.delete(productCategory).where(eq(productCategory.categoryId, id))
-  await db.delete(categories).where(eq(categories.id, id))
+  const deleted = await db.transaction(async (tx) => {
+    await tx.delete(productCategory).where(eq(productCategory.categoryId, id))
+    return tx.delete(categories).where(eq(categories.id, id)).returning({ id: categories.id })
+  })
+  if (deleted.length === 0) return { success: false, error: 'Категория не найдена' }
   revalidatePath('/admin/categories')
   revalidatePath('/admin/products')
   revalidateStorefront()

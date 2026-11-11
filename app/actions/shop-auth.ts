@@ -2,6 +2,7 @@
 
 import { randomInt } from 'crypto'
 import { pool } from '@/lib/db'
+import { getAuth } from '@/lib/auth'
 import { getShopUser } from '@/lib/session'
 import { sendMail } from '@/lib/mailer'
 import { normalizeUaPhone } from '@/lib/shop/phone'
@@ -436,5 +437,16 @@ export async function confirmPasswordChange(codeRaw: string, newPasswordRaw: str
     return { success: false as const, error: 'У цього акаунта немає пароля' }
   }
   await pool.query(`DELETE FROM verification WHERE identifier=$1`, [identifier])
+  // BUGFIX: a password change must revoke other sessions — otherwise a stolen
+  // session stays valid. The current session stays: the user just proved
+  // ownership with the code. If it cannot be identified, revoke all of them.
+  const auth = await getAuth()
+  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
+  const currentSessionId = (session as { session?: { id?: string } } | null)?.session?.id
+  if (currentSessionId) {
+    await pool.query(`DELETE FROM session WHERE "userId" = $1 AND id <> $2`, [user.id, currentSessionId])
+  } else {
+    await pool.query(`DELETE FROM session WHERE "userId" = $1`, [user.id])
+  }
   return { success: true as const }
 }

@@ -279,11 +279,21 @@ export async function applyOrderFulfillment(
 
   for (const i of items) {
     if (i.variantId != null) {
-      const variantRes = await q.query(
-        `UPDATE product_variants SET quantity = quantity - $1, is_in_stock = (quantity - $1) > 0
-         WHERE id = $2 AND quantity >= $1 RETURNING quantity`,
-        [i.quantity, i.variantId],
-      )
+      // BUGFIX: deduct from the variant of THIS product only — without the
+      // product_id condition a mismatched variantId (e.g. from an admin order)
+      // silently drained a different product's variant.
+      const variantRes =
+        i.productId != null
+          ? await q.query(
+              `UPDATE product_variants SET quantity = quantity - $1, is_in_stock = (quantity - $1) > 0
+               WHERE id = $2 AND product_id = $3 AND quantity >= $1 RETURNING quantity`,
+              [i.quantity, i.variantId, i.productId],
+            )
+          : await q.query(
+              `UPDATE product_variants SET quantity = quantity - $1, is_in_stock = (quantity - $1) > 0
+               WHERE id = $2 AND quantity >= $1 RETURNING quantity`,
+              [i.quantity, i.variantId],
+            )
       if (variantRes.rowCount === 0) {
         oversold.push({ name: i.name, variantLabel: i.variantLabel, requested: i.quantity })
       } else if (i.productId != null) {

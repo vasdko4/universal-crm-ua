@@ -103,8 +103,11 @@ export async function updateGroup(id: number, input: GroupInput) {
 export async function deleteGroup(id: number) {
   await assertWritePermission('groups')
   try {
-    await db.delete(productGroupItems).where(eq(productGroupItems.groupId, id))
-    await db.delete(productGroups).where(eq(productGroups.id, id))
+    const deleted = await db.transaction(async (tx) => {
+      await tx.delete(productGroupItems).where(eq(productGroupItems.groupId, id))
+      return tx.delete(productGroups).where(eq(productGroups.id, id)).returning({ id: productGroups.id })
+    })
+    if (deleted.length === 0) return { success: false as const, error: 'Группа не найдена' }
     revalidatePath('/admin/groups')
     return { success: true as const, error: undefined as string | undefined }
   } catch (e) {
