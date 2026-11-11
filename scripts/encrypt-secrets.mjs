@@ -6,6 +6,13 @@
  *   DATABASE_URL=... BETTER_AUTH_SECRET=... node scripts/encrypt-secrets.mjs
  *
  * - Idempotent: values already stored as `enc:v1:...` are skipped.
+ *
+ * Re-encryption to v2 (audit item 39): pass --to-v2 to decrypt `enc:v1:`
+ * values (keyed off BETTER_AUTH_SECRET) and re-encrypt them as `enc:v2:`
+ * (keyed off APP_ENCRYPTION_KEY). Requires both env vars; plaintext values
+ * are encrypted straight to v2, values already v2 are skipped. Run it AFTER
+ * setting APP_ENCRYPTION_KEY and deploying the code that reads v2 — see
+ * docs/secret-rotation.md.
  * - Dry run first: pass --dry-run to only report what would change.
  *
  * Tables/columns covered:
@@ -15,11 +22,15 @@
  *   store_settings.notifications    -> telegramBotToken
  *   store_settings.google_auth      -> clientSecret
  */
-import { createCipheriv, hkdfSync, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto'
 import { Client } from 'pg'
 
 const PREFIX = 'enc:v1:'
+const PREFIX_V2 = 'enc:v2:'
 const DRY_RUN = process.argv.includes('--dry-run')
+const TO_V2 = process.argv.includes('--to-v2')
+// In --to-v2 mode the target prefix is v2 and anything not yet v2 qualifies.
+const TARGET_PREFIX = TO_V2 ? PREFIX_V2 : PREFIX
 
 function masterSecret() {
   const s = process.env.BETTER_AUTH_SECRET
@@ -30,8 +41,43 @@ function masterSecret() {
   return s
 }
 
+function encryptionKeyV2() {
+  const k = process.env.APP_ENCRYPTION_KEY
+  if (!k || k.length < 16) {
+    console.error('APP_ENCRYPTION_KEY must be set (min 16 chars) for --to-v2.')
+    process.exit(1)
+  }
+  return k
+}
+
+function encryptSecretV2(plain) {
+  const key = hkdfSync('sha256', encryptionKeyV2(), 'universal-crm-ua', 'integration-secrets-v2', 32)
+  const iv = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  const ct = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()])
+  return PREFIX_V2 + Buffer.concat([iv, ct, cipher.getAuthTag()]).toString('base64')
+}
+
+function decryptV1(value) {
+  const key = hkdfSync('sha256', masterSecret(), 'universal-crm-ua', 'integration-secrets-v1', 32)
+  const raw = Buffer.from(value.slice(PREFIX.length), 'base64')
+  const iv = raw.subarray(0, 12)
+  const tag = raw.subarray(raw.length - 16)
+  const ct = raw.subarray(12, raw.length - 16)
+  const decipher = createDecipheriv('aes-256-gcm', key, iv)
+  decipher.setAuthTag(tag)
+  return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8')
+}
+
 function encryptSecret(plain) {
-  if (!plain || plain.startsWith(PREFIX)) return plain
+  if (!plain) return plain
+  if (TO_V2) {
+    if (plain.startsWith(PREFIX_V2)) return plain
+    // v1 -> decrypt with the old key, re-encrypt with the v2 key.
+    if (plain.startsWith(PREFIX)) return encryptSecretV2(decryptV1(plain))
+    return encryptSecretV2(plain)
+  }
+  if (plain.startsWith(PREFIX)) return plain
   const key = hkdfSync('sha256', masterSecret(), 'universal-crm-ua', 'integration-secrets-v1', 32)
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', key, iv)
@@ -39,7 +85,8 @@ function encryptSecret(plain) {
   return PREFIX + Buffer.concat([iv, ct, cipher.getAuthTag()]).toString('base64')
 }
 
-const isPlainSecret = (v) => typeof v === 'string' && v.length > 0 && !v.startsWith(PREFIX)
+const isPlainSecret = (v) =>
+  typeof v === 'string' && v.length > 0 && !v.startsWith(TARGET_PREFIX)
 
 async function main() {
   const client = new Client({ connectionString: process.env.DATABASE_URL })
@@ -61,7 +108,7 @@ async function main() {
       }
       if (dirty) {
         changed++
-        console.log(`payment_gateways.${row.code}: encrypting ${gwKeys.filter((k) => String(config[k]).startsWith(PREFIX)).join(', ')}`)
+        console.log(`payment_gateways.${row.code}: encrypting ${gwKeys.filter((k) => String(config[k]).startsWith(TARGET_PREFIX)).join(', ')}`)
         if (!DRY_RUN) {
           await client.query('UPDATE payment_gateways SET config = $1::jsonb, updated_at = NOW() WHERE code = $2', [
             JSON.stringify(config),
@@ -119,7 +166,7 @@ async function main() {
         if (colDirty) {
           sets[col] = JSON.stringify(obj)
           dirty = true
-          console.log(`store_settings#${row.id}.${col}: encrypting ${keys.filter((k) => String(obj[k]).startsWith(PREFIX)).join(', ')}`)
+          console.log(`store_settings#${row.id}.${col}: encrypting ${keys.filter((k) => String(obj[k]).startsWith(TARGET_PREFIX)).join(', ')}`)
         }
       }
       if (dirty) {

@@ -2,7 +2,7 @@ import { pool } from '@/lib/db'
 import type { Order, OrderItem } from '@/lib/db/schema'
 import { sendMail } from '@/lib/mailer'
 import { reportError } from '@/lib/server-errors'
-import { buildOrderMessage } from '@/lib/order-messages'
+import { buildOrderMessage, type StoreEmailContext } from '@/lib/order-messages'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getProductSlugMap } from '@/lib/shop/queries'
 import { noteLooksLikeRequisites, splitOrderNote } from '@/lib/payments/public-requisites'
@@ -285,119 +285,186 @@ export function buildAdminOrderTelegramHtml(
   return parts.join('\n')
 }
 
+export type NotificationKind = 'new-order' | 'shipped'
+export type NotificationChannel = 'customer-email' | 'admin-email' | 'telegram'
+
+const MAX_OUTBOX_ATTEMPTS = 5
+const MAX_BACKOFF_MINUTES = 360
+
+/** Retry delay for a failed send: 2^attempts minutes, capped at 6h. Pure. */
+export function nextAttemptDelayMs(attempts: number): number {
+  const minutes = Math.min(2 ** Math.max(1, attempts), MAX_BACKOFF_MINUTES)
+  return minutes * 60_000
+}
+
+/**
+ * Queue a failed send for the retry worker. Deduped by the partial unique
+ * index on (kind, channel, order_id) WHERE status = 'pending'. Never throws:
+ * the outbox must not break the notifying call (e.g. the table is missing on
+ * an install whose migration has not run yet).
+ */
+async function enqueueNotification(
+  kind: NotificationKind,
+  channel: NotificationChannel,
+  orderId: number,
+): Promise<void> {
+  await pool
+    .query(
+      `INSERT INTO notification_outbox (kind, channel, order_id, status)
+       VALUES ($1, $2, $3, 'pending')
+       ON CONFLICT (kind, channel, order_id) WHERE status = 'pending' DO NOTHING`,
+      [kind, channel, orderId],
+    )
+    .catch(() => {})
+}
+
+type OrderNotificationContext = {
+  o: Order
+  items: OrderItem[]
+  settings: Awaited<ReturnType<typeof getStoreSettingsInternal>>
+  siteUrl: string
+  storeCtx: StoreEmailContext
+  productSlugs: Record<number, string>
+}
+
+/** Shared order/items/settings load for the notify functions and the retry worker. */
+async function loadOrderNotificationContext(orderId: number): Promise<OrderNotificationContext | null> {
+  const [orderRes, itemsRes, settings] = await Promise.all([
+    pool.query(
+      `SELECT id, order_number, customer_name, customer_phone, customer_email,
+              delivery_method, delivery_city, delivery_branch, delivery_address,
+              delivery_cost, delivery_status, tracking_number, payment_method,
+              payment_status, items_total, total, currency, status, note
+         FROM orders WHERE id = $1`,
+      [orderId],
+    ),
+    pool.query(
+      `SELECT id, order_id, product_id, name, sku, image, price, quantity, total, variant_label
+         FROM order_items WHERE order_id = $1`,
+      [orderId],
+    ),
+    getStoreSettingsInternal(),
+  ])
+  if (!orderRes.rows[0]) return null
+  // pg returns snake_case — normalize the fields the templates rely on.
+  const o = normalizeOrder(orderRes.rows[0])
+  const items = itemsRes.rows.map(normalizeItem)
+  const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL
+    ? String(process.env.NEXT_PUBLIC_SITE_URL)
+    : process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : ''
+  const siteUrl = (settings.seo?.siteUrl || envUrl).replace(/\/$/, '')
+  const storeCtx: StoreEmailContext = {
+    storeName: settings.storeName,
+    siteUrl,
+    logoUrl: settings.logoUrl,
+    phone: settings.contact?.phones?.find(Boolean) ?? null,
+    supportEmail: (settings.emailSettings?.fromEmail as string) || null,
+    locale: settings.defaultLocale === 'ru' ? ('ru' as const) : ('uk' as const),
+  }
+  return { o, items, settings, siteUrl, storeCtx, productSlugs }
+}
+
+/**
+ * One channel of the new-order notification. Returns true when sent OR when
+ * there is nothing to send (channel disabled, no address, SMTP not
+ * configured) — false only on a real send failure, which the caller enqueues.
+ */
+async function sendNewOrderCustomerEmail(ctx: OrderNotificationContext): Promise<boolean> {
+  const { o, items, settings, storeCtx, productSlugs } = ctx
+  const n = settings.notifications
+  const smtpReady = Boolean(
+    settings.emailSettings?.enabled && settings.emailSettings?.smtpHost && settings.emailSettings?.smtpUser,
+  )
+  const isRequisites = o.paymentMethod === 'requisites' || noteLooksLikeRequisites(o.note)
+  if (!o.customerEmail) return true
+  if (!(n.customerEmailEnabled || (isRequisites && smtpReady))) return true
+  const msg = buildOrderMessage('confirmation', o, items, storeCtx, productSlugs)
+  try {
+    const r = await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
+    return r.sent || r.fallback
+  } catch (e) {
+    void reportError('notify.customer-email', e)
+    return false
+  }
+}
+
+async function sendNewOrderAdminEmail(ctx: OrderNotificationContext): Promise<boolean> {
+  const { o, items, settings, siteUrl, productSlugs } = ctx
+  const n = settings.notifications
+  const adminTo = n.adminEmail || settings.emailSettings.smtpUser
+  if (!n.adminEmailEnabled || !adminTo) return true
+  const text = buildAdminOrderText(o, items, siteUrl)
+  const html = buildAdminOrderHtml(o, items, siteUrl, productSlugs)
+  try {
+    const r = await sendMail({
+      to: adminTo,
+      subject: `Нове замовлення №${o.orderNumber} — ${money(o.total, o.currency, 'uk')}`,
+      text,
+      html,
+    })
+    return r.sent || r.fallback
+  } catch (e) {
+    void reportError('notify.admin-email', e, { context: { orderId: o.id } })
+    return false
+  }
+}
+
+async function sendNewOrderTelegram(ctx: OrderNotificationContext): Promise<boolean> {
+  const { o, items, settings, siteUrl, productSlugs } = ctx
+  const n = settings.notifications
+  if (!n.telegramEnabled || !n.telegramBotToken || !n.telegramChatId) return true
+  const html = buildAdminOrderTelegramHtml(o, items, siteUrl, productSlugs)
+  const photo = items.find((i) => i.image)?.image
+  const photoUrl = photo
+    ? photo.startsWith('http')
+      ? photo
+      : siteUrl
+        ? `${siteUrl}${photo}`
+        : null
+    : null
+  const { telegramBotToken: token, telegramChatId: chat } = n
+  if (photoUrl && html.length <= 1024) {
+    if (await sendTelegramPhoto(token, chat, photoUrl, html)) return true
+  }
+  return sendTelegramMessage(token, chat, html)
+}
+
+async function sendShippedOrderEmail(ctx: OrderNotificationContext): Promise<boolean> {
+  const { o, items, storeCtx, productSlugs } = ctx
+  if (!o.customerEmail || !o.trackingNumber) return true
+  const msg = buildOrderMessage('shipped', o, items, storeCtx, productSlugs)
+  try {
+    const r = await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
+    return r.sent || r.fallback
+  } catch (e) {
+    void reportError('notify.shipped-order', e)
+    return false
+  }
+}
+
 /**
  * Fire-and-forget notifications for a newly placed order: confirmation email
  * to the customer, alert email + Telegram message to the admin. Every channel
- * is best-effort — a notification failure must never break checkout.
+ * is best-effort — a notification failure must never break checkout. A failed
+ * channel is queued in notification_outbox for the retry worker.
  */
 export async function notifyNewOrder(orderId: number): Promise<void> {
   try {
-    const [orderRes, itemsRes, settings] = await Promise.all([
-      pool.query(
-        `SELECT id, order_number, customer_name, customer_phone, customer_email,
-                delivery_method, delivery_city, delivery_branch, delivery_address,
-                delivery_cost, delivery_status, tracking_number, payment_method,
-                payment_status, items_total, total, currency, status, note
-           FROM orders WHERE id = $1`,
-        [orderId],
-      ),
-      pool.query(
-        `SELECT id, order_id, product_id, name, sku, image, price, quantity, total, variant_label
-           FROM order_items WHERE order_id = $1`,
-        [orderId],
-      ),
-      getStoreSettingsInternal(),
+    const ctx = await loadOrderNotificationContext(orderId)
+    if (!ctx) return
+    const [customer, admin, telegram] = await Promise.all([
+      sendNewOrderCustomerEmail(ctx),
+      sendNewOrderAdminEmail(ctx),
+      sendNewOrderTelegram(ctx),
     ])
-    const order = orderRes.rows[0] as Order | undefined
-    if (!order) return
-    // pg returns snake_case — normalize the fields the templates rely on.
-    const o = normalizeOrder(orderRes.rows[0])
-    const items = itemsRes.rows.map(normalizeItem)
-    const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
-    const n = settings.notifications
-
-    // Prefer the SEO site URL; fall back to the deployment URL so product
-    // links and photos in Telegram keep working even when SEO isn't filled in.
-    const envUrl = process.env.NEXT_PUBLIC_SITE_URL
-      ? String(process.env.NEXT_PUBLIC_SITE_URL)
-      : process.env.VERCEL_PROJECT_PRODUCTION_URL
-        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-        : ''
-    const siteUrl = (settings.seo?.siteUrl || envUrl).replace(/\/$/, '')
-
-    const jobs: Promise<unknown>[] = []
-
-    // Branding context so customer emails look like the storefront.
-    const storeCtx = {
-      storeName: settings.storeName,
-      siteUrl,
-      logoUrl: settings.logoUrl,
-      phone: settings.contact?.phones?.find(Boolean) ?? null,
-      supportEmail: (settings.emailSettings?.fromEmail as string) || null,
-      locale: settings.defaultLocale === 'ru' ? 'ru' as const : 'uk' as const,
-    }
-
-    // 1) Customer confirmation email.
-    // Bank-requisite orders always try to mail the payment details when SMTP
-    // is on and we have an address (typed at checkout or from the account),
-    // even if generic customer emails are disabled in notifications.
-    const smtpReady = Boolean(settings.emailSettings?.enabled && settings.emailSettings?.smtpHost && settings.emailSettings?.smtpUser)
-    const isRequisites = o.paymentMethod === 'requisites' || noteLooksLikeRequisites(o.note)
-    const shouldEmailCustomer =
-      Boolean(o.customerEmail) && (n.customerEmailEnabled || (isRequisites && smtpReady))
-    if (shouldEmailCustomer && o.customerEmail) {
-      const msg = buildOrderMessage('confirmation', o, items, storeCtx, productSlugs)
-      jobs.push(
-        sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html }).catch(
-          (e) => {
-            void reportError('notify.customer-email', e)
-          },
-        ),
-      )
-    }
-
-    // 2) Admin alert email (text + rich HTML).
-    const adminTo = n.adminEmail || settings.emailSettings.smtpUser
-    if (n.adminEmailEnabled && adminTo) {
-      const text = buildAdminOrderText(o, items, siteUrl)
-      const html = buildAdminOrderHtml(o, items, siteUrl, productSlugs)
-      jobs.push(
-        sendMail({
-          to: adminTo,
-          subject: `Нове замовлення №${o.orderNumber} — ${money(o.total, o.currency, 'uk')}`,
-          text,
-          html,
-        }).catch((e) => {
-          void reportError('notify.admin-email', e, { context: { orderId } })
-        }),
-      )
-    }
-
-    // 3) Telegram alert: photo of the first product with a rich caption.
-    // Telegram caps captions at 1024 chars — longer orders fall back to text.
-    if (n.telegramEnabled && n.telegramBotToken && n.telegramChatId) {
-      const html = buildAdminOrderTelegramHtml(o, items, siteUrl, productSlugs)
-      const photo = items.find((i) => i.image)?.image
-      const photoUrl = photo
-        ? photo.startsWith('http')
-          ? photo
-          : siteUrl
-            ? `${siteUrl}${photo}`
-            : null
-        : null
-      const { telegramBotToken: token, telegramChatId: chat } = n
-      jobs.push(
-        (async () => {
-          if (photoUrl && html.length <= 1024) {
-            const ok = await sendTelegramPhoto(token, chat, photoUrl, html)
-            if (ok) return
-          }
-          await sendTelegramMessage(token, chat, html)
-        })(),
-      )
-    }
-
-    await Promise.allSettled(jobs)
+    await Promise.allSettled([
+      customer ? Promise.resolve() : enqueueNotification('new-order', 'customer-email', orderId),
+      admin ? Promise.resolve() : enqueueNotification('new-order', 'admin-email', orderId),
+      telegram ? Promise.resolve() : enqueueNotification('new-order', 'telegram', orderId),
+    ])
   } catch (e) {
     void reportError('notify.new-order', e)
   }
@@ -431,44 +498,84 @@ function normalizeItem(r: Record<string, unknown>): OrderItem {
 /** Email the customer when a TTN appears (admin entered it or NP sync). */
 export async function notifyShippedOrder(orderId: number): Promise<void> {
   try {
-    const [orderRes, itemsRes, settings] = await Promise.all([
-      pool.query(
-        `SELECT id, order_number, customer_name, customer_phone, customer_email,
-                delivery_method, delivery_city, delivery_branch, delivery_address,
-                delivery_cost, delivery_status, tracking_number, payment_method,
-                payment_status, items_total, total, currency, status, note
-           FROM orders WHERE id = $1`,
-        [orderId],
-      ),
-      pool.query(
-        `SELECT id, order_id, product_id, name, sku, image, price, quantity, total, variant_label
-           FROM order_items WHERE order_id = $1`,
-        [orderId],
-      ),
-      getStoreSettingsInternal(),
-    ])
-    if (!orderRes.rows[0]) return
-    const o = normalizeOrder(orderRes.rows[0])
-    if (!o.customerEmail || !o.trackingNumber) return
-    const items = itemsRes.rows.map(normalizeItem)
-    const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
-    const envUrl = process.env.NEXT_PUBLIC_SITE_URL
-      ? String(process.env.NEXT_PUBLIC_SITE_URL)
-      : process.env.VERCEL_PROJECT_PRODUCTION_URL
-        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-        : ''
-    const siteUrl = (settings.seo?.siteUrl || envUrl).replace(/\/$/, '')
-    const storeCtx = {
-      storeName: settings.storeName,
-      siteUrl,
-      logoUrl: settings.logoUrl,
-      phone: settings.contact?.phones?.find(Boolean) ?? null,
-      supportEmail: (settings.emailSettings?.fromEmail as string) || null,
-      locale: settings.defaultLocale === 'ru' ? 'ru' as const : 'uk' as const,
+    const ctx = await loadOrderNotificationContext(orderId)
+    if (!ctx) return
+    if (!(await sendShippedOrderEmail(ctx))) {
+      await enqueueNotification('shipped', 'customer-email', orderId)
     }
-    const msg = buildOrderMessage('shipped', o, items, storeCtx, productSlugs)
-    await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
   } catch (e) {
     void reportError('notify.shipped-order', e)
   }
+}
+
+async function sendOutboxRow(
+  kind: NotificationKind,
+  channel: NotificationChannel,
+  orderId: number,
+): Promise<boolean> {
+  const ctx = await loadOrderNotificationContext(orderId)
+  if (!ctx) return true // the order is gone — nothing left to send
+  if (kind === 'shipped') return sendShippedOrderEmail(ctx)
+  if (channel === 'customer-email') return sendNewOrderCustomerEmail(ctx)
+  if (channel === 'admin-email') return sendNewOrderAdminEmail(ctx)
+  return sendNewOrderTelegram(ctx)
+}
+
+/**
+ * Retry worker for notification_outbox (cron job 'notification-retry').
+ * Claims due rows atomically so two workers never send the same row twice,
+ * re-sends the single failed channel, and backs off exponentially
+ * (2/4/8/16 min, then dead after 5 attempts).
+ */
+export async function processNotificationOutbox(
+  limit = 25,
+): Promise<{ processed: number; sent: number; failed: number }> {
+  const { rows } = await pool.query<{
+    id: number
+    kind: string
+    channel: string
+    order_id: number
+    attempts: number
+  }>(
+    `SELECT id, kind, channel, order_id, attempts FROM notification_outbox
+      WHERE status = 'pending' AND next_attempt_at <= NOW()
+      ORDER BY next_attempt_at ASC LIMIT $1`,
+    [limit],
+  )
+  let sent = 0
+  let failed = 0
+  for (const row of rows) {
+    const claimed = await pool.query(
+      `UPDATE notification_outbox SET status = 'sending', updated_at = NOW()
+        WHERE id = $1 AND status = 'pending' RETURNING id`,
+      [row.id],
+    )
+    if (!claimed.rowCount) continue
+    let ok = false
+    try {
+      ok = await sendOutboxRow(row.kind as NotificationKind, row.channel as NotificationChannel, row.order_id)
+    } catch (e) {
+      void reportError('notify.outbox-send', e, { context: { orderId: row.order_id } })
+    }
+    if (ok) {
+      await pool.query(`UPDATE notification_outbox SET status = 'sent', updated_at = NOW() WHERE id = $1`, [row.id])
+      sent++
+    } else {
+      failed++
+      const attempts = row.attempts + 1
+      if (attempts >= MAX_OUTBOX_ATTEMPTS) {
+        await pool.query(
+          `UPDATE notification_outbox SET status = 'dead', attempts = $2, last_error = 'max attempts reached', updated_at = NOW() WHERE id = $1`,
+          [row.id, attempts],
+        )
+      } else {
+        const delayMin = nextAttemptDelayMs(attempts) / 60_000
+        await pool.query(
+          `UPDATE notification_outbox SET status = 'pending', attempts = $2, next_attempt_at = NOW() + ($3 || ' minutes')::interval, updated_at = NOW() WHERE id = $1`,
+          [row.id, attempts, String(delayMin)],
+        )
+      }
+    }
+  }
+  return { processed: rows.length, sent, failed }
 }

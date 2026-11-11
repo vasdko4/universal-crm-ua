@@ -26,6 +26,7 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto'
 
 export const ENCRYPTED_SECRET_PREFIX = 'enc:v1:'
+const ENCRYPTED_SECRET_PREFIX_V2 = 'enc:v2:'
 
 function masterSecret(): string {
   const s = process.env.BETTER_AUTH_SECRET
@@ -42,13 +43,47 @@ function dataKey(): Buffer {
   return Buffer.from(hkdfSync('sha256', masterSecret(), 'universal-crm-ua', 'integration-secrets-v1', 32))
 }
 
+/**
+ * Dedicated encryption key (audit item 39). Set APP_ENCRYPTION_KEY in the
+ * environment (min 16 chars); when absent, new secrets still use v1, which
+ * is keyed off BETTER_AUTH_SECRET — so rotating that secret kills them.
+ */
+function encryptionKeyV2(): string | null {
+  const k = process.env.APP_ENCRYPTION_KEY
+  return k && k.length >= 16 ? k : null
+}
+
+function dataKeyV2(): Buffer | null {
+  const k = encryptionKeyV2()
+  return k ? Buffer.from(hkdfSync('sha256', k, 'universal-crm-ua', 'integration-secrets-v2', 32)) : null
+}
+
+let warnedNoV2Key = false
+
 export function isEncryptedSecret(value: unknown): value is string {
-  return typeof value === 'string' && value.startsWith(ENCRYPTED_SECRET_PREFIX)
+  return (
+    typeof value === 'string' &&
+    (value.startsWith(ENCRYPTED_SECRET_PREFIX) || value.startsWith(ENCRYPTED_SECRET_PREFIX_V2))
+  )
 }
 
 /** Encrypt a plaintext secret. Idempotent: already-encrypted or empty values pass through. */
 export function encryptSecret(plain: string): string {
   if (!plain || isEncryptedSecret(plain)) return plain
+  const keyV2 = dataKeyV2()
+  if (keyV2) {
+    const iv = randomBytes(12)
+    const cipher = createCipheriv('aes-256-gcm', keyV2, iv)
+    const ciphertext = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()])
+    const tag = cipher.getAuthTag()
+    return ENCRYPTED_SECRET_PREFIX_V2 + Buffer.concat([iv, ciphertext, tag]).toString('base64')
+  }
+  if (!warnedNoV2Key) {
+    warnedNoV2Key = true
+    console.warn(
+      '[secrets] APP_ENCRYPTION_KEY is not set — new integration secrets are encrypted as enc:v1 (keyed off BETTER_AUTH_SECRET). Set APP_ENCRYPTION_KEY to decouple secret encryption from the auth secret.',
+    )
+  }
   const key = dataKey()
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', key, iv)
@@ -59,13 +94,27 @@ export function encryptSecret(plain: string): string {
 
 /**
  * Decrypt a stored secret. Plaintext values (not yet migrated) pass through
- * unchanged. Throws on tampered/malformed ciphertext — fail closed.
+ * unchanged. Throws on tampered/malformed ciphertext — fail closed. A v2
+ * value with APP_ENCRYPTION_KEY missing also throws: the key is required to
+ * read it, never silently empty.
  */
 export function decryptSecret(value: unknown): string {
   if (typeof value !== 'string' || !value) return ''
   if (!isEncryptedSecret(value)) return value
-  const key = dataKey()
-  const raw = Buffer.from(value.slice(ENCRYPTED_SECRET_PREFIX.length), 'base64')
+  if (value.startsWith(ENCRYPTED_SECRET_PREFIX_V2)) {
+    const key = dataKeyV2()
+    if (!key) {
+      throw new Error(
+        '[secrets] APP_ENCRYPTION_KEY is not set — cannot decrypt an enc:v2 secret. Set the same key the value was encrypted with.',
+      )
+    }
+    return decryptWithKey(value.slice(ENCRYPTED_SECRET_PREFIX_V2.length), key)
+  }
+  return decryptWithKey(value.slice(ENCRYPTED_SECRET_PREFIX.length), dataKey())
+}
+
+function decryptWithKey(encoded: string, key: Buffer): string {
+  const raw = Buffer.from(encoded, 'base64')
   if (raw.length < 12 + 16 + 1) throw new Error('[secrets] malformed encrypted secret')
   const iv = raw.subarray(0, 12)
   const tag = raw.subarray(raw.length - 16)

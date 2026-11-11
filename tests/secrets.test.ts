@@ -4,6 +4,9 @@ const TEST_MASTER = 'test-master-secret-0123456789abcdef'
 
 async function loadSecrets() {
   vi.resetModules()
+  // A v2 key stubbed by an earlier loader in the same test must not leak
+  // into this one: the no-key fallback is what these tests assert.
+  vi.unstubAllEnvs()
   vi.stubEnv('BETTER_AUTH_SECRET', TEST_MASTER)
   return await import('../lib/secrets')
 }
@@ -95,5 +98,45 @@ describe('secrets encryption', () => {
     const dec = decryptConfigSecrets(enc, DELIVERY_CONFIG_SECRET_KEYS)
     expect(dec.apiKey).toBe('live_np_key_123')
     expect(decryptConfigSecrets(cfg, DELIVERY_CONFIG_SECRET_KEYS).apiKey).toBe('live_np_key_123')
+  })
+
+  // --- enc:v2 (audit item 39): dedicated APP_ENCRYPTION_KEY ---
+  async function loadSecretsV2() {
+    vi.resetModules()
+    vi.stubEnv('BETTER_AUTH_SECRET', TEST_MASTER)
+    vi.stubEnv('APP_ENCRYPTION_KEY', 'test-encryption-key-0123456789abcdef')
+    return await import('../lib/secrets')
+  }
+
+  it('encrypts as enc:v2 when APP_ENCRYPTION_KEY is set', async () => {
+    const { encryptSecret, decryptSecret } = await loadSecretsV2()
+    const enc = encryptSecret('mono-token-abc123')
+    expect(enc.startsWith('enc:v2:')).toBe(true)
+    expect(enc).not.toContain('mono-token-abc123')
+    expect(decryptSecret(enc)).toBe('mono-token-abc123')
+  })
+
+  it('still decrypts enc:v1 values when the v2 key is set (backward compat)', async () => {
+    const v1 = await loadSecrets()
+    const encV1 = v1.encryptSecret('old-gateway-secret')
+    expect(encV1.startsWith('enc:v1:')).toBe(true)
+    const v2 = await loadSecretsV2()
+    expect(v2.decryptSecret(encV1)).toBe('old-gateway-secret')
+    // and a v2 value is idempotent under encrypt
+    expect(v2.encryptSecret(encV1)).toBe(encV1)
+  })
+
+  it('decrypting enc:v2 without APP_ENCRYPTION_KEY throws (fail closed)', async () => {
+    const v2 = await loadSecretsV2()
+    const encV2 = v2.encryptSecret('telegram-token')
+    const noKey = await loadSecrets()
+    expect(() => noKey.decryptSecret(encV2)).toThrow('APP_ENCRYPTION_KEY')
+  })
+
+  it('isEncryptedSecret accepts both prefixes', async () => {
+    const { isEncryptedSecret } = await loadSecretsV2()
+    expect(isEncryptedSecret('enc:v1:abc')).toBe(true)
+    expect(isEncryptedSecret('enc:v2:abc')).toBe(true)
+    expect(isEncryptedSecret('plain')).toBe(false)
   })
 })

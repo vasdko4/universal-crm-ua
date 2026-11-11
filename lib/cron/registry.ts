@@ -23,8 +23,15 @@ export type CronJobDef = {
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
+const QUARTER_HOUR = 15 * 60_000
 
 export const CRON_JOBS: CronJobDef[] = [
+  {
+    id: 'notification-retry',
+    intervalMs: QUARTER_HOUR,
+    nameKey: 'notificationRetryName',
+    descKey: 'notificationRetryDesc',
+  },
   {
     id: 'delivery-sync',
     intervalMs: DAY,

@@ -1341,6 +1341,8 @@ export type AdminDictionary = {
     promManagedLink: string
     deliverySyncName: string
     deliverySyncDesc: string
+    notificationRetryName: string
+    notificationRetryDesc: string
     analyticsRetentionName: string
     analyticsRetentionDesc: string
     expirePendingName: string
@@ -3367,6 +3369,8 @@ const uk: AdminDictionary = {
     promManagedLink: 'Налаштування → Prom.ua',
     deliverySyncName: 'Синхронізація доставки',
     deliverySyncDesc: 'Оновлення статусів Нова Пошта для активних замовлень',
+    notificationRetryName: 'Повтор сповіщень',
+    notificationRetryDesc: 'Повторна відправка сповіщень про замовлення, що не дійшли',
     analyticsRetentionName: 'Очищення аналітики',
     analyticsRetentionDesc: 'Видалення старих аналітичних даних',
     expirePendingName: 'Прострочені замовлення',
@@ -5400,6 +5404,8 @@ const ru: AdminDictionary = {
     promManagedLink: 'Настройки → Prom.ua',
     deliverySyncName: 'Синхронизация доставки',
     deliverySyncDesc: 'Обновление статусов Нова Пошта для активных заказов',
+    notificationRetryName: 'Повтор уведомлений',
+    notificationRetryDesc: 'Повторная отправка уведомлений о заказах, которые не дошли',
     analyticsRetentionName: 'Очистка аналитики',
     analyticsRetentionDesc: 'Удаление старых аналитических данных',
     expirePendingName: 'Просроченные заказы',

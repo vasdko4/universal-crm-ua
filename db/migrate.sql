@@ -386,6 +386,27 @@ CREATE TABLE IF NOT EXISTS ttn_attempts (
 );
 CREATE INDEX IF NOT EXISTS ttn_attempts_order_id_idx ON ttn_attempts (order_id, created_at DESC);
 
+-- 5. Outbox for order notifications (audit item 33). notifyNewOrder /
+-- notifyShippedOrder are best-effort; a failed channel used to vanish into
+-- reportError. Failed sends land here and the notification-retry cron job
+-- re-sends them with backoff. The partial unique index keeps one pending
+-- row per (kind, channel, order).
+CREATE TABLE IF NOT EXISTS notification_outbox (
+  id SERIAL PRIMARY KEY,
+  kind TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  order_id INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS notification_outbox_due_idx ON notification_outbox (status, next_attempt_at);
+CREATE UNIQUE INDEX IF NOT EXISTS notification_outbox_pending_unique_idx
+  ON notification_outbox (kind, channel, order_id) WHERE status = 'pending';
+
 -- Older installs created `orders` without fulfillment `status` /
 -- `payment_status`. CREATE TABLE IF NOT EXISTS never adds columns to an
 -- existing table, so admin order lists crash with:
