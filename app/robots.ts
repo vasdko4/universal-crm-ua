@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { getCanonicalSiteUrl } from '@/lib/seo'
-import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { getStoreSettingsOrNull } from '@/lib/store-settings'
 
 // Must always reflect the current store domain from DB settings.
 // force-dynamic so a stale cached robots.txt never serves localhost URLs.
@@ -10,8 +10,10 @@ export const dynamic = 'force-dynamic'
 // switch (pre-launch stores can stay fully hidden from crawlers).
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const base = await getCanonicalSiteUrl()
-  const s = await getStoreSettingsInternal().catch(() => null)
-  const indexable = s?.seo?.indexingEnabled !== false
+  // Fail closed: when settings can't be read at all (DB error), hide the
+  // store from crawlers instead of serving a default-open robots.txt.
+  const s = await getStoreSettingsOrNull()
+  const indexable = s != null && s.seo?.indexingEnabled !== false
 
   // Private/transactional areas, disallowed for both the default (unprefixed,
   // 'uk') storefront and its /ru counterpart — a bare "/cart" rule only

@@ -122,3 +122,20 @@ export async function getStoreSettingsInternal(): Promise<StoreSettingsData> {
     return DEFAULTS
   }
 }
+
+/**
+ * Settings read that distinguishes "no row yet" (fresh store → DEFAULTS,
+ * indexable) from "row unreadable" (DB error → null). Public surfaces
+ * (robots.txt, Merchant Center feed) use this to fail closed: when settings
+ * can't be read at all, the store hides from crawlers instead of serving
+ * content with default-open settings.
+ */
+export async function getStoreSettingsOrNull(): Promise<StoreSettingsData | null> {
+  try {
+    const row = await readSettingsRow()
+    return normalizeStoreSettingsRow(row)
+  } catch (err) {
+    console.error('[store-settings] getStoreSettingsOrNull failed:', (err as Error).message)
+    return null
+  }
+}

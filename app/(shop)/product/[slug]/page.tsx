@@ -175,8 +175,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .filter((p) => (p.code === 'online' ? hasGateway : true))
     .map((p) => ({ code: p.code, name: p.name }))
 
-  // Price stays valid until the end of next year — signals a stable offer.
-  const priceValidUntil = `${new Date().getFullYear() + 1}-12-31`
   // Admin SEO settings (if configured) take priority over env vars, matching
   // the domain used by sitemap.xml / robots.txt / metadataBase.
   const siteUrl = await getCanonicalSiteUrl()
@@ -216,7 +214,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       '@type': 'Offer',
       priceCurrency: product.currency,
       price: product.price,
-      priceValidUntil,
       itemCondition: 'https://schema.org/NewCondition',
       availability: product.isPreorder
         ? 'https://schema.org/PreOrder'

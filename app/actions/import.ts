@@ -143,7 +143,9 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             metaDescriptionRu: row.meta_description_ru?.trim() || undefined,
             metaDescriptionUk: row.meta_description_uk?.trim() || undefined,
             price: String(price),
-            ...(hasOldPrice ? { oldPrice } : {}),
+            // Invalid old_price must not overwrite the saved one with null —
+            // only a valid value (or an empty cell meaning "don't touch") applies.
+            ...(hasOldPrice && oldPrice != null ? { oldPrice } : {}),
             ...(hasQuantity
               ? {
                   quantity,
@@ -151,19 +153,20 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
                   isInStock: quantity > 0,
                 }
               : {}),
-            unit: row.unit?.trim() || 'шт',
+            // An empty unit cell means "don't touch", not "reset to 'шт'".
+            ...(row.unit?.trim() ? { unit: row.unit.trim() } : {}),
             updatedAt: sql`now()`,
             ...(healSlug ? { slug: healSlug } : {}),
           })
           .where(eq(products.id, ex.id))
       } else {
-        // BUGFIX: imported products were created with slug = NULL. The
-        // storefront builds /product/<slug> links and the legacy numeric-id
-        // redirect bounces back to the same URL when the slug is missing —
-        // every imported product was a 404 / redirect loop until edited by
-        // hand. Generate the slug right away (same as createProduct).
         const nameForSlug = nameUk || nameRu || sku || 'product'
-        const [inserted] = await db
+        // Generate the slug BEFORE the insert so the row is never created
+        // with slug = NULL (the old separate UPDATE left a window where the
+        // product 404'd / redirect-looped). The numeric fallback only
+        // matters when the name has no slugifiable characters at all.
+        const slug = await generateUniqueSlug(nameForSlug, 0)
+        await db
           .insert(products)
           .values({
             nameRu: nameRu || null,
@@ -173,6 +176,7 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             metaDescriptionRu: row.meta_description_ru?.trim() || null,
             metaDescriptionUk: row.meta_description_uk?.trim() || null,
             sku,
+            slug,
             price: String(price),
             oldPrice,
             quantity,
@@ -180,9 +184,6 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
             stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
             isInStock: quantity > 0,
           })
-          .returning({ id: products.id })
-        const slug = await generateUniqueSlug(nameForSlug, inserted.id)
-        await db.update(products).set({ slug }).where(eq(products.id, inserted.id))
       }
       success++
     } catch (e) {

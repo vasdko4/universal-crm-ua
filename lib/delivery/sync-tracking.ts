@@ -118,10 +118,13 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
       const newOrderStatus =
         tracked.delivered && String(row.status) === 'shipped' ? 'done' : String(row.status)
 
-      await pool.query(
-        'UPDATE orders SET delivery_status = $1, status = $2, updated_at = now() WHERE id = $3',
-        [tracked.status, newOrderStatus, row.id],
+      const res = await pool.query(
+        'UPDATE orders SET delivery_status = $1, status = $2, updated_at = now() WHERE id = $3 AND delivery_status IS NOT DISTINCT FROM $4',
+        [tracked.status, newOrderStatus, row.id, row.delivery_status ?? null],
       )
+      // Compare-and-swap: another sync run may have already applied this
+      // status — only count and notify when this run actually changed it.
+      if (res.rowCount === 0) continue
       result.updated++
 
       // Notify the customer by email when they left one.

@@ -56,13 +56,23 @@ export async function saveAbandonedCart(input: {
   const name = input.name?.trim().slice(0, 120) || null
   if (!phone && !email) return { ok: false }
 
-  const items = input.items.slice(0, 50).map((i) => ({
-    productId: Number(i.productId),
-    name: String(i.name).slice(0, 255),
-    price: Number(i.price) || 0,
-    quantity: Math.max(1, Math.floor(Number(i.quantity) || 1)),
-    image: i.image ? String(i.image).slice(0, 500) : null,
-  }))
+  // Visitor-supplied lines are untrusted: drop rows without a usable
+  // product id (NaN serializes to null in JSONB), clamp prices to finite
+  // non-negative values and quantities to 1..999.
+  const items = input.items
+    .slice(0, 50)
+    .map((i) => {
+      const priceNum = Number(i.price)
+      return {
+        productId: Number(i.productId),
+        name: String(i.name).slice(0, 255),
+        price: Number.isFinite(priceNum) && priceNum >= 0 ? priceNum : 0,
+        quantity: Math.min(999, Math.max(1, Math.floor(Number(i.quantity) || 1))),
+        image: i.image ? String(i.image).slice(0, 500) : null,
+      }
+    })
+    .filter((i) => Number.isFinite(i.productId) && i.productId > 0)
+  if (items.length === 0) return { ok: false }
   const itemsTotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
   const itemsCount = items.reduce((s, i) => s + i.quantity, 0)
 
@@ -106,27 +116,31 @@ export async function getAbandonedCarts(): Promise<{
   await assertPermission('abandoned_carts')
   // Only carts idle for 30+ minutes count as abandoned; fresher ones are
   // probably still being checked out right now.
+  const abandonedWhere = sql`(${abandonedCarts.status} = 'open' AND ${abandonedCarts.updatedAt} < NOW() - INTERVAL '30 minutes')
+      OR ${abandonedCarts.status} IN ('reminded', 'recovered')`
   const carts = await db
     .select()
     .from(abandonedCarts)
-    .where(
-      sql`(${abandonedCarts.status} = 'open' AND ${abandonedCarts.updatedAt} < NOW() - INTERVAL '30 minutes')
-          OR ${abandonedCarts.status} IN ('reminded', 'recovered')`,
-    )
+    .where(abandonedWhere)
     .orderBy(desc(abandonedCarts.updatedAt))
     .limit(300)
 
-  const stats: AbandonedCartsStats = { open: 0, reminded: 0, recovered: 0, potentialRevenue: 0 }
-  for (const c of carts) {
-    if (c.status === 'open') {
-      stats.open++
-      stats.potentialRevenue += Number(c.itemsTotal)
-    } else if (c.status === 'reminded') {
-      stats.reminded++
-      stats.potentialRevenue += Number(c.itemsTotal)
-    } else if (c.status === 'recovered') {
-      stats.recovered++
-    }
+  // Stats are aggregated over ALL matching carts in SQL — the 300-row list
+  // above is only the display page, so summing it understated the totals.
+  const [statsRow] = await db
+    .select({
+      open: sql<number>`coalesce(sum(case when ${abandonedCarts.status} = 'open' then 1 else 0 end), 0)::int`,
+      reminded: sql<number>`coalesce(sum(case when ${abandonedCarts.status} = 'reminded' then 1 else 0 end), 0)::int`,
+      recovered: sql<number>`coalesce(sum(case when ${abandonedCarts.status} = 'recovered' then 1 else 0 end), 0)::int`,
+      potentialRevenue: sql<string>`coalesce(sum(case when ${abandonedCarts.status} in ('open', 'reminded') then ${abandonedCarts.itemsTotal} else 0 end), 0)`,
+    })
+    .from(abandonedCarts)
+    .where(abandonedWhere)
+  const stats: AbandonedCartsStats = {
+    open: statsRow?.open ?? 0,
+    reminded: statsRow?.reminded ?? 0,
+    recovered: statsRow?.recovered ?? 0,
+    potentialRevenue: Number(statsRow?.potentialRevenue ?? 0),
   }
   return { carts, stats }
 }

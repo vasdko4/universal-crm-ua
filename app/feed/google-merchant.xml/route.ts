@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getFeedProducts } from '@/lib/shop/queries'
 import { getCanonicalSiteUrl } from '@/lib/seo'
-import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { getStoreSettingsOrNull } from '@/lib/store-settings'
 import { type Locale } from '@/lib/i18n/config'
 import {
   buildItemXml,
@@ -28,11 +28,12 @@ export async function GET(req: NextRequest) {
   const localeParam = req.nextUrl.searchParams.get('locale')
   const locale: Locale = localeParam === 'ru' ? 'ru' : 'uk'
 
-  const settings = await getStoreSettingsInternal().catch(() => null)
+  const settings = await getStoreSettingsOrNull()
   // Respect the same global "hide from search engines" switch as
   // robots.ts/sitemap.ts — a pre-launch/staging store shouldn't leak its
-  // catalog to Merchant Center either.
-  if (settings?.seo?.indexingEnabled === false) {
+  // catalog to Merchant Center either. Fail closed: when settings can't be
+  // read at all (DB error), the feed is hidden instead of served.
+  if (settings == null || settings.seo?.indexingEnabled === false) {
     return new NextResponse('Store indexing is disabled', { status: 404 })
   }
 

@@ -163,17 +163,26 @@ export function CartProvider({
       add: (item, quantity = 1) => {
         const key = cartKey(item.id, item.variantId)
         const existing = items.find((i) => i.key === key)
+        const prevQty = existing?.quantity ?? 0
+        const nextQty = clampQty(prevQty + quantity, existing?.maxQuantity ?? item.maxQuantity)
         const next = existing
           ? items.map((i) =>
               i.key === key
-                ? { ...i, quantity: clampQty(existing.quantity + quantity, existing.maxQuantity) }
+                // Refresh the line's price and stock cap from the fresh
+                // product data — a re-add must not keep a stale price.
+                ? { ...i, price: item.price, maxQuantity: item.maxQuantity, quantity: nextQty }
                 : i,
             )
-          : [...items, { ...item, key, quantity: clampQty(quantity, item.maxQuantity) }]
+          : [...items, { ...item, key, quantity: nextQty }]
         persistCart(next)
         if (openCartAfterAdd) setDrawerOpen(true)
-        sendAnalyticsEvent({ type: 'add_to_cart', productId: item.id })
-        trackAddToCart(gaId, { id: item.id, name: item.name, price: item.price, quantity })
+        // Only fire add_to_cart when the quantity actually grew (already at
+        // the stock cap → no change), and report the real added delta.
+        const added = nextQty - prevQty
+        if (added > 0) {
+          sendAnalyticsEvent({ type: 'add_to_cart', productId: item.id })
+          trackAddToCart(gaId, { id: item.id, name: item.name, price: item.price, quantity: added })
+        }
       },
       remove: (key) => persistCart(items.filter((i) => i.key !== key)),
       setQuantity: (key, quantity) =>

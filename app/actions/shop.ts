@@ -523,16 +523,6 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     return { success: false, error: t.paymentInvoiceFailed }
   }
 
-  if (input.cartToken) {
-    await pool
-      .query(
-        `UPDATE abandoned_carts SET status = 'recovered', recovered_order_number = $1, updated_at = NOW()
-         WHERE token = $2 AND status IN ('open', 'reminded')`,
-        [orderNumber, input.cartToken],
-      )
-      .catch(() => {})
-  }
-
   if (!isOnline) {
     void notifyNewOrder(order.id)
   }
@@ -633,6 +623,20 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       )
       return { success: false, error: t.paymentInvoiceFailed }
     }
+  }
+
+  // Mark the abandoned cart recovered only now that the order is final:
+  // for online orders the gateway invoice is created above, and every
+  // failure path before this point cancels the order and returns early —
+  // marking it earlier would flag a cancelled order as recovered.
+  if (input.cartToken) {
+    await pool
+      .query(
+        `UPDATE abandoned_carts SET status = 'recovered', recovered_order_number = $1, updated_at = NOW()
+         WHERE token = $2 AND status IN ('open', 'reminded')`,
+        [orderNumber, input.cartToken],
+      )
+      .catch(() => {})
   }
 
   // Guest confirmation/pay pages treat the order number as a capability.
