@@ -105,23 +105,28 @@ async function bumpProductStock(
 ) {
   const { productId, variantId, qty, sign, orderId } = input
   if (variantId != null) {
-    // BUGFIX: the ledger must record the ACTUAL stock change, not the
-    // requested one. The UPDATE below clamps at 0 via GREATEST(0, ...), but
-    // the ledger used to record the full requested qty — a later restore
-    // then returned more units than were ever taken (phantom stock).
-    const beforeVar = await q.query<{ quantity: string }>(
-      `SELECT quantity FROM product_variants WHERE id = $1`,
-      [variantId],
-    )
-    const beforeVarQty = Math.max(0, Number(beforeVar.rows[0]?.quantity ?? 0))
-    const actualQty = sign === -1 ? Math.min(qty, beforeVarQty) : qty
-    await q.query(
-      `UPDATE product_variants
-          SET quantity = GREATEST(0, quantity + $1::int * $2::int),
-              is_in_stock = GREATEST(0, quantity + $1::int * $2::int) > 0
-        WHERE id = $3`,
+    // Atomic read-modify-write: one statement returns the quantity before
+    // and after the clamped UPDATE, so concurrent bumps can't make the
+    // ledger record a stale (phantom) delta. Both CTEs see the statement
+    // snapshot — before_qty is the pre-UPDATE value.
+    const { rows } = await q.query<{ before_qty: string; after_qty: string }>(
+      `WITH before_qty AS (
+         SELECT quantity FROM product_variants WHERE id = $3
+       ),
+       updated AS (
+         UPDATE product_variants
+            SET quantity = GREATEST(0, quantity + $1::int * $2::int),
+                is_in_stock = GREATEST(0, quantity + $1::int * $2::int) > 0
+          WHERE id = $3
+         RETURNING quantity
+       )
+       SELECT (SELECT quantity FROM before_qty) AS before_qty,
+              (SELECT quantity FROM updated) AS after_qty`,
       [sign, qty, variantId],
     )
+    const beforeVarQty = Math.max(0, Number(rows[0]?.before_qty ?? 0))
+    const afterVarQty = Math.max(0, Number(rows[0]?.after_qty ?? 0))
+    const actualQty = sign === -1 ? beforeVarQty - afterVarQty : afterVarQty - beforeVarQty
     const res = await q.query(
       `UPDATE products SET
           quantity = COALESCE((SELECT SUM(quantity) FROM product_variants WHERE product_id = $1), 0),
@@ -143,23 +148,31 @@ async function bumpProductStock(
     )
     return
   }
-  const beforeProd = await q.query<{ quantity: string }>(
-    `SELECT quantity FROM products WHERE id = $1`,
-    [productId],
-  )
-  const beforeProdQty = Math.max(0, Number(beforeProd.rows[0]?.quantity ?? 0))
-  const actualProdQty = sign === -1 ? Math.min(qty, beforeProdQty) : qty
-  const res = await q.query(
-    `UPDATE products SET quantity = GREATEST(0, quantity + $1::int * $2::int),
-        is_in_stock = GREATEST(0, quantity + $1::int * $2::int) > 0 WHERE id = $3 RETURNING quantity`,
+  // Same atomic read-modify-write as the variant branch above.
+  const { rows } = await q.query<{ before_qty: string; after_qty: string }>(
+    `WITH before_qty AS (
+       SELECT quantity FROM products WHERE id = $3
+     ),
+     updated AS (
+       UPDATE products
+          SET quantity = GREATEST(0, quantity + $1::int * $2::int),
+              is_in_stock = GREATEST(0, quantity + $1::int * $2::int) > 0
+        WHERE id = $3
+       RETURNING quantity
+     )
+     SELECT (SELECT quantity FROM before_qty) AS before_qty,
+            (SELECT quantity FROM updated) AS after_qty`,
     [sign, qty, productId],
   )
+  const beforeProdQty = Math.max(0, Number(rows[0]?.before_qty ?? 0))
+  const afterProdQty = Math.max(0, Number(rows[0]?.after_qty ?? 0))
+  const actualProdQty = sign === -1 ? beforeProdQty - afterProdQty : afterProdQty - beforeProdQty
   await recordStockMovement(
     {
       productId,
       variantId: null,
       delta: sign * actualProdQty,
-      quantityAfter: Number(res.rows[0]?.quantity),
+      quantityAfter: afterProdQty,
       reason: sign === 1 ? 'cancel' : 'sale',
       orderId,
       actor: 'System',

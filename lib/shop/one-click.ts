@@ -34,7 +34,7 @@ function toInt(v: unknown): number | null {
 }
 
 /** UUIDv4-shaped string check for the idempotency key. */
-function toUuid(v: unknown): string | null {
+export function toUuid(v: unknown): string | null {
   if (typeof v !== 'string') return null
   const s = v.trim().toLowerCase()
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(s) ? s : null

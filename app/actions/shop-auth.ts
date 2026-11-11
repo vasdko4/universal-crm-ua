@@ -34,22 +34,6 @@ async function phoneTakenByOther(normPhone: string, exceptUserId?: string) {
   return rows.length > 0
 }
 
-// Attach past orders (e.g. guest checkouts) made with the same phone number
-// to this account, so the order history is complete from day one.
-async function claimOrdersByPhone(userId: string, normPhone: string) {
-  const digits = normPhone.replace(/\D/g, '')
-  await pool
-    .query(
-      `UPDATE orders SET user_id = $1
-       WHERE user_id IS NULL
-         AND customer_phone IS NOT NULL
-         AND created_at > NOW() - INTERVAL '30 days'
-         AND right(regexp_replace(customer_phone, '[^0-9]', '', 'g'), 9) = right($2, 9)`,
-      [userId, digits],
-    )
-    .catch(() => {})
-}
-
 async function isGoogleLinked(userId: string): Promise<boolean> {
   const { rows } = await pool.query(
     `SELECT 1 FROM account WHERE "userId"=$1 AND "providerId"='google' LIMIT 1`,
@@ -94,7 +78,6 @@ export async function finalizeCustomerRole(phone: string) {
     return { success: false, error: 'Этот номер телефона уже зарегистрирован' }
   }
   await pool.query(`UPDATE "user" SET phone=$1, "updatedAt"=NOW() WHERE id=$2`, [norm, user.id])
-  await claimOrdersByPhone(user.id, norm)
   return { success: true }
 }
 
@@ -198,7 +181,6 @@ export async function saveCustomerPhone(phone: string) {
     [norm, user.id],
   )
   if (res.rowCount === 0) return { success: false, error: 'Телефон уже указан' }
-  await claimOrdersByPhone(user.id, norm)
   return { success: true }
 }
 

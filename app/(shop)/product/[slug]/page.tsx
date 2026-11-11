@@ -188,10 +188,19 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   const gtin = normalizeGtin(product.barcode)
   const shippingPrice = formatShippingPrice(settings?.merchantFeed?.shippingPrice ?? '', product.currency)
-  const shippingLd = shippingDetails(product.currency)
-  if (shippingPrice) {
-    const amount = Number(shippingPrice.split(' ')[0])
-    shippingLd.shippingRate = { '@type': 'MonetaryAmount', value: amount, currency: product.currency }
+  // The shipping rate is emitted only when a real configured price exists —
+  // the old default was a hardcoded 0 (free shipping) that was never true.
+  const shippingLd = {
+    ...shippingDetails(),
+    ...(shippingPrice
+      ? {
+          shippingRate: {
+            '@type': 'MonetaryAmount',
+            value: Number(shippingPrice.split(' ')[0]),
+            currency: product.currency,
+          },
+        }
+      : {}),
   }
 
   const productLd = {

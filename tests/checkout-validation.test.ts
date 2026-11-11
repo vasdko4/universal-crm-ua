@@ -97,6 +97,16 @@ describe('validateCheckoutInput', () => {
     expect(good.ok && good.value.cartToken).toBe('abcd1234-efgh5678')
   })
 
+  it('keeps a UUID idempotency key, drops junk keys', () => {
+    const key = '123e4567-e89b-12d3-a456-426614174000'
+    const good = validateCheckoutInput(base({ idempotencyKey: key }))
+    expect(good.ok && good.value.idempotencyKey).toBe(key)
+    const bad = validateCheckoutInput(base({ idempotencyKey: 'not-a-uuid' }))
+    expect(bad.ok && bad.value.idempotencyKey).toBeNull()
+    const none = validateCheckoutInput(base())
+    expect(none.ok && none.value.idempotencyKey).toBeNull()
+  })
+
   it('requires delivery and payment methods', () => {
     expect(validateCheckoutInput(base({ deliveryMethod: '' })).ok).toBe(false)
     expect(validateCheckoutInput(base({ paymentMethod: '' })).ok).toBe(false)

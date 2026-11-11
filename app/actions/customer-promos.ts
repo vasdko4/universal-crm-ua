@@ -18,27 +18,20 @@ export type CustomerPromo = {
 }
 
 // Active promo codes currently available to the signed-in customer, plus a
-// flag for codes they already used (matched via their own orders — by account
-// id OR by phone, so guest orders placed before registration count too,
-// mirroring the orderOwnership rule in app/actions/shop.ts).
+// flag for codes they already used (matched via their own orders — by
+// account id only; the phone is unverified at registration, so it must not
+// key order access, see orderOwnership in app/actions/shop.ts).
 export async function getMyPromocodes(): Promise<CustomerPromo[]> {
   const user = await getShopUser()
   if (!user) return []
 
-  const phoneDigits = (user.phone ?? '').replace(/\D/g, '')
   const { rows } = await pool.query(
     `SELECT
        p.id, p.name, p.promo_code, p.discount_type, p.discount_value,
        p.min_order_amount, p.ends_at, p.usage_limit, p.used_count,
        EXISTS (
          SELECT 1 FROM orders o
-         WHERE (
-           o.user_id = $1
-           OR (
-             $2 <> ''
-             AND right(regexp_replace(coalesce(o.customer_phone, ''), '[^0-9]', '', 'g'), 9) = right($2, 9)
-           )
-         )
+         WHERE o.user_id = $1
          AND o.promo_code IS NOT NULL
          AND LOWER(o.promo_code) = LOWER(p.promo_code)
          AND o.status NOT IN ('cancelled')
@@ -51,7 +44,7 @@ export async function getMyPromocodes(): Promise<CustomerPromo[]> {
        AND (p.ends_at IS NULL OR p.ends_at > NOW())
        AND (p.usage_limit IS NULL OR p.used_count < p.usage_limit)
      ORDER BY p.ends_at ASC NULLS LAST, p.created_at DESC`,
-    [user.id, phoneDigits],
+    [user.id],
   )
 
   return rows.map((r) => ({

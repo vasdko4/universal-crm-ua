@@ -60,6 +60,26 @@ export async function settlePayment(
     return { ok: true, matchedPayment: Boolean(payment), matchedOrder: Boolean(order) }
   }
 
+  // A late Approved after the order was already cancelled (the expire-pending
+  // job won the race) must not resurrect it as paid or run fulfillment and
+  // conversions (WayForPay retries Service URL).
+  if (order?.status === 'cancelled' && status === 'paid') {
+    if (payment) {
+      await db
+        .insert(paymentEvents)
+        .values({
+          paymentId: payment.id,
+          type: opts.eventType ?? 'webhook',
+          status: 'ignored_paid_after_cancel',
+          amount: opts.amount != null ? opts.amount.toFixed(2) : null,
+          message: 'Поздний paid после отмены — заказ и платёж не тронуты',
+          payload: (opts.raw as object) ?? null,
+        })
+        .catch(() => {})
+    }
+    return { ok: true, matchedPayment: Boolean(payment), matchedOrder: Boolean(order) }
+  }
+
   // A signed/authoritative `paid` must report a finite amount that covers
   // the order total. Missing amounts fail closed (FIX-08) — otherwise a
   // truncated webhook could mark the order paid without a sum.

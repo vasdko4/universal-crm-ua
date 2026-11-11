@@ -15,6 +15,7 @@ import type { CheckoutItem, CheckoutInput } from '@/app/actions/shop'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import type { Locale } from '@/lib/i18n/config'
 import { looksLikeEmail } from '@/lib/text'
+import { toUuid } from '@/lib/shop/one-click'
 
 export const CHECKOUT_DELIVERY_METHODS = ['nova_poshta', 'ukrposhta', 'courier', 'pickup'] as const
 export const CHECKOUT_PAYMENT_METHODS = ['online', 'cod', 'prepay', 'cash', 'requisites'] as const
@@ -37,6 +38,7 @@ export const CHECKOUT_LIMITS = {
   note: 2000,
   promoCode: 64,
   cartToken: 64,
+  idempotencyKey: 64,
 } as const
 
 export type SanitizedCheckout = {
@@ -54,6 +56,8 @@ export type SanitizedCheckout = {
   note: string | null
   promoCode: string | null
   cartToken: string | null
+  /** Client-generated UUID (one per checkout attempt) — retried submits return the existing order. */
+  idempotencyKey: string | null
   items: { productId: number; quantity: number; variantId?: number }[]
 }
 
@@ -153,6 +157,8 @@ export function validateCheckoutInput(input: CheckoutInput, locale: Locale = 'ru
       promoCode: cap(input.promoCode, L.promoCode),
       // Same shape the abandoned-cart writer accepts; junk tokens are dropped.
       cartToken: cartTokenRaw && /^[a-z0-9-]{16,64}$/i.test(cartTokenRaw) ? cartTokenRaw : null,
+      // Non-UUID keys are dropped (not an error) — older clients send none.
+      idempotencyKey: toUuid(cap(input.idempotencyKey, L.idempotencyKey)),
       items,
     },
   }

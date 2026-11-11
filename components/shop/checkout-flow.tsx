@@ -484,6 +484,14 @@ export function CheckoutFlow({
   // server-side (debounced) so the admin can follow up if checkout is never
   // completed. The token persists per browser so repeats update one row.
   const cartTokenRef = useRef<string>('')
+  // Idempotency key for the checkout submit: one UUID per checkout attempt,
+  // stable across retries (double-tap, lost response) so a retried submit
+  // returns the already-created order instead of a duplicate.
+  const idempotencyKeyRef = useRef<string>('')
+  useEffect(() => {
+    if (idempotencyKeyRef.current) return
+    idempotencyKeyRef.current = crypto.randomUUID()
+  }, [])
   // Refs must not be read/written during render — initialize once on mount
   // instead. The debounced snapshot effect below only fires after the user
   // has typed contact info, so this one-render delay is harmless.
@@ -613,6 +621,7 @@ export function CheckoutFlow({
         promoCode: applied?.code || undefined,
         items: items.map((i) => ({ productId: i.id, quantity: i.quantity, variantId: i.variantId ?? undefined })),
         cartToken: cartTokenRef.current || undefined,
+        idempotencyKey: idempotencyKeyRef.current || undefined,
       })
       if (!res.success) {
         setError(res.error)

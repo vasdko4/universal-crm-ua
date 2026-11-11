@@ -1,7 +1,7 @@
 'use server'
 
 import { cookies, headers } from 'next/headers'
-import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
 import { db, pool, withDbClient, dbForClient } from '@/lib/db'
 import {
   orders,
@@ -168,6 +168,8 @@ export type CheckoutInput = {
   items: CheckoutItem[]
   /** Abandoned-cart token so a completed order marks the cart as recovered. */
   cartToken?: string
+  /** Client-generated UUID (one per checkout attempt) — retried submits return the existing order. */
+  idempotencyKey?: string
 }
 
 export type CheckoutResult =
@@ -209,6 +211,60 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
   // Sanitized values are already trimmed/capped; null vs undefined is
   // equivalent for every downstream `?.` / `||` use in this function.
   input = validated.value as unknown as CheckoutInput
+
+  // Idempotency: a retried submit (double-tap on slow network, lost
+  // response) carries the same key — return the already-created order
+  // instead of a duplicate, same pattern as one-click.
+  const idempotencyKey = input.idempotencyKey ?? null
+  if (idempotencyKey) {
+    const [existing] = await db
+      .select({
+        id: orders.id,
+        orderNumber: orders.orderNumber,
+        total: orders.total,
+        itemsTotal: orders.itemsTotal,
+        discountTotal: orders.discountTotal,
+        promoCode: orders.promoCode,
+        paymentMethod: orders.paymentMethod,
+      })
+      .from(orders)
+      .where(eq(orders.idempotencyKey, idempotencyKey))
+      .limit(1)
+    if (existing) {
+      const [pay] = await db
+        .select({ paymentUrl: payments.paymentUrl })
+        .from(payments)
+        .where(eq(payments.orderReference, existing.orderNumber))
+        .orderBy(desc(payments.createdAt))
+        .limit(1)
+      let requisites: string | undefined
+      if (existing.paymentMethod === 'requisites') {
+        const { rows } = await pool.query(`SELECT config FROM payment_methods WHERE code='requisites'`)
+        const cfg = (rows[0]?.config as Record<string, string> | null) ?? {}
+        const { formatRequisitesPreview } = await import('@/lib/payments/public-requisites')
+        const loc = locale === 'ru' ? 'ru' as const : 'uk' as const
+        requisites = formatRequisitesPreview(cfg, {
+          amount: Number(existing.total),
+          locale: loc,
+          orderNumber: existing.orderNumber,
+        })
+      }
+      await rememberLastOrder(existing.orderNumber)
+      return {
+        success: true,
+        orderId: existing.id,
+        orderNumber: existing.orderNumber,
+        total: Number(existing.total),
+        itemsTotal: Number(existing.itemsTotal),
+        discount: Number(existing.discountTotal),
+        promoCode: existing.promoCode ?? undefined,
+        // Column is nullable in the schema; the insert always sets it.
+        paymentMethod: existing.paymentMethod ?? 'cod',
+        paymentUrl: pay?.paymentUrl ?? undefined,
+        requisites,
+      }
+    }
+  }
 
   // BUGFIX: the static allow-list in validateCheckoutInput is not enough — a
   // method disabled in admin must not be orderable via a direct action call.
@@ -452,6 +508,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         .insert(orders)
         .values({
           orderNumber,
+          idempotencyKey: idempotencyKey ?? null,
           status: isOnline ? 'pending_payment' : 'new',
           ...utm,
           customerId,
@@ -1113,23 +1170,20 @@ const myOrderItemColumns = {
   variantLabel: orderItems.variantLabel,
 }
 
-function orderOwnership(userId: string, phone: string | null) {
-  const phoneDigits = (phone ?? '').replace(/\D/g, '')
-  if (!phoneDigits) return eq(orders.userId, userId)
-  return or(
-    eq(orders.userId, userId),
-    sql`right(regexp_replace(coalesce(${orders.customerPhone}, ''), '[^0-9]', '', 'g'), 9) = right(${phoneDigits}, 9)`,
-  )
+// Order history is keyed by the account only. The phone number is NOT
+// verified at registration, so matching guest orders by the last 9 digits
+// let anyone who registered with someone else's number see (and claim)
+// their orders — removed, no OTP is added by design.
+function orderOwnership(userId: string) {
+  return eq(orders.userId, userId)
 }
 
 export async function getMyOrders() {
   const user = await getShopUser()
   if (!user) return []
   try {
-    // Order history is keyed by the account AND by the phone number (the stable
-    // customer identifier): guest orders placed with the same phone show up too.
-    // Comparison uses the last 9 digits so it is format-independent.
-    const ownership = orderOwnership(user.id, user.phone)
+    // Order history is keyed by the account only (see orderOwnership).
+    const ownership = orderOwnership(user.id)
     // Hide orders still awaiting online payment: they only become real orders
     // once the gateway confirms payment (status flips to 'new').
     // Explicit columns — `select()` would 500 if production is missing a later
@@ -1180,7 +1234,7 @@ export async function getMyOrders() {
 export async function getMyOrderSummary(): Promise<{ ordersCount: number; totalSpent: number }> {
   const user = await getShopUser()
   if (!user) return { ordersCount: 0, totalSpent: 0 }
-  const ownership = orderOwnership(user.id, user.phone)
+  const ownership = orderOwnership(user.id)
   const [row] = await db
     .select({
       count: sql<number>`count(*)`,
@@ -1199,8 +1253,8 @@ export async function getMyOrderDetail(orderId: number) {
   const user = await getShopUser()
   if (!user) return null
   try {
-    // Same ownership rule as getMyOrders: by account or by the account's phone.
-    const ownership = orderOwnership(user.id, user.phone)
+    // Same ownership rule as getMyOrders: by account only.
+    const ownership = orderOwnership(user.id)
     // Explicit columns — `select()` 500s (then this catch turned it into 404)
     // if production is missing a later orders.* column.
     const [order] = await db
