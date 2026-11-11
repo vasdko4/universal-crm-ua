@@ -89,6 +89,24 @@ const manifest = JSON.parse(lines[0])
 if (!manifest._manifest) throw new Error('First line is not a backup manifest — wrong file?')
 console.log(`Backup ${label}: dumpedAt=${manifest.dumpedAt}, tables=${manifest.tables.length}`)
 
+// Audit A18: the dump records the producing app version + schema sha in the
+// manifest. A mismatch does not block the restore (restoring yesterday's
+// backup after today's deploy is a legitimate disaster-recovery flow),
+// but it warns loudly — schema drift is the main restore-time surprise.
+let appVersion = null
+try {
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+  appVersion = pkg.version ?? null
+} catch {
+  /* version check skipped */
+}
+if (appVersion && manifest.appVersion && manifest.appVersion !== appVersion) {
+  console.error(
+    `\n⚠ WARNING: backup was made by app version ${manifest.appVersion}, this checkout is ${appVersion}. ` +
+      'The schema may have changed since the dump — apply db/migrate.sql first (Admin → Updates → «Перевірити версію БД»).\n',
+  )
+}
+
 const byTable = new Map()
 for (let i = 1; i < lines.length; i++) {
   const { t, r } = JSON.parse(lines[i])
@@ -99,6 +117,24 @@ for (let i = 1; i < lines.length; i++) {
 const pool = new Pool({ connectionString })
 const client = await pool.connect()
 try {
+  // Audit A18: compare the dump's schema sha against the target DB.
+  if (manifest.schemaSha) {
+    try {
+      const { rows } = await client.query(
+        'SELECT migrate_sql_sha256 FROM public.schema_migrations WHERE id = 1',
+      )
+      const current = rows[0]?.migrate_sql_sha256
+      if (current && current !== manifest.schemaSha) {
+        console.error(
+          `\n⚠ WARNING: backup schema sha ${manifest.schemaSha} != target DB schema sha ${current}. ` +
+            'Apply db/migrate.sql first if the restore fails or behaves oddly.\n',
+        )
+      }
+    } catch {
+      // schema_migrations missing — schema not applied yet; the doc already
+      // says to apply db/migrate.sql first.
+    }
+  }
   await client.query('BEGIN')
   const tables = [...byTable.keys()]
   console.log(`TRUNCATE ${tables.length} tables (CASCADE) …`)
@@ -125,6 +161,39 @@ try {
     }
     total += rows.length
     console.log(`  ${table}: ${rows.length} rows`)
+  }
+  // Audit A18: sequences. TRUNCATE without RESTART IDENTITY does not reset
+  // them, and a fresh DB starts at 1 — but the re-INSERTed rows carry
+  // explicit ids, so the first new auto-id INSERT would fail with a
+  // duplicate key. Replay the positions recorded in the manifest; old
+  // manifests without `sequences` fall back to MAX(id) per table.
+  const manifestSequences = Array.isArray(manifest.sequences) ? manifest.sequences : []
+  const seqByTable = new Map()
+  for (const s of manifestSequences) {
+    if (typeof s?.table !== 'string' || typeof s?.sequence !== 'string' || !s.sequence) continue
+    if (typeof s?.lastValue !== 'number' || !Number.isFinite(s.lastValue)) continue
+    if (!seqByTable.has(s.table)) seqByTable.set(s.table, [])
+    seqByTable.get(s.table).push(s)
+  }
+  for (const table of tables) {
+    const recorded = seqByTable.get(table) ?? []
+    if (recorded.length > 0) {
+      for (const s of recorded) {
+        await client.query('SELECT setval($1::regclass, $2, $3)', [s.sequence, s.lastValue, s.isCalled === true])
+        console.log(`  ${table}.${s.column ?? 'id'}: sequence ${s.sequence} → ${s.lastValue} (called=${s.isCalled === true})`)
+      }
+      continue
+    }
+    const rows = byTable.get(table)
+    if (!rows.length || !Object.prototype.hasOwnProperty.call(rows[0], 'id')) continue
+    const { rows: seqRows } = await client.query('SELECT pg_get_serial_sequence($1, $2) AS seq', [table, 'id'])
+    const seq = seqRows[0]?.seq
+    if (!seq) continue
+    await client.query(
+      `SELECT setval(pg_get_serial_sequence($1, 'id'), COALESCE(MAX("id"), 1), MAX("id") IS NOT NULL) FROM ${quoteIdent(table)}`,
+      [table],
+    )
+    console.log(`  ${table}.id: sequence ${seq} → MAX(id) (legacy manifest, no recorded positions)`)
   }
   await client.query('COMMIT')
   console.log(`✓ Restored ${total} rows into ${tables.length} tables from ${label}`)

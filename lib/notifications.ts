@@ -378,8 +378,10 @@ async function loadOrderNotificationContext(orderId: number): Promise<OrderNotif
 
 /**
  * One channel of the new-order notification. Returns true when sent OR when
- * there is nothing to send (channel disabled, no address, SMTP not
- * configured) — false only on a real send failure, which the caller enqueues.
+ * there is nothing to send (channel disabled, no address) — false on a real
+ * send failure, which the caller enqueues. That includes unconfigured SMTP:
+ * sendMail reports it as fallback, not sent (audit A10), so the row is
+ * queued for the retry worker instead of silently counted as delivered.
  *
  * Email-toggle semantics (Settings → Email / Сповіщення):
  *
@@ -401,7 +403,10 @@ async function loadOrderNotificationContext(orderId: number): Promise<OrderNotif
  *   is off on purpose, not transiently failing, so retrying would only burn
  *   attempts and re-page every 15 minutes.
  */
-async function sendNewOrderCustomerEmail(ctx: OrderNotificationContext): Promise<boolean> {
+async function sendNewOrderCustomerEmail(
+  ctx: OrderNotificationContext,
+  opts?: { messageId?: string },
+): Promise<boolean> {
   const { o, items, settings, storeCtx, productSlugs } = ctx
   const n = settings.notifications
   const isRequisites = o.paymentMethod === 'requisites' || noteLooksLikeRequisites(o.note)
@@ -419,15 +424,24 @@ async function sendNewOrderCustomerEmail(ctx: OrderNotificationContext): Promise
   if (!(n.customerEmailEnabled || isRequisites)) return true
   const msg = buildOrderMessage('confirmation', o, items, storeCtx, productSlugs)
   try {
-    const r = await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
-    return r.sent || r.fallback
+    const r = await sendMail({
+      to: o.customerEmail,
+      subject: msg.subject,
+      text: msg.text,
+      html: msg.html,
+      messageId: opts?.messageId,
+    })
+    return r.sent
   } catch (e) {
     void reportError('notify.customer-email', e)
     return false
   }
 }
 
-async function sendNewOrderAdminEmail(ctx: OrderNotificationContext): Promise<boolean> {
+async function sendNewOrderAdminEmail(
+  ctx: OrderNotificationContext,
+  opts?: { messageId?: string },
+): Promise<boolean> {
   const { o, items, settings, siteUrl, productSlugs } = ctx
   const n = settings.notifications
   const adminTo = n.adminEmail || settings.emailSettings.smtpUser
@@ -440,8 +454,9 @@ async function sendNewOrderAdminEmail(ctx: OrderNotificationContext): Promise<bo
       subject: `Нове замовлення №${o.orderNumber} — ${money(o.total, o.currency, 'uk')}`,
       text,
       html,
+      messageId: opts?.messageId,
     })
-    return r.sent || r.fallback
+    return r.sent
   } catch (e) {
     void reportError('notify.admin-email', e, { context: { orderId: o.id } })
     return false
@@ -468,7 +483,10 @@ async function sendNewOrderTelegram(ctx: OrderNotificationContext): Promise<bool
   return sendTelegramMessage(token, chat, html)
 }
 
-async function sendShippedOrderEmail(ctx: OrderNotificationContext): Promise<boolean> {
+async function sendShippedOrderEmail(
+  ctx: OrderNotificationContext,
+  opts?: { messageId?: string },
+): Promise<boolean> {
   const { o, items, settings, storeCtx, productSlugs } = ctx
   if (!o.customerEmail || !o.trackingNumber) return true
   // Master toggle (Settings → Email → "Email-сповіщення"): shipped emails
@@ -477,8 +495,14 @@ async function sendShippedOrderEmail(ctx: OrderNotificationContext): Promise<boo
   if (!settings.emailSettings?.enabled) return true
   const msg = buildOrderMessage('shipped', o, items, storeCtx, productSlugs)
   try {
-    const r = await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
-    return r.sent || r.fallback
+    const r = await sendMail({
+      to: o.customerEmail,
+      subject: msg.subject,
+      text: msg.text,
+      html: msg.html,
+      messageId: opts?.messageId,
+    })
+    return r.sent
   } catch (e) {
     void reportError('notify.shipped-order', e)
     return false
@@ -493,14 +517,23 @@ async function sendShippedOrderEmail(ctx: OrderNotificationContext): Promise<boo
  * status. Same gates as the enqueue site, re-applied at send time so a
  * toggle flipped between enqueue and retry is honored.
  */
-async function sendDeliveryStatusEmail(ctx: OrderNotificationContext): Promise<boolean> {
+async function sendDeliveryStatusEmail(
+  ctx: OrderNotificationContext,
+  opts?: { messageId?: string },
+): Promise<boolean> {
   const { o, items, settings, storeCtx, productSlugs } = ctx
   if (!o.customerEmail) return true
   if (!settings.emailSettings?.enabled || !settings.notifications?.customerEmailEnabled) return true
   const msg = buildOrderMessage('status', o, items, storeCtx, productSlugs)
   try {
-    const r = await sendMail({ to: o.customerEmail, subject: msg.subject, text: msg.text, html: msg.html })
-    return r.sent || r.fallback
+    const r = await sendMail({
+      to: o.customerEmail,
+      subject: msg.subject,
+      text: msg.text,
+      html: msg.html,
+      messageId: opts?.messageId,
+    })
+    return r.sent
   } catch (e) {
     void reportError('notify.delivery-status', e)
     return false
@@ -512,6 +545,12 @@ async function sendDeliveryStatusEmail(ctx: OrderNotificationContext): Promise<b
  * to the customer, alert email + Telegram message to the admin. Every channel
  * is best-effort — a notification failure must never break checkout. A failed
  * channel is queued in notification_outbox for the retry worker.
+ *
+ * Audit A9: the catch also enqueues — the context load is the only throw
+ * source here (senders and enqueue never throw), so without this a transient
+ * load failure would lose all three channels with nothing for the worker
+ * to retry. enqueueNotification needs only the orderId, never throws, and
+ * dedups on the pending-only unique index, so this is safe to do blindly.
  */
 export async function notifyNewOrder(orderId: number): Promise<void> {
   try {
@@ -528,6 +567,11 @@ export async function notifyNewOrder(orderId: number): Promise<void> {
       telegram ? Promise.resolve() : enqueueNotification('new-order', 'telegram', orderId),
     ])
   } catch (e) {
+    await Promise.allSettled([
+      enqueueNotification('new-order', 'customer-email', orderId),
+      enqueueNotification('new-order', 'admin-email', orderId),
+      enqueueNotification('new-order', 'telegram', orderId),
+    ])
     void reportError('notify.new-order', e)
   }
 }
@@ -566,6 +610,10 @@ export async function notifyShippedOrder(orderId: number): Promise<void> {
       await enqueueNotification('shipped', 'customer-email', orderId)
     }
   } catch (e) {
+    // Audit A9: same as notifyNewOrder — the context load is the only throw
+    // source, so enqueue the channel before reporting, or the retry worker
+    // never sees it.
+    await enqueueNotification('shipped', 'customer-email', orderId)
     void reportError('notify.shipped-order', e)
   }
 }
@@ -574,13 +622,19 @@ async function sendOutboxRow(
   kind: NotificationKind,
   channel: NotificationChannel,
   orderId: number,
+  outboxId?: number,
 ): Promise<boolean> {
   const ctx = await loadOrderNotificationContext(orderId)
   if (!ctx) return true // the order is gone — nothing left to send
-  if (kind === 'shipped') return sendShippedOrderEmail(ctx)
-  if (kind === 'delivery-status') return sendDeliveryStatusEmail(ctx)
-  if (channel === 'customer-email') return sendNewOrderCustomerEmail(ctx)
-  if (channel === 'admin-email') return sendNewOrderAdminEmail(ctx)
+  // Audit A14: a stable Message-ID per outbox row — a crash between SMTP
+  // accept and the 'sent' mark re-sends with the same ID, so Gmail
+  // collapses the retry into one message instead of showing a duplicate.
+  // Direct (non-outbox) sends pass no id and keep the random Message-ID.
+  const messageId = outboxId !== undefined ? `outbox-${outboxId}` : undefined
+  if (kind === 'shipped') return sendShippedOrderEmail(ctx, { messageId })
+  if (kind === 'delivery-status') return sendDeliveryStatusEmail(ctx, { messageId })
+  if (channel === 'customer-email') return sendNewOrderCustomerEmail(ctx, { messageId })
+  if (channel === 'admin-email') return sendNewOrderAdminEmail(ctx, { messageId })
   return sendNewOrderTelegram(ctx)
 }
 
@@ -666,7 +720,12 @@ export async function processNotificationOutbox(
     if (!claimed.rowCount) continue
     let ok = false
     try {
-      ok = await sendOutboxRow(row.kind as NotificationKind, row.channel as NotificationChannel, row.order_id)
+      ok = await sendOutboxRow(
+        row.kind as NotificationKind,
+        row.channel as NotificationChannel,
+        row.order_id,
+        row.id,
+      )
     } catch (e) {
       void reportError('notify.outbox-send', e, { context: { orderId: row.order_id } })
     }

@@ -5,7 +5,10 @@ import { nextAttemptDelayMs, STALE_OUTBOX_CLAIM_MINUTES } from '../lib/notificat
 import { CRON_JOBS } from '../lib/cron/registry'
 
 const root = join(__dirname, '..')
-const read = (rel: string) => readFileSync(join(root, rel), 'utf8')
+// Structural tests compare source text with LF literals; on Windows the
+// checkout has CRLF line endings, so normalize here (Windows-only
+// failures 11.11.2026: notification-outbox.test.ts:91).
+const read = (rel: string) => readFileSync(join(root, rel), 'utf8').replace(/\r\n/g, '\n')
 
 describe('notification outbox (audit item 33)', () => {
   it('backs off exponentially: 2/4/8/16 min, capped at 6h', () => {
@@ -62,8 +65,10 @@ describe('notification outbox (audit item 33)', () => {
     expect(src).toContain("AND status = 'pending' RETURNING id")
     // Dead after 5 attempts.
     expect(src).toContain("status = 'dead'")
-    // sendMail's { sent, fallback } is honored: a false return is a failure.
-    expect(src).toContain('r.sent || r.fallback')
+    // sendMail's { sent, fallback } is honored: only sent counts — a
+    // fallback (SMTP not configured) is a failure and gets enqueued (A10).
+    expect(src).toContain('return r.sent')
+    expect(src).not.toContain('r.sent || r.fallback')
   })
 
   it('i18n keys exist in both admin dictionaries', () => {
@@ -104,10 +109,14 @@ describe('notification outbox: stale-claim reaper (second code review)', () => {
     const src = read('lib/notifications.ts')
     expect(src).toContain("'delivery-status'")
     expect(src).toContain('async function sendDeliveryStatusEmail')
-    expect(src).toContain("if (kind === 'delivery-status') return sendDeliveryStatusEmail(ctx)")
+    expect(src).toContain("if (kind === 'delivery-status') return sendDeliveryStatusEmail(ctx, { messageId })")
     expect(src).toContain('export async function enqueueNotification')
     const sync = read('lib/delivery/sync-tracking.ts')
-    expect(sync).toContain("enqueueNotification('delivery-status', 'customer-email'")
+    // A11: the outbox INSERT is inline in sync-tracking.ts (same row shape
+    // as enqueueNotification) so it shares the status transaction — the
+    // helper call is gone, the email still goes through the outbox.
+    expect(sync).toContain('INSERT INTO notification_outbox (kind, channel, order_id, status)')
+    expect(sync).toContain("VALUES ('delivery-status', 'customer-email', $1, 'pending')")
     expect(sync).not.toContain('sendMail')
     expect(sync).not.toContain('buildOrderMessage')
     expect(sync).toContain('settings?.emailSettings?.enabled')

@@ -1,7 +1,7 @@
 {
   "name": "magazine-crm",
   "private": true,
-  "version": "3.4.93",
+  "version": "3.4.94",
   "packageManager": "pnpm@10.34.5",
   "pnpm": {
     "overrides": {
@@ -26,6 +26,7 @@
     "db:reset": "node --env-file=.env.local scripts/db-setup.mjs --reset",
     "db:dump": "node --env-file=.env.local scripts/dump-db.mjs",
     "db:restore": "node --env-file=.env.local scripts/db-restore.mjs --reset",
+    "db:restore-backup": "node --env-file=.env.local scripts/db-restore-backup.mjs",
     "db:sync-migrate": "node scripts/sync-migrate-bundle.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",

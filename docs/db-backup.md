@@ -13,7 +13,8 @@ Nightly PostgreSQL backup, fully inside the app — no GitHub Actions involved.
   then one `{"t":"table","r":{...row...}}` per row.
   The whole dump runs in a single `REPEATABLE READ` transaction, so the
   snapshot is consistent. Schema is NOT included — it lives in `db/migrate.sql`.
-- **Storage:** Vercel Blob (private), `db-backups/YYYY-MM-DD-HHmm.jsonl.gz`.
+- **Storage:** local disk (`BACKUP_DIR` env, default `/app/data/backups`,
+  named volume `techno_store_backups`), files `YYYY-MM-DD-HHmmss.jsonl.gz`.
 - **Retention:** backups older than **10 days** are deleted automatically
   on every run (matched by filename date). A backup exactly 10 days old is kept.
 - **Failure:** `reportError('cron:db-backup', …, { alertAdmin: true })` —
@@ -21,27 +22,27 @@ Nightly PostgreSQL backup, fully inside the app — no GitHub Actions involved.
 - **Timeout:** `maxDuration = 300` (5 min). A safety valve aborts the dump
   above 2M rows instead of OOM-killing the function.
 
-## Required env (Vercel project — already used by the app)
+## Required env
 
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | production Postgres |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob (already used for uploads) |
 | `CRON_SECRET` | cron auth (already used by other crons) |
+| `BLOB_READ_WRITE_TOKEN` | only for restoring old backups stored in Vercel Blob (`--latest` / `db-backups/...` paths); not needed for local-disk backups |
 
 No new secrets, nothing in GitHub.
 
 ## Restore
 
 ```bash
-# newest backup from Blob into the DB pointed to by DATABASE_URL
+# a local backup file (the normal case — backups live on local disk now)
+node --env-file=.env.local scripts/db-restore-backup.mjs ./backup.jsonl.gz
+
+# newest backup from Blob (only for old backups stored in Vercel Blob)
 node --env-file=.env.local scripts/db-restore-backup.mjs --latest
 
-# a specific backup
+# a specific Blob backup
 node --env-file=.env.local scripts/db-restore-backup.mjs db-backups/2026-10-01-0030.jsonl.gz
-
-# a local file (e.g. downloaded from the Vercel dashboard)
-node --env-file=.env.local scripts/db-restore-backup.mjs ./backup.jsonl.gz
 ```
 
 The script TRUNCATEs every dumped table (CASCADE) and re-INSERTs rows in one
@@ -57,8 +58,12 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/db-backup
 
 ## Limits
 
-- The dump buffers tables in memory; fine for this store's size. If the DB
-  ever grows past a few hundred MB, switch `runDatabaseBackup` to chunked
-  `COPY` streaming.
+- The dump streams rows in 10k batches through gzip (no whole-table
+  buffering); safety valves abort above 2M rows (checked up front via
+  `COUNT(*)`) or 512 MB compressed output.
+- The manifest records the app version, the `schema_migrations` sha and the
+  sequence positions at dump time; the restorer replays them with `setval`
+  and warns loudly on a version/schema mismatch. Old manifests without
+  these fields still restore (sequences fall back to `MAX(id)`).
 - `bytea` columns round-trip via Buffer JSON encoding; `timestamptz` via ISO
   strings — both restored correctly by `scripts/db-restore-backup.mjs`.

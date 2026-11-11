@@ -3,7 +3,10 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const root = resolve(import.meta.dirname, '..')
-const source = (file: string) => readFileSync(resolve(root, file), 'utf8')
+// Structural tests compare source text with LF literals; on Windows the
+// checkout has CRLF line endings, so normalize here (Windows-only
+// failure 11.11.2026: webhook-rate-limit-error-leak.test.ts:54).
+const source = (file: string) => readFileSync(resolve(root, file), 'utf8').replace(/\r\n/g, '\n')
 
 describe('LOW: WayForPay callback rate limit', () => {
   it('caps per-IP like the Monobank callback, before any verification', () => {

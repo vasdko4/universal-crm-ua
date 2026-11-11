@@ -8,6 +8,15 @@ export type MailPayload = {
   subject: string
   text: string
   html?: string
+  /**
+   * Optional stable Message-ID local part (before the @). When provided
+   * (outbox retries pass `outbox-<row id>`), the same Message-ID is reused
+   * across retries, so a crash between SMTP accept and the 'sent' mark
+   * produces one message in Gmail instead of a visible duplicate (audit
+   * A14 — mitigation, not exactly-once: the second SMTP transaction still
+   * happens). When omitted, a random local part is generated as before.
+   */
+  messageId?: string
 }
 
 /**
@@ -99,8 +108,9 @@ export async function sendMail(payload: MailPayload): Promise<{ sent: boolean; f
     // SPF alignment under DMARC.
     envelope: { from: alignedFrom, to: safeTo },
     // Message-ID on the sender's own domain: mismatched/missing Message-ID
-    // domains are a common spam-filter heuristic.
-    messageId: `<${Date.now()}.${randomBytes(8).toString('hex')}@${senderDomain}>`,
+    // domains are a common spam-filter heuristic. A caller-provided
+    // messageId (outbox retries) is the stable local part; otherwise random.
+    messageId: `<${payload.messageId ?? `${Date.now()}.${randomBytes(8).toString('hex')}`}@${senderDomain}>`,
     headers: {
       // Transactional signal + easy opt-out lower the spam score.
       'X-Auto-Response-Suppress': 'OOF, AutoReply',

@@ -12,7 +12,7 @@ export const maxDuration = 300
  * Nightly PostgreSQL backup → local disk (BACKUP_DIR, named volume),
  * 10-day retention. Vercel Cron (see vercel.json). Auth: CRON_SECRET
  * Bearer, fail-closed. Dumps are data-only NDJSON+gzip; restore via
- * scripts/db-restore.mjs.
+ * scripts/db-restore-backup.mjs <local .jsonl.gz file>.
  */
 export async function GET(req: NextRequest) {
   const auth = authorizeCronRequest(process.env.CRON_SECRET, req.headers.get('authorization'))
