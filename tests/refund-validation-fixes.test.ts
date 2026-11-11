@@ -72,17 +72,22 @@ describe('audit small fixes (source-level)', () => {
   })
 
   it('product validation rejects infinite prices', () => {
+    // 3.4.89: validateProduct now routes through isAdminNumberInRange,
+    // whose parseAdminNumber rejects non-finite input (Infinity/NaN → null).
     const src = source('app/actions/products.ts')
-    expect(src).toContain('if (!Number.isFinite(price) || price < 0)')
-    expect(src).toContain('Number.isFinite(Number(input.oldPrice))')
-    expect(src).toContain('return Number.isFinite(n) && n >= 0')
+    expect(src).toContain('isAdminNumberInRange(input.price, 0, MONEY_10_2_MAX)')
+    expect(src).toContain('isAdminNumberInRange(input.oldPrice, 0, MONEY_10_2_MAX)')
+    expect(source('lib/shop/checkout-validation.ts')).toContain(
+      'return Number.isFinite(n) ? n : null',
+    )
   })
 
   it('category/group/page toggles and deletes check the affected row', () => {
     const categories = source('app/actions/categories.ts')
-    // updateCategory (existence pre-check for the stable slug + the
-    // returning() check) + toggleCategoryVisibility + deleteCategory.
-    expect(count(categories, 'Категория не найдена')).toBe(4)
+    // updateCategory (single FOR UPDATE existence check inside the
+    // transaction — 3.4.89 merged the old separate pre-check into it)
+    // + toggleCategoryVisibility + deleteCategory.
+    expect(count(categories, 'Категория не найдена')).toBe(3)
     expect(count(categories, '.returning({ id: categories.id })')).toBe(3)
     const groups = source('app/actions/groups.ts')
     // updateGroup + toggleGroupActive + deleteGroup (3.4.76).

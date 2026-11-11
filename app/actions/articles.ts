@@ -8,6 +8,7 @@ import { slugify } from '@/lib/slug'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
 import { ensureUniqueSlug, validateTitle } from '@/lib/unique-slug'
+import { withSlugRetry } from '@/lib/product-slug'
 
 export type ArticleInput = {
   title: string
@@ -135,47 +136,12 @@ export async function createArticle(input: ArticleInput) {
   await assertWritePermission('articles')
   const error = validate(input)
   if (error) return { success: false, error }
-  const slug = await ensureSlug(input.slug?.trim() || input.title)
+  const firstSlug = await ensureSlug(input.slug?.trim() || input.title)
   const isPublished = input.status === 'published'
-  await db.insert(articles).values({
-    title: input.title.trim(),
-    titleRu: input.titleRu?.trim() || null,
-    slug,
-    categoryId: input.categoryId ?? null,
-    excerpt: input.excerpt ?? '',
-    excerptRu: input.excerptRu?.trim() || null,
-    content: input.content ?? '',
-    contentRu: input.contentRu ?? '',
-    coverImage: input.coverImage ?? null,
-    author: input.author ?? 'Редакция',
-    tags: input.tags ?? [],
-    status: input.status ?? 'draft',
-    isFeatured: input.isFeatured ?? false,
-    readingMinutes: input.readingMinutes ?? 1,
-    metaTitle: input.metaTitle ?? null,
-    metaDescription: input.metaDescription ?? null,
-    publishedAt: isPublished ? new Date() : null,
-  })
-  revalidatePath('/admin/articles')
-  return { success: true }
-}
-
-export async function updateArticle(id: number, input: ArticleInput) {
-  await assertWritePermission('articles')
-  const error = validate(input)
-  if (error) return { success: false, error }
-  const current = await getArticleById(id)
-  if (!current) return { success: false, error: 'Статья не найдена' }
-  // Slugs are set once at creation and kept stable across renames — the
-  // same rule as products. Only an explicit slug in the form changes it;
-  // a missing one is self-healed from the title.
-  const slug = input.slug?.trim()
-    ? await ensureSlug(input.slug.trim(), id)
-    : current.slug || (await ensureSlug(input.title, id))
-  const isPublished = input.status === 'published'
-  await db
-    .update(articles)
-    .set({
+  // 23505 race: two admins creating same-titled articles can both pass the
+  // uniqueness check; the loser retries with the next suffix instead of 500.
+  await withSlugRetry(firstSlug, async (slug) => {
+    await db.insert(articles).values({
       title: input.title.trim(),
       titleRu: input.titleRu?.trim() || null,
       slug,
@@ -192,10 +158,53 @@ export async function updateArticle(id: number, input: ArticleInput) {
       readingMinutes: input.readingMinutes ?? 1,
       metaTitle: input.metaTitle ?? null,
       metaDescription: input.metaDescription ?? null,
-      publishedAt: isPublished ? current.publishedAt ?? new Date() : null,
-      updatedAt: new Date(),
+      publishedAt: isPublished ? new Date() : null,
     })
-    .where(eq(articles.id, id))
+  })
+  revalidatePath('/admin/articles')
+  return { success: true }
+}
+
+export async function updateArticle(id: number, input: ArticleInput) {
+  await assertWritePermission('articles')
+  const error = validate(input)
+  if (error) return { success: false, error }
+  const current = await getArticleById(id)
+  if (!current) return { success: false, error: 'Статья не найдена' }
+  // Slugs are set once at creation and kept stable across renames — the
+  // same rule as products. Only an explicit slug in the form changes it;
+  // a missing one is self-healed from the title.
+  const firstSlug = input.slug?.trim()
+    ? await ensureSlug(input.slug.trim(), id)
+    : current.slug || (await ensureSlug(input.title, id))
+  const isPublished = input.status === 'published'
+  // Same 23505 retry as createArticle: a concurrent save can take the slug
+  // between the check and the update.
+  await withSlugRetry(firstSlug, async (slug) => {
+    await db
+      .update(articles)
+      .set({
+        title: input.title.trim(),
+        titleRu: input.titleRu?.trim() || null,
+        slug,
+        categoryId: input.categoryId ?? null,
+        excerpt: input.excerpt ?? '',
+        excerptRu: input.excerptRu?.trim() || null,
+        content: input.content ?? '',
+        contentRu: input.contentRu ?? '',
+        coverImage: input.coverImage ?? null,
+        author: input.author ?? 'Редакция',
+        tags: input.tags ?? [],
+        status: input.status ?? 'draft',
+        isFeatured: input.isFeatured ?? false,
+        readingMinutes: input.readingMinutes ?? 1,
+        metaTitle: input.metaTitle ?? null,
+        metaDescription: input.metaDescription ?? null,
+        publishedAt: isPublished ? current.publishedAt ?? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(articles.id, id))
+  })
   revalidatePath('/admin/articles')
   return { success: true }
 }

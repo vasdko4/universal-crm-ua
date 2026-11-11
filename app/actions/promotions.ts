@@ -15,6 +15,7 @@ import { normalizeCatalogPaging } from '@/lib/shop/catalog-paging'
 import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
 import { isUniqueViolation } from '@/lib/db/errors'
 import { kyivDayBoundary } from '@/lib/shop/promo-dates'
+import { ADMIN_MAX_LEN, INT32_MAX, MONEY_12_2_MAX, adminStringTooLong } from '@/lib/shop/checkout-validation'
 
 export type PromotionInput = {
   type: 'promocode' | 'discount'
@@ -67,10 +68,28 @@ const DUP_CODE_ERROR = 'Промокод уже используется дру�
 
 function validate(input: PromotionInput): string | null {
   if (!input.name?.trim()) return 'Название акции обязательно'
+  if (adminStringTooLong(input.name, ADMIN_MAX_LEN.promoName))
+    return `Название акции не должно превышать ${ADMIN_MAX_LEN.promoName} символов`
+  if (adminStringTooLong(input.promoCode, ADMIN_MAX_LEN.promoCode))
+    return `Промокод не должен превышать ${ADMIN_MAX_LEN.promoCode} символов`
   if (!Number.isFinite(input.discountValue) || !(input.discountValue > 0))
     return 'Размер скидки должен быть больше нуля'
   if (input.discountType === 'percentage' && input.discountValue > 100) {
     return 'Процент скидки не может превышать 100%'
+  }
+  // numeric(12,2) overflows → 500 without this cap.
+  if (input.discountType === 'fixed' && input.discountValue >= MONEY_12_2_MAX) {
+    return 'Сума знижки не може перевищувати 10 000 000 000'
+  }
+  // An unvalidated minOrderAmount accepted "Infinity" and the promo then
+  // never applied (no order can reach it). Finite + range-checked now.
+  if (
+    input.minOrderAmount != null &&
+    (!Number.isFinite(input.minOrderAmount) ||
+      input.minOrderAmount < 0 ||
+      input.minOrderAmount >= MONEY_12_2_MAX)
+  ) {
+    return 'Минимальная сумма заказа должна быть числом от 0 до 10 000 000 000'
   }
   if (input.type === 'promocode' && !input.promoCode?.trim()) {
     return 'Для акции типа «Промокод» нужно указать код'
@@ -83,11 +102,15 @@ function validate(input: PromotionInput): string | null {
   }
   // BUGFIX: a fractional usageLimit (direct action call) hit the integer
   // column as a Postgres error → 500. Reject non-integers up front.
-  if (input.usageLimit != null && (!Number.isInteger(input.usageLimit) || input.usageLimit < 0)) {
+  if (
+    input.usageLimit != null &&
+    (!Number.isInteger(input.usageLimit) || input.usageLimit < 0 || input.usageLimit > INT32_MAX)
+  ) {
     return 'Ліміт використань має бути цілим невідʼємним числом'
   }
   if (!DATE_RE.test(input.startsAt)) return 'Некорректная дата начала'
   if (input.endsAt && !DATE_RE.test(input.endsAt)) return 'Некорректная дата окончания'
+  if (input.endsAt && input.endsAt < input.startsAt) return 'Дата окончания раньше даты начала'
   return null
 }
 

@@ -140,7 +140,9 @@ export const categories = pgTable('categories', {
   id: serial('id').primaryKey(),
   nameUk: varchar('name_uk', { length: 255 }).notNull(),
   nameRu: varchar('name_ru', { length: 255 }).notNull(),
-  slug: varchar('slug', { length: 255 }).notNull(),
+  // Unique since 3.4.89 (fix 4): a bare slugify used to let two categories
+  // share one slug. The matching index + dedup backfill live in db/migrate.sql.
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
   descriptionUk: text('description_uk'),
   descriptionRu: text('description_ru'),
   type: varchar('type', { length: 20 }).default('general'),

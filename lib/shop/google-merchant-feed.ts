@@ -178,7 +178,10 @@ export function expandFeedOffers(p: FeedProduct): MerchantOffer[] {
         itemGroupId: String(p.id),
         name: extra ? `${displayName} — ${extra}` : displayName,
         price,
-        oldPrice: v.oldPrice && v.oldPrice > price ? v.oldPrice : p.oldPrice,
+        // A variant carries a sale price ONLY from its own oldPrice. Falling
+        // back to the parent's oldPrice here sent Merchant Center a fake
+        // discount for variants that were never on sale (misrepresentation).
+        oldPrice: v.oldPrice && v.oldPrice > price ? v.oldPrice : null,
         image: v.image || p.image,
         images: p.images,
         sku: v.sku || p.sku,

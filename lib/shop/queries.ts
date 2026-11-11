@@ -1,7 +1,7 @@
 import 'server-only'
 import { unstable_cache } from 'next/cache'
 import { singleFlight } from '@/lib/cache/single-flight'
-import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm'
 import type { Locale } from '@/lib/i18n/config'
 import { sanitizeSearch } from '@/lib/api/helpers'
 import { searchTokens, type CharFilter, type CatalogFacet, type CatalogFacetValue } from '@/lib/shop/catalog-search'
@@ -1118,48 +1118,56 @@ async function _getRelatedProducts(
   // with rollers. Empty category → no related row, not a random showcase.
   if (categoryIds.length === 0) return []
 
-  const related = await db
-    .selectDistinct({ pid: productCategory.productId })
-    .from(productCategory)
-    .where(and(inArray(productCategory.categoryId, categoryIds), ne(productCategory.productId, id)))
-  const catIds = related.map((r) => r.pid)
-  if (catIds.length === 0) return []
-
-  async function load(ids: number[]) {
-    if (ids.length === 0) return []
-    const rows = await db
-      .select(productSelect)
-      .from(products)
-      .where(and(baseWhere, inArray(products.id, ids)))
-    const order = new Map(ids.map((pid, i) => [pid, i]))
-    return withListingSizes(
-      rows
-        .map((r) => toShopProduct(r as Record<string, unknown>))
-        .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)),
-    )
-  }
-
+  // Bounded candidate pool: the old code loaded the WHOLE category (every
+  // product id) just to render 4 cards. Brand matches first, then any
+  // other product from the same categories — each step LIMITed, so the read
+  // stays proportional to the cards, not the category size.
+  let brandedIds: number[] = []
   if (brand) {
     const brandRows = await db
-      .selectDistinct({ pid: productCharacteristics.productId })
-      .from(productCharacteristics)
-      .where(
+      .selectDistinct({ pid: productCategory.productId })
+      .from(productCategory)
+      .innerJoin(
+        productCharacteristics,
         and(
-          inArray(productCharacteristics.productId, catIds),
+          eq(productCharacteristics.productId, productCategory.productId),
           sql`lower(${productCharacteristics.name}) IN ('бренд','виробник','производитель','марка','brand','manufacturer')`,
           sql`lower(${productCharacteristics.value}) = ${brand.toLowerCase()}`,
         ),
       )
-    const brandedIds = brandRows.map((r) => r.pid)
-    const branded = await load(brandedIds)
-    if (branded.length >= limit) return branded.slice(0, limit)
-    const restIds = catIds.filter((pid) => !brandedIds.includes(pid))
-    const rest = await load(restIds)
-    const seen = new Set(branded.map((p) => p.id))
-    return [...branded, ...rest.filter((p) => !seen.has(p.id))].slice(0, limit)
+      .where(and(inArray(productCategory.categoryId, categoryIds), ne(productCategory.productId, id)))
+      .limit(limit)
+    brandedIds = brandRows.map((r) => r.pid)
   }
 
-  return (await load(catIds)).slice(0, limit)
+  const restRows =
+    brandedIds.length < limit
+      ? await db
+          .selectDistinct({ pid: productCategory.productId })
+          .from(productCategory)
+          .where(
+            and(
+              inArray(productCategory.categoryId, categoryIds),
+              ne(productCategory.productId, id),
+              brandedIds.length > 0 ? notInArray(productCategory.productId, brandedIds) : undefined,
+            ),
+          )
+          .limit(limit - brandedIds.length)
+      : []
+  const ids = [...brandedIds, ...restRows.map((r) => r.pid)]
+  if (ids.length === 0) return []
+
+  const rows = await db
+    .select(productSelect)
+    .from(products)
+    .where(and(baseWhere, inArray(products.id, ids)))
+  const order = new Map(ids.map((pid, i) => [pid, i]))
+  const listed = await withListingSizes(
+    rows
+      .map((r) => toShopProduct(r as Record<string, unknown>))
+      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)),
+  )
+  return listed.slice(0, limit)
 }
 
 export function getApprovedReviews(productId: number) {
@@ -1171,7 +1179,10 @@ export function getApprovedReviews(productId: number) {
         .select()
         .from(productReviews)
         .where(and(eq(productReviews.productId, productId), eq(productReviews.status, 'approved')))
-        .orderBy(desc(productReviews.createdAt)),
+        .orderBy(desc(productReviews.createdAt))
+        // Unbounded before: a popular product's review list grew linearly.
+        // 100 is far above what the page renders; cache invalidation is unchanged.
+        .limit(100),
   )
 }
 
@@ -1184,7 +1195,8 @@ export function getAnsweredQuestions(productId: number) {
         .select()
         .from(productQuestions)
         .where(and(eq(productQuestions.productId, productId), eq(productQuestions.status, 'approved')))
-        .orderBy(desc(productQuestions.createdAt)),
+        .orderBy(desc(productQuestions.createdAt))
+        .limit(100),
   )
 }
 

@@ -3,8 +3,10 @@
 import { db, withDbClient, dbForClient } from '@/lib/db'
 import {
   products,
+  categories,
   productCategory,
   productGroupItems,
+  productGroups,
   productCharacteristics,
   productVariants,
 } from '@/lib/db/schema'
@@ -16,7 +18,15 @@ import { assertPermission, assertWritePermission } from '@/lib/session'
 import { revalidateStorefront } from '@/lib/shop/cache'
 import { auditLog, fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
-import { generateUniqueSlug } from '@/lib/product-slug'
+import { generateUniqueSlug, withSlugRetry } from '@/lib/product-slug'
+import {
+  ADMIN_MAX_LEN,
+  INT32_MAX,
+  MONEY_10_2_MAX,
+  MONEY_10_3_MAX,
+  adminStringTooLong,
+  isAdminNumberInRange,
+} from '@/lib/shop/checkout-validation'
 import { normalizeBulkCharacteristics, planCharacteristicUpserts } from '@/lib/products/bulk-characteristics'
 import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
 
@@ -200,14 +210,67 @@ function validateProduct(input: ProductInput): string | null {
   if (!input.nameRu?.trim() && !input.nameUk?.trim()) {
     return 'Укажите название товара хотя бы на одном языке'
   }
-  const price = Number(input.price)
-  if (!Number.isFinite(price) || price < 0) return 'Цена должна быть неотрицательным числом'
-  if (!Number.isInteger(input.quantity) || input.quantity < 0)
-    return 'Количество должно быть неотрицательным целым числом'
-  if (input.oldPrice != null && input.oldPrice !== '' && (!Number.isFinite(Number(input.oldPrice)) || Number(input.oldPrice) < 0))
-    return 'Старая цена должна быть неотрицательным числом'
+  // String lengths mirror the varchar columns (lib/db/schema.ts) — without
+  // this Postgres 500s on `value too long for type character varying(N)`.
+  if (adminStringTooLong(input.nameUk, ADMIN_MAX_LEN.productName) || adminStringTooLong(input.nameRu, ADMIN_MAX_LEN.productName))
+    return `Название товара не должно превышать ${ADMIN_MAX_LEN.productName} символов`
+  if (adminStringTooLong(input.sku, ADMIN_MAX_LEN.sku))
+    return `SKU не должен превышать ${ADMIN_MAX_LEN.sku} символов`
+  if (adminStringTooLong(input.barcode, ADMIN_MAX_LEN.barcode))
+    return `Штрихкод не должен превышать ${ADMIN_MAX_LEN.barcode} символов`
+  if (adminStringTooLong(input.image, ADMIN_MAX_LEN.image))
+    return `Ссылка на изображение не должна превышать ${ADMIN_MAX_LEN.image} символов`
+  if (adminStringTooLong(input.metaTitleUk, ADMIN_MAX_LEN.metaTitle) || adminStringTooLong(input.metaTitleRu, ADMIN_MAX_LEN.metaTitle))
+    return `Meta title не должен превышать ${ADMIN_MAX_LEN.metaTitle} символов`
+  if (adminStringTooLong(input.feedTitleUk, ADMIN_MAX_LEN.feedTitle) || adminStringTooLong(input.feedTitleRu, ADMIN_MAX_LEN.feedTitle))
+    return `Заголовок для фида не должен превышать ${ADMIN_MAX_LEN.feedTitle} символов`
+  // Numbers: raw admin strings used to go straight into numeric columns
+  // and 500 on `invalid input syntax` (NaN/Infinity) or `numeric field
+  // overflow`. Finite + range-checked here, with a clear admin error.
+  if (!isAdminNumberInRange(input.price, 0, MONEY_10_2_MAX))
+    return 'Цена должна быть числом от 0 до 100 000 000'
+  if (!Number.isInteger(input.quantity) || input.quantity < 0 || input.quantity > INT32_MAX)
+    return 'Количество должно быть целым числом от 0 до 2147483647'
+  if (input.oldPrice != null && input.oldPrice !== '' && !isAdminNumberInRange(input.oldPrice, 0, MONEY_10_2_MAX))
+    return 'Старая цена должна быть числом от 0 до 100 000 000'
+  if (input.costPrice != null && input.costPrice !== '' && !isAdminNumberInRange(input.costPrice, 0, MONEY_10_2_MAX))
+    return 'Себестоимость должна быть числом от 0 до 100 000 000'
+  for (const [label, v] of [
+    ['Ширина', input.width],
+    ['Высота', input.height],
+    ['Длина', input.length],
+  ] as const) {
+    if (v != null && v !== '' && !isAdminNumberInRange(v, 0, MONEY_10_2_MAX))
+      return `${label} должна быть числом от 0 до 100 000 000`
+  }
+  if (input.weight != null && input.weight !== '' && !isAdminNumberInRange(input.weight, 0, MONEY_10_3_MAX))
+    return 'Вес должен быть числом от 0 до 10 000 000'
+  if (
+    input.purchasesBoost != null &&
+    (!Number.isInteger(input.purchasesBoost) || input.purchasesBoost < 0 || input.purchasesBoost > INT32_MAX)
+  )
+    return 'Накрутка счётчика должна быть целым числом от 0 до 2147483647'
+  for (const c of input.characteristics || []) {
+    if (adminStringTooLong(c.name, ADMIN_MAX_LEN.charName))
+      return `Название характеристики «${c.name.trim().slice(0, 40)}» превышает ${ADMIN_MAX_LEN.charName} символов`
+  }
+  const variants = input.variants || []
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i]
+    if (v.price !== '' && !isAdminNumberInRange(v.price, 0, MONEY_10_2_MAX))
+      return `Цена варианта #${i + 1} должна быть числом от 0 до 100 000 000`
+    if (v.oldPrice != null && v.oldPrice !== '' && !isAdminNumberInRange(v.oldPrice, 0, MONEY_10_2_MAX))
+      return `Старая цена варианта #${i + 1} должна быть числом от 0 до 100 000 000`
+    if (!Number.isInteger(v.quantity) || v.quantity < 0 || v.quantity > INT32_MAX)
+      return `Количество варианта #${i + 1} должно быть целым числом от 0 до 2147483647`
+    if (adminStringTooLong(v.sku, ADMIN_MAX_LEN.sku))
+      return `SKU варианта #${i + 1} не должен превышать ${ADMIN_MAX_LEN.sku} символов`
+  }
   return null
 }
+
+/** Thrown by syncRelations when a referenced category/group id does not exist. Callers catch it and return a form error — never a 500. */
+class UnknownRelationError extends Error {}
 
 // Clean/validate the option axes, dropping empty names and values.
 function cleanOptions(options: ProductOption[] | undefined): ProductOption[] {
@@ -317,18 +380,45 @@ async function syncRelations(
   input: ProductInput,
   tx: Pick<typeof db, 'delete' | 'insert' | 'select' | 'update'> = db,
 ) {
+  // Validate referenced ids BEFORE any destructive write: a stale category
+  // or group id used to wipe the product's links first and then fail the
+  // insert, silently unlisting the product. FOR SHARE locks the referenced
+  // rows so they cannot be deleted by a concurrent admin mid-save.
+  // Unknown ids throw UnknownRelationError — the caller turns it into a
+  // form error naming the ids (never a 500), and the transaction rolls back.
+  const categoryIds = [...new Set((input.categoryIds || []).filter((n) => Number.isInteger(n) && n > 0))]
+  const groupIds = [...new Set((input.groupIds || []).filter((n) => Number.isInteger(n) && n > 0))]
+  if (categoryIds.length > 0) {
+    const rows = await tx
+      .select({ id: categories.id })
+      .from(categories)
+      .where(inArray(categories.id, categoryIds))
+      .for('share')
+    const missing = categoryIds.filter((id) => !rows.some((r) => r.id === id))
+    if (missing.length > 0) throw new UnknownRelationError(`Категорії не знайдено: ${missing.join(', ')}`)
+  }
+  if (groupIds.length > 0) {
+    const rows = await tx
+      .select({ id: productGroups.id })
+      .from(productGroups)
+      .where(inArray(productGroups.id, groupIds))
+      .for('share')
+    const missing = groupIds.filter((id) => !rows.some((r) => r.id === id))
+    if (missing.length > 0) throw new UnknownRelationError(`Групи не знайдено: ${missing.join(', ')}`)
+  }
+
   await tx.delete(productCategory).where(eq(productCategory.productId, productId))
-  if (input.categoryIds && input.categoryIds.length > 0) {
+  if (categoryIds.length > 0) {
     await tx
       .insert(productCategory)
-      .values(input.categoryIds.map((categoryId) => ({ productId, categoryId })))
+      .values(categoryIds.map((categoryId) => ({ productId, categoryId })))
   }
 
   await tx.delete(productGroupItems).where(eq(productGroupItems.productId, productId))
-  if (input.groupIds && input.groupIds.length > 0) {
+  if (groupIds.length > 0) {
     await tx
       .insert(productGroupItems)
-      .values(input.groupIds.map((groupId, i) => ({ productId, groupId, sortOrder: i })))
+      .values(groupIds.map((groupId, i) => ({ productId, groupId, sortOrder: i })))
   }
 
   await tx.delete(productCharacteristics).where(eq(productCharacteristics.productId, productId))
@@ -396,14 +486,31 @@ export async function createProduct(input: ProductInput) {
   const error = validateProduct(input)
   if (error) return { success: false, error }
 
-  const created = await withDbClient(async (client) => {
-    const tx = dbForClient(client)
-    const [row] = await tx.insert(products).values(toProductRow(input)).returning({ id: products.id })
-    await syncRelations(row.id, input, tx)
-    const slug = await generateUniqueSlug(input.nameUk || input.nameRu || '', row.id)
-    await tx.update(products).set({ slug }).where(eq(products.id, row.id))
-    return { id: row.id, slug }
-  })
+  const name = input.nameUk || input.nameRu || ''
+  // Best-effort uniqueness check on the pool; the unique index is the final
+  // arbiter and withSlugRetry bumps the suffix on 23505 (each attempt runs
+  // in a fresh transaction — a failed INSERT aborts its transaction, so the
+  // retry can never reuse it). The slug is set by the INSERT itself, so a
+  // product is never left with slug = NULL for a later UPDATE to fill.
+  const firstSlug = await generateUniqueSlug(name, Date.now())
+  let created: { id: number; slug: string }
+  try {
+    const res = await withSlugRetry(firstSlug, async (slug) => {
+      return withDbClient(async (client) => {
+        const tx = dbForClient(client)
+        const [row] = await tx
+          .insert(products)
+          .values({ ...toProductRow(input), slug })
+          .returning({ id: products.id })
+        await syncRelations(row.id, input, tx)
+        return { id: row.id, slug }
+      })
+    })
+    created = res.result
+  } catch (e) {
+    if (e instanceof UnknownRelationError) return { success: false, error: e.message }
+    throw e
+  }
 
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
@@ -423,20 +530,44 @@ export async function updateProduct(id: number, input: ProductInput) {
   const error = validateProduct(input)
   if (error) return { success: false, error }
 
-  const [existing] = await db.select({ id: products.id, slug: products.slug }).from(products).where(eq(products.id, id))
-  if (!existing) return { success: false, error: 'Товар не найден' }
-
-  await withDbClient(async (client) => {
-    const tx = dbForClient(client)
-    await tx.update(products).set(toProductRow(input)).where(eq(products.id, id))
-    await syncRelations(id, input, tx)
-  })
-
-  // Slugs are set once and kept stable across renames (protects links/SEO
-  // already shared or indexed) — only self-heal products that predate this
-  // column and never got one.
-  const slug = existing.slug || (await generateUniqueSlug(input.nameUk || input.nameRu || '', id, id))
-  if (!existing.slug) await db.update(products).set({ slug }).where(eq(products.id, id))
+  const name = input.nameUk || input.nameRu || ''
+  const firstSlug = await generateUniqueSlug(name, id, id)
+  let updated: { slug: string } | null
+  try {
+    const res = await withSlugRetry(firstSlug, async (candidate) => {
+      return withDbClient(async (client) => {
+        const tx = dbForClient(client)
+        // Row lock: a second writer waits for the first transaction to
+        // commit and then re-reads fresh state instead of overwriting
+        // stale state. The row update, the relations sync and the slug
+        // self-heal run in the same transaction, so they can never be
+        // torn apart by a concurrent save.
+        const [existing] = await tx
+          .select({ id: products.id, slug: products.slug })
+          .from(products)
+          .where(eq(products.id, id))
+          .for('update')
+        if (!existing) return null
+        await tx.update(products).set(toProductRow(input)).where(eq(products.id, id))
+        await syncRelations(id, input, tx)
+        // Slugs are set once and kept stable across renames (protects links/SEO
+        // already shared or indexed) — only self-heal products that predate this
+        // column and never got one. The candidate is the pool-checked slug;
+        // on a 23505 race the retry uses the bumped suffix.
+        let slug = existing.slug
+        if (!slug) {
+          slug = candidate
+          await tx.update(products).set({ slug }).where(eq(products.id, id))
+        }
+        return { slug }
+      })
+    })
+    updated = res.result
+  } catch (e) {
+    if (e instanceof UnknownRelationError) return { success: false, error: e.message }
+    throw e
+  }
+  if (!updated) return { success: false, error: 'Товар не найден' }
 
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
@@ -448,7 +579,7 @@ export async function updateProduct(id: number, input: ProductInput) {
 
   revalidatePath('/admin/products')
   revalidatePath(`/admin/products/${id}/edit`)
-  revalidatePath(`/product/${slug}`)
+  revalidatePath(`/product/${updated.slug}`)
   revalidateStorefront(id)
   return { success: true, id }
 }
@@ -564,46 +695,58 @@ export async function duplicateProduct(id: number) {
     // (or pick nondeterministically between the two rows).
     slug: _slug, promId: _promId, variants: sourceVariants, ...rest } = source
 
-  const created = await withDbClient(async (client) => {
-    const tx = dbForClient(client)
-    const [row] = await tx
-      .insert(products)
-      .values({
-        ...rest,
-        slug: null,
-        promId: null,
-        nameRu: rest.nameRu ? `${rest.nameRu} (копия)` : null,
-        nameUk: rest.nameUk ? `${rest.nameUk} (копія)` : null,
-        sku: rest.sku ? `${rest.sku}-COPY` : null,
+  // The copy gets a fresh unique slug, set by the INSERT itself — the old
+  // code inserted slug = NULL and healed it with a pool-checked
+  // generateUniqueSlug + UPDATE, which raced (23505 → 500) under
+  // concurrent duplications. Same retry as createProduct.
+  const firstSlug = await generateUniqueSlug(
+    rest.nameUk || rest.nameRu || `product-${Date.now()}`,
+    Date.now(),
+  )
+  let created: { id: number }
+  try {
+    const res = await withSlugRetry(firstSlug, async (slug) => {
+      return withDbClient(async (client) => {
+        const tx = dbForClient(client)
+        const [row] = await tx
+          .insert(products)
+          .values({
+            ...rest,
+            slug,
+            promId: null,
+            nameRu: rest.nameRu ? `${rest.nameRu} (копия)` : null,
+            nameUk: rest.nameUk ? `${rest.nameUk} (копія)` : null,
+            sku: rest.sku ? `${rest.sku}-COPY` : null,
+          })
+          .returning({ id: products.id })
+        // BUGFIX: syncRelations was called without options/variants, so the
+        // variant matrix was wiped and the copy kept variantsEnabled=true with
+        // zero variants. Copy the source matrix over (new SKUs to avoid clashes).
+        await syncRelations(row.id, {
+          price: rest.price,
+          quantity: rest.quantity,
+          categoryIds,
+          groupIds,
+          characteristics: characteristics.map((c) => ({ name: c.name, value: c.value })),
+          options: (rest.options as ProductInput['options']) ?? [],
+          variantsEnabled: rest.variantsEnabled,
+          variants: (sourceVariants ?? []).map((v) => ({
+            options: (v.options ?? {}) as VariantOptions,
+            sku: v.sku ? `${v.sku}-COPY` : null,
+            price: String(v.price ?? 0),
+            oldPrice: v.oldPrice != null ? String(v.oldPrice) : null,
+            quantity: v.quantity ?? 0,
+            image: v.image,
+          })),
+        }, tx)
+        return row
       })
-      .returning({ id: products.id })
-    // BUGFIX: the copy used to get slug = NULL — invisible on the storefront
-    // (/product/<slug> 404s and the numeric-id fallback redirect-loops).
-    // Generate a fresh unique slug for the duplicate.
-    const slug = await generateUniqueSlug(rest.nameUk || rest.nameRu || `product-${row.id}`, row.id)
-    await tx.update(products).set({ slug }).where(eq(products.id, row.id))
-    // BUGFIX: syncRelations was called without options/variants, so the
-    // variant matrix was wiped and the copy kept variantsEnabled=true with
-    // zero variants. Copy the source matrix over (new SKUs to avoid clashes).
-    await syncRelations(row.id, {
-      price: rest.price,
-      quantity: rest.quantity,
-      categoryIds,
-      groupIds,
-      characteristics: characteristics.map((c) => ({ name: c.name, value: c.value })),
-      options: (rest.options as ProductInput['options']) ?? [],
-      variantsEnabled: rest.variantsEnabled,
-      variants: (sourceVariants ?? []).map((v) => ({
-        options: (v.options ?? {}) as VariantOptions,
-        sku: v.sku ? `${v.sku}-COPY` : null,
-        price: String(v.price ?? 0),
-        oldPrice: v.oldPrice != null ? String(v.oldPrice) : null,
-        quantity: v.quantity ?? 0,
-        image: v.image,
-      })),
-    }, tx)
-    return row
-  })
+    })
+    created = res.result
+  } catch (e) {
+    if (e instanceof UnknownRelationError) return { success: false, error: e.message }
+    throw e
+  }
 
   revalidatePath('/admin/products')
   revalidateStorefront()
@@ -710,7 +853,7 @@ export async function updateProductPrice(id: number, price: number) {
   const user = await assertWritePermission('products')
   const t = getAdminDictionary(user.locale).products
   if (!Number.isInteger(id) || id <= 0) return { success: false, error: t.errInvalidProduct }
-  if (!Number.isFinite(price) || price < 0) return { success: false, error: t.errInvalidPrice }
+  if (!Number.isFinite(price) || price < 0 || price >= MONEY_10_2_MAX) return { success: false, error: t.errInvalidPrice }
   const { skipped } = await splitVariantProducts([id])
   if (skipped) return { success: false, error: t.errVariantMatrixPrice }
   await db
@@ -736,17 +879,56 @@ export async function updateProductStock(id: number, quantity: number) {
   const t = getAdminDictionary(user.locale).products
   if (!Number.isInteger(id) || id <= 0) return { success: false, error: t.errInvalidProduct }
   const qty = Math.trunc(quantity)
-  if (!Number.isFinite(qty) || qty < 0) return { success: false, error: t.errInvalidStock }
+  if (!Number.isFinite(qty) || qty < 0 || qty > INT32_MAX) return { success: false, error: t.errInvalidStock }
   const { skipped } = await splitVariantProducts([id])
   if (skipped) return { success: false, error: t.errVariantMatrixStock }
-  const [row] = await db
-    .select({ quantity: products.quantity })
-    .from(products)
-    .where(eq(products.id, id))
-  if (!row) return { success: false, error: t.errProductNotFound }
-  const delta = qty - Number(row.quantity)
-  if (delta === 0) return { success: true }
-  return bulkAdjustProductStock([id], delta, 'adjust')
+  const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
+  // Absolute set in ONE statement — no stale read, no lost update. Two
+  // admins setting 15 from a base of 10 both end at 15 (last write wins on
+  // the absolute value), never 20. The ledger records the ACTUAL delta.
+  const changed = await withDbClient(async (client) => {
+    const res = await client.query<{ id: number; qty_after: number; qty_before: number }>(
+      `WITH target AS (
+         SELECT id, quantity AS qty_before FROM products WHERE id = $1
+       ),
+       upd AS (
+         UPDATE products p SET
+           quantity = $2,
+           is_in_stock = $2 > 0,
+           stock_status = CASE
+             WHEN $2 = 0 THEN 'Немає в наявності'
+             WHEN p.stock_status = 'Немає в наявності' THEN 'В наявності'
+             ELSE p.stock_status
+           END,
+           updated_at = NOW()
+         WHERE p.id = $1
+         RETURNING p.id, p.quantity AS qty_after
+       )
+       SELECT upd.id, upd.qty_after, target.qty_before
+       FROM upd JOIN target ON target.id = upd.id`,
+      [id, qty],
+    )
+    if (res.rows.length === 0) return null
+    const row = res.rows[0]
+    const actualDelta = Number(row.qty_after) - Number(row.qty_before)
+    if (actualDelta !== 0) {
+      await recordStockMovement(
+        {
+          productId: Number(row.id),
+          delta: actualDelta,
+          quantityAfter: Number(row.qty_after),
+          reason: 'adjust',
+          actor: user.name,
+        },
+        client,
+      )
+    }
+    return true
+  })
+  if (!changed) return { success: false, error: t.errProductNotFound }
+  revalidatePath('/admin/products')
+  revalidateStorefront()
+  return { success: true }
 }
 
 export async function bulkSetProductPrice(ids: number[], price: number) {
@@ -754,7 +936,7 @@ export async function bulkSetProductPrice(ids: number[], price: number) {
   const t = getAdminDictionary(user.locale).products
   const unique = uniqueIds(ids)
   if (!unique.length) return { success: false, error: t.errNothingSelected }
-  if (!Number.isFinite(price) || price < 0) return { success: false, error: t.errInvalidPrice }
+  if (!Number.isFinite(price) || price < 0 || price >= MONEY_10_2_MAX) return { success: false, error: t.errInvalidPrice }
   const { plain, skipped } = await splitVariantProducts(unique)
   if (plain.length > 0) {
     await db
@@ -782,6 +964,7 @@ export async function bulkAdjustProductStock(ids: number[], delta: number, reaso
   if (!unique.length) return { success: false, error: t.errNothingSelected }
   const d = Math.trunc(delta)
   if (!d) return { success: false, error: t.errZeroDelta }
+  if (Math.abs(d) > INT32_MAX) return { success: false, error: 'Зміна залишку перевищує допустимий діапазон' }
   const { recordStockMovement } = await import('@/lib/shop/stock-ledger')
   const { withDbClient } = await import('@/lib/db')
   const { plain, skipped } = await splitVariantProducts(unique)
@@ -837,6 +1020,12 @@ export async function bulkSetProductCategory(ids: number[], categoryId: number) 
   const unique = uniqueIds(ids)
   if (!unique.length) return { success: false, error: 'Нічого не вибрано' }
   if (!Number.isInteger(categoryId) || categoryId < 1) return { success: false, error: 'Категорія не задана' }
+  // Validate BEFORE the destructive delete: an unchecked category id used to
+  // wipe every link first and then insert a dangling reference, silently
+  // unlisting up to 200 products from all categories. The delete+insert
+  // itself already runs in one transaction.
+  const [cat] = await db.select({ id: categories.id }).from(categories).where(eq(categories.id, categoryId)).limit(1)
+  if (!cat) return { success: false, error: `Категорію #${categoryId} не знайдено` }
   await withDbClient(async (client) => {
     const tx = dbForClient(client)
     await tx.delete(productCategory).where(inArray(productCategory.productId, unique))

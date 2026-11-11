@@ -721,3 +721,35 @@ CREATE TABLE IF NOT EXISTS error_logs (
 CREATE INDEX IF NOT EXISTS idx_error_logs_created_at ON error_logs (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_error_logs_tag ON error_logs (tag);
 CREATE INDEX IF NOT EXISTS idx_error_logs_resolved ON error_logs (resolved);
+
+-- ---------- Категории: уникальный slug (3.4.89, fix 4) ----------
+-- Дубли slug (две категории с одинаковым именем) молча ломали витрину:
+-- обе отвечали на один URL. Сначала переименовываем дубликаты, затем
+-- добавляем уникальный индекс. Идемпотентно: после первого прогона
+-- дубликатов нет, и блок ничего не трогает; повторный запуск безопасен.
+-- Кандидат проверяется against живой таблицей (WHILE EXISTS), поэтому
+-- переименование уникально по построению даже если суффикс -2 уже занят.
+DO $$
+DECLARE
+  dup RECORD;
+  candidate text;
+  suffix integer;
+BEGIN
+  -- Keep the lowest id per slug; rename the rest with an incrementing
+  -- suffix, checking each candidate against the live table.
+  FOR dup IN
+    SELECT id, slug FROM categories
+    WHERE slug IN (SELECT slug FROM categories GROUP BY slug HAVING COUNT(*) > 1)
+      AND id NOT IN (SELECT MIN(id) FROM categories GROUP BY slug)
+    ORDER BY id
+  LOOP
+    suffix := 2;
+    candidate := LEFT(dup.slug, 240) || '-' || suffix;
+    WHILE EXISTS (SELECT 1 FROM categories WHERE slug = candidate) LOOP
+      suffix := suffix + 1;
+      candidate := LEFT(dup.slug, 240) || '-' || suffix;
+    END LOOP;
+    UPDATE categories SET slug = candidate WHERE id = dup.id;
+  END LOOP;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_slug ON public.categories (slug);

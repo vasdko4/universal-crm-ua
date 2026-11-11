@@ -66,11 +66,23 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
     if (rows.length === 0) break
     result.checked += rows.length
 
-    // 3) Batch-track this page's TTNs in one pass.
-    const statuses = await trackDocuments(
-      apiKey,
-      rows.map((r) => String(r.tracking_number)),
-    )
+    // 3) Batch-track this page's TTNs in one pass. A failed batch (NP
+    // timeout / 500) must not abort the whole daily run — the pages
+    // already collected stay, the failure is recorded in errors, and the
+    // loop continues with the next page (same guarding style as the
+    // per-order loop below: statuses stay fresh instead of going stale
+    // for a day because of one bad batch).
+    let statuses: Awaited<ReturnType<typeof trackDocuments>> = []
+    try {
+      statuses = await trackDocuments(
+        apiKey,
+        rows.map((r) => String(r.tracking_number)),
+      )
+    } catch (e) {
+      result.errors.push(`Сторінка накладних (${rows.length} шт.): ${(e as Error).message}`)
+      // byTtn stays empty, so the per-order loop below skips every row of
+      // this page and the cursor still advances to the next one.
+    }
     const byTtn = new Map(statuses.map((s) => [s.ttn, s]))
 
     // 4) Apply changes order by order (statuses rarely change for many at once).

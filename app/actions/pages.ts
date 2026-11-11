@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { escapeLikeWildcards, ilikeEscaped, normPageParams, sanitizeSearch } from '@/lib/api/helpers'
 import { ensureUniqueSlug, validateTitle } from '@/lib/unique-slug'
+import { withSlugRetry } from '@/lib/product-slug'
 
 export type PageInput = {
   title: string
@@ -109,47 +110,12 @@ export async function createPage(input: PageInput) {
   await assertWritePermission('pages')
   const error = validate(input)
   if (error) return { success: false, error }
-  const slug = await ensureSlug(input.slug?.trim() || input.title)
+  const firstSlug = await ensureSlug(input.slug?.trim() || input.title)
   const isPublished = input.status === 'published'
-  await db.insert(pages).values({
-    title: input.title.trim(),
-    titleRu: input.titleRu?.trim() || null,
-    slug,
-    content: input.content ?? '',
-    contentRu: input.contentRu ?? null,
-    excerpt: input.excerpt ?? '',
-    excerptRu: input.excerptRu ?? null,
-    coverImage: input.coverImage ?? null,
-    template: input.template ?? 'default',
-    status: input.status ?? 'draft',
-    showInMenu: input.showInMenu ?? false,
-    showInFooter: input.showInFooter ?? false,
-    menuTitle: input.menuTitle ?? null,
-    sortOrder: input.sortOrder ?? 0,
-    metaTitle: input.metaTitle ?? null,
-    metaDescription: input.metaDescription ?? null,
-    publishedAt: isPublished ? new Date() : null,
-  })
-  revalidatePath('/admin/pages')
-  return { success: true }
-}
-
-export async function updatePage(id: number, input: PageInput) {
-  await assertWritePermission('pages')
-  const error = validate(input)
-  if (error) return { success: false, error }
-  const current = await getPageById(id)
-  if (!current) return { success: false, error: 'Страница не найдена' }
-  // Slugs are set once at creation and kept stable across renames — the
-  // same rule as products. Only an explicit slug in the form changes it;
-  // a missing one is self-healed from the title.
-  const slug = input.slug?.trim()
-    ? await ensureSlug(input.slug.trim(), id)
-    : current.slug || (await ensureSlug(input.title, id))
-  const isPublished = input.status === 'published'
-  await db
-    .update(pages)
-    .set({
+  // 23505 race: two admins creating same-titled pages can both pass the
+  // uniqueness check; the loser retries with the next suffix instead of 500.
+  await withSlugRetry(firstSlug, async (slug) => {
+    await db.insert(pages).values({
       title: input.title.trim(),
       titleRu: input.titleRu?.trim() || null,
       slug,
@@ -166,10 +132,53 @@ export async function updatePage(id: number, input: PageInput) {
       sortOrder: input.sortOrder ?? 0,
       metaTitle: input.metaTitle ?? null,
       metaDescription: input.metaDescription ?? null,
-      publishedAt: isPublished ? current.publishedAt ?? new Date() : null,
-      updatedAt: new Date(),
+      publishedAt: isPublished ? new Date() : null,
     })
-    .where(eq(pages.id, id))
+  })
+  revalidatePath('/admin/pages')
+  return { success: true }
+}
+
+export async function updatePage(id: number, input: PageInput) {
+  await assertWritePermission('pages')
+  const error = validate(input)
+  if (error) return { success: false, error }
+  const current = await getPageById(id)
+  if (!current) return { success: false, error: 'Страница не найдена' }
+  // Slugs are set once at creation and kept stable across renames — the
+  // same rule as products. Only an explicit slug in the form changes it;
+  // a missing one is self-healed from the title.
+  const firstSlug = input.slug?.trim()
+    ? await ensureSlug(input.slug.trim(), id)
+    : current.slug || (await ensureSlug(input.title, id))
+  const isPublished = input.status === 'published'
+  // Same 23505 retry as createPage: a concurrent save can take the slug
+  // between the check and the update.
+  await withSlugRetry(firstSlug, async (slug) => {
+    await db
+      .update(pages)
+      .set({
+        title: input.title.trim(),
+        titleRu: input.titleRu?.trim() || null,
+        slug,
+        content: input.content ?? '',
+        contentRu: input.contentRu ?? null,
+        excerpt: input.excerpt ?? '',
+        excerptRu: input.excerptRu ?? null,
+        coverImage: input.coverImage ?? null,
+        template: input.template ?? 'default',
+        status: input.status ?? 'draft',
+        showInMenu: input.showInMenu ?? false,
+        showInFooter: input.showInFooter ?? false,
+        menuTitle: input.menuTitle ?? null,
+        sortOrder: input.sortOrder ?? 0,
+        metaTitle: input.metaTitle ?? null,
+        metaDescription: input.metaDescription ?? null,
+        publishedAt: isPublished ? current.publishedAt ?? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(pages.id, id))
+  })
   revalidatePath('/admin/pages')
   return { success: true }
 }

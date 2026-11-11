@@ -4,13 +4,15 @@ import { db } from '@/lib/db'
 import {
   productGroups,
   productGroupItems,
+  promotions,
   siteGroups,
   marketplaceCategories,
 } from '@/lib/db/schema'
-import { asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { slugify } from '@/lib/text'
+import { ADMIN_MAX_LEN, INT32_MAX, adminStringTooLong, toIntInRange } from '@/lib/shop/checkout-validation'
 
 // SECURITY: these three reads had no permission check — reachable directly
 // as server actions regardless of which page imports them. Only ever called
@@ -55,6 +57,13 @@ function validate(input: GroupInput): string | null {
   if (!input.nameRu?.trim() || !input.nameUk?.trim()) {
     return 'Название группы обязательно на обоих языках'
   }
+  if (
+    adminStringTooLong(input.nameUk, ADMIN_MAX_LEN.groupName) ||
+    adminStringTooLong(input.nameRu, ADMIN_MAX_LEN.groupName)
+  )
+    return `Название группы не должно превышать ${ADMIN_MAX_LEN.groupName} символов`
+  if (input.sortOrder != null && toIntInRange(input.sortOrder, -INT32_MAX - 1, INT32_MAX) == null)
+    return 'Порядок сортировки должен быть целым числом в пределах int32'
   return null
 }
 
@@ -104,6 +113,27 @@ export async function deleteGroup(id: number) {
   await assertWritePermission('groups')
   try {
     const deleted = await db.transaction(async (tx) => {
+      // A group targeted by a promotion must not vanish silently: removing
+      // its id from target_group_ids would narrow the promo's targeting,
+      // and when it was the promo's only group the promo would stop
+      // applying at all (stuck at "not_applicable" with no warning).
+      // Same precedent as deleteCategory refusing on children — refuse
+      // with a clear message naming the promos; the admin edits the promo
+      // first, then deletes the group. Checked inside the transaction so
+      // a promo cannot start targeting the group mid-delete.
+      const blocking = await tx
+        .select({ id: promotions.id, name: promotions.name })
+        .from(promotions)
+        .where(
+          and(
+            eq(promotions.targetType, 'groups'),
+            sql`${promotions.targetGroupIds} @> ${JSON.stringify([id])}::jsonb`,
+          ),
+        )
+      if (blocking.length > 0) {
+        const names = blocking.map((p) => p.name?.trim() || `#${p.id}`).join(', ')
+        throw new Error(`Группа используется в акциях: ${names}. Сначала измените или удалите эти акции.`)
+      }
       await tx.delete(productGroupItems).where(eq(productGroupItems.groupId, id))
       return tx.delete(productGroups).where(eq(productGroups.id, id)).returning({ id: productGroups.id })
     })

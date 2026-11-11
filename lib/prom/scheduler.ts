@@ -14,16 +14,11 @@
  */
 
 import { pool } from '@/lib/db'
-import { tryAdvisoryLock } from '@/lib/db/advisory-lock'
 import { syncPromProducts } from './sync'
 
 const TICK_MS = 60_000
 let running = false
 let started = false
-
-// Advisory-lock namespace for the schedulers (the `running` flag below
-// only guards one Node process; the lock guards every instance).
-const SCHEDULER_LOCK_NS = 20261111
 
 export type PromSchedule = {
   enabled: boolean
@@ -67,16 +62,10 @@ async function tick(): Promise<void> {
   if (running) return
   const schedule = await readSchedule()
   if (!schedule || !isPromSyncDue(schedule, Date.now())) return
-  // Distributed lock: another instance may already be syncing. A lock
-  // failure (DB down) skips this tick; the next minute retries.
-  let lock: Awaited<ReturnType<typeof tryAdvisoryLock>> = null
-  try {
-    lock = await tryAdvisoryLock(SCHEDULER_LOCK_NS, 'prom-sync')
-  } catch (e) {
-    console.error('[prom-scheduler] lock failed:', (e as Error).message)
-    return
-  }
-  if (!lock) return
+  // Single-flight is enforced inside syncPromProducts (advisory lock), so
+  // a tick that lands while a manual/cron sync runs just reports "already
+  // running" instead of starting a second run. The `running` flag only
+  // guards this one Node process; the lock guards every instance.
   running = true
   try {
     const res = await syncPromProducts()
@@ -85,7 +74,6 @@ async function tick(): Promise<void> {
     console.error('[prom-scheduler] sync failed:', (e as Error).message)
   } finally {
     running = false
-    await lock.release()
   }
 }
 

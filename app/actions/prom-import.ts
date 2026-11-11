@@ -35,6 +35,10 @@ import {
 } from '@/lib/prom-import/size-families'
 import { cleanUkrainianDescription, findCapacityMismatch } from '@/lib/prom-import/hygiene'
 import { downloadImagesLocally } from '@/lib/prom-import/download-images'
+import {
+  PROM_IMPORT_CATEGORY_LOCK_NS,
+  categoryLockKey,
+} from '@/lib/prom-import/category-lock'
 
 // Safety cap: a Prom.ua shop can have thousands of listings. Importing that
 // many product pages one at a time (2 fetches each, for uk+ru) would take
@@ -115,6 +119,55 @@ export async function startPromImport(shopUrl: string, skipExisting = false) {
   }
 }
 
+/**
+ * Finds or creates ONE category level under `parentId`, serialized against
+ * concurrent import workers by a blocking advisory lock on the sibling
+ * slot. Without it, two workers SELECT the same siblings, both find no
+ * match, and both INSERT — duplicate categories for the same path
+ * (categories has no unique constraint on name/slug). The lock is held
+ * only for this level's check-then-insert (never nested across levels),
+ * so there is no lock-ordering deadlock; a dead holder's session dies
+ * with it and the lock is released automatically.
+ */
+async function ensureCategoryLevel(
+  parentId: number | null,
+  nameUk: string,
+  nameRu: string,
+  alias: string,
+  levelIndex: number,
+): Promise<number> {
+  const lockClient = await pool.connect()
+  try {
+    await lockClient.query('SELECT pg_advisory_lock($1, hashtext($2))', [
+      PROM_IMPORT_CATEGORY_LOCK_NS,
+      categoryLockKey(parentId, nameUk),
+    ])
+    try {
+      const siblings: { id: number; nameUk: string; nameRu: string | null }[] = await db
+        .select({ id: categories.id, nameUk: categories.nameUk, nameRu: categories.nameRu })
+        .from(categories)
+        .where(parentId === null ? isNull(categories.parentId) : eq(categories.parentId, parentId))
+      const aliased = findAliasedCategory(siblings, nameUk)
+      if (aliased) return aliased.id
+      const slug = slugify(alias || nameUk) || `cat-${Date.now()}-${levelIndex}`
+      const insertedRows: { id: number }[] = await db
+        .insert(categories)
+        .values({ nameUk, nameRu, slug, parentId, isVisible: true })
+        .returning({ id: categories.id })
+      return insertedRows[0].id
+    } finally {
+      await lockClient
+        .query('SELECT pg_advisory_unlock($1, hashtext($2))', [
+          PROM_IMPORT_CATEGORY_LOCK_NS,
+          categoryLockKey(parentId, nameUk),
+        ])
+        .catch(() => {})
+    }
+  } finally {
+    lockClient.release()
+  }
+}
+
 /** Finds or creates the category chain for a product's uk/ru breadcrumbs, returns the leaf id. */
 async function ensureCategoryPath(
   breadcrumbsUk: { alias: string; caption: string }[],
@@ -131,22 +184,10 @@ async function ensureCategoryPath(
     // constraint on name/slug, so we look it up manually to avoid creating
     // duplicate categories on every re-import). Also accept explicit aliases
     // so Prom "Техніка та електроніка" lands on the seeded "Електроніка" root.
-    const siblings: { id: number; nameUk: string; nameRu: string | null }[] = await db
-      .select({ id: categories.id, nameUk: categories.nameUk, nameRu: categories.nameRu })
-      .from(categories)
-      .where(parentId === null ? isNull(categories.parentId) : eq(categories.parentId, parentId))
-    const aliased = findAliasedCategory(siblings, nameUk)
-
-    if (aliased) {
-      leafId = aliased.id
-    } else {
-      const slug = slugify(breadcrumbsUk[i].alias || nameUk) || `cat-${Date.now()}-${i}`
-      const insertedRows: { id: number }[] = await db
-        .insert(categories)
-        .values({ nameUk, nameRu, slug, parentId, isVisible: true })
-        .returning({ id: categories.id })
-      leafId = insertedRows[0].id
-    }
+    // Each level is serialized by ensureCategoryLevel, so a concurrent
+    // worker racing the same path finds the row the first one inserted
+    // instead of inserting a duplicate.
+    leafId = await ensureCategoryLevel(parentId, nameUk, nameRu, breadcrumbsUk[i].alias, i)
     parentId = leafId
   }
   return leafId
@@ -341,6 +382,12 @@ function stripSizeSuffix(name: string, size: string): string {
  * Adds one size (from a standalone Prom listing) onto an already-imported
  * canonical product, then retires the duplicate row if this listing was
  * imported as its own product on an earlier run.
+ *
+ * The whole read-modify-write runs in ONE transaction with the product row
+ * locked (SELECT ... FOR UPDATE): two workers merging different sizes into
+ * the same product used to read the same options, append their own size in
+ * memory, and UPDATE — last writer wins, silently dropping the sibling
+ * size while its productVariants row still existed.
  */
 async function mergeSizeIntoProduct(opts: {
   productId: number
@@ -350,58 +397,61 @@ async function mergeSizeIntoProduct(opts: {
   oldPrice: string | null
   duplicateProductId?: number
 }) {
-  const [row] = await db
-    .select({ options: products.options, sizes: products.sizes, isInStock: products.isInStock })
-    .from(products)
-    .where(eq(products.id, opts.productId))
-    .limit(1)
-  if (!row) return
-  const options: ProductOption[] = Array.isArray(row.options) ? [...(row.options as ProductOption[])] : []
-  let sizeOpt = options.find(
-    (o) => SIZE_AXIS_NAMES.some((n) => o.name.toLowerCase().includes(n)) && !NON_CHOICE_AXIS.test(o.name),
-  )
-  if (!sizeOpt) {
-    sizeOpt = { name: SIZE_OPTION_NAME_UK, type: 'text', values: [] }
-    options.push(sizeOpt)
-  }
-  if (!sizeOpt.values.includes(opts.size)) sizeOpt.values = [...sizeOpt.values, opts.size]
-  const existingVars = await db
-    .select({ id: productVariants.id, options: productVariants.options })
-    .from(productVariants)
-    .where(eq(productVariants.productId, opts.productId))
-  const already = existingVars.some((v) => {
-    const o = (v.options ?? {}) as Record<string, string>
-    return o[sizeOpt!.name] === opts.size
-  })
-  if (!already) {
-    await db.insert(productVariants).values({
-      productId: opts.productId,
-      options: { [sizeOpt.name]: opts.size },
-      price: opts.price,
-      oldPrice: opts.oldPrice,
-      quantity: opts.inStock ? 1 : 0,
-      isInStock: opts.inStock,
-      sortOrder: existingVars.length,
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ options: products.options, sizes: products.sizes, isInStock: products.isInStock })
+      .from(products)
+      .where(eq(products.id, opts.productId))
+      .for('update')
+      .limit(1)
+    if (!row) return
+    const options: ProductOption[] = Array.isArray(row.options) ? [...(row.options as ProductOption[])] : []
+    let sizeOpt = options.find(
+      (o) => SIZE_AXIS_NAMES.some((n) => o.name.toLowerCase().includes(n)) && !NON_CHOICE_AXIS.test(o.name),
+    )
+    if (!sizeOpt) {
+      sizeOpt = { name: SIZE_OPTION_NAME_UK, type: 'text', values: [] }
+      options.push(sizeOpt)
+    }
+    if (!sizeOpt.values.includes(opts.size)) sizeOpt.values = [...sizeOpt.values, opts.size]
+    const existingVars = await tx
+      .select({ id: productVariants.id, options: productVariants.options })
+      .from(productVariants)
+      .where(eq(productVariants.productId, opts.productId))
+    const already = existingVars.some((v) => {
+      const o = (v.options ?? {}) as Record<string, string>
+      return o[sizeOpt!.name] === opts.size
     })
-  }
-  const anyInStock = opts.inStock || Boolean(row.isInStock)
-  await db
-    .update(products)
-    .set({
-      options,
-      sizes: sizesFromOptions(options),
-      variantsEnabled: true,
-      isInStock: anyInStock,
-      quantity: anyInStock ? 1 : 0,
-      stockStatus: anyInStock ? 'В наявності' : 'Немає в наявності',
-    })
-    .where(eq(products.id, opts.productId))
-  if (opts.duplicateProductId && opts.duplicateProductId !== opts.productId) {
-    await db
+    if (!already) {
+      await tx.insert(productVariants).values({
+        productId: opts.productId,
+        options: { [sizeOpt.name]: opts.size },
+        price: opts.price,
+        oldPrice: opts.oldPrice,
+        quantity: opts.inStock ? 1 : 0,
+        isInStock: opts.inStock,
+        sortOrder: existingVars.length,
+      })
+    }
+    const anyInStock = opts.inStock || Boolean(row.isInStock)
+    await tx
       .update(products)
-      .set({ deletedAt: new Date() })
-      .where(eq(products.id, opts.duplicateProductId))
-  }
+      .set({
+        options,
+        sizes: sizesFromOptions(options),
+        variantsEnabled: true,
+        isInStock: anyInStock,
+        quantity: anyInStock ? 1 : 0,
+        stockStatus: anyInStock ? 'В наявності' : 'Немає в наявності',
+      })
+      .where(eq(products.id, opts.productId))
+    if (opts.duplicateProductId && opts.duplicateProductId !== opts.productId) {
+      await tx
+        .update(products)
+        .set({ deletedAt: new Date() })
+        .where(eq(products.id, opts.duplicateProductId))
+    }
+  })
 }
 
 /** Processes the next small batch of a Prom.ua import job. Call repeatedly until `done: true`. */
@@ -759,10 +809,28 @@ export async function continuePromImport(taskId: number) {
   //
   // Increment counters in SQL and merge size-family additions into the live
   // JSON state. The UPDATE is atomic, so parallel polls cannot lose counters
-  // or resurrect already-claimed products. `processing` is cleared — the
-  // batch completed, so a later resume must not re-queue it.
+  // or resurrect already-claimed products. `processing` loses ONLY this
+  // worker's batch ids (array subtraction against the live row) — a blind
+  // wipe would drop another in-flight worker's crash-recovery marker, and
+  // if that worker then died its batch would be in neither `pending` nor
+  // `processing` and lost forever. The job completes only when nothing is
+  // pending AND nothing is still in flight, so a worker that finishes
+  // while another holds the last batch does not flip the task to
+  // 'completed' under it.
   // Warnings (hygiene flags) and errors share the task's error_log; warnings
   // are prefixed with ⚠ so they read as "review me", not "failed".
+  //
+  // The CASE keeps entries without a numeric id instead of dropping them
+  // on a cast error, and `<> ALL` keeps entries whose id is not in this
+  // batch (vacuously true for an empty batch).
+  const removeOwnBatchFromProcessing = `(
+    SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+      FROM jsonb_array_elements(COALESCE(state->'processing', '[]'::jsonb)) AS elem
+     WHERE CASE
+       WHEN (elem->>'id') ~ '^[0-9]+$' THEN (elem->>'id')::int <> ALL($7::int[])
+       ELSE true
+     END
+  )`
   const newLog = [...warnings, ...errors].join('\n') || null
   const updated = await pool.query<{
     status: 'processing' | 'completed'
@@ -787,23 +855,25 @@ export async function continuePromImport(taskId: number) {
                 true
               ),
               '{processing}',
-              '[]'::jsonb,
+              ${removeOwnBatchFromProcessing},
               true
             ),
             status = CASE
               WHEN jsonb_array_length(COALESCE(state->'pending', '[]'::jsonb)) = 0
+               AND jsonb_array_length(${removeOwnBatchFromProcessing}) = 0
                 THEN 'completed'
               ELSE 'processing'
             END,
             completed_at = CASE
               WHEN jsonb_array_length(COALESCE(state->'pending', '[]'::jsonb)) = 0
+               AND jsonb_array_length(${removeOwnBatchFromProcessing}) = 0
                 THEN NOW()
               ELSE NULL
             END,
             updated_at = NOW()
       WHERE id = $1
       RETURNING status, processed_items, success_items, failed_items`,
-    [taskId, batch.length, success, failed, newLog, JSON.stringify(state.sizeFamilies ?? {})],
+    [taskId, batch.length, success, failed, newLog, JSON.stringify(state.sizeFamilies ?? {}), batch.map((b) => b.id)],
   )
   const result = updated.rows[0]
   const done = result?.status === 'completed'

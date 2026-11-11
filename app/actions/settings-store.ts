@@ -1,16 +1,18 @@
 'use server'
 
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { db } from '@/lib/db'
+import { dbForClient, withDbClient } from '@/lib/db'
 import { storeSettings } from '@/lib/db/schema'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import {
   STORE_SETTINGS_TAG,
   getStoreSettingsInternal,
+  normalizeStoreSettingsRow,
   stripSecrets,
   type StoreSettingsData,
 } from '@/lib/store-settings'
 import {
+  decryptConfigSecrets,
   encryptConfigSecrets,
   STORE_EMAIL_SECRET_KEYS,
   STORE_GOOGLE_AUTH_SECRET_KEYS,
@@ -72,76 +74,97 @@ function keepSecret(next: string | undefined, prev: string): string {
 }
 
 async function writeStoreSettings(data: Partial<StoreSettingsData>) {
-  const current = await getStoreSettingsInternal()
-  const merged = { ...current, ...data }
-  if (data.emailSettings) {
-    merged.emailSettings = {
-      ...current.emailSettings,
-      ...data.emailSettings,
-      smtpUser: keepSecret(data.emailSettings.smtpUser, current.emailSettings.smtpUser),
-      smtpPassword: keepSecret(data.emailSettings.smtpPassword, current.emailSettings.smtpPassword),
-      dkimPrivateKey: keepSecret(data.emailSettings.dkimPrivateKey, current.emailSettings.dkimPrivateKey),
+  // Serialize the read-modify-write under a row lock: the old code read via
+  // the cached getStoreSettingsInternal(), merged, and overwrote the whole
+  // row — a Prom sync that wrote prom.lastSyncAt in between was silently
+  // rolled back by the stale merge. The locked read sees the freshest
+  // committed state (bypassing unstable_cache), and a concurrent writer
+  // waits for this transaction. Raw SELECT * (not drizzle select()) keeps
+  // the existing guard: a live DB missing a later ALTER column still
+  // returns a row instead of 500ing. No version column needed — the lock
+  // alone serializes the two writers.
+  const { current, merged } = await withDbClient(async (client) => {
+    const { rows } = await client.query('SELECT * FROM store_settings WHERE id = 1 FOR UPDATE')
+    const s = normalizeStoreSettingsRow(rows[0] ?? null)
+    const current: StoreSettingsData = {
+      ...s,
+      emailSettings: decryptConfigSecrets(s.emailSettings, STORE_EMAIL_SECRET_KEYS),
+      notifications: decryptConfigSecrets(s.notifications, STORE_NOTIFICATIONS_SECRET_KEYS),
+      googleAuth: decryptConfigSecrets(s.googleAuth, STORE_GOOGLE_AUTH_SECRET_KEYS),
+      prom: decryptConfigSecrets(s.prom, STORE_PROM_SECRET_KEYS),
     }
-  }
-  if (data.notifications) {
-    merged.notifications = {
-      ...current.notifications,
-      ...data.notifications,
-      telegramBotToken: keepSecret(data.notifications.telegramBotToken, current.notifications.telegramBotToken),
-      telegramChatId: keepSecret(data.notifications.telegramChatId, current.notifications.telegramChatId),
+    const merged = { ...current, ...data }
+    if (data.emailSettings) {
+      merged.emailSettings = {
+        ...current.emailSettings,
+        ...data.emailSettings,
+        smtpUser: keepSecret(data.emailSettings.smtpUser, current.emailSettings.smtpUser),
+        smtpPassword: keepSecret(data.emailSettings.smtpPassword, current.emailSettings.smtpPassword),
+        dkimPrivateKey: keepSecret(data.emailSettings.dkimPrivateKey, current.emailSettings.dkimPrivateKey),
+      }
     }
-  }
-  if (data.googleAuth) {
-    merged.googleAuth = {
-      ...current.googleAuth,
-      ...data.googleAuth,
-      clientSecret: keepSecret(data.googleAuth.clientSecret, current.googleAuth.clientSecret),
+    if (data.notifications) {
+      merged.notifications = {
+        ...current.notifications,
+        ...data.notifications,
+        telegramBotToken: keepSecret(data.notifications.telegramBotToken, current.notifications.telegramBotToken),
+        telegramChatId: keepSecret(data.notifications.telegramChatId, current.notifications.telegramChatId),
+      }
     }
-  }
-  if (data.prom) {
-    merged.prom = {
-      ...current.prom,
-      ...data.prom,
-      apiToken: keepSecret(data.prom.apiToken, current.prom.apiToken),
+    if (data.googleAuth) {
+      merged.googleAuth = {
+        ...current.googleAuth,
+        ...data.googleAuth,
+        clientSecret: keepSecret(data.googleAuth.clientSecret, current.googleAuth.clientSecret),
+      }
     }
-  }
-  // SECURITY: integration secrets are encrypted at rest — lib/secrets.ts.
-  // Encryption is idempotent, so carried-over (already encrypted) values
-  // from keepSecret() are not double-encrypted.
-  merged.emailSettings = encryptConfigSecrets(merged.emailSettings, STORE_EMAIL_SECRET_KEYS)
-  merged.notifications = encryptConfigSecrets(merged.notifications, STORE_NOTIFICATIONS_SECRET_KEYS)
-  merged.googleAuth = encryptConfigSecrets(merged.googleAuth, STORE_GOOGLE_AUTH_SECRET_KEYS)
-  merged.prom = encryptConfigSecrets(merged.prom, STORE_PROM_SECRET_KEYS)
-  const values = {
-    storeName: merged.storeName,
-    storeDescription: merged.storeDescription,
-    logoUrl: merged.logoUrl,
-    faviconUrl: merged.faviconUrl,
-    openCartAfterAdd: merged.openCartAfterAdd,
-    storefrontCacheEnabled: merged.storefrontCacheEnabled,
-    sessionBindingEnabled: merged.sessionBindingEnabled,
-    defaultLocale: merged.defaultLocale,
-    localePromptMode: merged.localePromptMode === 'modal' ? 'modal' : 'browser',
-    activeTemplate: merged.activeTemplate,
-    adminTheme: merged.adminTheme,
-    seo: merged.seo,
-    social: merged.social,
-    googleAds: merged.googleAds,
-    merchantFeed: merged.merchantFeed,
-    emailSettings: merged.emailSettings,
-    contact: merged.contact,
-    notifications: merged.notifications,
-    googleAuth: merged.googleAuth,
-    homeHero: merged.homeHero,
-    homeBenefits: merged.homeBenefits,
-    minOrder: merged.minOrder,
-    prom: merged.prom,
-    updatedAt: new Date(),
-  }
-  await db
-    .insert(storeSettings)
-    .values({ id: 1, ...values })
-    .onConflictDoUpdate({ target: storeSettings.id, set: values })
+    if (data.prom) {
+      merged.prom = {
+        ...current.prom,
+        ...data.prom,
+        apiToken: keepSecret(data.prom.apiToken, current.prom.apiToken),
+      }
+    }
+    // SECURITY: integration secrets are encrypted at rest — lib/secrets.ts.
+    // Encryption is idempotent, so carried-over (already encrypted) values
+    // from keepSecret() are not double-encrypted.
+    merged.emailSettings = encryptConfigSecrets(merged.emailSettings, STORE_EMAIL_SECRET_KEYS)
+    merged.notifications = encryptConfigSecrets(merged.notifications, STORE_NOTIFICATIONS_SECRET_KEYS)
+    merged.googleAuth = encryptConfigSecrets(merged.googleAuth, STORE_GOOGLE_AUTH_SECRET_KEYS)
+    merged.prom = encryptConfigSecrets(merged.prom, STORE_PROM_SECRET_KEYS)
+    const values = {
+      storeName: merged.storeName,
+      storeDescription: merged.storeDescription,
+      logoUrl: merged.logoUrl,
+      faviconUrl: merged.faviconUrl,
+      openCartAfterAdd: merged.openCartAfterAdd,
+      storefrontCacheEnabled: merged.storefrontCacheEnabled,
+      sessionBindingEnabled: merged.sessionBindingEnabled,
+      defaultLocale: merged.defaultLocale,
+      localePromptMode: merged.localePromptMode === 'modal' ? 'modal' : 'browser',
+      activeTemplate: merged.activeTemplate,
+      adminTheme: merged.adminTheme,
+      seo: merged.seo,
+      social: merged.social,
+      googleAds: merged.googleAds,
+      merchantFeed: merged.merchantFeed,
+      emailSettings: merged.emailSettings,
+      contact: merged.contact,
+      notifications: merged.notifications,
+      googleAuth: merged.googleAuth,
+      homeHero: merged.homeHero,
+      homeBenefits: merged.homeBenefits,
+      minOrder: merged.minOrder,
+      prom: merged.prom,
+      updatedAt: new Date(),
+    }
+    const tx = dbForClient(client)
+    await tx
+      .insert(storeSettings)
+      .values({ id: 1, ...values })
+      .onConflictDoUpdate({ target: storeSettings.id, set: values })
+    return { current, merged }
+  })
   // Google OAuth credentials feed the Better Auth instance — drop its cache so
   // new keys apply without a server restart.
   const { invalidateAuthCache } = await import('@/lib/auth')

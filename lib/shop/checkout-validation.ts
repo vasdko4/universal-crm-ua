@@ -189,3 +189,63 @@ export function mergeCheckoutItems(
   }
   return [...map.values()]
 }
+
+// ---------------------------------------------------------------------------
+// Admin numeric / string validators (catalog fixes, 3.4.89).
+// Limits mirror the columns in lib/db/schema.ts — update both together.
+// ---------------------------------------------------------------------------
+
+/** Postgres `integer` (int4) ceiling: quantity, sortOrder, usageLimit. */
+export const INT32_MAX = 2_147_483_647
+/** `numeric(10,2)` ceiling (exclusive): price, oldPrice, costPrice, dimensions. */
+export const MONEY_10_2_MAX = 100_000_000
+/** `numeric(10,3)` ceiling (exclusive): weight. */
+export const MONEY_10_3_MAX = 10_000_000
+/** `numeric(12,2)` ceiling (exclusive): promotion discountValue/minOrderAmount. */
+export const MONEY_12_2_MAX = 10_000_000_000
+
+/** Max string lengths, mirroring the varchar columns in lib/db/schema.ts. */
+export const ADMIN_MAX_LEN = {
+  productName: 255, // products.name_uk / name_ru varchar(255)
+  sku: 100, // products.sku, product_variants.sku varchar(100)
+  barcode: 100, // products.barcode varchar(100)
+  image: 500, // products.image varchar(500)
+  metaTitle: 255, // products.meta_title_uk / meta_title_ru varchar(255)
+  feedTitle: 150, // products.feed_title_uk / feed_title_ru varchar(150)
+  charName: 255, // product_characteristics.name varchar(255)
+  promoName: 255, // promotions.name varchar(255)
+  promoCode: 80, // promotions.promo_code varchar(80)
+  categoryName: 255, // categories.name_uk / name_ru varchar(255)
+  groupName: 255, // product_groups.name_uk / name_ru varchar(255)
+} as const
+
+/**
+ * Parses an admin form value into a finite number. Accepts numbers and
+ * numeric strings (comma decimal separator allowed, as typed in the admin
+ * UI); returns `null` for NaN, ±Infinity, non-numeric strings and other
+ * junk — so the caller can return a clear error instead of letting
+ * Postgres 500 on `invalid input syntax` / `numeric field overflow`.
+ * Empty string / null / undefined mean "not provided" → also `null`, so
+ * callers must check presence before calling this for optional fields.
+ */
+export function parseAdminNumber(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  if (typeof v === 'string') {
+    const t = v.trim().replace(',', '.')
+    if (t === '') return null
+    const n = Number(t)
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
+/** True when the value is a finite number inside [min, max). */
+export function isAdminNumberInRange(v: unknown, min: number, max: number): boolean {
+  const n = parseAdminNumber(v)
+  return n != null && n >= min && n < max
+}
+
+/** True when the trimmed string exceeds the column's max length. */
+export function adminStringTooLong(v: unknown, max: number): boolean {
+  return typeof v === 'string' && v.trim().length > max
+}

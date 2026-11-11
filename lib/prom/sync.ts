@@ -17,6 +17,7 @@
  */
 
 import { pool } from '@/lib/db'
+import { tryAdvisoryLock, type AdvisoryLock } from '@/lib/db/advisory-lock'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import {
   fetchAllPromProducts,
@@ -126,8 +127,19 @@ async function mapWithConcurrency<T, R>(
 // button. 5 concurrent keeps a full sync comfortably under it.
 const DETAIL_CONCURRENCY = 5
 
-export async function syncPromProducts(): Promise<PromSyncResult> {
-  const result: PromSyncResult = {
+// Advisory-lock identity for the Prom sync. The same (namespace, key) the
+// in-process scheduler used to acquire itself (lib/prom/scheduler.ts) —
+// the lock moved inside syncPromProducts so ALL entry points (scheduler,
+// manual "Sync now", /api/cron/prom-sync) serialize on one lock instead of
+// only the scheduler being guarded. Session-level advisory locks are
+// re-entrant only within one session, and each acquisition here holds its
+// own pool client, so there must be exactly one acquisition per run: no
+// caller may hold this lock while calling syncPromProducts.
+const PROM_SYNC_LOCK_NS = 20261111
+const PROM_SYNC_LOCK_KEY = 'prom-sync'
+
+function newSyncResult(): PromSyncResult {
+  return {
     ok: true,
     pricesUpdated: 0,
     stockUpdated: 0,
@@ -137,6 +149,10 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
     newOnProm: 0,
     errors: [],
   }
+}
+
+export async function syncPromProducts(): Promise<PromSyncResult> {
+  const result = newSyncResult()
 
   const settings = await getStoreSettingsInternal()
   const cfg = settings.prom
@@ -148,6 +164,33 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
     return { ...result, ok: false, reason: 'Не вказано API-токен Prom (Налаштування → Prom)' }
   }
 
+  // Single-flight: a second trigger (manual button, second tab, external
+  // crontab, scheduler tick) while a sync runs gets a clear "already
+  // running" answer instead of a concurrent run — overlapping runs used
+  // to double-insert characteristics and double-write counters/lastSyncAt.
+  // The lock is released in `finally`, so a crash mid-sync frees it with
+  // the dead session (and a lock-acquire failure reports, never skips).
+  let lock: AdvisoryLock | null = null
+  try {
+    lock = await tryAdvisoryLock(PROM_SYNC_LOCK_NS, PROM_SYNC_LOCK_KEY)
+  } catch (e) {
+    return { ...result, ok: false, reason: `Не вдалося отримати блокування синхронізації: ${(e as Error).message}` }
+  }
+  if (!lock) {
+    return { ...result, ok: false, reason: 'Синхронізація Prom уже виконується' }
+  }
+  try {
+    return await runSyncPromProducts(cfg, token, result)
+  } finally {
+    await lock.release()
+  }
+}
+
+async function runSyncPromProducts(
+  cfg: Awaited<ReturnType<typeof getStoreSettingsInternal>>['prom'],
+  token: string,
+  result: PromSyncResult,
+): Promise<PromSyncResult> {
   // 1) Pull the Prom catalog.
   let promProducts: PromProduct[]
   let promTruncated = false

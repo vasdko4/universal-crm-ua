@@ -115,6 +115,47 @@ describe('variant expansion', () => {
       color: 'Чорний',
     })
   })
+
+  it('never inherits the parent oldPrice for variants (no fake sale_price)', () => {
+    const offers = expandFeedOffers(
+      product({
+        price: 39999,
+        oldPrice: 42999, // the parent product is on sale
+        variantsEnabled: true,
+        variants: [
+          {
+            id: 1,
+            options: { Колір: 'Чорний' },
+            sku: 'IP15-BLK',
+            price: 39999,
+            oldPrice: null, // this variant was never on sale
+            quantity: 2,
+            inStock: true,
+            image: '/img/black.jpg',
+          },
+          {
+            id: 2,
+            options: { Колір: 'Білий' },
+            sku: 'IP15-WHT',
+            price: 37999,
+            oldPrice: 41999, // this variant has its own sale
+            quantity: 2,
+            inStock: true,
+            image: null,
+          },
+        ],
+      }),
+    )
+    expect(offers).toHaveLength(2)
+    expect(offers[0].oldPrice).toBeNull()
+    expect(offers[1].oldPrice).toBe(41999)
+    const xmlNoSale = buildItemXml(offers[0], 'https://magazine.store', 'uk', merchant)
+    expect(xmlNoSale).toContain('<g:price>39999.00 UAH</g:price>')
+    expect(xmlNoSale).not.toContain('<g:sale_price>')
+    const xmlSale = buildItemXml(offers[1], 'https://magazine.store', 'uk', merchant)
+    expect(xmlSale).toContain('<g:price>41999.00 UAH</g:price>')
+    expect(xmlSale).toContain('<g:sale_price>37999.00 UAH</g:sale_price>')
+  })
 })
 
 describe('item XML', () => {
