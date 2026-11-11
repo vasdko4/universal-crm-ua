@@ -19,6 +19,7 @@ import {
   updateCustomerProfile,
   requestEmailChange,
   confirmEmailChange,
+  requestOldEmailChangeCode,
   requestPasswordChange,
   confirmPasswordChange,
 } from '@/app/actions/shop-auth'
@@ -35,12 +36,17 @@ export function ProfileForm({
   email,
   emailLocked = false,
   passwordLocked = false,
+  hasPassword = true,
 }: {
   initialName: string
   initialPhone: string
   email: string
   emailLocked?: boolean
   passwordLocked?: boolean
+  // Whether the account has a password credential. Decides the re-auth step
+  // for an email change: current password, or (passwordless accounts) a code
+  // sent to the CURRENT email. Google accounts never reach this form.
+  hasPassword?: boolean
 }) {
   const { dict } = useI18n()
   const t = dict.profile
@@ -57,6 +63,13 @@ export function ProfileForm({
   const [emailError, setEmailError] = useState<string | null>(null)
   const [emailInfo, setEmailInfo] = useState<string | null>(null)
   const [emailLoading, setEmailLoading] = useState(false)
+  // Re-auth for the change: current password, or (passwordless accounts) a
+  // code sent to the current email first.
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [oldEmailCode, setOldEmailCode] = useState('')
+  const [oldCodeSent, setOldCodeSent] = useState(false)
+  const [oldCodeLoading, setOldCodeLoading] = useState(false)
 
   const [passwordStep, setPasswordStep] = useState<'idle' | 'code'>('idle')
   const [passwordCode, setPasswordCode] = useState('')
@@ -81,12 +94,29 @@ export function ProfileForm({
     setTimeout(() => setSaved(false), 2500)
   }
 
+  async function onRequestOldCode() {
+    setEmailError(null)
+    setEmailInfo(null)
+    setOldCodeLoading(true)
+    const res = await requestOldEmailChangeCode()
+    setOldCodeLoading(false)
+    if (!res.success) return setEmailError(res.error ?? t.sendCodeError)
+    setOldCodeSent(true)
+    setEmailInfo(fillTemplate(t.passwordCodeSentTo, { email }))
+  }
+
   async function onRequestCode() {
     setEmailError(null)
     setEmailInfo(null)
     if (!newEmail.trim()) return setEmailError(t.newEmailRequired)
+    if (hasPassword && !currentPassword) return setEmailError(t.currentPasswordRequired)
+    if (!hasPassword && oldEmailCode.length < 6) return setEmailError(t.oldEmailCodeRequired)
     setEmailLoading(true)
-    const res = await requestEmailChange(newEmail)
+    // Re-auth is enforced server-side too; the client only decides which
+    // proof to collect (current password vs old-email code).
+    const res = hasPassword
+      ? await requestEmailChange(newEmail, { currentPassword })
+      : await requestEmailChange(newEmail, { oldEmailCode })
     setEmailLoading(false)
     if (!res.success) return setEmailError(res.error ?? t.sendCodeError)
     setEmailStep('code')
@@ -105,6 +135,9 @@ export function ProfileForm({
     setEmailOpen(false)
     setNewEmail('')
     setCode('')
+    setCurrentPassword('')
+    setOldEmailCode('')
+    setOldCodeSent(false)
     setEmailInfo(t.emailChanged)
     router.refresh()
   }
@@ -114,6 +147,9 @@ export function ProfileForm({
     setEmailOpen(false)
     setNewEmail('')
     setCode('')
+    setCurrentPassword('')
+    setOldEmailCode('')
+    setOldCodeSent(false)
     setEmailError(null)
     setEmailInfo(null)
   }
@@ -251,6 +287,53 @@ export function ProfileForm({
                   </Button>
                 </div>
               </Field>
+              {hasPassword ? (
+                <Field id="current-password" label={t.currentPasswordLabel} hint={t.currentPasswordHint}>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                      aria-label={showCurrentPassword ? 'Hide' : 'Show'}
+                    >
+                      {showCurrentPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                </Field>
+              ) : (
+                <Field id="old-email-code" label={t.oldEmailCodeLabel} hint={t.oldEmailCodeHint}>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      id="old-email-code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={oldEmailCode}
+                      onChange={(e) => setOldEmailCode(e.target.value.replace(/\D/g, ''))}
+                      className="h-12 max-w-[12rem] text-center font-mono text-xl tracking-[0.35em] sm:flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onRequestOldCode}
+                      disabled={oldCodeLoading}
+                      className="sm:w-auto"
+                    >
+                      {oldCodeLoading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+                      {oldCodeSent ? dict.auth.resendCodeButton : t.sendOldEmailCodeButton}
+                    </Button>
+                  </div>
+                </Field>
+              )}
               <Button type="button" variant="ghost" size="sm" onClick={onCancelEmailChange} className="mt-3">
                 {dict.account.cancel}
               </Button>

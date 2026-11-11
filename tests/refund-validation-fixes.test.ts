@@ -99,7 +99,9 @@ describe('audit small fixes (source-level)', () => {
   })
 
   it('verification flows report a failed email send instead of success', () => {
-    expect(count(source('app/actions/shop-auth.ts'), 'if (!sent.sent)')).toBe(3)
+    // 3 (sendEmailVerification, requestEmailChange, requestPasswordChange)
+    // + 1 (requestOldEmailChangeCode) = 4 senders in this file.
+    expect(count(source('app/actions/shop-auth.ts'), 'if (!sent.sent)')).toBe(4)
   })
 
   it('admin order creation requires the payments right for financial statuses', () => {

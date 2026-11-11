@@ -38,6 +38,7 @@ export default async function AccountProfilePage() {
         email={user.email}
         emailLocked={isGoogleAccount}
         passwordLocked={isGoogleAccount || !hasPassword}
+        hasPassword={hasPassword}
       />
     </div>
   )

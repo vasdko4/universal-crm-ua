@@ -9,8 +9,9 @@ import { normalizeUaPhone } from '@/lib/shop/phone'
 import { isRateLimited, clientIpFromHeaders } from '@/lib/api/rate-limit'
 import { headers } from 'next/headers'
 import { looksLikeEmail } from '@/lib/text'
-import { hashPassword } from 'better-auth/crypto'
+import { hashPassword, verifyPassword } from 'better-auth/crypto'
 import { getLocale } from '@/lib/i18n/server'
+import { requiredReauthForEmailChange } from '@/lib/shop/email-change-reauth'
 import {
   EMAIL_VERIFY_TTL_MINUTES,
   emailVerificationMail,
@@ -209,8 +210,58 @@ export async function getEmailChangeAvailability() {
 
 const CODE_TTL_MINUTES = 15
 
+const OLD_EMAIL_CODE_TTL_MINUTES = 15
+
+// Step 0 (passwordless accounts only): send a 6-digit code to the CURRENT
+// email so the owner can prove the old address before the new-address code
+// step. Password accounts never use this — they prove ownership with the
+// current password instead (requestEmailChange enforces the branch).
+export async function requestOldEmailChangeCode() {
+  const user = await getShopUser()
+  if (!user) return { success: false as const, error: 'Не авторизован' }
+
+  if (await isRateLimited('email-change-old-req', user.id, 3, 900_000)) {
+    return { success: false as const, error: 'Слишком много запросов. Попробуйте через 15 минут.' }
+  }
+
+  if (await isGoogleLinked(user.id)) {
+    return { success: false as const, error: 'Вход выполнен через Google — сменить email нельзя' }
+  }
+  if (await hasCredentialPassword(user.id)) {
+    return { success: false as const, error: 'Подтвердите смену текущим паролем' }
+  }
+
+  const email = user.email?.trim().toLowerCase()
+  if (!email) return { success: false as const, error: 'Немає email для надсилання коду' }
+
+  const code = String(randomInt(100000, 1000000))
+  const identifier = `email-change-old:${user.id}`
+  await pool.query(`DELETE FROM verification WHERE identifier=$1`, [identifier])
+  await pool.query(
+    `INSERT INTO verification (id, identifier, value, "expiresAt", "createdAt", "updatedAt")
+     VALUES (gen_random_uuid()::text, $1, $2, NOW() + ($3 || ' minutes')::interval, NOW(), NOW())`,
+    [identifier, JSON.stringify({ codeHash: hashVerificationCode(code) }), OLD_EMAIL_CODE_TTL_MINUTES],
+  )
+
+  const locale = await getLocale().catch(() => 'uk' as const)
+  const uk = locale !== 'ru'
+  const sent = await sendMail({
+    to: email,
+    subject: uk ? 'Код для підтвердження зміни email' : 'Код для подтверждения смены email',
+    text: uk
+      ? `Ваш код для підтвердження зміни email: ${code}\n\nКод діє ${OLD_EMAIL_CODE_TTL_MINUTES} хвилин. Якщо ви не запитували зміну — проігноруйте цей лист.`
+      : `Ваш код для подтверждения смены email: ${code}\n\nКод действует ${OLD_EMAIL_CODE_TTL_MINUTES} минут. Если вы не запрашивали смену — проигнорируйте это письмо.`,
+  })
+  if (!sent.sent) return { success: false as const, error: 'Не вдалося надіслати код. Спробуйте пізніше.' }
+
+  return { success: true as const }
+}
+
 // Step 1: user requests a change — we email a 6-digit code to the NEW address.
-export async function requestEmailChange(newEmailRaw: string) {
+export async function requestEmailChange(
+  newEmailRaw: string,
+  reauth?: { currentPassword?: string; oldEmailCode?: string },
+) {
   const user = await getShopUser()
   if (!user) return { success: false, error: 'Не авторизован' }
 
@@ -232,6 +283,46 @@ export async function requestEmailChange(newEmailRaw: string) {
 
   const taken = await pool.query(`SELECT 1 FROM "user" WHERE lower(email)=$1 LIMIT 1`, [newEmail])
   if (taken.rows.length > 0) return { success: false, error: 'Этот email уже занят' }
+
+  // SECURITY: a stolen session alone must not be enough to take over the
+  // account. Before any code goes to the NEW address, the caller must prove
+  // the current identity — with the current password, or (passwordless
+  // accounts) with a code sent to the CURRENT address. The branch is
+  // enforced here, never in the client: a password account cannot substitute
+  // the old-email code, and a passwordless account cannot skip the step.
+  const reauthKind = requiredReauthForEmailChange({
+    google: false,
+    hasPassword: await hasCredentialPassword(user.id),
+  })
+  if (reauthKind === 'password') {
+    const currentPassword = reauth?.currentPassword ?? ''
+    if (!currentPassword) return { success: false, error: 'Введіть поточний пароль' }
+    const { rows } = await pool.query<{ password: string | null }>(
+      `SELECT password FROM account WHERE "userId"=$1 AND "providerId"='credential' LIMIT 1`,
+      [user.id],
+    )
+    const storedHash = rows[0]?.password ?? ''
+    // Better Auth's own scrypt verify (same module as hashPassword above) —
+    // no hand-rolled hash comparison. A missing hash fails closed.
+    const ok = storedHash ? await verifyPassword({ hash: storedHash, password: currentPassword }) : false
+    if (!ok) return { success: false, error: 'Невірний поточний пароль' }
+  } else {
+    const oldCode = (reauth?.oldEmailCode ?? '').trim()
+    if (!/^\d{6}$/.test(oldCode)) {
+      return { success: false, error: 'Введіть код з листа на поточну пошту' }
+    }
+    // Atomic consume: the DELETE itself matches the code hash, so the
+    // old-address proof cannot be replayed for a second change.
+    const consumed = await pool.query(
+      `DELETE FROM verification
+       WHERE identifier=$1 AND "expiresAt" > NOW()
+         AND value::jsonb->>'codeHash' = $2`,
+      [`email-change-old:${user.id}`, hashVerificationCode(oldCode)],
+    )
+    if ((consumed.rowCount ?? 0) === 0) {
+      return { success: false, error: 'Невірний код або код сплив. Запросіть новий.' }
+    }
+  }
 
   const code = String(randomInt(100000, 1000000)) // 6 digits, crypto-secure
   const identifier = `email-change:${user.id}`

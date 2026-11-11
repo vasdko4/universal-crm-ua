@@ -233,6 +233,17 @@ export async function getShopUser(): Promise<ShopUser | null> {
     return null
   }
   if (!session?.user) return null
+
+  // Anti-stealer: kill the session if IP/User-Agent don't match where it was
+  // created — the same binding as the admin path (getAdminUser), same /24
+  // tolerance and exact User-Agent check. A shopper whose IP rotates across
+  // /24s (mobile networks) is logged out and must sign in again; the failure
+  // mode is a re-login, not data loss.
+  const bound = await validateSessionBinding(
+    session as { session: { id: string; ipAddress?: string | null; userAgent?: string | null } },
+  )
+  if (!bound) return null
+
   const u = session.user as unknown as {
     id: string
     name: string

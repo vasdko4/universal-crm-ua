@@ -492,6 +492,13 @@ export type Dictionary = {
     passwordsMismatch: string
     passwordUnavailableMessage: string
     googleAccountBadge: string
+    currentPasswordLabel: string
+    currentPasswordHint: string
+    currentPasswordRequired: string
+    oldEmailCodeLabel: string
+    oldEmailCodeHint: string
+    sendOldEmailCodeButton: string
+    oldEmailCodeRequired: string
   }
   cookieConsent: {
     message: string
@@ -1111,6 +1118,13 @@ const uk: Dictionary = {
     passwordUnavailableMessage:
       'Для цього акаунта пароль не задано — змінити його тут неможливо.',
     googleAccountBadge: 'Google',
+    currentPasswordLabel: 'Поточний пароль',
+    currentPasswordHint: 'Підтвердіть, що це ви, — введіть поточний пароль.',
+    currentPasswordRequired: 'Введіть поточний пароль',
+    oldEmailCodeLabel: 'Код з листа на поточну пошту',
+    oldEmailCodeHint: 'Надішлемо код на вашу поточну пошту — так ми переконаємось, що це ви.',
+    sendOldEmailCodeButton: 'Надіслати код на поточну пошту',
+    oldEmailCodeRequired: 'Введіть код з листа на поточну пошту',
   },
   cookieConsent: {
     message:
@@ -1728,6 +1742,13 @@ const ru: Dictionary = {
     passwordUnavailableMessage:
       'Для этого аккаунта пароль не задан — изменить его здесь нельзя.',
     googleAccountBadge: 'Google',
+    currentPasswordLabel: 'Текущий пароль',
+    currentPasswordHint: 'Подтвердите, что это вы, — введите текущий пароль.',
+    currentPasswordRequired: 'Введите текущий пароль',
+    oldEmailCodeLabel: 'Код из письма на текущую почту',
+    oldEmailCodeHint: 'Отправим код на вашу текущую почту — так мы убедимся, что это вы.',
+    sendOldEmailCodeButton: 'Отправить код на текущую почту',
+    oldEmailCodeRequired: 'Введите код из письма на текущую почту',
   },
   cookieConsent: {
     message:
