@@ -136,11 +136,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url })
   } catch (error) {
     console.error('[v0] upload error:', error)
-    // Surface the underlying reason (e.g. Blob API rejecting the put) to the
-    // admin UI — the generic message alone made a private-store misconfig
-    // indistinguishable from a network failure.
-    const detail = error instanceof Error && error.message ? `: ${error.message}` : ''
-    return NextResponse.json({ error: `Не удалось загрузить файл${detail}` }, { status: 500 })
+    // The full error stays in the server log only: the message may carry
+    // storage internals that must not reach the admin UI.
+    return NextResponse.json({ error: 'Не удалось загрузить файл' }, { status: 500 })
   }
 }
 

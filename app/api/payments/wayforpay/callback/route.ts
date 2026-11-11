@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { paymentGateways } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { wayforpayVerifyCallback, wayforpayCallbackResponse } from '@/lib/payments/clients'
+import { isRateLimited, clientIp } from '@/lib/api/rate-limit'
 import { settlePayment } from '@/lib/payments/settle'
 import { decryptSecret } from '@/lib/secrets'
 
@@ -37,6 +38,14 @@ function isBrowserNavigation(req: Request): boolean {
 // We verify the signature, sync the order/payment, then return the mandatory
 // signed acknowledgment so WayForPay stops retrying.
 export async function POST(req: Request) {
+  // Unauthenticated callback: each call costs a 0.3-0.5s HMAC verification,
+  // so an unauthenticated replay is a trivial CPU DoS. Cap per-IP like the
+  // Monobank callback (30/min) and refuse BEFORE any verification runs —
+  // a genuine callback is retried by WayForPay.
+  if (await isRateLimited('wfp-webhook-ip', clientIp(req), 30, 60_000)) {
+    return NextResponse.json({ error: 'too many requests' }, { status: 429 })
+  }
+
   // WayForPay may send raw JSON, or form-encoded where the whole JSON is a key.
   let body: Record<string, unknown> = {}
   try {

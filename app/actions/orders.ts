@@ -440,7 +440,11 @@ export async function createOrder(input: {
           .join(', ')}`,
       }
     }
-    throw e
+    // The raw exception used to propagate to the caller (the admin
+    // order-builder calls this action directly) — DB internals in the
+    // message. Log it server-side and return a generic failure instead.
+    console.error('[orders] createOrder failed:', e)
+    return { success: false as const, error: 'Не вдалося створити замовлення' }
   }
 
   revalidatePath('/admin/orders')

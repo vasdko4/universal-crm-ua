@@ -21,6 +21,68 @@ import { stripEdgeDashes, stripTrailingChars } from '@/lib/text'
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
 const MAX_REDIRECTS = 5
+/**
+ * Largest Prom.ua page the scraper will buffer. Listing/product pages with
+ * their ApolloCacheState blob are normally well under 1MB; 5MB leaves ample
+ * headroom while a single 100MB page can no longer OOM the import worker.
+ */
+export const MAX_SCRAPED_HTML_BYTES = 5 * 1024 * 1024
+
+/** Thrown when a scraped page exceeds MAX_SCRAPED_HTML_BYTES. Distinct from
+ *  network/timeout failures so the import can report it as 'page_too_large'
+ *  instead of a generic fetch failure. */
+export class PageTooLargeError extends Error {
+  readonly url: string
+  readonly bytes: number
+  constructor(url: string, bytes: number) {
+    super(`Prom page too large: ${url} exceeded ${MAX_SCRAPED_HTML_BYTES} bytes (saw ${bytes})`)
+    this.name = 'PageTooLargeError'
+    this.url = url
+    this.bytes = bytes
+  }
+}
+
+/**
+ * Reads a fetch Response body as text with a hard byte cap. Checks
+ * Content-Length up front when the header is present, then reads the stream
+ * chunk by chunk and cancels it once the accumulated bytes exceed the cap —
+ * so a lying or missing Content-Length cannot bypass the limit. Throws
+ * PageTooLargeError above the cap; pages under the cap read exactly as
+ * res.text() would.
+ */
+export async function readCappedText(
+  res: Response,
+  url: string,
+  maxBytes: number = MAX_SCRAPED_HTML_BYTES,
+): Promise<string> {
+  const contentLength = res.headers.get('content-length')
+  if (contentLength != null) {
+    const n = Number(contentLength)
+    if (Number.isFinite(n) && n > maxBytes) throw new PageTooLargeError(url, n)
+  }
+  const body = res.body
+  if (!body) return res.text()
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  const chunks: string[] = []
+  let total = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > maxBytes) {
+        await reader.cancel()
+        throw new PageTooLargeError(url, total)
+      }
+      chunks.push(decoder.decode(value, { stream: true }))
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  chunks.push(decoder.decode())
+  return chunks.join('')
+}
 const SAFE_PATH = /^\/[A-Za-z0-9/._\-]*$/
 const SAFE_SEARCH = /^\?[A-Za-z0-9=&._\-]*$/
 
@@ -129,11 +191,14 @@ async function fetchHtml(url: string, lang = 'uk,ru;q=0.9'): Promise<{ html: str
           continue
         }
 
-        if (res.ok) return { html: await res.text(), finalUrl: safeUrl }
+        if (res.ok) return { html: await readCappedText(res, safeUrl), finalUrl: safeUrl }
         if (res.status === 404) return null
         break
       }
-    } catch {
+    } catch (e) {
+      // A too-large page will never succeed on retry — surface it at once
+      // instead of re-downloading up to the cap 5 times.
+      if (e instanceof PageTooLargeError) throw e
       // fall through to retry
     }
     await new Promise((r) => setTimeout(r, 1500 * attempt))
@@ -182,7 +247,15 @@ function fastCache(state: Record<string, unknown>): Record<string, any> {
 export async function fetchListingPage(
   url: string,
 ): Promise<{ items: PromListItem[]; total: number; finalUrl: string } | null> {
-  const fetched = await fetchHtml(url)
+  let fetched: { html: string; finalUrl: string } | null
+  try {
+    fetched = await fetchHtml(url)
+  } catch (e) {
+    // A too-large listing page is unrecoverable, same as any other fetch
+    // failure for the caller — keep the null contract.
+    if (e instanceof PageTooLargeError) return null
+    throw e
+  }
   if (!fetched) return null
   const state = extractApolloState(fetched.html)
   if (!state) return null
@@ -364,7 +437,13 @@ export async function fetchProduct(origin: string, item: PromListItem): Promise<
  *  (it's only a fallback for name/description) to halve the requests. */
 export async function fetchProductDetailed(origin: string, item: PromListItem, skipRu = false): Promise<FetchProductResult> {
   const urlUk = `${origin}${productPath(item)}`
-  const fetchedUk = await fetchHtml(urlUk)
+  let fetchedUk: { html: string; finalUrl: string } | null
+  try {
+    fetchedUk = await fetchHtml(urlUk)
+  } catch (e) {
+    if (e instanceof PageTooLargeError) return { ok: false, reason: 'page_too_large', url: urlUk }
+    throw e
+  }
   if (!fetchedUk) return { ok: false, reason: 'fetch_failed', url: urlUk }
   const stateUk = extractApolloState(fetchedUk.html)
   if (!stateUk) return { ok: false, reason: 'no_apollo_state', url: fetchedUk.finalUrl }
@@ -373,9 +452,18 @@ export async function fetchProductDetailed(origin: string, item: PromListItem, s
   const variationItems = stateUk ? getVariationItems(stateUk).filter((v) => v.promId !== pUk.promId) : []
 
   // RU page is only a fallback for name/description — skip it on re-imports
-  // of existing products to halve the HTTP requests.
+  // of existing products to halve the HTTP requests. An oversized RU page
+  // is not fatal either: fall back to the UK data, same as any RU failure.
   const urlRu = `${origin}${productPath(item).replace(/^\/ua/, '')}`
-  const fetchedRu = skipRu ? null : await fetchHtml(urlRu, 'ru,uk;q=0.8')
+  let fetchedRu: { html: string; finalUrl: string } | null = null
+  if (!skipRu) {
+    try {
+      fetchedRu = await fetchHtml(urlRu, 'ru,uk;q=0.8')
+    } catch (e) {
+      if (e instanceof PageTooLargeError) fetchedRu = null
+      else throw e
+    }
+  }
   const pRu = fetchedRu ? parseProductCard(getProductCard(extractApolloState(fetchedRu.html) ?? {})) : null
 
   const metaUk = extractHeadMeta(fetchedUk.html)

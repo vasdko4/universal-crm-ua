@@ -24,6 +24,15 @@ const TICK_MS = 60_000
 let started = false
 const runningJobs = new Set<string>()
 
+/**
+ * How long the scheduler waits for a cron route to answer before aborting
+ * the fetch. Cron routes run up to a 300s ceiling, so 280s leaves a margin
+ * for the route to finish and record its own run — the old 55s cut jobs
+ * off mid-run (a delivery sync over many orders, or a retry worker with a
+ * backlog, never got to finish).
+ */
+const JOB_FETCH_TIMEOUT_MS = 280_000
+
 // Same advisory-lock namespace as the Prom scheduler (one family of
 // scheduler locks; the key differs per job).
 const SCHEDULER_LOCK_NS = 20261111
@@ -53,7 +62,7 @@ async function runJob(id: string): Promise<void> {
       return
     }
     const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), 55_000)
+    const timer = setTimeout(() => ctrl.abort(), JOB_FETCH_TIMEOUT_MS)
     try {
       const res = await fetch(`${baseUrl()}/api/cron/${id}`, {
         headers: { Authorization: `Bearer ${secret}` },

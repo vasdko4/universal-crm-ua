@@ -97,9 +97,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
     return NextResponse.json({ success: true })
   } catch (err) {
-    return NextResponse.json(
-      { error: `Ошибка отправки: ${(err as Error).message}` },
-      { status: 500 },
-    )
+    // SMTP internals (host, auth, message text) stay server-side — the
+    // admin UI gets only a generic failure.
+    console.error('[orders] message send failed:', err)
+    return NextResponse.json({ error: 'Не вдалося надіслати лист' }, { status: 500 })
   }
 }

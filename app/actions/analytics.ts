@@ -637,7 +637,9 @@ export async function trackEvent(input: {
     [input.type, path, productId, sessionId, referrer, userAgent, isBot, geo.country, geo.region, geo.city],
   )
   // Keep the denormalized per-product view counter in sync for quick sorting.
-  if (input.type === 'product_view' && productId) {
+  // Bots are recorded in analytics_events (is_bot) but must not inflate the
+  // counter the storefront sorts 'popular' by.
+  if (input.type === 'product_view' && productId && !isBot) {
     await pool.query(
       `UPDATE products SET views_count = COALESCE(views_count, 0) + 1 WHERE id = $1`,
       [productId],

@@ -53,6 +53,9 @@ const BOT_PATTERNS: Array<{ re: RegExp; name: string }> = [
   { re: /archive\.org_bot/i, name: 'Archive.org' },
   { re: /uptimerobot|pingdom|statuscake|betteruptime|hetrixtools/i, name: 'Uptime monitor' },
   { re: /headlesschrome|phantomjs|selenium/i, name: 'Headless browser' },
+  // Scripted HTTP clients — not browsers, and none of them matches the
+  // generic fallback below.
+  { re: /curl|python-requests|python-urllib|go-http-client|axios|postmanruntime|okhttp/i, name: 'Scripted HTTP client' },
   // Generic crawler tokens — keep last, they are broad.
   { re: /bot|crawl|spider|scrape|scanner|monitor|checker|fetcher|preview/i, name: 'Other bot' },
 ]
