@@ -12,6 +12,7 @@ import {
 import type { PaymentGateway, Payment, PaymentMethod } from '@/lib/db/schema'
 import { GatewaysTab } from './gateways-tab'
 import { PaymentMethodsTab } from './payment-methods-tab'
+import { hasPendingRefund } from './pending-refund'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -342,9 +343,27 @@ export function PaymentsManager({
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge className={`${meta.className} hover:${meta.className}`}>
-                            {meta.label}
-                          </Badge>
+                          <div className="flex flex-col items-start gap-1">
+                            <Badge className={`${meta.className} hover:${meta.className}`}>
+                              {meta.label}
+                            </Badge>
+                            {hasPendingRefund(p) && (
+                              <>
+                                <Badge className="bg-warning/15 text-warning hover:bg-warning/15">
+                                  {t.payments.refundPendingPrefix}{' '}
+                                  {money(Number(p.pendingRefundAmount), p.currency, locale)}
+                                </Badge>
+                                {p.pendingRefundAt && (
+                                  <span className="text-xs text-muted-foreground tabular-nums">
+                                    {new Date(p.pendingRefundAt).toLocaleString(
+                                      locale === 'ru' ? 'ru-RU' : 'uk-UA',
+                                      { timeZone: 'Europe/Kyiv' },
+                                    )}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <span className="text-sm">{p.customerName || '—'}</span>

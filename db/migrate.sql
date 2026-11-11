@@ -753,3 +753,30 @@ BEGIN
   END LOOP;
 END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_slug ON public.categories (slug);
+
+-- ---------- TTN: уникальный tracking_number (3.4.91) ----------
+-- Две параллельные сверки для разных заказов могли привязать одну ТТН
+-- дважды: проверка «не привязана к другому заказу» внутри транзакции —
+-- fast path, а уникальный индекс — финальный арбитр. Сначала
+-- нормализуем пустые значения ('' означает «нет ТТН» во всём коде, см.
+-- sync-tracking.ts и проверки .trim() при чтении) и обнуляем дубликаты,
+-- оставляя самую раннюю строку по id — ТТН перевыводима повторной
+-- сверкой, а NULL в уникальном индексе не конфликтует. Идемпотентно:
+-- после первого прогона дубликатов нет, и блок ничего не трогает;
+-- повторный запуск безопасен.
+DO $$
+BEGIN
+  -- Empty/blank means "no TTN" everywhere in the code — store it as NULL
+  -- so it never collides in the unique index.
+  UPDATE orders SET tracking_number = NULL
+  WHERE tracking_number IS NOT NULL AND TRIM(tracking_number) = '';
+  -- Keep the earliest row per tracking number; NULL the rest.
+  UPDATE orders o SET tracking_number = NULL
+  WHERE o.tracking_number IS NOT NULL
+    AND o.id NOT IN (
+      SELECT MIN(id) FROM orders
+      WHERE tracking_number IS NOT NULL
+      GROUP BY tracking_number
+    );
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_tracking_number ON public.orders (tracking_number);

@@ -17,6 +17,7 @@ import {
 import type { NpRecentDocument } from '@/lib/delivery/nova-poshta'
 import { reportError } from '@/lib/server-errors'
 import { tryAdvisoryLock } from '@/lib/db/advisory-lock'
+import { isUniqueViolation } from '@/lib/db/errors'
 import { updateOrderDelivery } from '@/app/actions/orders'
 import type { NpSenderRefs } from '@/lib/delivery/np-sender'
 import { decryptSecret } from '@/lib/secrets'
@@ -270,7 +271,19 @@ export async function createTtnForOrder(
           await client.query('COMMIT')
         } catch (e) {
           await client.query('ROLLBACK').catch(() => {})
-          throw e
+          if (isUniqueViolation(e)) {
+            // Lost the race: a concurrent reconcile bound this TTN to
+            // another order between our check and the UPDATE. The unique
+            // index is the final arbiter — do not rebind, do not crash.
+            // Fall through to fresh-waybill creation below, exactly like
+            // the check path above; the attempt stays ambiguous and the
+            // next run reconciles it.
+            void reportError('ttn.reconcile-bind-conflict', e, {
+              context: { orderId, reason: `ttn ${match.ttn} already bound to another order` },
+            })
+          } else {
+            throw e
+          }
         } finally {
           client.release()
         }
@@ -357,6 +370,15 @@ export async function createTtnForOrder(
       }
     } catch (e) {
       await client.query('ROLLBACK').catch(() => {})
+      if (isUniqueViolation(e)) {
+        // The fresh TTN from NP was bound to another order between the
+        // re-check and the UPDATE. The waybill exists at NP; the next
+        // reconcile run finds it by phone + amount (or the admin retries).
+        void reportError('ttn.create-bind-conflict', e, {
+          context: { orderId, reason: `ttn ${saved.ttn} already bound to another order` },
+        })
+        return { ok: false, error: 'ТТН вже прив’язана до іншого замовлення — спробуйте ще раз' }
+      }
       // BUGFIX: network failures / non-2xx used to throw as an unhandled 500
       // after the order was already read — the admin got no actionable error.
       return { ok: false, error: (e as Error).message || 'Помилка зʼєднання з Новою Поштою' }

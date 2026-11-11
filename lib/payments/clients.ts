@@ -316,6 +316,8 @@ export type WayForPayCallback = {
 
 // Verifies the merchantSignature WayForPay sends to the Service URL and maps
 // the transaction status to our internal status. Never trust an unverified body.
+// An unknown transactionStatus maps to undefined (never 'pending') — the
+// callback route must not settle it; see wfpStatusFromTransaction.
 export function wayforpayVerifyCallback(
   secret: string,
   body: Record<string, unknown>,
@@ -339,7 +341,7 @@ export function wayforpayVerifyCallback(
     valid,
     orderReference: s('orderReference') || undefined,
     transactionStatus: s('transactionStatus') || undefined,
-    status: WFP_STATUS_MAP[s('transactionStatus')] || 'pending',
+    status: wfpStatusFromTransaction(s('transactionStatus')) ?? undefined,
     amount: body.amount != null ? Number(body.amount) : undefined,
     currency: s('currency') || undefined,
     raw: body,

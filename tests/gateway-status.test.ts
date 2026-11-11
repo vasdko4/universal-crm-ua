@@ -1,8 +1,10 @@
+import crypto from 'node:crypto'
 import { describe, it, expect } from 'vitest'
 import {
   wfpStatusFromTransaction,
   monoStatusFromInvoice,
   reconcilePendingRefund,
+  wayforpayVerifyCallback,
 } from '@/lib/payments/clients'
 
 describe('wfpStatusFromTransaction', () => {
@@ -82,5 +84,68 @@ describe('reconcilePendingRefund', () => {
         reconcilePendingRefund({ gatewayStatus, pendingAmount: 1000, alreadyRefunded: 0, total: 1000 }),
       ).toEqual({ outcome: 'unknown' })
     }
+  })
+})
+
+describe('wayforpayVerifyCallback', () => {
+  // Signs a callback body exactly like WayForPay does (HMAC-MD5 over the
+  // documented fields joined with ';'), so `valid` is true and only the
+  // status mapping is under test.
+  const sign = (secret: string, body: Record<string, unknown>) => {
+    const s = (k: string) => (body[k] == null ? '' : String(body[k]))
+    const signature = crypto
+      .createHmac('md5', secret)
+      .update(
+        [
+          s('merchantAccount'),
+          s('orderReference'),
+          s('amount'),
+          s('currency'),
+          s('authCode'),
+          s('cardPan'),
+          s('transactionStatus'),
+          s('reasonCode'),
+        ].join(';'),
+        'utf8',
+      )
+      .digest('hex')
+    return { ...body, merchantSignature: signature }
+  }
+
+  const base = {
+    merchantAccount: 'test_merch_n1',
+    orderReference: '123456789012',
+    amount: 100,
+    currency: 'UAH',
+    authCode: '123456',
+    cardPan: '411111******1111',
+    reasonCode: '1100',
+  }
+
+  it('maps known statuses and verifies the signature', () => {
+    const approved = wayforpayVerifyCallback('secret', sign('secret', { ...base, transactionStatus: 'Approved' }))
+    expect(approved.valid).toBe(true)
+    expect(approved.status).toBe('paid')
+    expect(approved.orderReference).toBe('123456789012')
+    const pending = wayforpayVerifyCallback('secret', sign('secret', { ...base, transactionStatus: 'Pending' }))
+    expect(pending.valid).toBe(true)
+    expect(pending.status).toBe('pending')
+    const declined = wayforpayVerifyCallback('secret', sign('secret', { ...base, transactionStatus: 'Declined' }))
+    expect(declined.status).toBe('failed')
+  })
+
+  it('yields undefined — never "pending" — for garbage or missing statuses', () => {
+    const garbage = wayforpayVerifyCallback('secret', sign('secret', { ...base, transactionStatus: 'SomethingNew' }))
+    expect(garbage.valid).toBe(true)
+    expect(garbage.status).toBeUndefined()
+    expect(garbage.transactionStatus).toBe('SomethingNew')
+    const missing = wayforpayVerifyCallback('secret', sign('secret', { ...base }))
+    expect(missing.valid).toBe(true)
+    expect(missing.status).toBeUndefined()
+  })
+
+  it('rejects a bad signature', () => {
+    const result = wayforpayVerifyCallback('secret', { ...base, transactionStatus: 'Approved', merchantSignature: 'deadbeef' })
+    expect(result.valid).toBe(false)
   })
 })

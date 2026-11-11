@@ -44,3 +44,18 @@ describe('LOW: error responses do not leak internals', () => {
     expect(fn).toContain('Недостатньо залишку на складі')
   })
 })
+
+describe('wayforpayVerifyCallback: garbage status is never pending', () => {
+  it('the route refuses to settle on an unknown status and logs it', () => {
+    const src = source('app/api/payments/wayforpay/callback/route.ts')
+    // The unknown-status guard must run before settlePayment, and the
+    // settle call must no longer fall back to 'pending'.
+    expect(src).toContain('if (result.status == null)')
+    expect(src).toContain("reportError(\n      'payments.wayforpay-callback',")
+    expect(src).toContain("error: 'unknown transaction status'")
+    expect(src).not.toContain("result.status ?? 'pending'")
+    expect(src.indexOf('if (result.status == null)')).toBeLessThan(
+      src.indexOf('await settlePayment('),
+    )
+  })
+})

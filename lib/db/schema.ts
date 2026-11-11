@@ -601,7 +601,7 @@ export const orders = pgTable('orders', {
   deliveryBranch: varchar('delivery_branch', { length: 255 }),
   deliveryWarehouseRef: varchar('delivery_warehouse_ref', { length: 64 }),
   deliveryAddress: text('delivery_address'),
-  trackingNumber: varchar('tracking_number', { length: 100 }),
+  trackingNumber: varchar('tracking_number', { length: 100 }).unique(),
   deliveryStatus: varchar('delivery_status', { length: 100 }),
   paymentMethod: varchar('payment_method', { length: 40 }),
   paymentStatus: varchar('payment_status', { length: 20 }).notNull().default('unpaid'),

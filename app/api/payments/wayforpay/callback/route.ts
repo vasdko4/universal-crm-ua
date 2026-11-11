@@ -6,6 +6,7 @@ import { wayforpayVerifyCallback, wayforpayCallbackResponse } from '@/lib/paymen
 import { isRateLimited, clientIp } from '@/lib/api/rate-limit'
 import { settlePayment } from '@/lib/payments/settle'
 import { decryptSecret } from '@/lib/secrets'
+import { reportError } from '@/lib/server-errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -110,7 +111,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid signature' }, { status: 400 })
   }
 
-  await settlePayment(result.orderReference, result.status ?? 'pending', {
+  // An unknown transactionStatus is never a legitimate 'pending' — do not
+  // settle it and do not ack: WayForPay retries the callback, and a retry
+  // carrying a known status settles normally. Log it for the admin.
+  if (result.status == null) {
+    if (browserNav) return redirectToReturn(req, result.orderReference)
+    await reportError(
+      'payments.wayforpay-callback',
+      new Error(
+        `Unknown WayForPay transactionStatus ${result.transactionStatus ?? '(missing)'} for order ${result.orderReference}`,
+      ),
+      { alertAdmin: true },
+    )
+    return NextResponse.json({ error: 'unknown transaction status' }, { status: 400 })
+  }
+
+  await settlePayment(result.orderReference, result.status, {
     eventType: 'webhook',
     message: `WayForPay: ${result.transactionStatus ?? result.status}`,
     amount: result.amount,

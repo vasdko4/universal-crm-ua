@@ -846,6 +846,7 @@ export type AdminDictionary = {
     colActions: string
     emptyPayments: string
     refundedPrefix: string
+    refundPendingPrefix: string
     openPayment: string
     refreshStatus: string
     markPaid: string
@@ -2872,6 +2873,7 @@ const uk: AdminDictionary = {
     colActions: 'Дії',
     emptyPayments: 'Платежів поки немає',
     refundedPrefix: 'повернення',
+    refundPendingPrefix: 'очікується повернення',
     openPayment: 'Відкрити оплату',
     refreshStatus: 'Оновити статус',
     markPaid: 'Позначити оплаченим',
@@ -4907,6 +4909,7 @@ const ru: AdminDictionary = {
     colActions: 'Действия',
     emptyPayments: 'Платежей пока нет',
     refundedPrefix: 'возврат',
+    refundPendingPrefix: 'ожидается возврат',
     openPayment: 'Открыть оплату',
     refreshStatus: 'Обновить статус',
     markPaid: 'Отметить оплаченным',

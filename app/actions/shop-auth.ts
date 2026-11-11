@@ -408,6 +408,10 @@ export async function confirmEmailChange(codeRaw: string) {
     [payload.email, user.id],
   )
 
+  // A stolen session on another device must not survive an email change —
+  // same revocation as a password change; the current session stays.
+  await revokeOtherSessions(user.id)
+
   return { success: true, email: payload.email }
 }
 
@@ -476,6 +480,23 @@ export async function requestPasswordChange() {
   return { success: true as const }
 }
 
+/**
+ * Revokes all of the user's sessions except the one making this request, so
+ * a stolen session on another device does not survive a credential change.
+ * If the current session cannot be identified, revokes all of them.
+ * Shared by confirmPasswordChange and confirmEmailChange.
+ */
+async function revokeOtherSessions(userId: string): Promise<void> {
+  const auth = await getAuth()
+  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
+  const currentSessionId = (session as { session?: { id?: string } } | null)?.session?.id
+  if (currentSessionId) {
+    await pool.query(`DELETE FROM session WHERE "userId" = $1 AND id <> $2`, [userId, currentSessionId])
+  } else {
+    await pool.query(`DELETE FROM session WHERE "userId" = $1`, [userId])
+  }
+}
+
 export async function confirmPasswordChange(codeRaw: string, newPasswordRaw: string) {
   const user = await getShopUser()
   if (!user) return { success: false as const, error: 'Не авторизован' }
@@ -518,13 +539,6 @@ export async function confirmPasswordChange(codeRaw: string, newPasswordRaw: str
   // BUGFIX: a password change must revoke other sessions — otherwise a stolen
   // session stays valid. The current session stays: the user just proved
   // ownership with the code. If it cannot be identified, revoke all of them.
-  const auth = await getAuth()
-  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
-  const currentSessionId = (session as { session?: { id?: string } } | null)?.session?.id
-  if (currentSessionId) {
-    await pool.query(`DELETE FROM session WHERE "userId" = $1 AND id <> $2`, [user.id, currentSessionId])
-  } else {
-    await pool.query(`DELETE FROM session WHERE "userId" = $1`, [user.id])
-  }
+  await revokeOtherSessions(user.id)
   return { success: true as const }
 }
