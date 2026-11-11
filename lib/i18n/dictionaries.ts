@@ -291,6 +291,9 @@ export type Dictionary = {
     requisitesCopied: string
     requisitesHint: string
     goToPayment: string
+    paymentLinkCreating: string
+    paymentLinkCreatingDesc: string
+    goToPaymentPage: string
     myOrders: string
     continueShopping: string
     required: string
@@ -917,6 +920,9 @@ const uk: Dictionary = {
     requisitesCopied: 'Скопійовано',
     requisitesHint: 'Перекажіть суму за цими даними. Якщо вказали пошту — надішлемо їх листом.',
     goToPayment: 'Перейти до оплати',
+    paymentLinkCreating: 'Створюємо посилання на оплату…',
+    paymentLinkCreatingDesc: 'Замовлення вже створено. Зачекайте кілька секунд — посилання на оплату зараз формується.',
+    goToPaymentPage: 'Перейти на сторінку оплати',
     myOrders: 'Мої замовлення',
     continueShopping: 'Продовжити покупки',
     required: "обов'язкове поле",
@@ -1541,6 +1547,9 @@ const ru: Dictionary = {
     requisitesCopied: 'Скопировано',
     requisitesHint: 'Переведите сумму по этим данным. Если указали почту — отправим их письмом.',
     goToPayment: 'Перейти к оплате',
+    paymentLinkCreating: 'Создаём ссылку на оплату…',
+    paymentLinkCreatingDesc: 'Заказ уже создан. Подождите несколько секунд — ссылка на оплату сейчас формируется.',
+    goToPaymentPage: 'Перейти на страницу оплаты',
     myOrders: 'Мои заказы',
     continueShopping: 'Продолжить покупки',
     required: 'обязательное поле',

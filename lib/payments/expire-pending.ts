@@ -4,6 +4,7 @@ import { paymentGateways, payments } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { monobankCheckStatus, wayforpayCheckStatus } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
+import { reportError } from '@/lib/server-errors'
 
 const DEFAULT_MAX_AGE_MINUTES = 45
 const DEFAULT_LIMIT = 25
@@ -40,73 +41,82 @@ export async function expirePendingPayments(opts?: {
   let cancelled = 0
 
   for (const row of rows) {
-    let canCancel = !row.gateway_code
-    if (row.gateway_code === 'wayforpay' || (row.gateway_code === 'monobank' && row.invoice_id)) {
-      const [gateway] = await db
-        .select()
-        .from(paymentGateways)
-        .where(eq(paymentGateways.code, row.gateway_code))
-        .limit(1)
-      // Gateway credentials are stored encrypted at rest (lib/secrets.ts).
-      const cfg = decryptConfigSecrets(
-        (gateway?.config ?? {}) as Record<string, string>,
-        GATEWAY_CONFIG_SECRET_KEYS,
-      )
-      const result =
-        row.gateway_code === 'wayforpay'
-          ? await wayforpayCheckStatus(cfg, row.order_number)
-          : await monobankCheckStatus(cfg, row.invoice_id as string)
-      if (!result.ok || !result.status) continue
-      if (result.status === 'paid' || result.status === 'refunded') {
-        await settlePayment(row.order_number, result.status, {
-          eventType: 'expire-cron',
-          amount: result.amount,
-          refundedAmount: result.refundedAmount,
-          message: result.message,
-          raw: result.raw,
-        })
-        settled += 1
-        canCancel = false
-      } else if (result.status === 'failed' || result.status === 'expired') {
-        await settlePayment(row.order_number, result.status, {
-          eventType: 'expire-cron',
-          amount: result.amount,
-          message: result.message,
-          raw: result.raw,
-        })
-        settled += 1
-        canCancel = true
-      } else {
-        // pending / hold / InProcessing — invoice is still payable.
-        continue
+    try {
+      let canCancel = !row.gateway_code
+      if (row.gateway_code === 'wayforpay' || (row.gateway_code === 'monobank' && row.invoice_id)) {
+        const [gateway] = await db
+          .select()
+          .from(paymentGateways)
+          .where(eq(paymentGateways.code, row.gateway_code))
+          .limit(1)
+        // Gateway credentials are stored encrypted at rest (lib/secrets.ts).
+        const cfg = decryptConfigSecrets(
+          (gateway?.config ?? {}) as Record<string, string>,
+          GATEWAY_CONFIG_SECRET_KEYS,
+        )
+        const result =
+          row.gateway_code === 'wayforpay'
+            ? await wayforpayCheckStatus(cfg, row.order_number)
+            : await monobankCheckStatus(cfg, row.invoice_id as string)
+        if (!result.ok || !result.status) continue
+        if (result.status === 'paid' || result.status === 'refunded') {
+          await settlePayment(row.order_number, result.status, {
+            eventType: 'expire-cron',
+            amount: result.amount,
+            refundedAmount: result.refundedAmount,
+            message: result.message,
+            raw: result.raw,
+          })
+          settled += 1
+          canCancel = false
+        } else if (result.status === 'failed' || result.status === 'expired') {
+          await settlePayment(row.order_number, result.status, {
+            eventType: 'expire-cron',
+            amount: result.amount,
+            message: result.message,
+            raw: result.raw,
+          })
+          settled += 1
+          canCancel = true
+        } else {
+          // pending / hold / InProcessing — invoice is still payable.
+          continue
+        }
       }
-    }
 
-    if (!canCancel) continue
+      if (!canCancel) continue
 
-    const claim = await pool.query(
-      `UPDATE orders
-          SET status = 'cancelled',
-              payment_status = 'unpaid',
-              updated_at = NOW()
-        WHERE id = $1 AND status = 'pending_payment'
-        RETURNING id`,
-      [row.id],
-    )
-    if (claim.rowCount) {
-      cancelled += 1
-      await pool.query(
-        `INSERT INTO order_history (order_id, type, message, actor)
-         VALUES ($1, 'status', 'Неоплаченный заказ автоматически отменён', 'System')`,
+      const claim = await pool.query(
+        `UPDATE orders
+            SET status = 'cancelled',
+                payment_status = 'unpaid',
+                updated_at = NOW()
+          WHERE id = $1 AND status = 'pending_payment'
+          RETURNING id`,
         [row.id],
       )
-      if (row.gateway_code) {
-        await db
-          .update(payments)
-          .set({ status: 'expired', updatedAt: new Date() })
-          .where(eq(payments.orderReference, row.order_number))
-          .catch(() => {})
+      if (claim.rowCount) {
+        cancelled += 1
+        await pool.query(
+          `INSERT INTO order_history (order_id, type, message, actor)
+           VALUES ($1, 'status', 'Неоплаченный заказ автоматически отменён', 'System')`,
+          [row.id],
+        )
+        if (row.gateway_code) {
+          await db
+            .update(payments)
+            .set({ status: 'expired', updatedAt: new Date() })
+            .where(eq(payments.orderReference, row.order_number))
+            .catch(() => {})
+        }
       }
+    } catch (e) {
+      // One stuck order (e.g. a finalize failure on a paid invoice, A1)
+      // must not abort the whole daily run — log it and move on to the
+      // next order. The run-level failure alert stays in the cron route.
+      await reportError('cron.expire-pending-order', e, {
+        context: { reason: `expire-pending failed for ${row.order_number}` },
+      })
     }
   }
 

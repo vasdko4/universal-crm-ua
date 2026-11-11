@@ -158,6 +158,8 @@ export type AdminDictionary = {
     toastTtnCreated: string
     toastRefunded: string
     createTtn: string
+    ttnForceCreateTitle: string
+    ttnForceCreateConfirm: string
     printTtn: string
     trackTtn: string
     refundViaGateway: string
@@ -2161,6 +2163,8 @@ const uk: AdminDictionary = {
     toastTtnCreated: 'ТТН створено',
     toastRefunded: 'Повернення виконано',
     createTtn: 'Створити ТТН',
+    ttnForceCreateTitle: 'Створити нову ТТН?',
+    ttnForceCreateConfirm: 'Створити нову ТТН',
     printTtn: 'Друкувати етикетку',
     trackTtn: 'Трекінг НП',
     refundViaGateway: 'Повернути через шлюз',
@@ -4197,6 +4201,8 @@ const ru: AdminDictionary = {
     toastTtnCreated: 'ТТН создана',
     toastRefunded: 'Возврат выполнен',
     createTtn: 'Создать ТТН',
+    ttnForceCreateTitle: 'Создать новую ТТН?',
+    ttnForceCreateConfirm: 'Создать новую ТТН',
     printTtn: 'Печать этикетки',
     trackTtn: 'Трекинг НП',
     refundViaGateway: 'Вернуть через шлюз',

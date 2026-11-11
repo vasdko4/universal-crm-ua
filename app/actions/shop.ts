@@ -175,6 +175,12 @@ export type CheckoutInput = {
 export type CheckoutResult =
   | { success: false; error: string }
   | {
+      success: false
+      /** A3: the order exists, but its gateway invoice is still being created by a parallel request. */
+      retryable: true
+      orderNumber: string
+    }
+  | {
       success: true
       orderId: number
       orderNumber: string
@@ -199,20 +205,81 @@ type IdempotentCheckoutOrder = {
 }
 
 /**
+ * A3: a retried submit can land while the first request is still waiting on
+ * the gateway invoice (up to ~15s). The order row is already committed, but
+ * the payments row (and its URL) does not exist yet — returning success
+ * without a URL shows the shopper a thank-you screen with no way to pay.
+ * Wait briefly for the invoice to appear instead of answering immediately.
+ * Returns the URL, `null` when it never appeared, or `{ cancelled: true }`
+ * when the first request failed the invoice and cancelled the order.
+ */
+const IDEMPOTENT_INVOICE_WAIT_MS = 12_000
+const IDEMPOTENT_INVOICE_POLL_MS = 500
+
+async function waitForInvoicePaymentUrl(
+  orderNumber: string,
+): Promise<{ url: string } | { cancelled: true } | null> {
+  const deadline = Date.now() + IDEMPOTENT_INVOICE_WAIT_MS
+  for (;;) {
+    const [pay] = await db
+      .select({ paymentUrl: payments.paymentUrl })
+      .from(payments)
+      .where(eq(payments.orderReference, orderNumber))
+      .orderBy(desc(payments.createdAt))
+      .limit(1)
+    if (pay?.paymentUrl) return { url: pay.paymentUrl }
+    // The first request may have failed the invoice creation and cancelled
+    // the order while we waited — the caller must fall through to a fresh
+    // order (the key is released inside the creation transaction).
+    const [o] = await db
+      .select({ status: orders.status })
+      .from(orders)
+      .where(eq(orders.orderNumber, orderNumber))
+      .limit(1)
+    if (!o || o.status === 'cancelled') return { cancelled: true }
+    if (Date.now() >= deadline) return null
+    await new Promise((r) => setTimeout(r, IDEMPOTENT_INVOICE_POLL_MS))
+  }
+}
+
+/**
  * Success payload for an already-created order found by idempotency key
  * (lookup hit or unique-violation winner): payment URL, requisites preview
  * and the last-order cookie, same as a fresh checkout.
+ *
+ * A3: for an ONLINE order the payment URL may not exist yet — the first
+ * request is still waiting on the gateway invoice. Never return success
+ * without a URL for such an order: wait up to ~12s for the invoice; if it
+ * appears, return success with it; if the order is cancelled meanwhile,
+ * return null so the caller falls through to a fresh order; otherwise
+ * return the retryable variant (not success) so the client retries the
+ * same key instead of showing a thank-you screen with no way to pay.
+ * Non-online methods (COD, requisites) never have a payment URL, so they
+ * return success immediately as before.
  */
 async function buildIdempotentCheckoutResult(
   existing: IdempotentCheckoutOrder,
   locale: Locale,
-): Promise<Extract<CheckoutResult, { success: true }>> {
-  const [pay] = await db
-    .select({ paymentUrl: payments.paymentUrl })
-    .from(payments)
-    .where(eq(payments.orderReference, existing.orderNumber))
-    .orderBy(desc(payments.createdAt))
-    .limit(1)
+): Promise<CheckoutResult | null> {
+  let paymentUrl: string | undefined
+  if (existing.paymentMethod === 'online') {
+    const [pay] = await db
+      .select({ paymentUrl: payments.paymentUrl })
+      .from(payments)
+      .where(eq(payments.orderReference, existing.orderNumber))
+      .orderBy(desc(payments.createdAt))
+      .limit(1)
+    paymentUrl = pay?.paymentUrl ?? undefined
+    if (!paymentUrl) {
+      const waited = await waitForInvoicePaymentUrl(existing.orderNumber)
+      if (!waited) {
+        await rememberLastOrder(existing.orderNumber)
+        return { success: false, retryable: true, orderNumber: existing.orderNumber }
+      }
+      if ('cancelled' in waited) return null
+      paymentUrl = waited.url
+    }
+  }
   let requisites: string | undefined
   if (existing.paymentMethod === 'requisites') {
     const { rows } = await pool.query(`SELECT config FROM payment_methods WHERE code='requisites'`)
@@ -236,7 +303,7 @@ async function buildIdempotentCheckoutResult(
     promoCode: existing.promoCode ?? undefined,
     // Column is nullable in the schema; the insert always sets it.
     paymentMethod: existing.paymentMethod ?? 'cod',
-    paymentUrl: pay?.paymentUrl ?? undefined,
+    paymentUrl,
     requisites,
   }
 }
@@ -290,7 +357,11 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       .where(eq(orders.idempotencyKey, idempotencyKey))
       .limit(1)
     if (existing && existing.status !== 'cancelled') {
-      return buildIdempotentCheckoutResult(existing, locale)
+      // A3: the order may have been cancelled while we waited for its
+      // invoice (null) — fall through to a fresh order; the key is
+      // released from the cancelled row inside the creation transaction.
+      const r = await buildIdempotentCheckoutResult(existing, locale)
+      if (r) return r
     }
   }
 
@@ -647,7 +718,11 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         .where(eq(orders.idempotencyKey, idempotencyKey))
         .limit(1)
       if (winner && winner.status !== 'cancelled') {
-        return buildIdempotentCheckoutResult(winner, locale)
+        // A3: null means the winner was cancelled while we waited for its
+        // invoice — fall through to the generic error below (the shopper
+        // retries with a fresh key), same as for a cancelled winner.
+        const r = await buildIdempotentCheckoutResult(winner, locale)
+        if (r) return r
       }
       // The winner is the cancelled row itself (its key was never released):
       // fall through to the generic error — the shopper retries with a

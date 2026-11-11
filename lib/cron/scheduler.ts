@@ -26,10 +26,17 @@ const runningJobs = new Set<string>()
 
 /**
  * How long the scheduler waits for a cron route to answer before aborting
- * the fetch. Cron routes run up to a 300s ceiling, so 280s leaves a margin
- * for the route to finish and record its own run — the old 55s cut jobs
- * off mid-run (a delivery sync over many orders, or a retry worker with a
- * backlog, never got to finish).
+ * the fetch. 280s leaves a margin for the route to finish and record its
+ * own run — the old 55s cut jobs off mid-run (a delivery sync over many
+ * orders, or a retry worker with a backlog, never got to finish).
+ *
+ * Note there is no 300s ceiling here: on Vercel the routes declare
+ * maxDuration 60 (db-backup and prom-sync: 300), and on the Docker VPS
+ * maxDuration is ignored entirely — no server-side ceiling at all.
+ * Aborting the fetch also does NOT stop the server-side job (audit A5):
+ * the route keeps running after the 280s abort, and the per-job advisory
+ * lock (lib/cron/with-cron-lock.ts, held by the route for the whole job)
+ * is what keeps a re-trigger from overlapping the orphaned run.
  */
 const JOB_FETCH_TIMEOUT_MS = 280_000
 

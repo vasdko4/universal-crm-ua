@@ -220,28 +220,62 @@ export async function findRecentDocumentsByPhone(
 }
 
 /**
+ * Parses a Nova Poshta `DateTime` (`dd.mm.yyyy hh:mm:ss`) into epoch ms.
+ * Returns 0 when unparseable, so a malformed timestamp never wins over a
+ * real one. A plain string comparison is WRONG here: '01.12.2026' sorts
+ * before '30.11.2026' lexicographically, so the "newest" pick would flip
+ * across a month boundary.
+ */
+export function parseNpDateTime(s: string): number {
+  const m = /^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})$/.exec(s.trim())
+  if (!m) return 0
+  const [, dd, mm, yyyy, hh, mi, ss] = m
+  return Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss))
+}
+
+/**
+ * Result of the reconcile match. Tri-state on purpose: phone + declared
+ * value alone cannot identify a waybill when the same customer has two
+ * same-amount orders in the window, so two or more matches must refuse
+ * to bind instead of silently picking one.
+ *  - `{ doc }` — exactly one match, safe to bind;
+ *  - `{ ambiguous: true }` — more than one match, never bind;
+ *  - `null` — no match at all.
+ */
+export type RecentDocumentMatch = { doc: NpRecentDocument } | { ambiguous: true } | null
+
+/**
  * Picks the waybill to bind when reconciling a TTN create whose response
  * was lost. A document matches only when its recipient phone (normalized
  * to the 380… form) and its declared value agree with the order — the
  * declared value is the one Nova Poshta stores, i.e. the cost rounded to
  * whole hryvnias (see declaredCost in ./ttn), compared with a small
- * tolerance for float noise only. Among matches the newest by dateTime
- * wins (same lexicographic order the list used before). Pure — no network,
- * no DB. Returns null when nothing matches; never throws.
+ * tolerance for float noise only. Among matches the newest by parsed
+ * dateTime wins. Pure — no network, no DB. Returns null when nothing
+ * matches, `{ ambiguous: true }` when two or more match; never throws.
  */
 export function matchRecentDocument(
   docs: NpRecentDocument[],
   opts: { declaredCost: number; phone: string; tolerance?: number },
-): NpRecentDocument | null {
+): RecentDocumentMatch {
   const phone = digitsPhone(opts.phone)
   const tolerance = opts.tolerance ?? 0.01
   let best: NpRecentDocument | null = null
+  let bestTime = 0
+  let matches = 0
   for (const d of docs) {
     if (d.cost == null || Math.abs(d.cost - opts.declaredCost) > tolerance) continue
     if (digitsPhone(d.phone) !== phone) continue
-    if (!best || d.dateTime > best.dateTime) best = d
+    matches++
+    const t = parseNpDateTime(d.dateTime)
+    if (!best || t > bestTime) {
+      best = d
+      bestTime = t
+    }
   }
-  return best
+  if (matches === 0) return null
+  if (matches > 1) return { ambiguous: true }
+  return { doc: best! }
 }
 
 export async function fetchSenderProfile(apiKey: string) {

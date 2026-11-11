@@ -64,8 +64,8 @@ async function persistSenderRefs(cfg: NpConfig, sender: NpSenderRefs) {
 
 export async function createTtnForOrder(
   orderId: number,
-  opts: { weightKg?: number; seats?: number; description?: string } = {},
-): Promise<{ ok: boolean; ttn?: string; printUrl?: string; error?: string }> {
+  opts: { weightKg?: number; seats?: number; description?: string; forceCreate?: boolean } = {},
+): Promise<{ ok: boolean; ttn?: string; printUrl?: string; error?: string; needsConfirm?: boolean }> {
   const user = await assertWritePermission('orders')
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1)
   if (!order) return { ok: false, error: 'Замовлення не знайдено' }
@@ -173,30 +173,32 @@ export async function createTtnForOrder(
     const precheck = await (async (): Promise<{
       missing: boolean
       existingTtn: string | null
+      deliveryStatus: string | null
       ambiguous: boolean
     }> => {
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
-        const locked = await client.query<{ tracking_number: string | null }>(
-          `SELECT tracking_number FROM orders WHERE id = $1 FOR UPDATE`,
+        const locked = await client.query<{ tracking_number: string | null; delivery_status: string | null }>(
+          `SELECT tracking_number, delivery_status FROM orders WHERE id = $1 FOR UPDATE`,
           [orderId],
         )
         if (!locked.rows[0]) {
           await client.query('ROLLBACK')
-          return { missing: true, existingTtn: null, ambiguous: false }
+          return { missing: true, existingTtn: null, deliveryStatus: null, ambiguous: false }
         }
         const existingTtn = (locked.rows[0].tracking_number || '').trim()
+        const deliveryStatus = locked.rows[0].delivery_status
         if (existingTtn) {
           await client.query('COMMIT')
-          return { missing: false, existingTtn, ambiguous: false }
+          return { missing: false, existingTtn, deliveryStatus, ambiguous: false }
         }
         const prev = await client.query(
           `SELECT id FROM ttn_attempts WHERE order_id = $1 AND status IN ('ambiguous', 'in_progress') AND created_at > NOW() - INTERVAL '48 hours' ORDER BY created_at DESC LIMIT 1`,
           [orderId],
         )
         await client.query('COMMIT')
-        return { missing: false, existingTtn: null, ambiguous: (prev.rowCount ?? 0) > 0 }
+        return { missing: false, existingTtn: null, deliveryStatus, ambiguous: (prev.rowCount ?? 0) > 0 }
       } catch (e) {
         await client.query('ROLLBACK').catch(() => {})
         throw e
@@ -206,6 +208,14 @@ export async function createTtnForOrder(
     })()
     if (precheck.missing) return { ok: false, error: 'Замовлення не знайдено' }
     if (precheck.existingTtn) {
+      // A8: the TTN exists but the delivery status / history may be stale
+      // (an earlier create returned before updateOrderDelivery ran).
+      // Status only — passing trackingNumber would duplicate the history
+      // entry from the original creation.
+      if (precheck.deliveryStatus !== 'ТТН створено') {
+        await updateOrderDelivery(orderId, { deliveryStatus: 'ТТН створено' })
+      }
+      revalidatePath('/admin/orders')
       return { ok: true, ttn: precheck.existingTtn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
     }
     const hasAmbiguousAttempt = precheck.ambiguous
@@ -213,7 +223,9 @@ export async function createTtnForOrder(
     // Reconcile (network, no transaction held): a previous attempt may have
     // created the waybill at NP while its response was lost. Bind it when
     // the phone and the declared value match; never bind a stranger's TTN.
-    if (hasAmbiguousAttempt) {
+    // forceCreate skips this whole block: the admin already confirmed in
+    // the UI that the NP cabinet was checked and a new waybill is wanted.
+    if (hasAmbiguousAttempt && !opts.forceCreate) {
       // The NP list lookup itself must not fail silently: if it throws, we
       // cannot know whether the waybill already exists, so abort instead of
       // creating a second one. The attempt stays 'ambiguous' and the next
@@ -234,36 +246,68 @@ export async function createTtnForOrder(
       // the raw order total (1500.50 is stored as 1501).
       const declared = declaredCost(Number(order.total) || 1)
       const match = matchRecentDocument(found, { declaredCost: declared, phone: order.customerPhone || '' })
-      if (match) {
+      // A7: no match is NOT proof of absence (indexing delay, GetFullList
+      // truncation) — never auto-create on it. The attempt stays
+      // 'ambiguous'; the admin either verifies in the NP cabinet and
+      // retries, or confirms "create new anyway" (forceCreate).
+      if (match === null) {
+        return {
+          ok: false,
+          needsConfirm: true,
+          error:
+            'Накладну не знайдено у списку Нової Пошти — перевірте в кабінеті НП, перш ніж створювати нову.',
+        }
+      }
+      // A6: two or more waybills match phone + amount — binding one would
+      // be a coin flip (two same-amount orders of one customer). Never
+      // bind; the admin enters the right TTN manually or creates a new one.
+      if ('ambiguous' in match) {
+        return {
+          ok: false,
+          needsConfirm: true,
+          error:
+            'Знайдено кілька накладних на цей телефон і суму — введіть потрібний номер вручну або створіть нову ТТН.',
+        }
+      }
+      const doc = match.doc
+      {
         // Bind inside one transaction while the order row is locked: the
         // "already bound to another order" check runs here, so a waybill
         // bound by a concurrent reconcile is seen and never double-bound.
         const client = await pool.connect()
         let reconciledTtn: string | null = null
+        // True only when THIS call bound the TTN. When the row already had
+        // one (e.g. the admin entered it manually mid-flight), the other
+        // path already wrote the history entry — a second one would be a
+        // duplicate (see the precheck branch above).
+        let boundByUs = false
+        let boundDeliveryStatus: string | null = null
         try {
           await client.query('BEGIN')
-          const locked = await client.query<{ tracking_number: string | null }>(
-            `SELECT tracking_number FROM orders WHERE id = $1 FOR UPDATE`,
+          const locked = await client.query<{ tracking_number: string | null; delivery_status: string | null }>(
+            `SELECT tracking_number, delivery_status FROM orders WHERE id = $1 FOR UPDATE`,
             [orderId],
           )
           const existingTtn = (locked.rows[0]?.tracking_number || '').trim()
+          boundDeliveryStatus = locked.rows[0]?.delivery_status ?? null
           if (existingTtn) {
             reconciledTtn = existingTtn
           } else {
             const bound = await client.query(
               `SELECT id FROM orders WHERE tracking_number = $1 AND id <> $2 LIMIT 1`,
-              [match.ttn, orderId],
+              [doc.ttn, orderId],
             )
             if ((bound.rowCount ?? 0) === 0) {
               await client.query(
                 `UPDATE orders SET tracking_number = $2, updated_at = NOW() WHERE id = $1`,
-                [orderId, match.ttn],
+                [orderId, doc.ttn],
               )
               await client.query(
                 `UPDATE ttn_attempts SET status = 'created', ttn = $2, updated_at = NOW() WHERE order_id = $1 AND status IN ('ambiguous', 'in_progress')`,
-                [orderId, match.ttn],
+                [orderId, doc.ttn],
               )
-              reconciledTtn = match.ttn
+              reconciledTtn = doc.ttn
+              boundByUs = true
             }
             // Bound to another order already: fall through and create a
             // fresh waybill below — this one is not ours to bind.
@@ -279,7 +323,7 @@ export async function createTtnForOrder(
             // the check path above; the attempt stays ambiguous and the
             // next run reconciles it.
             void reportError('ttn.reconcile-bind-conflict', e, {
-              context: { orderId, reason: `ttn ${match.ttn} already bound to another order` },
+              context: { orderId, reason: `ttn ${doc.ttn} already bound to another order` },
             })
           } else {
             throw e
@@ -288,6 +332,19 @@ export async function createTtnForOrder(
           client.release()
         }
         if (reconciledTtn) {
+          // A8: run the same delivery side effects as the normal path —
+          // delivery_status, delivery_method and the history entry — so a
+          // reconciled TTN does not leave the order looking unshipped.
+          if (boundByUs) {
+            await updateOrderDelivery(orderId, {
+              trackingNumber: reconciledTtn,
+              deliveryStatus: 'ТТН створено',
+              deliveryMethod: 'nova_poshta',
+            })
+          } else if (boundDeliveryStatus !== 'ТТН створено') {
+            await updateOrderDelivery(orderId, { deliveryStatus: 'ТТН створено' })
+          }
+          revalidatePath('/admin/orders')
           return { ok: true, ttn: reconciledTtn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
         }
       }

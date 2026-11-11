@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { authorizeCronRequest } from '@/lib/cron-auth'
 import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
+import { withCronLock } from '@/lib/cron/with-cron-lock'
 import { reportError } from '@/lib/server-errors'
 import { runAnomalyCheck } from '@/lib/analytics/anomaly'
 
@@ -37,15 +38,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'cron job disabled' }, { status: 503 })
   }
 
-  try {
-    const result = await runAnomalyCheck()
-    await recordCronRun('anomaly-alert', result.ok ? 'ok' : 'error', result.ok ? undefined : 'check failed')
-    return NextResponse.json(result, { status: result.ok ? 200 : 500 })
-  } catch (e) {
-    // A dead anomaly cron means the admin stops hearing about a broken
-    // checkout — ping, not just logs.
-    await recordCronRun('anomaly-alert', 'error', (e as Error).message)
-    void reportError('cron.anomaly-alert', e, { alertAdmin: true })
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+  // Single-flight (audit A4/A5): without it two concurrent runs send two
+  // identical Telegram alerts (runAnomalyCheck has no dedup/cooldown).
+  // Auth + kill-switch stay first (cheap checks before taking the lock).
+  const locked = await withCronLock('anomaly-alert', async () => {
+    try {
+      const result = await runAnomalyCheck()
+      await recordCronRun('anomaly-alert', result.ok ? 'ok' : 'error', result.ok ? undefined : 'check failed')
+      return NextResponse.json(result, { status: result.ok ? 200 : 500 })
+    } catch (e) {
+      // A dead anomaly cron means the admin stops hearing about a broken
+      // checkout — ping, not just logs.
+      await recordCronRun('anomaly-alert', 'error', (e as Error).message)
+      void reportError('cron.anomaly-alert', e, { alertAdmin: true })
+      return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+    }
+  })
+  if (!locked.acquired) {
+    return NextResponse.json({ ok: false, error: 'cron job already running' }, { status: 409 })
   }
+  return locked.result
 }

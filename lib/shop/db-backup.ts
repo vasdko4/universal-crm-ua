@@ -39,17 +39,20 @@ export interface BackupSummary {
   pruned: number
 }
 
-/** Filenames look like 2026-10-01-0030.jsonl.gz */
+/** Filenames look like 2026-10-01-003015.jsonl.gz (seconds included so two
+ *  runs started in the same minute never share a filename — defense in
+ *  depth next to the route-level single-flight lock). */
 export function backupFilenameFor(date: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
-  const stamp = `${date.getUTCFullYear()}-${p(date.getUTCMonth() + 1)}-${p(date.getUTCDate())}-${p(date.getUTCHours())}${p(date.getUTCMinutes())}`
+  const stamp = `${date.getUTCFullYear()}-${p(date.getUTCMonth() + 1)}-${p(date.getUTCDate())}-${p(date.getUTCHours())}${p(date.getUTCMinutes())}${p(date.getUTCSeconds())}`
   return `${stamp}.jsonl.gz`
 }
 
 function parseBackupDate(filename: string): Date | null {
-  const m = basename(filename).match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})\.jsonl\.gz$/)
+  // Seconds are optional: backups written before 3.4.93 used HHmm.
+  const m = basename(filename).match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})?\.jsonl\.gz$/)
   if (!m) return null
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]))
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0)))
   return Number.isNaN(d.getTime()) ? null : d
 }
 

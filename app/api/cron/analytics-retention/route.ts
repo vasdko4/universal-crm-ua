@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { pool } from '@/lib/db'
 import { authorizeCronRequest } from '@/lib/cron-auth'
 import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
+import { withCronLock } from '@/lib/cron/with-cron-lock'
 import { reportError } from '@/lib/server-errors'
 
 export const dynamic = 'force-dynamic'
@@ -39,49 +40,59 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'cron job disabled' }, { status: 503 })
   }
 
-  try {
-    const result = await pool.query(
-      `DELETE FROM analytics_events
+  // Single-flight (audit A4/A5): a second concurrent trigger — Vercel
+  // Cron, direct CRON_SECRET call, admin "Run now" — gets 409 instead of
+  // a duplicate run. Auth + kill-switch stay first (cheap checks before
+  // taking the lock).
+  const locked = await withCronLock('analytics-retention', async () => {
+    try {
+      const result = await pool.query(
+        `DELETE FROM analytics_events
        WHERE created_at < NOW() - ($1::text || ' days')::interval
          AND type IN ('pageview', 'product_view', 'add_to_cart')`,
-      [String(RETENTION_DAYS)],
-    )
-    // Terminal outbox rows: 'sent'/'dead' are never read by the retry
-    // worker again (it only claims 'pending' and reaps stale 'sending').
-    // updated_at is bumped on every status change, so it marks the end of
-    // the row's life. One bounded DELETE per status, same style as the
-    // analytics_events prune above (no LIMIT — the daily run keeps each
-    // batch small).
-    const outboxSent = await pool.query(
-      `DELETE FROM notification_outbox
+        [String(RETENTION_DAYS)],
+      )
+      // Terminal outbox rows: 'sent'/'dead' are never read by the retry
+      // worker again (it only claims 'pending' and reaps stale 'sending').
+      // updated_at is bumped on every status change, so it marks the end of
+      // the row's life. One bounded DELETE per status, same style as the
+      // analytics_events prune above (no LIMIT — the daily run keeps each
+      // batch small).
+      const outboxSent = await pool.query(
+        `DELETE FROM notification_outbox
        WHERE status = 'sent'
          AND updated_at < NOW() - ($1::text || ' days')::interval`,
-      [String(OUTBOX_SENT_RETENTION_DAYS)],
-    )
-    const outboxDead = await pool.query(
-      `DELETE FROM notification_outbox
+        [String(OUTBOX_SENT_RETENTION_DAYS)],
+      )
+      const outboxDead = await pool.query(
+        `DELETE FROM notification_outbox
        WHERE status = 'dead'
          AND updated_at < NOW() - ($1::text || ' days')::interval`,
-      [String(OUTBOX_DEAD_RETENTION_DAYS)],
-    )
-    const geoCache = await pool.query(
-      `DELETE FROM geo_cache
+        [String(OUTBOX_DEAD_RETENTION_DAYS)],
+      )
+      const geoCache = await pool.query(
+        `DELETE FROM geo_cache
        WHERE resolved_at < NOW() - ($1::text || ' days')::interval`,
-      [String(GEO_CACHE_RETENTION_DAYS)],
-    )
-    await recordCronRun('analytics-retention', 'ok')
-    return NextResponse.json({
-      ok: true,
-      deleted: result.rowCount ?? 0,
-      deletedOutboxSent: outboxSent.rowCount ?? 0,
-      deletedOutboxDead: outboxDead.rowCount ?? 0,
-      deletedGeoCache: geoCache.rowCount ?? 0,
-    })
-  } catch (e) {
-    await recordCronRun('analytics-retention', 'error', (e as Error).message)
-    // A dead analytics-retention lets analytics_events grow without bound —
-    // ping the admin, not just the logs.
-    void reportError('cron.analytics-retention', e, { alertAdmin: true })
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+        [String(GEO_CACHE_RETENTION_DAYS)],
+      )
+      await recordCronRun('analytics-retention', 'ok')
+      return NextResponse.json({
+        ok: true,
+        deleted: result.rowCount ?? 0,
+        deletedOutboxSent: outboxSent.rowCount ?? 0,
+        deletedOutboxDead: outboxDead.rowCount ?? 0,
+        deletedGeoCache: geoCache.rowCount ?? 0,
+      })
+    } catch (e) {
+      await recordCronRun('analytics-retention', 'error', (e as Error).message)
+      // A dead analytics-retention lets analytics_events grow without bound —
+      // ping the admin, not just the logs.
+      void reportError('cron.analytics-retention', e, { alertAdmin: true })
+      return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+    }
+  })
+  if (!locked.acquired) {
+    return NextResponse.json({ ok: false, error: 'cron job already running' }, { status: 409 })
   }
+  return locked.result
 }

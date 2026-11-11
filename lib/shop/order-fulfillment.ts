@@ -283,13 +283,16 @@ export class InsufficientStockError extends Error {
  * Pass `{ strictStock: true }` when the caller runs inside the order-creation
  * transaction: a failed reservation then throws InsufficientStockError and
  * aborts the whole order instead of leaving an oversold order behind.
- * finalizePaidOrder (money already captured) intentionally stays non-strict —
- * there the order is flagged for manual reconciliation instead.
+ * finalizePaidOrder (money already captured) passes `{ strictPromo: false }`
+ * and leaves stock non-strict: a missed promo increment is logged to order
+ * history instead of throwing (a throw there would leave a paid order stuck
+ * in pending_payment), and an oversold line is flagged for manual
+ * reconciliation instead of silently promising missing stock.
  */
 export async function applyOrderFulfillment(
   orderId: number,
   client?: PoolClient,
-  opts?: { strictStock?: boolean },
+  opts?: { strictStock?: boolean; strictPromo?: boolean },
 ): Promise<void> {
   const q = exec(client)
   const tx = client ? dbForClient(client) : db
@@ -439,10 +442,12 @@ export async function applyOrderFulfillment(
     )
   }
 
-  // Promo usage on the same connection as the order (FIX-11). Cash checkout
-  // aborts if the limit is already taken (strict). Online (no client)
-  // already claimed pending_payment → new, so a missed increment is logged,
-  // not rolled back.
+  // Promo usage on the same connection as the order (FIX-11). Strict by
+  // default when a transaction client is present (checkout aborts if the
+  // limit is already taken). finalizePaidOrder passes strictPromo: false
+  // explicitly: money is already captured there, so a missed increment is
+  // logged to order history instead of rolling the paid order back to
+  // pending_payment (A1).
   await recordPromoUsageForOrder(
     {
       orderId,
@@ -455,23 +460,37 @@ export async function applyOrderFulfillment(
       total: order.total,
     },
     client,
-    { strict: client != null },
+    { strict: opts?.strictPromo ?? client != null },
   )
 
-  // Customer stats / analytics on the pool, not the checkout client — a
-  // missing column or transient error must not abort the order (FIX-12).
+  // Customer stats / analytics on the same executor as the order (A2), not
+  // the pool: a pool connection cannot see the uncommitted new-customer row
+  // of the same checkout transaction (READ COMMITTED), so a first order's
+  // stats were silently never bumped — and pool writes auto-commit, so a
+  // rollback left an orphaned analytics row behind. A stats failure still
+  // must not abort the order (FIX-12) — it is logged instead.
   const total = Number(order.total)
   if (order.customerId) {
-    await pool
-      .query(
+    try {
+      await q.query(
         `UPDATE customers SET orders_count = orders_count + 1, total_turnover = total_turnover + $1, last_order_date = NOW() WHERE id = $2`,
         [total, order.customerId],
       )
-      .catch(() => {})
+    } catch (e) {
+      console.error('[fulfillment] customer stats update failed', {
+        orderId,
+        error: (e as Error)?.message,
+      })
+    }
   }
-  await pool
-    .query(`INSERT INTO analytics_events (type, order_id, amount) VALUES ('order', $1, $2)`, [orderId, total])
-    .catch(() => {})
+  try {
+    await q.query(`INSERT INTO analytics_events (type, order_id, amount) VALUES ('order', $1, $2)`, [orderId, total])
+  } catch (e) {
+    console.error('[fulfillment] analytics event insert failed', {
+      orderId,
+      error: (e as Error)?.message,
+    })
+  }
 }
 
 /**
@@ -486,7 +505,10 @@ async function claimAndFulfillPaidOrder(orderNumber: string, client: PoolClient)
   )
   if (!claim.rowCount || !claim.rows[0]) return null
   const orderId = Number(claim.rows[0].id)
-  await applyOrderFulfillment(orderId, client)
+  // Money is already captured: a missed promo increment must not throw and
+  // roll the paid order back to pending_payment (A1) — the non-strict
+  // branch of recordPromoUsageForOrder logs it to order history instead.
+  await applyOrderFulfillment(orderId, client, { strictPromo: false })
   return orderId
 }
 

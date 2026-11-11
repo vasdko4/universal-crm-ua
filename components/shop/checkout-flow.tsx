@@ -49,6 +49,20 @@ import { formatUaPhoneInput, normalizeUaPhone } from '@/lib/shop/phone'
 import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { formatRequisitesPreview } from '@/lib/payments/public-requisites'
 
+// A3: retries for a checkout whose gateway invoice is still being created
+// by a parallel request (the server already waited ~12s inside
+// buildIdempotentCheckoutResult; these are extra attempts before falling
+// back to the pay-page link).
+const RETRYABLE_CHECKOUT_ATTEMPTS = 3
+const RETRYABLE_CHECKOUT_DELAY_MS = 2000
+
+/** A3: the order exists, but its gateway invoice is still being created. */
+function isRetryableCheckoutResult(
+  r: CheckoutResult,
+): r is Extract<CheckoutResult, { retryable: true }> {
+  return !r.success && 'retryable' in r && r.retryable
+}
+
 // No `config` here on purpose — that column holds admin secrets (Nova Poshta
 // apiKey, bank IBAN/EDRPOU). See app/(shop)/checkout/page.tsx for why it must
 // never cross the Server->Client Component boundary on this page.
@@ -89,6 +103,7 @@ export function CheckoutFlow({
   const { data: session } = useSession()
   const isLoggedIn = !!session?.user
   const t = dict.checkout
+  const lp = (p: string) => localizedPath(p, locale)
 
   // Localize well-known delivery/payment methods by code; fall back to the DB name for custom ones.
   const methodLabel = (code: string, fallback: string) => {
@@ -353,6 +368,10 @@ export function CheckoutFlow({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<CheckoutResult & { success: true } | null>(null)
+  // A3: the order exists but its gateway invoice is still being created by
+  // a parallel request — show the "payment link is being created" panel
+  // (with a link to the pay page) instead of the thank-you screen.
+  const [paymentLinkPending, setPaymentLinkPending] = useState<{ orderNumber: string } | null>(null)
   // Snapshot of the ordered items + delivery captured before the cart is cleared,
   // so the confirmation screen can show what the customer actually ordered.
   const [orderSnapshot, setOrderSnapshot] = useState<{
@@ -600,33 +619,60 @@ export function CheckoutFlow({
     setError(null)
     setSubmitting(true)
     try {
-      const res = await createStorefrontOrder({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: normalizeUaPhone(phone) ?? phone.trim(),
-        email: email.trim() || undefined,
-        deliveryMethod: delivery,
-        deliveryCity: isNova ? city?.name : isUkr ? upCity.trim() : undefined,
-        deliveryCityRef: isNova ? (city?.deliveryCityRef || city?.ref) : undefined,
-        deliveryBranch: isNova
-          ? warehouse
-            ? warehouse.name
-            : `${branchType === 'postomat' ? t.postomat : t.branch}: ${branchQuery.trim()}`
-          : isUkr
-            ? `${t.indexPrefix} ${upIndex.trim()}`
-            : undefined,
-        deliveryWarehouseRef: isNova ? warehouse?.ref : undefined,
-        paymentMethod: payment,
-        note: note.trim() || undefined,
-        promoCode: applied?.code || undefined,
-        items: items.map((i) => ({ productId: i.id, quantity: i.quantity, variantId: i.variantId ?? undefined })),
-        cartToken: cartTokenRef.current || undefined,
-        idempotencyKey: idempotencyKeyRef.current || undefined,
-      })
-      if (!res.success) {
-        setError(res.error)
+      const submitOnce = () =>
+        createStorefrontOrder({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: normalizeUaPhone(phone) ?? phone.trim(),
+          email: email.trim() || undefined,
+          deliveryMethod: delivery,
+          deliveryCity: isNova ? city?.name : isUkr ? upCity.trim() : undefined,
+          deliveryCityRef: isNova ? (city?.deliveryCityRef || city?.ref) : undefined,
+          deliveryBranch: isNova
+            ? warehouse
+              ? warehouse.name
+              : `${branchType === 'postomat' ? t.postomat : t.branch}: ${branchQuery.trim()}`
+            : isUkr
+              ? `${t.indexPrefix} ${upIndex.trim()}`
+              : undefined,
+          deliveryWarehouseRef: isNova ? warehouse?.ref : undefined,
+          paymentMethod: payment,
+          note: note.trim() || undefined,
+          promoCode: applied?.code || undefined,
+          items: items.map((i) => ({ productId: i.id, quantity: i.quantity, variantId: i.variantId ?? undefined })),
+          cartToken: cartTokenRef.current || undefined,
+          idempotencyKey: idempotencyKeyRef.current || undefined,
+        })
+      let res = await submitOnce()
+      // A3: the order may already exist but its gateway invoice is still
+      // being created by a parallel request (retryable). Wait for it
+      // instead of showing a thank-you screen with no way to pay: retry
+      // the same idempotency key a few times, then leave the shopper on
+      // the "payment link is being created" panel with a link to the pay
+      // page. The cart is NOT cleared until a real paymentUrl (or a
+      // COD/requisites result) is confirmed below.
+      let retryCount = 0
+      while (isRetryableCheckoutResult(res) && retryCount < RETRYABLE_CHECKOUT_ATTEMPTS) {
+        retryCount++
+        setPaymentLinkPending({ orderNumber: res.orderNumber })
+        await new Promise((r) => setTimeout(r, RETRYABLE_CHECKOUT_DELAY_MS))
+        res = await submitOnce()
+      }
+      // Snapshot into a const: `res` is a let reassigned in the retry loop,
+      // so narrowing it after the loop does not stick — the const does.
+      const finalRes = res
+      if (!finalRes.success) {
+        if (isRetryableCheckoutResult(finalRes)) {
+          // Retries exhausted — keep the waiting panel (with the pay-page
+          // link); the cart stays intact and no thank-you screen is shown.
+          setPaymentLinkPending({ orderNumber: finalRes.orderNumber })
+          return
+        }
+        setError(finalRes.error)
         return
       }
+      setPaymentLinkPending(null)
+      res = finalRes
       // Optionally persist this address to the customer's account for next time.
       if (isLoggedIn && saveAddr && (isNova || isUkr)) {
         try {
@@ -701,6 +747,33 @@ export function CheckoutFlow({
         gaId={gaId}
         enhancedConversions={enhancedConversions}
       />
+    )
+  }
+
+  // A3: the order exists, but its gateway invoice is still being created
+  // by a parallel request. The shopper waits here (auto-retries run in
+  // handleSubmit) instead of seeing a thank-you screen with no way to
+  // pay — the cart is untouched. The pay page polls the payment status,
+  // so the link works even before the invoice URL exists.
+  if (paymentLinkPending) {
+    return (
+      <div className="mx-auto max-w-xl">
+        <div className="flex flex-col items-center rounded-2xl border border-border bg-card px-6 py-12 text-center">
+          <div className="size-10 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
+          <h2 className="mt-5 text-2xl font-bold text-foreground">{t.paymentLinkCreating}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t.orderNumberLabel} <span className="font-semibold text-foreground">№{paymentLinkPending.orderNumber}</span>
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t.paymentLinkCreatingDesc}</p>
+          <Button
+            size="lg"
+            className="mt-6 w-full"
+            onClick={() => router.push(lp(`/checkout/pay/${paymentLinkPending.orderNumber}`))}
+          >
+            {t.goToPaymentPage}
+          </Button>
+        </div>
+      </div>
     )
   }
 

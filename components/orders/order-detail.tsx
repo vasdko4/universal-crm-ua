@@ -101,6 +101,10 @@ export function OrderDetail({
   const [refundAmount, setRefundAmount] = useState('')
   const [refundDialog, setRefundDialog] = useState<'full' | 'partial' | null>(null)
   const [refunding, setRefunding] = useState(false)
+  // A7: message from a createTtnForOrder that refused to auto-create
+  // (no waybill found in the NP list / several waybills match) — shown in
+  // the confirm dialog; confirming calls createTtnForOrder with forceCreate.
+  const [ttnForceDialog, setTtnForceDialog] = useState<string | null>(null)
 
   const orderStatuses = getOrderStatusOptions(locale)
   const paymentStatuses = getPaymentStatusOptions(locale)
@@ -139,18 +143,40 @@ export function OrderDetail({
     })
   }
 
+  function onTtnCreated(res: { ttn?: string; printUrl?: string }) {
+    if (res.ttn) setTracking(res.ttn)
+    toast.success(t.toastTtnCreated)
+    const printUrl = safeOpenUrl(res.printUrl)
+    if (printUrl) window.open(printUrl, '_blank', 'noopener,noreferrer')
+    router.refresh()
+  }
+
   function createTtn() {
     startTransition(async () => {
       const res = await createTtnForOrder(order.id)
       if (!res.ok) {
+        // A7: the server refused to auto-create — ask the admin to confirm
+        // instead of silently creating a second waybill.
+        if (res.needsConfirm) {
+          setTtnForceDialog(res.error ?? t.toastError)
+          return
+        }
         toast.error(res.error ?? t.toastError)
         return
       }
-      if (res.ttn) setTracking(res.ttn)
-      toast.success(t.toastTtnCreated)
-      const printUrl = safeOpenUrl(res.printUrl)
-      if (printUrl) window.open(printUrl, '_blank', 'noopener,noreferrer')
-      router.refresh()
+      onTtnCreated(res)
+    })
+  }
+
+  function createTtnForced() {
+    setTtnForceDialog(null)
+    startTransition(async () => {
+      const res = await createTtnForOrder(order.id, { forceCreate: true })
+      if (!res.ok) {
+        toast.error(res.error ?? t.toastError)
+        return
+      }
+      onTtnCreated(res)
     })
   }
 
@@ -690,6 +716,21 @@ export function OrderDetail({
           )}
         </div>
       </div>
+
+      <AlertDialog open={ttnForceDialog !== null} onOpenChange={(open) => !open && setTtnForceDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.ttnForceCreateTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{ttnForceDialog}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+            <AlertDialogAction onClick={createTtnForced} disabled={isPending}>
+              {t.ttnForceCreateConfirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={refundDialog !== null} onOpenChange={(open) => !open && setRefundDialog(null)}>
         <AlertDialogContent>

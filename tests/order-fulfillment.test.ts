@@ -23,7 +23,9 @@ describe('audit 24: finalizePaidOrder claims and fulfills in one transaction', (
     // 3.4.87: the claim+fulfill half moved into claimAndFulfillPaidOrder; the
     // no-client path owns the connection as `owned` now.
     expect(src).toContain("await owned.query('BEGIN')")
-    expect(src).toContain('await applyOrderFulfillment(orderId, client)')
+    // 3.4.93 (A1): finalize passes strictPromo: false — a missed promo
+    // increment is logged, never throws the paid order back to pending_payment.
+    expect(src).toContain('await applyOrderFulfillment(orderId, client, { strictPromo: false })')
     expect(src).toContain("await owned.query('COMMIT')")
     expect(src).toContain("await owned.query('ROLLBACK')")
     // The notification stays outside the transaction, after commit.

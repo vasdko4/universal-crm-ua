@@ -2,6 +2,7 @@ import { db, pool } from '@/lib/db'
 import { payments, paymentEvents, orders, orderHistory } from '@/lib/db/schema'
 import { desc, eq } from 'drizzle-orm'
 import { finalizePaidOrder, restoreStockOnce } from '@/lib/shop/order-fulfillment'
+import { reportError } from '@/lib/server-errors'
 import { extractGatewayReceiptUrl } from '@/lib/payments/receipt'
 import { classifyWebhookRefund } from '@/lib/payments/refund'
 
@@ -243,7 +244,18 @@ export async function settlePayment(
     // On confirmed payment, promote a pending online order to a real order
     // (decrement stock, record promo usage, analytics). Idempotent.
     if (status === 'paid') {
-      await finalizePaidOrder(orderReference)
+      try {
+        await finalizePaidOrder(orderReference)
+      } catch (e) {
+        // The payment is already recorded as paid above; a finalize failure
+        // leaves the order stuck in pending_payment, so alert the admin —
+        // but still rethrow so the gateway retries (the webhook answers 500).
+        await reportError('payments.settle-finalize', e, {
+          alertAdmin: true,
+          context: { reason: `finalize failed for ${orderReference}` },
+        })
+        throw e
+      }
       // Server-side GA4 purchase (Measurement Protocol): the browser pixel
       // can be blocked by ad blockers, so a confirmed payment resends the
       // purchase from the server. Best-effort and never throws — it must not

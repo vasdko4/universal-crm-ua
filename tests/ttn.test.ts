@@ -156,6 +156,63 @@ describe('admin label proxy path', () => {
   })
 })
 
+describe('audit A6/A7/A8: reconcile ambiguity, no-match, delivery side effects', () => {
+  const ttnSrc = async () => {
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    return readFileSync(resolve(import.meta.dirname, '..', 'app/actions/ttn.ts'), 'utf8')
+  }
+  const detailSrc = async () => {
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    return readFileSync(resolve(import.meta.dirname, '..', 'components/orders/order-detail.tsx'), 'utf8')
+  }
+
+  it('A7: no match after an ambiguous attempt does not auto-create', async () => {
+    const src = await ttnSrc()
+    // Tri-state match: null means "not found", not "proven absent".
+    expect(src).toContain('if (match === null)')
+    expect(src).toContain('needsConfirm: true')
+    expect(src).toContain('Накладну не знайдено у списку Нової Пошти')
+    // The no-match abort runs before the attempt is journaled / the API
+    // is called, so no second waybill can be created on this path.
+    expect(src.indexOf('Накладну не знайдено у списку Нової Пошти')).toBeLessThan(
+      src.indexOf('Journal this attempt'),
+    )
+    // The lookup-failure abort is untouched.
+    expect(src).toContain("reportError('ttn.reconcile-lookup'")
+  })
+
+  it('A6: an ambiguous match never binds', async () => {
+    const src = await ttnSrc()
+    expect(src).toContain("'ambiguous' in match")
+    expect(src).toContain('Знайдено кілька накладних')
+    // Only a single doc reaches the bind transaction.
+    expect(src).toContain('const doc = match.doc')
+  })
+
+  it('A7: forceCreate skips reconcile and the UI confirms before using it', async () => {
+    const src = await ttnSrc()
+    expect(src).toContain('forceCreate?: boolean')
+    expect(src).toContain('hasAmbiguousAttempt && !opts.forceCreate')
+    const ui = await detailSrc()
+    expect(ui).toContain('res.needsConfirm')
+    expect(ui).toContain('forceCreate: true')
+    expect(ui).toContain('ttnForceCreateTitle')
+  })
+
+  it('A8: reconciled and precheck paths run the delivery side effects', async () => {
+    const src = await ttnSrc()
+    // Reconciled: full update — status, method and the history entry.
+    expect(src).toContain('trackingNumber: reconciledTtn')
+    expect(src).toContain("deliveryStatus: 'ТТН створено'")
+    expect(src).toContain("deliveryMethod: 'nova_poshta'")
+    // Precheck (and the bound-by-someone-else sub-case): status only, so
+    // the history entry from the original creation is not duplicated.
+    expect(src).toContain("updateOrderDelivery(orderId, { deliveryStatus: 'ТТН створено' })")
+  })
+})
+
 describe('audit 63: TTN create reconciles instead of duplicating', () => {
   it('normalizes recipient phones for the NP reconciliation match', async () => {
     const { digitsPhone } = await import('@/lib/delivery/ttn')
