@@ -127,3 +127,24 @@ describe('admin label proxy path', () => {
     expect(novaPoshtaPrintUrl('secret-key', '2045')).toContain('secret-key')
   })
 })
+
+describe('audit 63: TTN create reconciles instead of duplicating', () => {
+  it('normalizes recipient phones for the NP reconciliation match', async () => {
+    const { digitsPhone } = await import('@/lib/delivery/ttn')
+    expect(digitsPhone('+380671234567')).toBe('380671234567')
+    expect(digitsPhone('0671234567')).toBe('380671234567')
+    expect(digitsPhone('671234567')).toBe('380671234567')
+    expect(digitsPhone('380 67 123-45-67')).toBe('380671234567')
+  })
+
+  it('creates under an advisory lock, journals attempts, never calls the API inside a transaction', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    const src = readFileSync(resolve(import.meta.dirname, '..', 'app/actions/ttn.ts'), 'utf8')
+    expect(src).toContain('tryAdvisoryLock(TTN_LOCK_NS')
+    expect(src).toContain('ttn_attempts')
+    expect(src).toContain('findRecentDocumentsByPhone')
+    expect(src).toContain("status IN ('ambiguous', 'in_progress')")
+    expect(src).toContain("status = 'ambiguous'")
+  })
+})

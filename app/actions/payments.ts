@@ -22,7 +22,7 @@ import { normalizePaymentPage, totalPages, type PaymentPageParams } from '@/lib/
 import { restoreStockOnce } from '@/lib/shop/order-fulfillment'
 import { decryptConfigSecrets, encryptConfigSecrets } from '@/lib/secrets'
 
-type ActionResult = { ok: boolean; message: string; paymentUrl?: string }
+type ActionResult = { ok: boolean; message: string; paymentUrl?: string; ambiguous?: boolean }
 
 /* ------------------------------- Gateways -------------------------------- */
 
@@ -353,46 +353,72 @@ export async function refundPayment(
     return { ok: false, message: 'Возврат уже обрабатывается' }
   }
 
-  let result: GatewayResult
-  if (gateway.isTestMode) {
-    result = {
-      ok: true,
-      status: 'refunded',
-      refundedAmount: refundAmount,
-      message: 'Тестовый возврат (без реального API)',
-      raw: { test: true },
-    }
-  } else if (payment.gatewayCode === 'wayforpay') {
-    result = await wayforpayRefund(config, {
-      orderReference: payment.orderReference,
-      amount: refundAmount,
-      currency: payment.currency,
-      comment: 'Возврат средств',
-    })
-  } else if (payment.gatewayCode === 'monobank') {
-    if (!payment.invoiceId) {
-      await pool.query(
-        `UPDATE payments SET refunded_amount = $2, status = $3, updated_at = NOW() WHERE id = $1`,
-        [paymentId, Number(payment.refundedAmount).toFixed(2), payment.status],
-      )
-      return { ok: false, message: 'Отсутствует invoiceId' }
-    }
-    result = await monobankRefund(config, { invoiceId: payment.invoiceId, amount: refundAmount })
-  } else {
+  // Versioned rollback: only undo the reserve if the row still holds exactly
+  // the reserved values, so a concurrent refund that moved the row further
+  // is never clobbered by a blind UPDATE.
+  const rollbackReserve = async (): Promise<void> => {
     await pool.query(
-      `UPDATE payments SET refunded_amount = $2, status = $3, updated_at = NOW() WHERE id = $1`,
-      [paymentId, Number(payment.refundedAmount).toFixed(2), payment.status],
+      `UPDATE payments SET refunded_amount = $2, status = $3, updated_at = NOW()
+        WHERE id = $1 AND refunded_amount = $4 AND status = $5`,
+      [
+        paymentId,
+        Number(payment.refundedAmount).toFixed(2),
+        payment.status,
+        newRefunded.toFixed(2),
+        plan.status,
+      ],
     )
-    return { ok: false, message: 'Неизвестный шлюз' }
   }
 
-  await logEvent(payment.id, 'refund', result, refundAmount)
+  let result: GatewayResult
+  try {
+    if (gateway.isTestMode) {
+      result = {
+        ok: true,
+        status: 'refunded',
+        refundedAmount: refundAmount,
+        message: 'Тестовый возврат (без реального API)',
+        raw: { test: true },
+      }
+    } else if (payment.gatewayCode === 'wayforpay') {
+      result = await wayforpayRefund(config, {
+        orderReference: payment.orderReference,
+        amount: refundAmount,
+        currency: payment.currency,
+        comment: 'Возврат средств',
+      })
+    } else if (payment.gatewayCode === 'monobank') {
+      if (!payment.invoiceId) {
+        await rollbackReserve()
+        return { ok: false, message: 'Отсутствует invoiceId' }
+      }
+      result = await monobankRefund(config, { invoiceId: payment.invoiceId, amount: refundAmount })
+    } else {
+      await rollbackReserve()
+      return { ok: false, message: 'Неизвестный шлюз' }
+    }
+  } catch (e) {
+    // The gateway call itself threw (network/timeout): the refund may or may
+    // not have happened at the gateway — an ambiguous answer. Do NOT roll
+    // back: retrying after a rollback could double-refund. The reserve stays
+    // as the marker; the admin reconciles in the gateway cabinet first.
+    return {
+      ok: false,
+      ambiguous: true,
+      message: `Не удалось подтвердить статус возврата у шлюза (${(e as Error).message || 'ошибка соединения'}). Возврат, возможно, уже выполнен — проверьте в кабинете шлюза перед повтором.`,
+    }
+  }
+
+  // A logging failure must not drop the order-side updates after a
+  // successful gateway refund — the money already moved.
+  try {
+    await logEvent(payment.id, 'refund', result, refundAmount)
+  } catch (e) {
+    console.error('[refundPayment] logEvent failed:', (e as Error).message, { paymentId })
+  }
 
   if (!result.ok) {
-    await pool.query(
-      `UPDATE payments SET refunded_amount = $2, status = $3, updated_at = NOW() WHERE id = $1`,
-      [paymentId, Number(payment.refundedAmount).toFixed(2), payment.status],
-    )
+    await rollbackReserve()
     return { ok: false, message: result.message || 'Ошибка возврата' }
   }
 

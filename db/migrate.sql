@@ -372,6 +372,20 @@ WHERE parent_id IS NULL
       AND p.is_visible IS DISTINCT FROM false
   );
 
+-- 4. Journal of TTN creation attempts (audit item 63). createTtnForOrder
+-- records every attempt here: a retry after a lost response reconciles with
+-- Nova Poshta instead of blindly creating a second waybill.
+CREATE TABLE IF NOT EXISTS ttn_attempts (
+  id SERIAL PRIMARY KEY,
+  order_id INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  ttn TEXT,
+  error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ttn_attempts_order_id_idx ON ttn_attempts (order_id, created_at DESC);
+
 -- Older installs created `orders` without fulfillment `status` /
 -- `payment_status`. CREATE TABLE IF NOT EXISTS never adds columns to an
 -- existing table, so admin order lists crash with:

@@ -8,10 +8,15 @@ import { assertWritePermission } from '@/lib/session'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { buildInternetDocumentPayload, parcelWeightKg } from '@/lib/delivery/ttn'
-import { fetchSenderProfile, saveInternetDocument } from '@/lib/delivery/nova-poshta'
+import { fetchSenderProfile, findRecentDocumentsByPhone, saveInternetDocument } from '@/lib/delivery/nova-poshta'
+import { tryAdvisoryLock } from '@/lib/db/advisory-lock'
 import { updateOrderDelivery } from '@/app/actions/orders'
 import type { NpSenderRefs } from '@/lib/delivery/np-sender'
 import { decryptSecret } from '@/lib/secrets'
+
+// Advisory-lock namespace for TTN creation (distinct from the scheduler
+// namespace in lib/prom/scheduler.ts and lib/cron/scheduler.ts).
+const TTN_LOCK_NS = 20261112
 
 type NpConfig = {
   apiKey?: string
@@ -144,43 +149,191 @@ export async function createTtnForOrder(
     },
   })
 
-  // Serialize concurrent creates on the order row. Nova Poshta creates a real
-  // shipment per request, so the lock must cover both the re-check and API call.
+  // Serialize concurrent creates per order with an advisory lock — NOT with
+  // a DB transaction. Nova Poshta creates a real shipment per request, so two
+  // simultaneous creates must not both reach the API; but the API call must
+  // not run inside a transaction either (it used to hold the order row locked
+  // for the whole network round-trip). Every attempt is journaled in
+  // ttn_attempts: if a previous attempt's response was lost after NP created
+  // the waybill, the retry reconciles with NP and binds it instead of
+  // creating a second one.
+  const lock = await tryAdvisoryLock(TTN_LOCK_NS, `order:${orderId}`).catch(() => null)
+  if (!lock) return { ok: false, error: 'ТТН для цього замовлення вже створюється, зачекайте' }
   let saved: Awaited<ReturnType<typeof saveInternetDocument>>
-  const client = await pool.connect()
   try {
-    await client.query('BEGIN')
-    const locked = await client.query<{ tracking_number: string | null }>(
-      `SELECT tracking_number FROM orders WHERE id = $1 FOR UPDATE`,
-      [orderId],
-    )
-    if (!locked.rows[0]) {
-      await client.query('ROLLBACK')
-      return { ok: false, error: 'Замовлення не знайдено' }
+    // Short tx 1: re-check under the row lock. No network call in here.
+    const precheck = await (async (): Promise<{
+      missing: boolean
+      existingTtn: string | null
+      ambiguous: boolean
+    }> => {
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+        const locked = await client.query<{ tracking_number: string | null }>(
+          `SELECT tracking_number FROM orders WHERE id = $1 FOR UPDATE`,
+          [orderId],
+        )
+        if (!locked.rows[0]) {
+          await client.query('ROLLBACK')
+          return { missing: true, existingTtn: null, ambiguous: false }
+        }
+        const existingTtn = (locked.rows[0].tracking_number || '').trim()
+        if (existingTtn) {
+          await client.query('COMMIT')
+          return { missing: false, existingTtn, ambiguous: false }
+        }
+        const prev = await client.query(
+          `SELECT id FROM ttn_attempts WHERE order_id = $1 AND status IN ('ambiguous', 'in_progress') AND created_at > NOW() - INTERVAL '48 hours' ORDER BY created_at DESC LIMIT 1`,
+          [orderId],
+        )
+        await client.query('COMMIT')
+        return { missing: false, existingTtn: null, ambiguous: (prev.rowCount ?? 0) > 0 }
+      } catch (e) {
+        await client.query('ROLLBACK').catch(() => {})
+        throw e
+      } finally {
+        client.release()
+      }
+    })()
+    if (precheck.missing) return { ok: false, error: 'Замовлення не знайдено' }
+    if (precheck.existingTtn) {
+      return { ok: true, ttn: precheck.existingTtn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
     }
-    const existingTtn = (locked.rows[0].tracking_number || '').trim()
-    if (existingTtn) {
-      await client.query('COMMIT')
-      return { ok: true, ttn: existingTtn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
+    const hasAmbiguousAttempt = precheck.ambiguous
+
+    // Reconcile (network, no transaction held): a previous attempt may have
+    // created the waybill at NP while its response was lost. Bind it when
+    // the phone and the declared value match; never bind a stranger's TTN.
+    if (hasAmbiguousAttempt) {
+      const found = await findRecentDocumentsByPhone(apiKey, order.customerPhone || '').catch(() => null)
+      const declared = Number(order.total) || 1
+      const match = found
+        ?.filter((d) => d.cost != null && Math.abs(d.cost - declared) <= 0.01)
+        .sort((a, b) => (a.dateTime < b.dateTime ? 1 : -1))[0]
+      if (match) {
+        const bound = await pool.query(
+          `SELECT id FROM orders WHERE tracking_number = $1 AND id <> $2 LIMIT 1`,
+          [match.ttn, orderId],
+        )
+        if (bound.rowCount === 0) {
+          let reconciledTtn: string | null = null
+          const client = await pool.connect()
+          try {
+            await client.query('BEGIN')
+            const locked = await client.query<{ tracking_number: string | null }>(
+              `SELECT tracking_number FROM orders WHERE id = $1 FOR UPDATE`,
+              [orderId],
+            )
+            const existingTtn = (locked.rows[0]?.tracking_number || '').trim()
+            reconciledTtn = existingTtn || match.ttn
+            if (!existingTtn) {
+              await client.query(
+                `UPDATE orders SET tracking_number = $2, updated_at = NOW() WHERE id = $1`,
+                [orderId, match.ttn],
+              )
+              await client.query(
+                `UPDATE ttn_attempts SET status = 'created', ttn = $2, updated_at = NOW() WHERE order_id = $1 AND status IN ('ambiguous', 'in_progress')`,
+                [orderId, match.ttn],
+              )
+            }
+            await client.query('COMMIT')
+          } catch (e) {
+            await client.query('ROLLBACK').catch(() => {})
+            throw e
+          } finally {
+            client.release()
+          }
+          return { ok: true, ttn: reconciledTtn, printUrl: `/api/admin/np-label?orderId=${orderId}` }
+        }
+      }
     }
 
-    saved = await saveInternetDocument(apiKey, props)
+    // Journal this attempt (best-effort: the flow must not break if the
+    // table is missing on an install whose migration has not run yet).
+    let attemptId: number | null = null
+    try {
+      const ins = await pool.query<{ id: number }>(
+        `INSERT INTO ttn_attempts (order_id, status) VALUES ($1, 'in_progress') RETURNING id`,
+        [orderId],
+      )
+      attemptId = ins.rows[0]?.id ?? null
+    } catch {
+      attemptId = null
+    }
+
+    // The API call itself — no transaction held.
+    try {
+      saved = await saveInternetDocument(apiKey, props)
+    } catch (e) {
+      if (attemptId != null) {
+        await pool
+          .query(`UPDATE ttn_attempts SET status = 'ambiguous', error = $2, updated_at = NOW() WHERE id = $1`, [
+            attemptId,
+            (e as Error).message,
+          ])
+          .catch(() => {})
+      }
+      return {
+        ok: false,
+        error:
+          'Не вдалося підтвердити створення ТТН у Нової Пошти — можливо, накладну вже створено. Перевірте в кабінеті НП перед повтором.',
+      }
+    }
     if (!saved.ok || !saved.ttn) {
-      await client.query('ROLLBACK')
+      if (attemptId != null) {
+        await pool
+          .query(`UPDATE ttn_attempts SET status = 'failed', error = $2, updated_at = NOW() WHERE id = $1`, [
+            attemptId,
+            saved.error || 'Не вдалося створити ТТН',
+          ])
+          .catch(() => {})
+      }
       return { ok: false, error: saved.error || 'Не вдалося створити ТТН' }
     }
-    await client.query(
-      `UPDATE orders SET tracking_number = $2, updated_at = NOW() WHERE id = $1`,
-      [orderId, saved.ttn],
-    )
-    await client.query('COMMIT')
-  } catch (e) {
-    await client.query('ROLLBACK').catch(() => {})
-    // BUGFIX: network failures / non-2xx used to throw as an unhandled 500
-    // after the order was already read — the admin got no actionable error.
-    return { ok: false, error: (e as Error).message || 'Помилка зʼєднання з Новою Поштою' }
+
+    // Short tx 2: save under the row lock; the advisory lock already
+    // serialized concurrent creates, but re-check anyway.
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      const locked = await client.query<{ tracking_number: string | null }>(
+        `SELECT tracking_number FROM orders WHERE id = $1 FOR UPDATE`,
+        [orderId],
+      )
+      const existingTtn = (locked.rows[0]?.tracking_number || '').trim()
+      if (existingTtn) {
+        if (attemptId != null) {
+          await client.query(
+            `UPDATE ttn_attempts SET status = 'failed', error = 'superseded', updated_at = NOW() WHERE id = $1`,
+            [attemptId],
+          )
+        }
+        await client.query('COMMIT')
+        saved = { ok: true, ttn: existingTtn }
+      } else {
+        await client.query(
+          `UPDATE orders SET tracking_number = $2, updated_at = NOW() WHERE id = $1`,
+          [orderId, saved.ttn],
+        )
+        if (attemptId != null) {
+          await client.query(
+            `UPDATE ttn_attempts SET status = 'created', ttn = $2, updated_at = NOW() WHERE id = $1`,
+            [attemptId, saved.ttn],
+          )
+        }
+        await client.query('COMMIT')
+      }
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {})
+      // BUGFIX: network failures / non-2xx used to throw as an unhandled 500
+      // after the order was already read — the admin got no actionable error.
+      return { ok: false, error: (e as Error).message || 'Помилка зʼєднання з Новою Поштою' }
+    } finally {
+      client.release()
+    }
   } finally {
-    client.release()
+    await lock.release()
   }
   if (!saved.ttn) return { ok: false, error: 'Nova Poshta не повернула номер ТТН' }
 

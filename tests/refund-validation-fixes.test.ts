@@ -114,3 +114,24 @@ describe('audit small fixes (source-level)', () => {
     expect(imgSrc).toContain('https://www.googleadservices.com')
   })
 })
+
+describe('audit 19: refund reserve rollback is versioned, ambiguous answers stay reserved', () => {
+  const src = source('app/actions/payments.ts')
+
+  it('rolls the reserve back only when the row still holds the reserved values', () => {
+    expect(src).toContain('rollbackReserve')
+    expect(src).toContain('WHERE id = $1 AND refunded_amount = $4 AND status = $5')
+    // No blind rollback left: the old unconditional UPDATEs are gone.
+    expect(count(src, 'updated_at = NOW() WHERE id = $1`')).toBe(0)
+    expect(count(src, 'await rollbackReserve()')).toBe(3)
+  })
+
+  it('never rolls back on an ambiguous gateway answer', () => {
+    expect(src).toContain('ambiguous: true')
+    expect(src).toContain('проверьте в кабинете шлюза перед повтором')
+  })
+
+  it('a logging failure does not drop the order-side updates', () => {
+    expect(src).toContain('[refundPayment] logEvent failed')
+  })
+})

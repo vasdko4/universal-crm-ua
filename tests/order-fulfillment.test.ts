@@ -14,3 +14,19 @@ describe('InsufficientStockError', () => {
     expect(err.message).toContain('«Case» × 1')
   })
 })
+
+describe('audit 24: finalizePaidOrder claims and fulfills in one transaction', () => {
+  it('runs the claim and the fulfillment on the same client, notifies after commit', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    const src = readFileSync(resolve(import.meta.dirname, '..', 'lib/shop/order-fulfillment.ts'), 'utf8')
+    expect(src).toContain("await client.query('BEGIN')")
+    expect(src).toContain('await applyOrderFulfillment(orderId, client)')
+    expect(src).toContain("await client.query('COMMIT')")
+    expect(src).toContain("await client.query('ROLLBACK')")
+    // The notification stays outside the transaction, after commit.
+    const notifyAt = src.indexOf('notifyNewOrder(orderId)')
+    const commitAt = src.indexOf("await client.query('COMMIT')")
+    expect(notifyAt).toBeGreaterThan(commitAt)
+  })
+})

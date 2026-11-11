@@ -25,7 +25,7 @@ export type TtnCargo = {
 
 export type InternetDocumentProperties = Record<string, string>
 
-function digitsPhone(phone: string): string {
+export function digitsPhone(phone: string): string {
   const d = phone.replace(/\D/g, '')
   if (d.startsWith('380') && d.length >= 12) return d.slice(0, 12)
   if (d.startsWith('0') && d.length >= 10) return `380${d.slice(1, 10)}`

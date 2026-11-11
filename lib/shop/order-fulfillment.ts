@@ -452,17 +452,36 @@ export async function applyOrderFulfillment(
 
 /**
  * Promotes an online order from "pending_payment" to a real order once payment
- * is confirmed. Atomically claims the transition so fulfillment runs exactly
- * once even if multiple gateway callbacks / status checks race.
+ * is confirmed. The claim and the fulfillment run in ONE transaction, so a
+ * fulfillment failure rolls the order back to pending_payment instead of
+ * leaving it half-fulfilled as 'new' with no way to retry: the claim
+ * (`UPDATE ... WHERE status = 'pending_payment'`) only matches an unclaimed
+ * order, so a later retry (webhook/status check) safely re-runs it. The
+ * notification stays outside the transaction — best-effort, after commit.
  */
 export async function finalizePaidOrder(orderNumber: string): Promise<void> {
-  const claim = await pool.query(
-    `UPDATE orders SET status = 'new', updated_at = NOW() WHERE order_number = $1 AND status = 'pending_payment' RETURNING id`,
-    [orderNumber],
-  )
-  if (claim.rowCount && claim.rows[0]) {
-    const orderId = Number(claim.rows[0].id)
-    await applyOrderFulfillment(orderId)
+  const client = await pool.connect()
+  let orderId: number | null = null
+  try {
+    await client.query('BEGIN')
+    const claim = await client.query(
+      `UPDATE orders SET status = 'new', updated_at = NOW() WHERE order_number = $1 AND status = 'pending_payment' RETURNING id`,
+      [orderNumber],
+    )
+    if (!claim.rowCount || !claim.rows[0]) {
+      await client.query('ROLLBACK')
+      return
+    }
+    orderId = Number(claim.rows[0].id)
+    await applyOrderFulfillment(orderId, client)
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
+  if (orderId != null) {
     // Online orders notify only after the payment is confirmed.
     const { notifyNewOrder } = await import('@/lib/notifications')
     void notifyNewOrder(orderId)

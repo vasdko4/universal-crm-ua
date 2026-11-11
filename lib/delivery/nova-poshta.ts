@@ -159,6 +159,61 @@ export async function saveInternetDocument(
   return { ok: true, ttn, ref: ref || undefined, raw: resp.data }
 }
 
+export type NpRecentDocument = {
+  ttn: string
+  phone: string
+  cost: number | null
+  dateTime: string
+}
+
+function npDate(d: Date): string {
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${dd}.${mm}.${d.getFullYear()}`
+}
+
+/**
+ * Lists the sender's waybills created in the last `daysBack` days, filtered
+ * to the recipient phone (normalized to digits). Used to reconcile a TTN
+ * create whose response was lost: if Nova Poshta already created the
+ * waybill, the retry binds it instead of creating a second one.
+ * Never throws for an empty result — returns [] when nothing matches.
+ */
+export async function findRecentDocumentsByPhone(
+  apiKey: string,
+  phone: string,
+  daysBack = 2,
+): Promise<NpRecentDocument[]> {
+  const digits = phone.replace(/\D/g, '')
+  if (!digits) return []
+  const to = new Date()
+  const from = new Date()
+  from.setDate(from.getDate() - Math.max(0, daysBack))
+  const resp = await npRequest<Record<string, unknown>>(apiKey, 'InternetDocument', 'getDocumentList', {
+    DateTimeFrom: npDate(from),
+    DateTimeTo: npDate(to),
+    GetFullList: '1',
+  })
+  if (!resp.success) {
+    throw new Error(resp.errors.join(', ') || 'Не вдалося отримати список накладних')
+  }
+  const out: NpRecentDocument[] = []
+  for (const row of resp.data) {
+    const ttn = String(row.IntDocNumber ?? '').trim()
+    const rowPhone = String(row.RecipientsPhone ?? '').replace(/\D/g, '')
+    if (!ttn || rowPhone !== digits) continue
+    const costRaw = row.Cost
+    const cost = typeof costRaw === 'number' ? costRaw : costRaw != null ? Number(String(costRaw).replace(',', '.')) : NaN
+    out.push({
+      ttn,
+      phone: rowPhone,
+      cost: Number.isFinite(cost) ? cost : null,
+      dateTime: String(row.DateTime ?? ''),
+    })
+  }
+  return out
+}
+
 export async function fetchSenderProfile(apiKey: string) {
   const { parseSenderProfile, cityNameFromAddress } = await import('@/lib/delivery/np-sender')
   const counterparties = await npRequest<Record<string, unknown>>(
