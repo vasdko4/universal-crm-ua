@@ -63,26 +63,6 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
     return { ...result, ok: false, reason: 'Не задан API-ключ Нова Пошта в настройках доставки' }
   }
 
-  // 2) In-flight orders that have a TTN and are not finished/cancelled.
-  const ordersRes = await pool.query(
-    `SELECT * FROM orders
-     WHERE delivery_method = 'nova_poshta'
-       AND tracking_number IS NOT NULL AND tracking_number <> ''
-       AND status NOT IN ('done', 'cancelled')
-     ORDER BY updated_at DESC
-     LIMIT 300`,
-  )
-  const rows = ordersRes.rows as Record<string, unknown>[]
-  result.checked = rows.length
-  if (rows.length === 0) return result
-
-  // 3) Batch-track all TTNs in one pass.
-  const statuses = await trackDocuments(
-    apiKey,
-    rows.map((r) => String(r.tracking_number)),
-  )
-  const byTtn = new Map(statuses.map((s) => [s.ttn, s]))
-
   const settings = await getStoreSettingsInternal().catch(() => null)
   const notifyCustomers = Boolean(settings?.notifications?.customerEmailEnabled)
 
@@ -100,60 +80,90 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
     supportEmail: (settings?.emailSettings?.fromEmail as string) || null,
   }
 
-  // 4) Apply changes order by order (statuses rarely change for many at once).
-  for (const row of rows) {
-    const ttn = String(row.tracking_number)
-    const tracked = byTtn.get(ttn)
-    if (!tracked) continue
+  // 2) In-flight orders, in pages of 100 by id cursor — the old LIMIT 300
+  // silently skipped everything past the first 300 rows.
+  const PAGE_SIZE = 100
+  let cursorId: number | null = null
+  for (;;) {
+    const ordersRes = await pool.query(
+      `SELECT * FROM orders
+       WHERE delivery_method = 'nova_poshta'
+         AND tracking_number IS NOT NULL AND tracking_number <> ''
+         AND status NOT IN ('done', 'cancelled')
+         AND ($1::int IS NULL OR id < $1)
+       ORDER BY id DESC
+       LIMIT $2`,
+      [cursorId, PAGE_SIZE],
+    )
+    const rows = ordersRes.rows as Record<string, unknown>[]
+    if (rows.length === 0) break
+    result.checked += rows.length
 
-    // NP codes 2/3 mean the TTN was deleted or not found — not a real status
-    // change, so don't overwrite the order or notify the customer.
-    if (tracked.statusCode === '2' || tracked.statusCode === '3') continue
+    // 3) Batch-track this page's TTNs in one pass.
+    const statuses = await trackDocuments(
+      apiKey,
+      rows.map((r) => String(r.tracking_number)),
+    )
+    const byTtn = new Map(statuses.map((s) => [s.ttn, s]))
 
-    const oldStatus = String(row.delivery_status ?? '')
-    if (tracked.status === oldStatus) continue
+    // 4) Apply changes order by order (statuses rarely change for many at once).
+    for (const row of rows) {
+      const ttn = String(row.tracking_number)
+      const tracked = byTtn.get(ttn)
+      if (!tracked) continue
 
-    try {
-      // Delivered parcels complete the order lifecycle automatically.
-      const newOrderStatus =
-        tracked.delivered && String(row.status) === 'shipped' ? 'done' : String(row.status)
+      // NP codes 2/3 mean the TTN was deleted or not found — not a real status
+      // change, so don't overwrite the order or notify the customer.
+      if (tracked.statusCode === '2' || tracked.statusCode === '3') continue
 
-      const res = await pool.query(
-        'UPDATE orders SET delivery_status = $1, status = $2, updated_at = now() WHERE id = $3 AND delivery_status IS NOT DISTINCT FROM $4',
-        [tracked.status, newOrderStatus, row.id, row.delivery_status ?? null],
-      )
-      // Compare-and-swap: another sync run may have already applied this
-      // status — only count and notify when this run actually changed it.
-      if (res.rowCount === 0) continue
-      result.updated++
+      const oldStatus = String(row.delivery_status ?? '')
+      if (tracked.status === oldStatus) continue
 
-      // Notify the customer by email when they left one.
-      const email = String(row.customer_email ?? '').trim()
-      if (notifyCustomers && email) {
-        const itemsRes = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [
-          row.id,
-        ])
-        const order = normalizeOrder({
-          ...row,
-          delivery_status: tracked.status,
-          status: newOrderStatus,
-        })
-        const items = itemsRes.rows.map(normalizeItem)
-        const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
-        const msg = buildOrderMessage('status', order, items, storeCtx, productSlugs)
-        const sent = await sendMail({ to: email, subject: msg.subject, text: msg.text, html: msg.html })
-        if (sent.sent) {
-          result.emailed++
-        } else {
-          // The delivery status is already updated in the DB, so the next
-          // sync won't retry this email — surface the failure instead of
-          // counting it as sent.
-          result.errors.push(`Заказ №${row.order_number}: не удалось отправить письмо о статусе доставки`)
+      try {
+        // Delivered parcels complete the order lifecycle automatically.
+        const newOrderStatus =
+          tracked.delivered && String(row.status) === 'shipped' ? 'done' : String(row.status)
+
+        const res = await pool.query(
+          'UPDATE orders SET delivery_status = $1, status = $2, updated_at = now() WHERE id = $3 AND delivery_status IS NOT DISTINCT FROM $4',
+          [tracked.status, newOrderStatus, row.id, row.delivery_status ?? null],
+        )
+        // Compare-and-swap: another sync run may have already applied this
+        // status — only count and notify when this run actually changed it.
+        if (res.rowCount === 0) continue
+        result.updated++
+
+        // Notify the customer by email when they left one.
+        const email = String(row.customer_email ?? '').trim()
+        if (notifyCustomers && email) {
+          const itemsRes = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [
+            row.id,
+          ])
+          const order = normalizeOrder({
+            ...row,
+            delivery_status: tracked.status,
+            status: newOrderStatus,
+          })
+          const items = itemsRes.rows.map(normalizeItem)
+          const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
+          const msg = buildOrderMessage('status', order, items, storeCtx, productSlugs)
+          const sent = await sendMail({ to: email, subject: msg.subject, text: msg.text, html: msg.html })
+          if (sent.sent) {
+            result.emailed++
+          } else {
+            // The delivery status is already updated in the DB, so the next
+            // sync won't retry this email — surface the failure instead of
+            // counting it as sent.
+            result.errors.push(`Заказ №${row.order_number}: не удалось отправить письмо о статусе доставки`)
+          }
         }
+      } catch (e) {
+        result.errors.push(`Заказ №${row.order_number}: ${(e as Error).message}`)
       }
-    } catch (e) {
-      result.errors.push(`Заказ №${row.order_number}: ${(e as Error).message}`)
     }
+
+    cursorId = Number(rows[rows.length - 1].id)
+    if (rows.length < PAGE_SIZE) break
   }
 
   return result

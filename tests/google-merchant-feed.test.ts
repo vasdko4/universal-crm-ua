@@ -123,7 +123,9 @@ describe('item XML', () => {
     const xml = buildItemXml(offer, 'https://magazine.store', 'uk', merchant)
     expect(xml).toContain('<g:gtin>5901234123457</g:gtin>')
     expect(xml).toContain('<g:brand>Apple</g:brand>')
-    expect(xml).toContain('<g:mpn>IP15</g:mpn>')
+    // The internal SKU is not a manufacturer part number and must never
+    // be emitted as g:mpn.
+    expect(xml).not.toContain('<g:mpn>')
     expect(xml).not.toContain('identifier_exists')
     expect(xml).toContain('<g:price>42999.00 UAH</g:price>')
     expect(xml).toContain('<g:sale_price>39999.00 UAH</g:sale_price>')
@@ -147,7 +149,7 @@ describe('item XML', () => {
     expect(xml).not.toContain('>https://images.prom.ua/')
   })
 
-  it('sets identifier_exists=no when there is no gtin and no brand+mpn', () => {
+  it('sets identifier_exists=no when there is no gtin and no brand+sku', () => {
     const [offer] = expandFeedOffers(product({ brand: null, sku: null, barcode: null, oldPrice: null }))
     const xml = buildItemXml(offer, 'https://magazine.store', 'uk', {
       googleProductCategory: '',

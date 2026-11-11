@@ -2,6 +2,7 @@ import { writeFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import sharp from 'sharp'
+import { buildAllowedImageUrl } from '@/lib/api/safe-image-url'
 
 const LOCAL_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const LOCAL_URL_PREFIX = '/uploads/products/'
@@ -14,14 +15,21 @@ const MAX_BYTES = 8 * 1024 * 1024 // 8 MB
  * Remote URLs are never stored — files must live on the VPS.
  */
 export async function downloadImageLocally(remoteUrl: string): Promise<string | null> {
-  if (!remoteUrl || !/^https?:\/\//i.test(remoteUrl)) return null
+  // SSRF guard: only allow-listed image hosts (Prom CDN, Vercel blob) —
+  // the raw URL never reaches fetch; the rebuilt URL is a literal origin
+  // plus a sanitized path, https-only, no credentials or ports.
+  const safeUrl = buildAllowedImageUrl(remoteUrl)
+  if (!safeUrl) return null
   
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 20000)
     
-    const res = await fetch(remoteUrl, {
+    const res = await fetch(safeUrl, {
       signal: controller.signal,
+      // Never follow redirects: a 3xx to an internal host would bypass the
+      // allow-list above. Redirects land in !res.ok below and are skipped.
+      redirect: 'manual',
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PowerFox/1.0)' },
     })
     clearTimeout(timeout)

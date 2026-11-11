@@ -6,6 +6,7 @@ import {
   getSitemapPages,
 } from '@/lib/shop/queries'
 import { getCanonicalSiteUrl } from '@/lib/seo'
+import { getStoreSettingsOrNull } from '@/lib/store-settings'
 import { localizedPath } from '@/lib/i18n/config'
 
 // Sitemap must always reflect the current store domain from DB settings.
@@ -15,6 +16,10 @@ export const dynamic = 'force-dynamic'
 type Entry = MetadataRoute.Sitemap[number]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Honor the same global "hide from search engines" switch as robots.txt
+  // and the Merchant feed — and fail closed when settings can't be read.
+  const s = await getStoreSettingsOrNull()
+  if (s == null || s.seo?.indexingEnabled === false) return []
   const now = new Date()
   // Uses the domain configured in store settings (falls back to env/auto).
   const base = await getCanonicalSiteUrl()

@@ -207,7 +207,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       price: formatPrice(product.price, product.currency, locale),
       locale,
     }),
-    ...(product.sku ? { sku: product.sku, mpn: product.sku } : {}),
+    ...(product.sku ? { sku: product.sku } : {}),
     ...(gtin ? { gtin } : {}),
     ...(brand ? { brand: { '@type': 'Brand', name: brand } } : {}),
     offers: {

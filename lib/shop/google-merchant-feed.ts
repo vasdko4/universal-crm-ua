@@ -231,7 +231,8 @@ export function buildItemXml(
 
   const brandTag = brand ? `      <g:brand>${escapeXml(brand)}</g:brand>\n` : ''
   const gtinTag = gtin ? `      <g:gtin>${gtin}</g:gtin>\n` : ''
-  const mpnTag = sku ? `      <g:mpn>${escapeXml(sku)}</g:mpn>\n` : ''
+  // No g:mpn: there is no real manufacturer part number source — emitting
+  // the internal SKU as MPN mislabels it to Merchant Center.
   const hasId = Boolean(gtin || (brand && sku))
   const identifierExists = hasId ? '' : '      <g:identifier_exists>no</g:identifier_exists>\n'
 
@@ -268,7 +269,7 @@ ${groupTag}      <title>${escapeXml(offer.name)}</title>
       <link>${escapeXml(link)}</link>
       <g:image_link>${escapeXml(image)}</g:image_link>
 ${additionalImages ? additionalImages + '\n' : ''}      <g:availability>${availability}</g:availability>
-${saleTag}${brandTag}${gtinTag}${mpnTag}${identifierExists}${categoryTag}${shippingTag}${weightTag}${colorTag}${sizeTag}      <g:condition>new</g:condition>
+${saleTag}${brandTag}${gtinTag}${identifierExists}${categoryTag}${shippingTag}${weightTag}${colorTag}${sizeTag}      <g:condition>new</g:condition>
     </item>`
 }
 

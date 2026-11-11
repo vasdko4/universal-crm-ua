@@ -600,6 +600,11 @@ export async function updateOrderPayment(id: number, paymentStatus: string): Pro
         `Использование промокода освобождено (возврат): ${released.map((r) => r.promoCode ?? `#${r.promotionId}`).join(', ')}`,
       )
     }
+    // Restore the stock like the gateway refund path does (restoreStockOnce
+    // is idempotent via claim; cancelled orders already restored at cancel).
+    if (current.status !== 'cancelled') {
+      await restoreStockOnce(id)
+    }
   }
   const label = getPaymentStatusLabel(paymentStatus, user.locale)
   await addHistory(

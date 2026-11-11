@@ -12,7 +12,7 @@ import {
 export const dynamic = 'force-dynamic'
 // Merchant Center re-fetches on its own schedule (usually every few hours to
 // once a day); no need to regenerate this on every crawl hit.
-export const revalidate = 3600
+export const revalidate = 900
 
 // Google Merchant Center product feed (RSS 2.0 + the `g:` product namespace).
 // Register this URL directly as a "scheduled fetch" feed in Merchant Center —
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(xml, {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+      'Cache-Control': 'public, max-age=900, stale-while-revalidate=3600',
     },
   })
 }
