@@ -290,8 +290,31 @@ export async function applyOrderFulfillment(
   const variantProductIds = new Set<number>()
   const productOrderBumps = new Map<number, number>()
 
+  // Preorder products are sold on demand: checkout lets them through at
+  // zero stock, so fulfillment must not try to deduct — the conditional
+  // UPDATE would fail and the line would land in `oversold` (or abort the
+  // whole order in strict mode). The orders_count bump still applies.
+  const preorderIds = new Set<number>()
+  {
+    const ids = [...new Set(items.map((i) => i.productId).filter((x): x is number => x != null))]
+    if (ids.length > 0) {
+      const { rows } = await q.query<{ id: number; availability_mode: string }>(
+        `SELECT id, availability_mode FROM products WHERE id = ANY($1::int[])`,
+        [ids],
+      )
+      for (const r of rows) {
+        if (r.availability_mode === 'preorder') preorderIds.add(Number(r.id))
+      }
+    }
+  }
+
   for (const i of items) {
     if (i.variantId != null) {
+      if (i.productId != null && preorderIds.has(i.productId)) {
+        variantProductIds.add(i.productId)
+        productOrderBumps.set(i.productId, (productOrderBumps.get(i.productId) ?? 0) + 1)
+        continue
+      }
       // BUGFIX: deduct from the variant of THIS product only — without the
       // product_id condition a mismatched variantId (e.g. from an admin order)
       // silently drained a different product's variant.
@@ -328,6 +351,10 @@ export async function applyOrderFulfillment(
         productOrderBumps.set(i.productId, (productOrderBumps.get(i.productId) ?? 0) + 1)
       }
     } else if (i.productId != null) {
+      if (preorderIds.has(i.productId)) {
+        productOrderBumps.set(i.productId, (productOrderBumps.get(i.productId) ?? 0) + 1)
+        continue
+      }
       const productRes = await q.query(
         `UPDATE products SET quantity = quantity - $1, orders_count = COALESCE(orders_count,0) + 1,
            is_in_stock = (quantity - $1) > 0

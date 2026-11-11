@@ -48,6 +48,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
   }
 
+  // Before parsing a multipart body, reject bodies that cannot possibly fit
+  // the 8 MB file limit (content-length + framing overhead). App Router
+  // route handlers have no built-in body limit, so without this the whole
+  // upload is buffered by formData() before the file.size check runs.
+  // Chunked bodies without content-length still hit the file.size check.
+  const contentLength = Number(request.headers.get('content-length'))
+  if (Number.isFinite(contentLength) && contentLength > MAX_BYTES + 2 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Файл больше 8 МБ' }, { status: 413 })
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get('file')

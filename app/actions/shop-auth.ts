@@ -17,6 +17,7 @@ import {
   isSixDigitCode,
 } from '@/lib/shop/email-verification'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
+import { hashVerificationCode } from '@/lib/shop/verification-codes'
 
 // The phone number is the stable customer identifier: it must be unique
 // across accounts. Comparison uses the last 9 digits (operator + subscriber),
@@ -111,7 +112,7 @@ export async function sendEmailVerification() {
   await pool.query(
     `INSERT INTO verification (id, identifier, value, "expiresAt", "createdAt", "updatedAt")
      VALUES (gen_random_uuid()::text, $1, $2, NOW() + ($3 || ' minutes')::interval, NOW(), NOW())`,
-    [identifier, JSON.stringify({ code }), EMAIL_VERIFY_TTL_MINUTES],
+    [identifier, JSON.stringify({ codeHash: hashVerificationCode(code) }), EMAIL_VERIFY_TTL_MINUTES],
   )
 
   const locale = await getLocale().catch(() => 'uk' as const)
@@ -145,23 +146,19 @@ export async function confirmEmailVerification(codeRaw: string) {
   if (!isSixDigitCode(code)) return { success: false as const, error: 'Код має складатися з 6 цифр' }
 
   const identifier = `email-verify:${user.id}`
-  const res = await pool.query(
-    `SELECT value FROM verification WHERE identifier=$1 AND "expiresAt" > NOW() LIMIT 1`,
-    [identifier],
+  // Atomic consume: the DELETE itself matches the code hash, so two
+  // concurrent confirms cannot both pass — the loser finds no row.
+  const consumed = await pool.query(
+    `DELETE FROM verification
+     WHERE identifier=$1 AND "expiresAt" > NOW()
+       AND value::jsonb->>'codeHash' = $2`,
+    [identifier, hashVerificationCode(code)],
   )
-  if (res.rows.length === 0) {
-    return { success: false as const, error: 'Код сплив або не запитувався. Запросіть новий.' }
+  if ((consumed.rowCount ?? 0) === 0) {
+    return { success: false as const, error: 'Невірний код або код сплив. Запросіть новий.' }
   }
-  let payload: { code?: string } = {}
-  try {
-    payload = JSON.parse(res.rows[0].value)
-  } catch {
-    return { success: false as const, error: 'Помилка даних. Запросіть новий код.' }
-  }
-  if (payload.code !== code) return { success: false as const, error: 'Невірний код' }
 
   await pool.query(`UPDATE "user" SET "emailVerified"=true, "updatedAt"=NOW() WHERE id=$1`, [user.id])
-  await pool.query(`DELETE FROM verification WHERE identifier=$1`, [identifier])
   return { success: true as const }
 }
 
@@ -244,7 +241,7 @@ export async function requestEmailChange(newEmailRaw: string) {
   await pool.query(
     `INSERT INTO verification (id, identifier, value, "expiresAt", "createdAt", "updatedAt")
      VALUES (gen_random_uuid()::text, $1, $2, NOW() + ($3 || ' minutes')::interval, NOW(), NOW())`,
-    [identifier, JSON.stringify({ email: newEmail, code }), CODE_TTL_MINUTES],
+    [identifier, JSON.stringify({ email: newEmail, codeHash: hashVerificationCode(code) }), CODE_TTL_MINUTES],
   )
 
   const sent = await sendMail({
@@ -284,13 +281,14 @@ export async function confirmEmailChange(codeRaw: string) {
     return { success: false, error: 'Код истёк или не запрашивался. Запросите новый.' }
   }
 
-  let payload: { email?: string; code?: string } = {}
+  // The SELECT only reads the target email; the code itself is matched by
+  // the atomic DELETE below, so a concurrent confirm cannot reuse it.
+  let payload: { email?: string; codeHash?: string } = {}
   try {
     payload = JSON.parse(res.rows[0].value)
   } catch {
     return { success: false, error: 'Ошибка данных. Запросите новый код.' }
   }
-  if (payload.code !== code) return { success: false, error: 'Неверный код' }
   if (!payload.email) return { success: false, error: 'Ошибка данных. Запросите новый код.' }
 
   // Re-check uniqueness at confirm time to avoid races.
@@ -300,13 +298,24 @@ export async function confirmEmailChange(codeRaw: string) {
   )
   if (taken.rows.length > 0) return { success: false, error: 'Этот email уже занят' }
 
+  // Atomic consume: the DELETE itself matches the code hash, so two
+  // concurrent confirms cannot both pass — the loser finds no row.
+  const consumed = await pool.query(
+    `DELETE FROM verification
+     WHERE identifier=$1 AND "expiresAt" > NOW()
+       AND value::jsonb->>'codeHash' = $2`,
+    [identifier, hashVerificationCode(code)],
+  )
+  if ((consumed.rowCount ?? 0) === 0) {
+    return { success: false, error: 'Неверный код' }
+  }
+
   // Login lookups go through "user".email; the credential account row keys on
   // userId, so updating the user row is sufficient.
   await pool.query(
     `UPDATE "user" SET email=$1, "emailVerified"=true, "updatedAt"=NOW() WHERE id=$2`,
     [payload.email, user.id],
   )
-  await pool.query(`DELETE FROM verification WHERE identifier=$1`, [identifier])
 
   return { success: true, email: payload.email }
 }
@@ -359,7 +368,7 @@ export async function requestPasswordChange() {
   await pool.query(
     `INSERT INTO verification (id, identifier, value, "expiresAt", "createdAt", "updatedAt")
      VALUES (gen_random_uuid()::text, $1, $2, NOW() + ($3 || ' minutes')::interval, NOW(), NOW())`,
-    [identifier, JSON.stringify({ code }), PASSWORD_CODE_TTL_MINUTES],
+    [identifier, JSON.stringify({ codeHash: hashVerificationCode(code) }), PASSWORD_CODE_TTL_MINUTES],
   )
 
   const locale = await getLocale().catch(() => 'uk' as const)
@@ -394,20 +403,17 @@ export async function confirmPasswordChange(codeRaw: string, newPasswordRaw: str
   if (password.length < 8) return { success: false as const, error: 'Пароль має бути не коротшим за 8 символів' }
 
   const identifier = `password-change:${user.id}`
-  const res = await pool.query(
-    `SELECT value FROM verification WHERE identifier=$1 AND "expiresAt" > NOW() LIMIT 1`,
-    [identifier],
+  // Atomic consume: the DELETE itself matches the code hash, so two
+  // concurrent confirms cannot both pass — the loser finds no row.
+  const consumed = await pool.query(
+    `DELETE FROM verification
+     WHERE identifier=$1 AND "expiresAt" > NOW()
+       AND value::jsonb->>'codeHash' = $2`,
+    [identifier, hashVerificationCode(code)],
   )
-  if (res.rows.length === 0) {
-    return { success: false as const, error: 'Код сплив або не запитувався. Запросіть новий.' }
+  if ((consumed.rowCount ?? 0) === 0) {
+    return { success: false as const, error: 'Невірний код або код сплив. Запросіть новий.' }
   }
-  let payload: { code?: string } = {}
-  try {
-    payload = JSON.parse(res.rows[0].value)
-  } catch {
-    return { success: false as const, error: 'Помилка даних. Запросіть новий код.' }
-  }
-  if (payload.code !== code) return { success: false as const, error: 'Невірний код' }
 
   const hashed = await hashPassword(password)
   const updated = await pool.query(
@@ -418,7 +424,6 @@ export async function confirmPasswordChange(codeRaw: string, newPasswordRaw: str
   if ((updated.rowCount ?? 0) === 0) {
     return { success: false as const, error: 'У цього акаунта немає пароля' }
   }
-  await pool.query(`DELETE FROM verification WHERE identifier=$1`, [identifier])
   // BUGFIX: a password change must revoke other sessions — otherwise a stolen
   // session stays valid. The current session stays: the user just proved
   // ownership with the code. If it cannot be identified, revoke all of them.

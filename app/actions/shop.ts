@@ -292,6 +292,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       image: products.image,
       quantity: products.quantity,
       variantsEnabled: products.variantsEnabled,
+      availabilityMode: products.availabilityMode,
       salesType: products.salesType,
     })
     .from(products)
@@ -337,13 +338,17 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     if (!p) return { success: false, error: t.someItemsUnavailable }
     const qty = Math.max(1, Math.floor(it.quantity))
 
+    // Preorder products are purchasable at zero stock on the storefront —
+    // the same rule here, otherwise checkout rejects what the storefront
+    // offers. Fulfillment skips the deduction for these lines.
+    const isPreorder = p.availabilityMode === 'preorder'
     if (it.variantId != null && p.variantsEnabled) {
       const v = variantById.get(it.variantId)
       if (!v || v.productId !== p.id) {
         return { success: false, error: fillTemplate(t.variantUnavailable, { name: p.name }) }
       }
       const label = variantLabel((v.options ?? {}) as VariantOptions)
-      if (!v.isInStock || v.quantity < qty) {
+      if ((!v.isInStock || v.quantity < qty) && !isPreorder) {
         return { success: false, error: fillTemplate(t.variantOutOfStock, { name: p.name, label }) }
       }
       lineItems.push({
@@ -360,7 +365,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       continue
     }
 
-    if (p.quantity < qty) {
+    if (p.quantity < qty && !isPreorder) {
       return { success: false, error: fillTemplate(t.productOutOfStock, { name: p.name }) }
     }
     lineItems.push({

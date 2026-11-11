@@ -315,6 +315,65 @@ WHERE c.id <> t.id
   AND lower(trim(c.name_uk)) IN ('техніка та електроніка', 'техника и электроника')
   AND lower(trim(t.name_uk)) IN ('електроніка', 'электроника');
 
+-- Catalog hygiene, formerly run on every boot (lib/shop/catalog-hygiene.ts,
+-- removed in 3.4.82): one-time cleanups for a DB that mixed demo seed with a
+-- Prom.ua import. Idempotent — safe to re-run. The startup hook is gone;
+-- these run here, via the migration, instead of writing on every start.
+-- 1. Drop Prom.ua's doubled strike-through (exactly 2x) so the storefront
+-- stops showing a fake -50% on almost every imported card.
+UPDATE products
+SET old_price = NULL, updated_at = NOW()
+WHERE deleted_at IS NULL
+  AND prom_id IS NOT NULL
+  AND old_price IS NOT NULL
+  AND price > 0
+  AND old_price / price BETWEEN 1.9 AND 2.1;
+
+-- 2. Strip Prom.ua boilerplate from imported meta titles/descriptions.
+UPDATE products
+SET
+  meta_title_uk = NULLIF(trim(both FROM regexp_replace(
+    regexp_replace(coalesce(meta_title_uk, ''),
+      '[:|,·•]?\s*(купити на )?Prom\.ua\b.*$', '', 'gi'),
+    '[,:]?\s*(ціна|цена)\s+[\d\s.,]+[₴грн.]*\s*$', '', 'gi')), ''),
+  meta_title_ru = NULLIF(trim(both FROM regexp_replace(
+    regexp_replace(coalesce(meta_title_ru, ''),
+      '[:|,·•]?\s*(купить на )?Prom\.ua\b.*$', '', 'gi'),
+    '[,:]?\s*(ціна|цена)\s+[\d\s.,]+[₴грн.]*\s*$', '', 'gi')), ''),
+  meta_description_uk = NULLIF(trim(both FROM regexp_replace(
+    regexp_replace(coalesce(meta_description_uk, ''),
+      '[:|,·•]?\s*(купити на )?Prom\.ua\b.*$', '', 'gi')), '')),
+  meta_description_ru = NULLIF(trim(both FROM regexp_replace(
+    regexp_replace(coalesce(meta_description_ru, ''),
+      '[:|,·•]?\s*(купить на )?Prom\.ua\b.*$', '', 'gi')), '')),
+  updated_at = NOW()
+WHERE deleted_at IS NULL
+  AND prom_id IS NOT NULL
+  AND (
+    coalesce(meta_title_uk, '') ~* 'prom\.ua|купити на|україна,?\s*київ'
+    OR coalesce(meta_title_ru, '') ~* 'prom\.ua|купить на|украина,?\s*киев'
+    OR coalesce(meta_description_uk, '') ~* 'prom\.ua'
+    OR coalesce(meta_description_ru, '') ~* 'prom\.ua'
+  );
+
+-- 3. Hide seeded demo roots (accessories / audio / peripherals) that stay
+-- empty after Prom products land in "Електроніка". Leave them visible on a
+-- seed-only shop (no Prom import yet).
+UPDATE categories
+SET is_visible = false, updated_at = NOW()
+WHERE parent_id IS NULL
+  AND slug IN ('accessories', 'audio', 'peripherals')
+  AND is_visible IS DISTINCT FROM false
+  AND EXISTS (SELECT 1 FROM products p WHERE p.deleted_at IS NULL AND p.prom_id IS NOT NULL)
+  AND NOT EXISTS (
+    SELECT 1
+    FROM product_category pc
+    JOIN products p ON p.id = pc.product_id
+    WHERE pc.category_id = categories.id
+      AND p.deleted_at IS NULL
+      AND p.is_visible IS DISTINCT FROM false
+  );
+
 -- Older installs created `orders` without fulfillment `status` /
 -- `payment_status`. CREATE TABLE IF NOT EXISTS never adds columns to an
 -- existing table, so admin order lists crash with:
