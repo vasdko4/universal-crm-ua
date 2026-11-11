@@ -96,6 +96,7 @@ describe('wayforpayVerifyCallback', () => {
     const signature = crypto
       .createHmac('md5', secret)
       .update(
+        // codeql[js/weak-cryptographic-algorithm]: HMAC-MD5 is mandated by WayForPay's callback protocol — this test signs exactly like the gateway does. The production verifier (lib/payments/clients.ts) uses the same algorithm; MD5 here is protocol compatibility, not a security choice.
         [
           s('merchantAccount'),
           s('orderReference'),
