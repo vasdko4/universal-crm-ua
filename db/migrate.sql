@@ -340,12 +340,10 @@ SET
     regexp_replace(coalesce(meta_title_ru, ''),
       '[:|,·•]?\s*(купить на )?Prom\.ua\b.*$', '', 'gi'),
     '[,:]?\s*(ціна|цена)\s+[\d\s.,]+[₴грн.]*\s*$', '', 'gi')), ''),
-  meta_description_uk = NULLIF(trim(both FROM regexp_replace(
-    regexp_replace(coalesce(meta_description_uk, ''),
-      '[:|,·•]?\s*(купити на )?Prom\.ua\b.*$', '', 'gi')), '')),
-  meta_description_ru = NULLIF(trim(both FROM regexp_replace(
-    regexp_replace(coalesce(meta_description_ru, ''),
-      '[:|,·•]?\s*(купить на )?Prom\.ua\b.*$', '', 'gi')), '')),
+  meta_description_uk = NULLIF(trim(both FROM regexp_replace(coalesce(meta_description_uk, ''),
+    '[:|,·•]?\s*(купити на )?Prom\.ua\b.*$', '', 'gi')), ''),
+  meta_description_ru = NULLIF(trim(both FROM regexp_replace(coalesce(meta_description_ru, ''),
+    '[:|,·•]?\s*(купить на )?Prom\.ua\b.*$', '', 'gi')), ''),
   updated_at = NOW()
 WHERE deleted_at IS NULL
   AND prom_id IS NOT NULL
