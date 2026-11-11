@@ -105,12 +105,23 @@ export async function updateCategory(id: number, input: CategoryInput) {
     }
   }
 
+  // Slugs are set once at creation and kept stable across renames — the
+  // same rule as products: a rename must not break links/SEO already
+  // shared or indexed. Only self-heal categories that predate the slug.
+  const [current] = await db
+    .select({ slug: categories.slug })
+    .from(categories)
+    .where(eq(categories.id, id))
+    .limit(1)
+  if (!current) return { success: false, error: 'Категория не найдена' }
+  const slug = current.slug || slugify(input.nameUk, 'category')
+
   const updated = await db
     .update(categories)
     .set({
       nameUk: input.nameUk.trim(),
       nameRu: input.nameRu.trim(),
-      slug: slugify(input.nameUk, 'category'),
+      slug,
       descriptionUk: input.descriptionUk || null,
       descriptionRu: input.descriptionRu || null,
       parentId: input.parentId ?? null,

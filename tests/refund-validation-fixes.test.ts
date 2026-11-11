@@ -80,8 +80,9 @@ describe('audit small fixes (source-level)', () => {
 
   it('category/group/page toggles and deletes check the affected row', () => {
     const categories = source('app/actions/categories.ts')
-    // updateCategory + toggleCategoryVisibility + deleteCategory (3.4.76).
-    expect(count(categories, 'Категория не найдена')).toBe(3)
+    // updateCategory (existence pre-check for the stable slug + the
+    // returning() check) + toggleCategoryVisibility + deleteCategory.
+    expect(count(categories, 'Категория не найдена')).toBe(4)
     expect(count(categories, '.returning({ id: categories.id })')).toBe(3)
     const groups = source('app/actions/groups.ts')
     // updateGroup + toggleGroupActive + deleteGroup (3.4.76).

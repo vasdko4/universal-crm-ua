@@ -189,9 +189,11 @@ export async function createTtnForOrder(
     deliveryStatus: 'ТТН створено',
     deliveryMethod: 'nova_poshta',
   })
-  const { notifyShippedOrder } = await import('@/lib/notifications')
-  void notifyShippedOrder(orderId)
 
+  // Creating a TTN and notifying the customer that the order shipped are
+  // two separate actions: the TTN alone does not mean the parcel left the
+  // warehouse. The "shipped" notification is sent when the admin moves the
+  // order to the `shipped` status (updateOrderStatus).
   const t = getAdminDictionary(user.locale).auditLog
   void t
   void fillAuditTemplate

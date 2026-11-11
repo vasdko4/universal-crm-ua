@@ -315,7 +315,7 @@ function toProductRow(input: ProductInput) {
 async function syncRelations(
   productId: number,
   input: ProductInput,
-  tx: Pick<typeof db, 'delete' | 'insert'> = db,
+  tx: Pick<typeof db, 'delete' | 'insert' | 'select' | 'update'> = db,
 ) {
   await tx.delete(productCategory).where(eq(productCategory.productId, productId))
   if (input.categoryIds && input.categoryIds.length > 0) {
@@ -344,27 +344,50 @@ async function syncRelations(
     )
   }
 
-  // Replace the variant matrix wholesale (simple + safe for the admin UI).
-  await tx.delete(productVariants).where(eq(productVariants.productId, productId))
+  // Variants keep stable IDs across saves: match incoming rows to existing
+  // ones by options first, then by SKU, and update in place. Only rows with
+  // no match are inserted, and only existing rows with no incoming match are
+  // deleted. The old delete-all + re-insert gave every variant a new ID on
+  // every save, breaking any link that referenced a variant (cart lines,
+  // order items, external refs).
   const variants = cleanVariants(input)
-  if (variants.length > 0) {
-    await tx.insert(productVariants).values(
-      variants.map((v, i) => {
-        const qty = Math.max(0, Math.trunc(v.quantity || 0))
-        const old = v.oldPrice == null || v.oldPrice === '' ? null : v.oldPrice
-        return {
-          productId,
-          options: v.options,
-          sku: v.sku?.trim() || null,
-          price: v.price,
-          oldPrice: old,
-          quantity: qty,
-          image: v.image || null,
-          isInStock: qty > 0,
-          sortOrder: i,
-        }
-      })
-    )
+  const existing = await tx
+    .select({ id: productVariants.id, options: productVariants.options, sku: productVariants.sku })
+    .from(productVariants)
+    .where(eq(productVariants.productId, productId))
+  const variantKey = (options: VariantOptions): string =>
+    JSON.stringify(Object.keys(options).sort().map((k) => [k, options[k]]))
+  const byOptions = new Map(existing.map((v) => [variantKey(v.options as VariantOptions), v]))
+  const bySku = new Map(
+    existing.filter((v) => v.sku?.trim()).map((v) => [v.sku!.trim(), v]),
+  )
+  const matchedIds = new Set<number>()
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i]
+    const qty = Math.max(0, Math.trunc(v.quantity || 0))
+    const old = v.oldPrice == null || v.oldPrice === '' ? null : v.oldPrice
+    const row = {
+      productId,
+      options: v.options,
+      sku: v.sku?.trim() || null,
+      price: v.price,
+      oldPrice: old,
+      quantity: qty,
+      image: v.image || null,
+      isInStock: qty > 0,
+      sortOrder: i,
+    }
+    const target = byOptions.get(variantKey(v.options)) ?? (v.sku?.trim() ? bySku.get(v.sku.trim()) : undefined)
+    if (target && !matchedIds.has(target.id)) {
+      matchedIds.add(target.id)
+      await tx.update(productVariants).set(row).where(eq(productVariants.id, target.id))
+    } else {
+      await tx.insert(productVariants).values(row)
+    }
+  }
+  const stale = existing.filter((v) => !matchedIds.has(v.id))
+  if (stale.length > 0) {
+    await tx.delete(productVariants).where(inArray(productVariants.id, stale.map((v) => v.id)))
   }
 }
 

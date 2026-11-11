@@ -166,7 +166,12 @@ export async function updateArticle(id: number, input: ArticleInput) {
   if (error) return { success: false, error }
   const current = await getArticleById(id)
   if (!current) return { success: false, error: 'Статья не найдена' }
-  const slug = await ensureSlug(input.slug?.trim() || input.title, id)
+  // Slugs are set once at creation and kept stable across renames — the
+  // same rule as products. Only an explicit slug in the form changes it;
+  // a missing one is self-healed from the title.
+  const slug = input.slug?.trim()
+    ? await ensureSlug(input.slug.trim(), id)
+    : current.slug || (await ensureSlug(input.title, id))
   const isPublished = input.status === 'published'
   await db
     .update(articles)

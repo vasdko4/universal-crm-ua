@@ -16,12 +16,17 @@
  */
 
 import { pool } from '@/lib/db'
+import { tryAdvisoryLock } from '@/lib/db/advisory-lock'
 import { CRON_JOBS } from './registry'
 import { isCronJobEnabled, recordCronRun } from './store'
 
 const TICK_MS = 60_000
 let started = false
 const runningJobs = new Set<string>()
+
+// Same advisory-lock namespace as the Prom scheduler (one family of
+// scheduler locks; the key differs per job).
+const SCHEDULER_LOCK_NS = 20261111
 
 function baseUrl(): string {
   const port = process.env.PORT || '3000'
@@ -30,6 +35,16 @@ function baseUrl(): string {
 
 async function runJob(id: string): Promise<void> {
   if (runningJobs.has(id)) return
+  // Distributed lock: another instance may already be running this job.
+  // A lock failure (DB down) skips this tick; the next minute retries.
+  let lock: Awaited<ReturnType<typeof tryAdvisoryLock>> = null
+  try {
+    lock = await tryAdvisoryLock(SCHEDULER_LOCK_NS, `cron:${id}`)
+  } catch (e) {
+    console.error(`[cron-scheduler] ${id} lock failed:`, (e as Error).message)
+    return
+  }
+  if (!lock) return
   runningJobs.add(id)
   try {
     const secret = process.env.CRON_SECRET
@@ -61,6 +76,7 @@ async function runJob(id: string): Promise<void> {
     console.error(`[cron-scheduler] ${id} failed:`, msg)
   } finally {
     runningJobs.delete(id)
+    await lock.release()
   }
 }
 
