@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { isUsableSetupToken, isBlockedPostgresHost, postgresHostFromUrl } from '@/lib/setup-token'
+
+const root = resolve(import.meta.dirname, '..')
+// Structural tests compare source text with LF literals; normalize so the
+// file also passes on a Windows CRLF checkout.
+const source = (file: string) => readFileSync(resolve(root, file), 'utf8').replace(/\r\n/g, '\n')
 
 describe('isUsableSetupToken', () => {
   it('rejects missing, short and placeholder values', () => {
@@ -36,5 +43,34 @@ describe('postgresHostFromUrl', () => {
   it('extracts the hostname from a postgres URL', () => {
     expect(postgresHostFromUrl('postgres://u:p@10.0.0.8:5432/db')).toBe('10.0.0.8')
     expect(postgresHostFromUrl('not a url')).toBeNull()
+  })
+})
+
+describe('setup token revocation wiring (audit P1)', () => {
+  it('runSetup revokes the token on the success path only', () => {
+    const src = source('app/actions/setup.ts')
+    expect(src).toMatch(
+      /import \{[^}]*revokeSetupToken[^}]*\} from '@\/lib\/setup-token'/,
+    )
+    const revokeAt = src.indexOf('revokeSetupToken()')
+    expect(revokeAt).toBeGreaterThan(-1)
+    // The revoke call sits before the success return at the end of runSetup.
+    const successAt = src.indexOf('return { success: true as const }')
+    expect(revokeAt).toBeLessThan(successAt)
+    // Failure path: the catch block must not revoke — a failed setup keeps
+    // the token so the operator can retry runSetup.
+    const catchAt = src.lastIndexOf('} catch (e) {')
+    expect(src.slice(catchAt)).not.toContain('revokeSetupToken')
+  })
+
+  it('saveDatabaseConfig does not revoke the token (two-step setup flow)', () => {
+    // saveDatabaseConfig runs first; revoking there would break runSetup.
+    expect(source('app/actions/db-config.ts')).not.toContain('revokeSetupToken')
+  })
+
+  it('saveDatabaseConfig bounds the throwaway probe connection', () => {
+    const src = source('app/actions/db-config.ts')
+    expect(src).toMatch(/new Client\(\{[^}]*connectionTimeoutMillis: 10_000/s)
+    expect(src).toContain("SET statement_timeout = '120s'")
   })
 })

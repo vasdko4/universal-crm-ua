@@ -95,7 +95,6 @@ describe('audit A17: backup streams instead of buffering', () => {
 
   it('uses a gzip stream and bounded batches, not gzipSync on a full body', () => {
     expect(src).toContain('createGzip')
-    expect(src).toContain('ORDER BY ctid LIMIT $1 OFFSET $2')
     expect(src).not.toContain('gzipSync')
     expect(src).not.toContain('const lines: string[]')
   })
@@ -104,6 +103,22 @@ describe('audit A17: backup streams instead of buffering', () => {
     expect(src).toContain('SELECT COUNT(*)::int AS c')
     expect(src).toContain('MAX_DUMP_BYTES')
     expect(src).toContain('Backup aborted: dump exceeds')
+  })
+})
+
+describe('audit F1 (3.4.95): backup batches come from a server-side cursor', () => {
+  const src = source('lib/shop/db-backup.ts')
+
+  it('declares a cursor per table and FETCHes bounded batches from it', () => {
+    expect(src).toContain('DECLARE backup_cur CURSOR FOR SELECT * FROM')
+    expect(src).toContain('ORDER BY ctid')
+    expect(src).toContain('FETCH ${BATCH_SIZE} FROM backup_cur')
+    expect(src).toContain("CLOSE backup_cur")
+  })
+
+  it('has no LIMIT/OFFSET pagination left (quadratic re-scan)', () => {
+    expect(src).not.toContain('OFFSET $2')
+    expect(src).not.toContain('LIMIT $1 OFFSET')
   })
 })
 

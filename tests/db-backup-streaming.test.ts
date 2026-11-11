@@ -27,6 +27,9 @@ const tables: Record<string, Record<string, unknown>[]> = {
 let countOverride: Record<string, number> | null = null
 
 function makeClient() {
+  // Per-table cursor state for the server-side cursor (audit F1, 3.4.95):
+  // DECLARE opens a cursor on a table, FETCH returns the next batch.
+  let cursor: { table: string; pos: number } | null = null
   return {
     release: vi.fn(),
     query: vi.fn(async (text: string, params?: unknown[]) => {
@@ -47,10 +50,21 @@ function makeClient() {
       }
       if (/last_value/.test(text)) return { rows: [{ last_value: '3', is_called: true }] }
       if (/schema_migrations/.test(text)) return { rows: [{ migrate_sql_sha256: 'abc123' }] }
-      if (/ORDER BY ctid/.test(text)) {
-        const t = text.match(/FROM "([^"]+)"/)?.[1] ?? ''
-        const [limit, offset] = (params ?? []) as number[]
-        return { rows: (tables[t] ?? []).slice(offset, offset + limit) }
+      if (/^DECLARE \w+ CURSOR FOR SELECT \* FROM "([^"]+)" ORDER BY ctid/i.test(text)) {
+        cursor = { table: text.match(/FROM "([^"]+)"/)?.[1] ?? '', pos: 0 }
+        return { rows: [] }
+      }
+      if (/^FETCH (\d+) FROM \w+/i.test(text)) {
+        const n = Number(text.match(/^FETCH (\d+)/i)?.[1] ?? 0)
+        const t = cursor?.table ?? ''
+        const pos = cursor?.pos ?? 0
+        const rows = (tables[t] ?? []).slice(pos, pos + n)
+        if (cursor) cursor.pos += rows.length
+        return { rows }
+      }
+      if (/^CLOSE \w+/i.test(text)) {
+        cursor = null
+        return { rows: [] }
       }
       return { rows: [] }
     }),

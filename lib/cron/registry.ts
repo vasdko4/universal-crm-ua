@@ -46,7 +46,11 @@ export const CRON_JOBS: CronJobDef[] = [
   },
   {
     id: 'expire-pending',
-    intervalMs: DAY,
+    // 15 min, not daily: the 45-minute age check only makes sense if the
+    // job runs often (audit F2, 3.4.95). On the VPS scheduler this is the
+    // effective interval; Vercel Cron stays daily (Hobby limit) — see the
+    // route comment.
+    intervalMs: QUARTER_HOUR,
     nameKey: 'expirePendingName',
     descKey: 'expirePendingDesc',
   },

@@ -160,6 +160,7 @@ export type AdminDictionary = {
     createTtn: string
     ttnForceCreateTitle: string
     ttnForceCreateConfirm: string
+    ttnAlreadyLinked: string
     printTtn: string
     trackTtn: string
     refundViaGateway: string
@@ -2165,6 +2166,7 @@ const uk: AdminDictionary = {
     createTtn: 'Створити ТТН',
     ttnForceCreateTitle: 'Створити нову ТТН?',
     ttnForceCreateConfirm: 'Створити нову ТТН',
+    ttnAlreadyLinked: 'ТТН вже прив’язана до іншого замовлення — спробуйте ще раз',
     printTtn: 'Друкувати етикетку',
     trackTtn: 'Трекінг НП',
     refundViaGateway: 'Повернути через шлюз',
@@ -4203,6 +4205,7 @@ const ru: AdminDictionary = {
     createTtn: 'Создать ТТН',
     ttnForceCreateTitle: 'Создать новую ТТН?',
     ttnForceCreateConfirm: 'Создать новую ТТН',
+    ttnAlreadyLinked: 'ТТН уже привязана к другому заказу — попробуйте ещё раз',
     printTtn: 'Печать этикетки',
     trackTtn: 'Трекинг НП',
     refundViaGateway: 'Вернуть через шлюз',

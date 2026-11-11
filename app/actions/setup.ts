@@ -11,7 +11,7 @@ import { normalizeOrigin } from '@/lib/seo'
 import { TEMPLATES } from '@/lib/shop/templates'
 import { getLocale } from '@/lib/i18n/server'
 import { getSetupDictionary } from '@/lib/i18n/setup'
-import { authorizeSetupToken } from '@/lib/setup-token'
+import { authorizeSetupToken, revokeSetupToken } from '@/lib/setup-token'
 import { encryptSecret } from '@/lib/secrets'
 
 // Essential operational data every fresh install needs to function: admin/staff
@@ -198,6 +198,11 @@ export async function runSetup(input: SetupInput) {
     }
 
     revalidatePath('/', 'layout')
+    // Setup is complete: the first admin exists, so the install token has
+    // served its purpose. Revoke it now — a token that leaked during the
+    // install window must not stay valid forever. Success path only: a
+    // failed setup leaves the token in place so the operator can retry.
+    revokeSetupToken()
     return { success: true as const }
   } catch (e) {
     return {

@@ -12,7 +12,7 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16-alpine
@@ -53,7 +53,7 @@ jobs:
         # intermittently (exit 100) — 3 consecutive failures on 11.11.2026
         # for 3.4.92, all "Temporary failure resolving" on every mirror.
         # Two attempts only: each apt attempt burns ~7 min and the job
-        # timeout is 25 min. If apt is still down, fall back to the
+        # timeout is 35 min. If apt is still down, fall back to the
         # browser-only install — the runner image already carries the
         # system libraries (only fonts are missing), and the functional
         # e2e tests do not depend on font rendering.

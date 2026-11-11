@@ -110,9 +110,18 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
     return { ok: false, error: t.invalidPostgres }
   }
 
-  const client = new Client({ connectionString: url, ssl: sslForConnectionString(url) })
+  // Bound the probe: node-postgres defaults to no connect timeout, so a
+  // black-holed internal host would hang this server action indefinitely.
+  const client = new Client({
+    connectionString: url,
+    ssl: sslForConnectionString(url),
+    connectionTimeoutMillis: 10_000,
+  })
   try {
     await client.connect()
+    // Bound the DDL too (same 120s value as the migrate runner): the schema
+    // apply runs on this same connection.
+    await client.query("SET statement_timeout = '120s'")
     await client.query('SELECT 1')
   } catch (e) {
     await client.end().catch(() => {})

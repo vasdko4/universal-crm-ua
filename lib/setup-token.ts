@@ -1,5 +1,5 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -8,7 +8,9 @@ import { join } from 'node:path'
  * Those actions are public on a fresh install (no users yet). Without a token
  * anyone on the internet can point the app at their own Postgres and become
  * the first admin. The token is generated on first boot (printed once) or
- * taken from SETUP_TOKEN / `.setup-token`.
+ * taken from SETUP_TOKEN / `.setup-token`. Once `runSetup` completes,
+ * `revokeSetupToken()` removes it so a token that leaked during the install
+ * window stops working.
  */
 const PLACEHOLDER_TOKENS = new Set([
   'replace-me-with-openssl-rand-base64-32',
@@ -92,6 +94,27 @@ export function authorizeSetupToken(provided: string | null | undefined): boolea
   const got = (provided ?? '').trim()
   if (!got) return false
   return secretsMatch(got, expected)
+}
+
+/**
+ * Revoke the install token after a completed setup, making the "one-shot"
+ * semantics real. Removes the `.setup-token` file (if any) and clears the
+ * in-process env value. Best-effort: a missing file is normal (the token
+ * may have come from env), and an unlink failure must never break a
+ * finished setup — it is logged instead.
+ *
+ * Call only on the runSetup() success path, after the first admin exists.
+ * A failed setup must keep the token so the operator can retry.
+ */
+export function revokeSetupToken(): void {
+  try {
+    unlinkSync(TOKEN_FILE)
+  } catch (e) {
+    if ((e as { code?: string } | null)?.code !== 'ENOENT') {
+      console.error('[setup] could not remove .setup-token:', (e as Error).message)
+    }
+  }
+  delete process.env.SETUP_TOKEN
 }
 
 /**

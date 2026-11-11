@@ -11,8 +11,10 @@ export const maxDuration = 60
 /**
  * Cancels storefront orders that stayed in pending_payment after the gateway
  * window (FIX-07). Probes WayForPay/Monobank first so a late paid webhook is
- * not overwritten. Vercel Hobby only allows daily crons, so this runs once a
- * day; the 45-minute age check still drops anything older than that window.
+ * not overwritten. On the Docker VPS the in-process scheduler runs this
+ * every 15 minutes (registry interval), so the 45-minute age check is the
+ * effective threshold; Vercel Hobby only allows daily crons, so the Vercel
+ * schedule is still once a day (04:30 UTC).
  */
 export async function GET(req: NextRequest) {
   const auth = authorizeCronRequest(process.env.CRON_SECRET, req.headers.get('authorization'))
@@ -36,8 +38,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, ...result })
     } catch (e) {
       await recordCronRun('expire-pending', 'error', (e as Error).message)
-      // A dead expire-pending leaves pending_payment orders stuck (stock held,
-      // orders never cancelled) — ping the admin, not just the logs.
+      // A dead expire-pending leaves stale pending_payment orders lingering
+      // (no stock is held by unpaid orders — stock is deducted only at
+      // payment — but the orders stay visible in admin and their gateway
+      // invoices may still be payable) — ping the admin, not just the logs.
       void reportError('cron.expire-pending', e, { alertAdmin: true })
       return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
     }

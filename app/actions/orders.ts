@@ -18,6 +18,7 @@ import { computeOrderTotals } from '@/lib/shop/order-totals'
 import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
 import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
+import { isUniqueViolation } from '@/lib/db/errors'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
 import { getProductSlugMap } from '@/lib/shop/queries'
 import { restoreStockOnce, claimStockRededuct, adjustStockForOrder, applyOrderFulfillment, InsufficientStockError } from '@/lib/shop/order-fulfillment'
@@ -667,7 +668,6 @@ export async function updateOrderDelivery(
     deliveryAddress?: string
     trackingNumber?: string
     deliveryStatus?: string
-    deliveryCost?: number
   },
 ): Promise<{ success: boolean; error?: string }> {
   const user = await assertWritePermission('orders')
@@ -682,17 +682,31 @@ export async function updateOrderDelivery(
   if (data.deliveryCity !== undefined) set.deliveryCity = data.deliveryCity
   if (data.deliveryBranch !== undefined) set.deliveryBranch = data.deliveryBranch
   if (data.deliveryAddress !== undefined) set.deliveryAddress = data.deliveryAddress
-  if (data.trackingNumber !== undefined) {
-    set.trackingNumber = data.trackingNumber
-  }
+  // Normalize the TTN: trim whitespace; empty/blank means "no TTN" (NULL),
+  // restoring the invariant the 3.4.91 migration established — an empty
+  // string must never reach the unique index, or a second order cleared the
+  // same way would collide with the first.
+  const ttn = data.trackingNumber === undefined ? undefined : data.trackingNumber.trim() || null
+  if (ttn !== undefined) set.trackingNumber = ttn
   if (data.deliveryStatus !== undefined) set.deliveryStatus = data.deliveryStatus
-  await db.update(orders).set(set).where(eq(orders.id, id))
-  if (data.trackingNumber) {
+  try {
+    await db.update(orders).set(set).where(eq(orders.id, id))
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      // The TTN is already linked to another order (lost the race, or the
+      // admin typed a duplicate). The unique index is the final arbiter —
+      // a SELECT pre-check alone would race — so return a localized
+      // conflict result instead of an unhandled server-action exception.
+      return { success: false, error: getAdminDictionary(user.locale).orders.ttnAlreadyLinked }
+    }
+    throw e
+  }
+  if (ttn) {
     await addHistory(
       id,
       'delivery',
       fillAuditTemplate(getAdminDictionary(user.locale).auditLog.trackingCreated, {
-        number: data.trackingNumber,
+        number: ttn,
       }),
     )
   }

@@ -8,7 +8,9 @@
  * Data-only dump (schema lives in db/migrate.sql). The whole dump runs inside
  * a single REPEATABLE READ transaction so the snapshot is consistent.
  * Rows are streamed to disk in bounded batches (10k) through a gzip stream —
- * no table is ever fully buffered in memory (audit A17).
+ * no table is ever fully buffered in memory (audit A17). Batches come from
+ * a server-side cursor (audit F1, 3.4.95) — one scan+sort per table, not
+ * LIMIT/OFFSET re-scans that grow quadratically with row count.
  *
  * Storage: local directory (BACKUP_DIR env, default /app/data/backups).
  * In docker-compose.yml this path is a named volume (techno_store_backups)
@@ -34,7 +36,7 @@ export const BACKUP_RETENTION_DAYS = 10
 const MAX_DUMP_ROWS = 2_000_000
 /** Safety valve: abort the dump if the compressed output exceeds this. */
 const MAX_DUMP_BYTES = 512 * 1024 * 1024
-/** Rows fetched per query while streaming a table. */
+/** Rows fetched per FETCH while streaming a table. */
 const BATCH_SIZE = 10_000
 
 export interface BackupSequence {
@@ -236,19 +238,31 @@ export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary
 
     await writeChunk(`${JSON.stringify(manifest)}\n`)
     for (const table of tables) {
-      let offset = 0
-      for (;;) {
-        if (streamError) throw streamError
-        const { rows } = await client.query<Record<string, unknown>>(
-          `SELECT * FROM ${quoteIdent(table)} ORDER BY ctid LIMIT $1 OFFSET $2`,
-          [BATCH_SIZE, offset],
-        )
-        if (rows.length === 0) break
-        for (const row of rows) {
-          await writeChunk(`${JSON.stringify({ t: table, r: row })}\n`)
+      // Server-side cursor (audit F1, 3.4.95): one scan+sort per table with
+      // incremental FETCH — unlike LIMIT/OFFSET pagination, each batch does
+      // not re-scan the rows already read. The cursor lives on this
+      // transaction's client, so it sees the same REPEATABLE READ snapshot.
+      // (WHERE ctid > $last would not help: no index on ctid, the planner
+      // would still seq-scan + sort per batch.)
+      await client.query(`DECLARE backup_cur CURSOR FOR SELECT * FROM ${quoteIdent(table)} ORDER BY ctid`)
+      try {
+        for (;;) {
+          if (streamError) throw streamError
+          const { rows } = await client.query<Record<string, unknown>>(
+            `FETCH ${BATCH_SIZE} FROM backup_cur`,
+          )
+          if (rows.length === 0) break
+          for (const row of rows) {
+            await writeChunk(`${JSON.stringify({ t: table, r: row })}\n`)
+          }
+          if (rows.length < BATCH_SIZE) break
         }
-        offset += rows.length
-        if (rows.length < BATCH_SIZE) break
+      } finally {
+        try {
+          await client.query('CLOSE backup_cur')
+        } catch {
+          /* transaction is rolling back anyway; cursor dies with it */
+        }
       }
     }
     gzip.end()
