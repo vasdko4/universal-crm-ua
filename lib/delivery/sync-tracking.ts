@@ -141,8 +141,15 @@ export async function syncNovaPoshtaTracking(): Promise<DeliverySyncResult> {
         const items = itemsRes.rows.map(normalizeItem)
         const productSlugs = await getProductSlugMap(items.map((i) => i.productId))
         const msg = buildOrderMessage('status', order, items, storeCtx, productSlugs)
-        await sendMail({ to: email, subject: msg.subject, text: msg.text, html: msg.html })
-        result.emailed++
+        const sent = await sendMail({ to: email, subject: msg.subject, text: msg.text, html: msg.html })
+        if (sent.sent) {
+          result.emailed++
+        } else {
+          // The delivery status is already updated in the DB, so the next
+          // sync won't retry this email — surface the failure instead of
+          // counting it as sent.
+          result.errors.push(`Заказ №${row.order_number}: не удалось отправить письмо о статусе доставки`)
+        }
       }
     } catch (e) {
       result.errors.push(`Заказ №${row.order_number}: ${(e as Error).message}`)

@@ -182,7 +182,8 @@ export type QuestionListParams = {
 
 export async function getQuestions(params: QuestionListParams = {}) {
   await assertPermission('reviews')
-  const { status = 'all', page = 1, pageSize = 10 } = params
+  const { status = 'all', page: rawPage = 1, pageSize: rawPageSize = 10 } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize)
   const where = status !== 'all' ? eq(productQuestions.status, status) : undefined
   const [rows, totalRows] = await Promise.all([
     db.select().from(productQuestions).where(where).orderBy(desc(productQuestions.createdAt)).limit(pageSize).offset((page - 1) * pageSize),
@@ -198,7 +199,8 @@ export async function getQuestions(params: QuestionListParams = {}) {
 // for why this is a separate function rather than a safe default baked into
 // the now permission-gated getQuestions().
 export async function getPublicAnsweredQuestions(params: { page?: number; pageSize?: number; productId?: number } = {}) {
-  const { page = 1, pageSize = 10, productId } = params
+  const { page: rawPage = 1, pageSize: rawPageSize = 10, productId } = params
+  const { page, pageSize } = normPageParams(rawPage, rawPageSize)
   const conditions = [eq(productQuestions.status, 'answered')]
   if (productId != null) conditions.push(eq(productQuestions.productId, productId))
   const where = and(...conditions)

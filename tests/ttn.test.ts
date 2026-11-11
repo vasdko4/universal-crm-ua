@@ -89,6 +89,18 @@ describe('parcelWeightKg', () => {
     expect(parcelWeightKg([{ weightKg: null, quantity: 3 }], 0.5)).toBe(0.5)
     expect(parcelWeightKg([], 0.2)).toBe(0.2)
   })
+
+  it('adds the fallback once for the unweighed portion of a partial parcel', () => {
+    expect(
+      parcelWeightKg(
+        [
+          { weightKg: 1, quantity: 2 },
+          { weightKg: null, quantity: 1 },
+        ],
+        0.5,
+      ),
+    ).toBe(2.5)
+  })
 })
 
 describe('parseTtnFromSaveResponse', () => {

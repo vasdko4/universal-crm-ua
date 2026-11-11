@@ -100,8 +100,9 @@ export const products = pgTable('products', {
   sortOrder: integer('sort_order').default(0),
   viewsCount: integer('views_count').default(0),
   ordersCount: integer('orders_count').default(0),
-  // Admin-set addition to the displayed purchase count ("накрутка").
-  // Shoppers see ordersCount + purchasesBoost.
+  // Sort-only boost for popular listings: ordersCount + purchasesBoost is
+  // used ONLY in ORDER BY (see lib/shop/queries.ts). It does NOT change the
+  // displayed purchase count — shoppers see ordersCount alone.
   purchasesBoost: integer('purchases_boost').notNull().default(0),
   metaTitleUk: varchar('meta_title_uk', { length: 255 }),
   metaTitleRu: varchar('meta_title_ru', { length: 255 }),

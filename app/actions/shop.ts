@@ -1046,20 +1046,29 @@ export async function checkOrderPaymentStatus(
 
   let status = payment.status
   let amount: number | undefined
+  let refreshed = false
   if (payment.gatewayCode === 'wayforpay') {
     const r = await wayforpayCheckStatus(cfg, orderNumber)
     if (r.ok && r.status) {
       status = r.status
       amount = r.amount
+      refreshed = true
     }
   } else if (payment.gatewayCode === 'monobank' && payment.invoiceId) {
     const r = await monobankCheckStatus(cfg, payment.invoiceId)
     if (r.ok && r.status) {
       status = r.status
       amount = r.amount
+      refreshed = true
     }
   } else {
     return { ok: true, status: payment.status }
+  }
+
+  // A failed re-fetch must not re-settle the order with the stale status —
+  // report the failure and leave the order untouched.
+  if (!refreshed) {
+    return { ok: false, status: payment.status, message: 'Не удалось проверить статус у шлюза, попробуйте позже' }
   }
 
   await settlePayment(orderNumber, status, {

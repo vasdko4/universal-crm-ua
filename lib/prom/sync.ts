@@ -150,8 +150,11 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
 
   // 1) Pull the Prom catalog.
   let promProducts: PromProduct[]
+  let promTruncated = false
   try {
-    promProducts = await fetchAllPromProducts(token)
+    const fetched = await fetchAllPromProducts(token)
+    promProducts = fetched.items
+    promTruncated = fetched.truncated
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return { ...result, ok: false, reason: msg }
@@ -170,6 +173,9 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
   )
   const byPromId = new Map<number, EngineProduct>()
   const bySku = new Map<string, EngineProduct>()
+  // SKUs shared by multiple products are ambiguous: matching either one
+  // would be a coin flip, so they match nothing (and land in `unmatched`).
+  const ambiguousSkus = new Set<string>()
   const engineProducts: EngineProduct[] = []
   for (const r of rows) {
     const rawPromId = r.prom_id === null ? null : Number(r.prom_id)
@@ -186,7 +192,14 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
     }
     engineProducts.push(ep)
     if (ep.promId !== null && !byPromId.has(ep.promId)) byPromId.set(ep.promId, ep)
-    if (ep.sku !== null && !bySku.has(ep.sku)) bySku.set(ep.sku, ep)
+    if (ep.sku !== null) {
+      if (bySku.has(ep.sku)) {
+        ambiguousSkus.add(ep.sku)
+        bySku.delete(ep.sku)
+      } else if (!ambiguousSkus.has(ep.sku)) {
+        bySku.set(ep.sku, ep)
+      }
+    }
   }
 
   // Index Prom products by id and by normalized SKU.
@@ -195,7 +208,19 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
   for (const pp of promProducts) {
     if (!promById.has(pp.id)) promById.set(pp.id, pp)
     const sku = normSku(pp.sku)
-    if (sku !== null && !promBySku.has(sku)) promBySku.set(sku, pp)
+    if (sku !== null) {
+      if (promBySku.has(sku)) {
+        ambiguousSkus.add(sku)
+        promBySku.delete(sku)
+      } else if (!ambiguousSkus.has(sku)) {
+        promBySku.set(sku, pp)
+      }
+    }
+  }
+  if (ambiguousSkus.size > 0) {
+    console.warn(
+      `[prom] ambiguous SKUs skipped (shared by multiple products): ${[...ambiguousSkus].slice(0, 10).join(', ')}${ambiguousSkus.size > 10 ? ` (+${ambiguousSkus.size - 10} more)` : ''}`,
+    )
   }
   console.log(`[prom] matching: ${engineProducts.length} engine products (${bySku.size} with SKU), ${promProducts.length} Prom products`)
   // Debug: SKU samples from both sides + a few Prom names, to diagnose
@@ -350,6 +375,7 @@ export async function syncPromProducts(): Promise<PromSyncResult> {
   if (result.unmatched > 0) parts.push(`немає в Prom: ${result.unmatched}`)
   if (result.newOnProm > 0) parts.push(`нових в Prom: ${result.newOnProm}`)
   if (result.errors.length > 0) parts.push(`помилок: ${result.errors.length}`)
+  if (promTruncated) parts.push('увага: каталог Prom усічено лімітом 50 сторінок')
   result.summary = parts.join('; ')
 
   // 5) Remember the run in settings (direct SQL — no admin session here).

@@ -252,7 +252,7 @@ export function buildAdminOrderTelegramHtml(
       const name = escHtml(`${i.name}${i.variantLabel ? ` (${i.variantLabel})` : ''}`)
       const label =
         siteUrl && i.productId
-          ? `<a href="${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}">${name}</a>`
+          ? `<a href="${escHtml(`${siteUrl}/product/${productSlugs[i.productId] ?? i.productId}`)}">${name}</a>`
           : `<b>${name}</b>`
       return `▪️ ${label}\n      ${i.quantity} шт. × ${money(i.price, order.currency, 'uk')}`
     })
@@ -281,7 +281,7 @@ export function buildAdminOrderTelegramHtml(
   if (delivery) parts.push(`🚚 ${escHtml(delivery)}`)
   const comment = splitOrderNote(order.note).comment
   if (comment) parts.push(`💬 ${escHtml(comment)}`)
-  if (siteUrl) parts.push('', `🔗 <a href="${siteUrl}/admin/orders/${order.id}">Відкрити замовлення в адмінці</a>`)
+  if (siteUrl) parts.push('', `🔗 <a href="${escHtml(`${siteUrl}/admin/orders/${order.id}`)}">Відкрити замовлення в адмінці</a>`)
   return parts.join('\n')
 }
 

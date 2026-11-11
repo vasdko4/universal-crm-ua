@@ -141,11 +141,14 @@ function extractList(data: unknown): { items: unknown[]; total: number | null } 
  * Logs the raw keys of the first item once, so the field mapping can be
  * verified/tightened after the first live run.
  */
-export async function fetchAllPromProducts(token: string): Promise<PromProduct[]> {
+export async function fetchAllPromProducts(
+  token: string,
+): Promise<{ items: PromProduct[]; truncated: boolean }> {
   const out: PromProduct[] = []
   const seen = new Set<number>()
   let lastId: number | null = null
   let loggedKeys = false
+  let truncated = false
   // Cursor pagination: the API has no `offset` - it accepts `last_id`
   // ("products with identifiers no higher than the specified one"), so we
   // walk downwards from the smallest id of each page. The bound is
@@ -180,8 +183,13 @@ export async function fetchAllPromProducts(token: string): Promise<PromProduct[]
     lastId = minId
     // Be gentle with the marketplace API.
     await new Promise((r) => setTimeout(r, 300))
+    // Ran out of pages with a full last page — more products may exist.
+    if (page === MAX_PAGES) truncated = true
   }
-  return out
+  if (truncated) {
+    console.warn('[prom] products/list hit the 50-page cap — catalog truncated, some products were not synced')
+  }
+  return { items: out, truncated }
 }
 
 /**

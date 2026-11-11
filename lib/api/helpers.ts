@@ -67,7 +67,7 @@ export function ilikeEscaped(column: SQLWrapper, pattern: string): SQL {
 /**
  * Normalize page/pageSize for list actions. BUGFIX: unvalidated pagination
  * (page = -3, pageSize = 1e9) produced negative OFFSETs / huge payloads and
- * 500s on direct server-action calls. Clamps to page >= 1, 1..100 per page.
+ * 500s on direct server-action calls. Clamps to page 1..100, 1..100 per page.
  */
 export function normPageParams(
   page: unknown,
@@ -76,7 +76,7 @@ export function normPageParams(
 ): { page: number; pageSize: number } {
   const p = typeof page === 'number' && Number.isFinite(page) ? Math.floor(page) : 1
   const ps = typeof pageSize === 'number' && Number.isFinite(pageSize) ? Math.floor(pageSize) : defaultSize
-  return { page: Math.max(1, p), pageSize: Math.min(100, Math.max(1, ps)) }
+  return { page: Math.min(100, Math.max(1, p)), pageSize: Math.min(100, Math.max(1, ps)) }
 }
 
 const MAX_PAGE_SIZE = 100

@@ -239,7 +239,7 @@ ${L.footer}`
       // Shorten long product names for email readability (max ~60 chars)
       const shortName = i.name.length > 60 ? i.name.slice(0, 57) + '…' : i.name
       const nameHtml = productUrl
-        ? `<a href="${productUrl}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${esc(shortName)}</a>`
+        ? `<a href="${safeUrl(productUrl, siteUrl)}" style="color:#1a1a1a;text-decoration:none;font-weight:600">${esc(shortName)}</a>`
         : `<span style="font-weight:600">${esc(shortName)}</span>`
       return `<tr>
         <td style="padding:12px 0;border-bottom:1px solid #ececea;width:76px;vertical-align:top">${img}</td>

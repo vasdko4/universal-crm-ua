@@ -64,13 +64,16 @@ export async function POST(req: Request) {
   if (!payment) return NextResponse.json({ ok: true, note: 'unknown invoice' })
 
   const status = await monobankCheckStatus({ token }, invoiceId)
-  if (status.ok && status.status) {
-    await settlePayment(payment.orderReference, status.status, {
-      eventType: 'webhook',
-      message: `Monobank: ${status.message ?? status.status}`,
-      amount: status.amount,
-      raw: status.raw,
-    })
+  if (!status.ok || !status.status) {
+    // Answer non-2xx so Monobank retries the webhook later instead of
+    // silently dropping a payment whose status we never learned.
+    return NextResponse.json({ ok: false, error: 'status check failed' }, { status: 502 })
   }
+  await settlePayment(payment.orderReference, status.status, {
+    eventType: 'webhook',
+    message: `Monobank: ${status.message ?? status.status}`,
+    amount: status.amount,
+    raw: status.raw,
+  })
   return NextResponse.json({ ok: true })
 }

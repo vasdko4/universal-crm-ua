@@ -100,16 +100,23 @@ export function parcelWeightKg(
 ): number {
   let sum = 0
   let any = false
+  let missing = 0
   for (const line of lines) {
     const w = Number(line.weightKg)
     const q = Math.max(1, Math.floor(Number(line.quantity)) || 1)
     if (Number.isFinite(w) && w > 0) {
       sum += w * q
       any = true
+    } else {
+      missing += q
     }
   }
   const fallback = Number.isFinite(fallbackKg) && fallbackKg > 0 ? fallbackKg : 0.5
-  return Math.max(0.1, Number((any ? sum : fallback).toFixed(2)))
+  // No weights at all (including no lines) → the parcel weighs the default.
+  if (!any) return Math.max(0.1, Number(fallback.toFixed(2)))
+  // Partial weights used to understate the parcel: the unweighed lines were
+  // silently dropped. Add the default once for the unknown portion instead.
+  return Math.max(0.1, Number((sum + (missing > 0 ? fallback : 0)).toFixed(2)))
 }
 
 export function parseTtnFromSaveResponse(data: unknown): string | null {

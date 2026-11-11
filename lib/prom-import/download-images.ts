@@ -31,8 +31,26 @@ export async function downloadImageLocally(remoteUrl: string): Promise<string | 
     const contentType = res.headers.get('content-type') || ''
     if (!contentType.startsWith('image/')) return null
     
-    const buffer = Buffer.from(await res.arrayBuffer())
-    if (buffer.length === 0 || buffer.length > MAX_BYTES) return null
+    // Stream the body with a running size cap instead of buffering the
+    // whole response first: a hostile server could otherwise exhaust memory
+    // before the 8 MB check ever ran.
+    const body = res.body
+    if (!body) return null
+    const reader = body.getReader()
+    const chunks: Uint8Array[] = []
+    let total = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > MAX_BYTES) {
+        await reader.cancel()
+        return null
+      }
+      chunks.push(value)
+    }
+    const buffer = Buffer.concat(chunks)
+    if (buffer.length === 0) return null
     
     // Skip conversion for GIFs (animated) — keep as-is
     const isGif = contentType.includes('gif')
