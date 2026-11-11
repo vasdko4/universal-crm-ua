@@ -116,7 +116,8 @@ export function AddressesManager({ initialAddresses }: { initialAddresses: UserA
 
   async function makeDefault(id: number) {
     setBusyId(id)
-    await setDefaultAddress(id)
+    const res = await setDefaultAddress(id)
+    if (!res.ok) setFormError(t.genericError)
     setBusyId(null)
     router.refresh()
   }

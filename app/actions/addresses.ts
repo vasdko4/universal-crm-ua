@@ -171,7 +171,7 @@ export async function deleteUserAddress(id: number): Promise<{ ok: boolean }> {
   return { ok: true }
 }
 
-export async function setDefaultAddress(id: number): Promise<{ ok: boolean }> {
+export async function setDefaultAddress(id: number): Promise<{ ok: boolean; error?: 'not_found' }> {
   const user = await getShopUser()
   if (!user) return { ok: false }
   const client = await pool.connect()
@@ -180,10 +180,16 @@ export async function setDefaultAddress(id: number): Promise<{ ok: boolean }> {
     await client.query(`UPDATE "user_addresses" SET is_default = false WHERE user_id = $1`, [
       user.id,
     ])
-    await client.query(
+    const res = await client.query(
       `UPDATE "user_addresses" SET is_default = true, updated_at = now() WHERE id = $1 AND user_id = $2`,
       [id, user.id],
     )
+    if (res.rowCount === 0) {
+      // Unknown id, or an id that belongs to another user: roll back so the
+      // previous default survives instead of committing "no default" + ok:true.
+      await client.query('ROLLBACK')
+      return { ok: false, error: 'not_found' }
+    }
     await client.query('COMMIT')
     revalidatePath('/account/addresses')
     return { ok: true }

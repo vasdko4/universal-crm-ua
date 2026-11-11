@@ -23,8 +23,21 @@ export async function generateMetadata({
   const get = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]) as string | undefined
   // Search, filter and paginated views are near-duplicates of the canonical
   // catalog — keep them out of the index while still following links.
+  // isFiltered must cover every param parseParams() applies to the selection
+  // (discount, popular, price bounds, characteristics, sort), not just search
+  // and stock — otherwise filtered URLs stay indexed as duplicates.
   const search = catalogSearchQuery(get)
-  const isFiltered = Boolean(search || get('inStock')) || Number(get('page') ?? 1) > 1
+  const isFiltered =
+    Boolean(
+      search ||
+        get('inStock') ||
+        get('discount') === '1' ||
+        get('popular') === '1' ||
+        get('minPrice') ||
+        get('maxPrice') ||
+        get('chars') ||
+        (get('sort') && get('sort') !== 'popular'),
+    ) || Number(get('page') ?? 1) > 1
   const title = search ? `${dict.catalog.resultsFor}: «${search}»` : dict.catalog.title
   return {
     title,

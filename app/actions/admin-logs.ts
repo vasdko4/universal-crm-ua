@@ -44,7 +44,7 @@ export async function getAdminLogs(filter: LogsFilter = {}): Promise<LogsResult>
     // in the term matched everything. Escape wildcards with ESCAPE '\\'.
     params.push(`%${escapeLikeWildcards(search)}%`)
     where.push(
-      `(user_name ILIKE $${params.length} ESCAPE '\\' OR user_email ILIKE $${params.length} ESCAPE '\\' OR details ILIKE $${params.length} ESCAPE '\\' OR entity_id ILIKE $${params.length} ESCAPE '\\'')`,
+      `(user_name ILIKE $${params.length} ESCAPE '\\' OR user_email ILIKE $${params.length} ESCAPE '\\' OR details ILIKE $${params.length} ESCAPE '\\' OR entity_id ILIKE $${params.length} ESCAPE '\\')`,
     )
   }
 

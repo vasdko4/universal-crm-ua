@@ -5,6 +5,7 @@ import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, isNull, lte, ne, or,
 import type { Locale } from '@/lib/i18n/config'
 import { sanitizeSearch } from '@/lib/api/helpers'
 import { searchTokens, type CharFilter, type CatalogFacet, type CatalogFacetValue } from '@/lib/shop/catalog-search'
+import { normalizeCatalogPaging } from '@/lib/shop/catalog-paging'
 import { db } from '@/lib/db'
 import {
   products,
@@ -587,12 +588,11 @@ export function getCatalogProducts(params: CatalogParams = {}) {
 }
 
 async function _getCatalogProducts(params: CatalogParams = {}) {
-  // BUGFIX: the old Math.min(50, page) silently made every product past page
-  // 50 unreachable — requesting page 51 returned page 50's items again
-  // (duplicates in "load more"). Deep offsets are bounded by the perPage cap,
-  // so no artificial page ceiling is needed.
-  const page = Math.max(1, params.page ?? 1)
-  const perPage = Math.min(48, Math.max(1, params.perPage ?? 12))
+  // The old Math.min(50, page) silently made every product past page 50
+  // unreachable — requesting page 51 returned page 50's items again
+  // (duplicates in "load more"). The ceiling is now 100, far above the real
+  // page count, and normalizeCatalogPaging also rejects NaN/Infinity.
+  const { page, perPage } = normalizeCatalogPaging(params.page, params.perPage)
   const productSelect = buildProductSelect(params.locale ?? 'uk')
   const conditions = [params.hideOutOfStock ? homeWhere : baseWhere]
 

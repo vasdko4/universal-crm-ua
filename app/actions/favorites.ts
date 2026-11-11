@@ -5,12 +5,16 @@ import { getShopUser } from '@/lib/session'
 import { getProductsByIds, type ShopProduct } from '@/lib/shop/queries'
 import { getLocale } from '@/lib/i18n/server'
 
+// Bound the public id list: without a cap a single call can hand the query
+// an arbitrarily large array (recently-viewed caps at 12 the same way).
+const MAX_FAVORITE_IDS = 100
+
 // Resolve full product data for the given favorite ids. Works for guests too
 // (the ids come from the client provider, which reads localStorage when logged out).
 export async function getFavoriteProducts(ids: number[]): Promise<ShopProduct[]> {
   const clean = Array.from(
     new Set((ids || []).map((n) => Number(n)).filter((n) => Number.isInteger(n) && n > 0)),
-  )
+  ).slice(0, MAX_FAVORITE_IDS)
   if (clean.length === 0) return []
   const locale = await getLocale()
   return getProductsByIds(clean, locale)
@@ -58,7 +62,7 @@ export async function mergeFavorites(ids: number[]): Promise<number[]> {
   if (!user) return []
   const clean = Array.from(
     new Set((ids || []).map((n) => Number(n)).filter((n) => Number.isInteger(n) && n > 0)),
-  )
+  ).slice(0, MAX_FAVORITE_IDS)
   if (clean.length > 0) {
     // Bulk upsert; unnest keeps it to a single round-trip.
     await pool.query(

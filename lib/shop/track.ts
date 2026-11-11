@@ -42,17 +42,27 @@ export function sendAnalyticsEvent(event: {
       sessionId: getAnalyticsSessionId(),
       referrer: event.type === 'pageview' ? getExternalReferrer() : undefined,
     })
-    // sendBeacon survives page navigations; fetch keepalive is the fallback.
-    if (navigator.sendBeacon) {
-      const blob = new Blob([payload], { type: 'application/json' })
-      navigator.sendBeacon('/api/track', blob)
-    } else {
+    // sendBeacon survives page navigations; fetch keepalive is the fallback —
+    // also when sendBeacon refuses the payload (returns false).
+    const sendViaFetch = () => {
       fetch('/api/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: payload,
         keepalive: true,
       }).catch(() => {})
+    }
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' })
+      let queued = false
+      try {
+        queued = navigator.sendBeacon('/api/track', blob)
+      } catch {
+        queued = false
+      }
+      if (!queued) sendViaFetch()
+    } else {
+      sendViaFetch()
     }
   } catch {
     // ignore
