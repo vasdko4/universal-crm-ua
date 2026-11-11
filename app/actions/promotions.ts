@@ -11,6 +11,7 @@ import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { getLocale } from '@/lib/i18n/server'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { escapeLikeWildcards, ilikeEscaped, sanitizeSearch } from '@/lib/api/helpers'
+import { normalizeCatalogPaging } from '@/lib/shop/catalog-paging'
 import { recordPromotionUsageInternal } from '@/lib/shop/promo-usage'
 import { isUniqueViolation } from '@/lib/db/errors'
 import { kyivDayBoundary } from '@/lib/shop/promo-dates'
@@ -66,7 +67,8 @@ const DUP_CODE_ERROR = 'Промокод уже используется дру�
 
 function validate(input: PromotionInput): string | null {
   if (!input.name?.trim()) return 'Название акции обязательно'
-  if (!(input.discountValue > 0)) return 'Размер скидки должен быть больше нуля'
+  if (!Number.isFinite(input.discountValue) || !(input.discountValue > 0))
+    return 'Размер скидки должен быть больше нуля'
   if (input.discountType === 'percentage' && input.discountValue > 100) {
     return 'Процент скидки не может превышать 100%'
   }
@@ -105,7 +107,8 @@ export async function generatePromoCode(): Promise<string> {
 
 export async function getPromotions(params: PromotionListParams = {}) {
   await assertPermission('promotions')
-  const { search = '', status = 'all', page = 1, pageSize = 8 } = params
+  const { search = '', status = 'all' } = params
+  const { page, perPage: pageSize } = normalizeCatalogPaging(params.page, params.pageSize ?? 8)
   const conditions = []
   const q = sanitizeSearch(search).trim()
   if (q) conditions.push(ilikeEscaped(promotions.name, `%${escapeLikeWildcards(q)}%`))

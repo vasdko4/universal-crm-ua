@@ -201,10 +201,10 @@ function validateProduct(input: ProductInput): string | null {
     return 'Укажите название товара хотя бы на одном языке'
   }
   const price = Number(input.price)
-  if (Number.isNaN(price) || price < 0) return 'Цена должна быть неотрицательным числом'
+  if (!Number.isFinite(price) || price < 0) return 'Цена должна быть неотрицательным числом'
   if (!Number.isInteger(input.quantity) || input.quantity < 0)
     return 'Количество должно быть неотрицательным целым числом'
-  if (input.oldPrice != null && input.oldPrice !== '' && (Number.isNaN(Number(input.oldPrice)) || Number(input.oldPrice) < 0))
+  if (input.oldPrice != null && input.oldPrice !== '' && (!Number.isFinite(Number(input.oldPrice)) || Number(input.oldPrice) < 0))
     return 'Старая цена должна быть неотрицательным числом'
   return null
 }
@@ -241,7 +241,7 @@ function cleanVariants(input: ProductInput): VariantInput[] {
     .filter((v) => {
       if (Object.keys(v.options).length !== axisNames.length || v.price === '') return false
       const n = Number(v.price)
-      return !Number.isNaN(n) && n >= 0
+      return Number.isFinite(n) && n >= 0
     })
 }
 

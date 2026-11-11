@@ -308,6 +308,15 @@ export async function createOrder(input: {
   tags?: string[]
 }) {
   const me = await assertWritePermission('orders')
+  // BUGFIX: like updateOrderPayment, setting a financial status needs the
+  // payments right too — without this, an orders-only role could create
+  // orders already marked paid/refunded.
+  if (input.paymentStatus != null && input.paymentStatus !== 'unpaid') {
+    await assertWritePermission('payments')
+  }
+  if (input.paymentStatus != null && !PAYMENT_STATUSES.some((s) => s.value === input.paymentStatus)) {
+    return { success: false, error: 'Невідомий статус оплати' }
+  }
   // BUGFIX: quantities were never validated. A line with quantity = -5 passed
   // `applyOrderFulfillment`'s `quantity >= -5` check and INFLATED warehouse
   // stock (quantity - (-5)); quantity = 0 created junk lines. Reject early.

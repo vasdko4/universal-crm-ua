@@ -138,7 +138,8 @@ export async function sendEmailVerification() {
     logoUrl: settings?.logoUrl,
     supportEmail: (settings?.emailSettings?.fromEmail as string) || null,
   })
-  await sendMail({ to: email, subject: mail.subject, text: mail.text, html: mail.html })
+  const sent = await sendMail({ to: email, subject: mail.subject, text: mail.text, html: mail.html })
+  if (!sent.sent) return { success: false as const, error: 'Не вдалося надіслати код. Спробуйте пізніше.' }
   return { success: true as const, alreadyVerified: false as const }
 }
 
@@ -263,11 +264,12 @@ export async function requestEmailChange(newEmailRaw: string) {
     [identifier, JSON.stringify({ email: newEmail, code }), CODE_TTL_MINUTES],
   )
 
-  await sendMail({
+  const sent = await sendMail({
     to: newEmail,
     subject: 'Код подтверждения смены email',
     text: `Ваш код подтверждения: ${code}\n\nКод действует ${CODE_TTL_MINUTES} минут. Если вы не запрашивали смену email, проигнорируйте это письмо.`,
   })
+  if (!sent.sent) return { success: false, error: 'Не вдалося надіслати код. Спробуйте пізніше.' }
 
   return { success: true }
 }
@@ -379,13 +381,14 @@ export async function requestPasswordChange() {
 
   const locale = await getLocale().catch(() => 'uk' as const)
   const uk = locale !== 'ru'
-  await sendMail({
+  const sent = await sendMail({
     to: email,
     subject: uk ? 'Код для зміни пароля' : 'Код для смены пароля',
     text: uk
       ? `Ваш код для зміни пароля: ${code}\n\nКод діє ${PASSWORD_CODE_TTL_MINUTES} хвилин. Якщо ви не запитували зміну — проігноруйте цей лист.`
       : `Ваш код для смены пароля: ${code}\n\nКод действует ${PASSWORD_CODE_TTL_MINUTES} минут. Если вы не запрашивали смену — проигнорируйте это письмо.`,
   })
+  if (!sent.sent) return { success: false as const, error: 'Не вдалося надіслати код. Спробуйте пізніше.' }
 
   return { success: true as const }
 }

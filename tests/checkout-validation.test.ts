@@ -54,10 +54,8 @@ describe('validateCheckoutInput', () => {
     }
   })
 
-  it('floors fractional quantities instead of rejecting', () => {
-    const r = validateCheckoutInput(base({ items: [{ productId: 1, quantity: 2.7 }] }))
-    expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value.items[0].quantity).toBe(2)
+  it('rejects fractional quantities instead of flooring them', () => {
+    expect(validateCheckoutInput(base({ items: [{ productId: 1, quantity: 2.7 }] })).ok).toBe(false)
   })
 
   it('rejects bad product and variant ids', () => {

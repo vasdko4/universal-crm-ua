@@ -68,12 +68,12 @@ function cap(v: unknown, max: number): string | null {
 }
 
 /** Positive-integer parser that never lets NaN/Infinity/floats through. */
-function toIntInRange(v: unknown, min: number, max: number): number | null {
+export function toIntInRange(v: unknown, min: number, max: number): number | null {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN
   if (!Number.isFinite(n)) return null
-  const i = Math.floor(n)
-  if (i < min || i > max) return null
-  return i
+  if (!Number.isInteger(n)) return null
+  if (n < min || n > max) return null
+  return n
 }
 
 export function validateCheckoutInput(input: CheckoutInput, locale: Locale = 'ru'): CheckoutValidation {

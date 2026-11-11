@@ -321,7 +321,12 @@ export async function refundPayment(
   if (!plan.ok) {
     return {
       ok: false,
-      message: plan.error === 'exceeds' ? 'Сумма возврата превышает сумму платежа' : 'Нет доступной суммы для возврата',
+      message:
+        plan.error === 'exceeds'
+          ? 'Сумма возврата превышает сумму платежа'
+          : plan.error === 'invalid'
+            ? 'Некорректная сумма возврата'
+            : 'Нет доступной суммы для возврата',
     }
   }
   const refundAmount = plan.amount

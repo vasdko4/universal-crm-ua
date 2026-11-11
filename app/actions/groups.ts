@@ -81,7 +81,7 @@ export async function updateGroup(id: number, input: GroupInput) {
   const error = validate(input)
   if (error) return { success: false, error }
 
-  await db
+  const updated = await db
     .update(productGroups)
     .set({
       nameUk: input.nameUk.trim(),
@@ -94,6 +94,8 @@ export async function updateGroup(id: number, input: GroupInput) {
       updatedAt: new Date(),
     })
     .where(eq(productGroups.id, id))
+    .returning({ id: productGroups.id })
+  if (updated.length === 0) return { success: false, error: 'Группа не найдена' }
   revalidatePath('/admin/groups')
   return { success: true }
 }
@@ -112,10 +114,12 @@ export async function deleteGroup(id: number) {
 
 export async function toggleGroupActive(id: number, isActive: boolean) {
   await assertWritePermission('groups')
-  await db
+  const updated = await db
     .update(productGroups)
     .set({ isActive, updatedAt: new Date() })
     .where(eq(productGroups.id, id))
+    .returning({ id: productGroups.id })
+  if (updated.length === 0) return { success: false, error: 'Группа не найдена' }
   revalidatePath('/admin/groups')
   return { success: true }
 }

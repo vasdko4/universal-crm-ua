@@ -105,7 +105,7 @@ export async function updateCategory(id: number, input: CategoryInput) {
     }
   }
 
-  await db
+  const updated = await db
     .update(categories)
     .set({
       nameUk: input.nameUk.trim(),
@@ -120,6 +120,8 @@ export async function updateCategory(id: number, input: CategoryInput) {
       updatedAt: new Date(),
     })
     .where(eq(categories.id, id))
+    .returning({ id: categories.id })
+  if (updated.length === 0) return { success: false, error: 'Категория не найдена' }
   revalidatePath('/admin/categories')
   revalidateStorefront()
   return { success: true }
@@ -144,10 +146,12 @@ export async function deleteCategory(id: number) {
 
 export async function toggleCategoryVisibility(id: number, isVisible: boolean) {
   await assertWritePermission('categories')
-  await db
+  const updated = await db
     .update(categories)
     .set({ isVisible, updatedAt: new Date() })
     .where(eq(categories.id, id))
+    .returning({ id: categories.id })
+  if (updated.length === 0) return { success: false, error: 'Категория не найдена' }
   revalidatePath('/admin/categories')
   revalidateStorefront()
   return { success: true }

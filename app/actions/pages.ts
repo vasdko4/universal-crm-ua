@@ -171,17 +171,20 @@ export async function updatePage(id: number, input: PageInput) {
 
 export async function togglePageStatus(id: number, status: 'draft' | 'published') {
   await assertWritePermission('pages')
-  await db
+  const updated = await db
     .update(pages)
     .set({ status, publishedAt: status === 'published' ? new Date() : null, updatedAt: new Date() })
     .where(eq(pages.id, id))
+    .returning({ id: pages.id })
+  if (updated.length === 0) return { success: false, error: 'Страница не найдена' }
   revalidatePath('/admin/pages')
   return { success: true }
 }
 
 export async function deletePage(id: number) {
   await assertWritePermission('pages')
-  await db.delete(pages).where(eq(pages.id, id))
+  const deleted = await db.delete(pages).where(eq(pages.id, id)).returning({ id: pages.id })
+  if (deleted.length === 0) return { success: false, error: 'Страница не найдена' }
   revalidatePath('/admin/pages')
   return { success: true }
 }
