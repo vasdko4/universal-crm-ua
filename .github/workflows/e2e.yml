@@ -49,19 +49,24 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Playwright Chromium
         # --with-deps runs apt-get for Chromium's system libraries, and the
-        # runner's apt index download fails intermittently (exit 100) —
-        # 3 consecutive failures on 11.11.2026 for 3.4.92. Retry the whole
-        # install; apt is idempotent, so a partial first attempt is safe.
+        # runner's apt DNS (azure/archive/security.ubuntu.com) fails
+        # intermittently (exit 100) — 3 consecutive failures on 11.11.2026
+        # for 3.4.92, all "Temporary failure resolving" on every mirror.
+        # Two attempts only: each apt attempt burns ~7 min and the job
+        # timeout is 25 min. If apt is still down, fall back to the
+        # browser-only install — the runner image already carries the
+        # system libraries (only fonts are missing), and the functional
+        # e2e tests do not depend on font rendering.
         run: |
-          for attempt in 1 2 3; do
+          for attempt in 1 2; do
             if pnpm exec playwright install --with-deps chromium; then
               exit 0
             fi
             echo "Playwright install attempt $attempt failed, retrying in 30s..."
             sleep 30
           done
-          echo "Playwright install failed after 3 attempts"
-          exit 1
+          echo "System-dependency install failed (apt DNS), falling back to browser-only install..."
+          pnpm exec playwright install chromium
       - name: Apply schema and demo seed
         run: node scripts/db-setup.mjs --seed
       - name: Create e2e admin
