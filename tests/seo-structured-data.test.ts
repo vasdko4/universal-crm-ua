@@ -1,5 +1,39 @@
 import { describe, it, expect } from 'vitest'
-import { resolveOgImageUrl, buildBreadcrumbLd, buildFaqPageLd } from '@/lib/seo'
+import {
+  resolveOgImageUrl,
+  buildBreadcrumbLd,
+  buildFaqPageLd,
+  merchantReturnPolicy,
+  shippingDetails,
+} from '@/lib/seo'
+
+describe('merchantReturnPolicy', () => {
+  it('states the 14-day return window with the customer paying return shipping', () => {
+    expect(merchantReturnPolicy()).toEqual({
+      '@type': 'MerchantReturnPolicy',
+      returnPolicyCountry: 'UA',
+      applicableCountry: 'UA',
+      returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+      merchantReturnDays: 14,
+      returnMethod: 'https://schema.org/ReturnByMail',
+      // Search Console 2026-11-12: missing returnFees (offers.hasMerchantReturnPolicy).
+      // The buyer sends the return back by Nova Poshta at their own expense
+      // (see /povernennya) — never claim FreeReturn.
+      returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility',
+    })
+  })
+})
+
+describe('shippingDetails', () => {
+  it('emits destination and delivery time without a hardcoded rate', () => {
+    // shippingRate comes from the merchantFeed.shippingPrice admin setting
+    // only when set — a hardcoded 0 (free shipping) was never true.
+    const details = shippingDetails()
+    expect(details['@type']).toBe('OfferShippingDetails')
+    expect(details.shippingDestination).toEqual({ '@type': 'DefinedRegion', addressCountry: 'UA' })
+    expect('shippingRate' in details).toBe(false)
+  })
+})
 
 const ORIGIN = 'https://shop.example.com'
 

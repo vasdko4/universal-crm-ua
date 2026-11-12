@@ -167,8 +167,9 @@ export function extractBrand(characteristics: { name: string; value: string }[])
 /**
  * A merchant return policy that reflects Ukrainian consumer law (14-day
  * return window). Included in Product structured data so listings can show
- * return info in rich results. No returnFees claim: the store has no
- * configured free-return rule, and return shipping is not free by default.
+ * return info in rich results. returnFees is ReturnFeesCustomerResponsibility:
+ * the buyer sends the return back by Nova Poshta at their own expense (see
+ * the /povernennya page) — return shipping is not free by default.
  */
 export function merchantReturnPolicy() {
   return {
@@ -179,6 +180,7 @@ export function merchantReturnPolicy() {
     returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
     merchantReturnDays: 14,
     returnMethod: 'https://schema.org/ReturnByMail',
+    returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility',
   }
 }
 
