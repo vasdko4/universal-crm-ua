@@ -34,7 +34,7 @@ function StatCard({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-2xl font-bold tracking-tight text-card-foreground">{value}</p>
-        <p className="mt-0.5 truncate text-sm text-muted-foreground">{label}</p>
+        <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{label}</p>
       </div>
       <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
     </Link>

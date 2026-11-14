@@ -36,7 +36,13 @@ export default async function AccountLayout({ children }: { children: React.Reac
           </div>
         </div>
       </header>
-      <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
+      {/*
+        Plain block on mobile, grid only on lg: the account nav wrapper is
+        position:sticky, and a grid item's containing block is its own cell
+        (too short to stick in). As a block child of this tall container the
+        wrapper can stick under the mobile header while the page scrolls.
+      */}
+      <div className="mt-6 space-y-6 lg:grid lg:grid-cols-[220px_1fr] lg:gap-6 lg:space-y-0">
         <AccountNav isAdmin={isAdmin} />
         <div className="min-w-0">
           <EmailVerifyBanner />

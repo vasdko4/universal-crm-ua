@@ -19,8 +19,20 @@ import { cn } from '@/lib/utils'
 
 /**
  * Account navigation.
- * Mobile: sticky horizontally-scrollable tab bar pinned under the viewport top.
- * Desktop (lg+): vertical sidebar.
+ * Mobile: horizontally-scrollable tab bar pinned under the sticky site
+ * header while scrolling. Desktop (lg+): vertical sidebar, also pinned
+ * under the header.
+ *
+ * The STICKY element is the wrapper div, not the <nav>: on mobile the
+ * wrapper is a direct block child of the (tall) account container, so it
+ * can stick while the page scrolls; the <nav> inside it is short and could
+ * not stick on its own (its containing block would be its own height).
+ * The parent in (protected)/layout.tsx is therefore a plain block on
+ * mobile and only becomes a grid on lg.
+ *
+ * Offsets are the measured sticky header heights: mobile header is 61px
+ * (py-2 16px + h-11 search field 44px + 1px border), desktop header is
+ * ~112px (top row ~68px + nav row ~44px) + 16px gap = 128px.
  */
 export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
@@ -56,10 +68,10 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
     )
 
   return (
-    <div className="min-w-0 lg:sticky lg:top-6 lg:w-[220px] lg:self-start">
+    <div className="sticky top-[61px] z-30 min-w-0 lg:top-[128px] lg:w-[220px] lg:self-start">
       <nav
         aria-label={dict.account.title}
-        className="sticky top-[72px] z-30 flex gap-1 overflow-x-auto rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] supports-[backdrop-filter]:bg-card/80 lg:static lg:flex-col lg:overflow-visible lg:bg-card lg:p-2 lg:shadow-none"
+        className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] supports-[backdrop-filter]:bg-card/80 lg:flex-col lg:overflow-visible lg:bg-card lg:p-2 lg:shadow-none"
       >
         {LINKS.map((l) => {
           const Icon = l.icon

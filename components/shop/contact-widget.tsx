@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Phone, Mail, X, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { stripLocalePrefix } from '@/lib/i18n/config'
 import type { ContactWidget, WidgetChannelKey } from '@/app/actions/settings-store'
 import { useI18n } from '@/lib/i18n/client'
 
@@ -75,6 +77,7 @@ export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
   const [open, setOpen] = useState(false)
   const [hidden, setHidden] = useState(false)
   const { dict } = useI18n()
+  const pathname = usePathname()
 
   // Hide the floating button while scrolling down so it never covers content
   // (e.g. the stock status on the product page). On scroll up it reappears
@@ -122,6 +125,13 @@ export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
   )
 
   if (!widget.enabled || channels.length === 0) return null
+
+  // Never float over the personal account: the button sits above the
+  // bottom nav and covers order prices and form text while the user reads
+  // (the scroll-hide only helps while scrolling). Contact details stay in
+  // the footer on these pages.
+  const path = stripLocalePrefix(pathname ?? '')
+  if (path === '/account' || path.startsWith('/account/')) return null
 
   return (
     <div

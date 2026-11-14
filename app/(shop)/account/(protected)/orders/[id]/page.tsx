@@ -66,7 +66,7 @@ export default async function MyOrderDetailPage({
         <ArrowLeft className="size-4" /> {t.backToOrders}
       </Link>
 
-      <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-card-foreground">
             {t.orderHeading}
@@ -83,7 +83,7 @@ export default async function MyOrderDetailPage({
       </div>
 
       {/* Recipient & delivery details */}
-      <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
         <h3 className="mb-2 text-base font-semibold text-card-foreground">{t.recipientAndDelivery}</h3>
         <div className="grid gap-x-6 sm:grid-cols-2">
           {order.trackingNumber ? (
@@ -215,19 +215,19 @@ export default async function MyOrderDetailPage({
                 {it.productId ? (
                   <Link
                     href={localizedPath(`/product/${productSlugs[it.productId] ?? it.productId}`, locale)}
-                    className="group flex items-center gap-3 px-5 py-3"
+                    className="group flex items-center gap-3 px-4 py-3 sm:px-5"
                   >
                     {body}
                   </Link>
                 ) : (
-                  <div className="flex items-center gap-3 px-5 py-3">{body}</div>
+                  <div className="flex items-center gap-3 px-4 py-3 sm:px-5">{body}</div>
                 )}
               </li>
             )
           })}
         </ul>
         {Number(order.discountTotal) > 0 && (
-          <div className="flex items-center justify-between border-t border-border px-5 pt-4 text-sm">
+          <div className="flex items-center justify-between border-t border-border px-4 pt-4 text-sm sm:px-5">
             <span className="text-muted-foreground">
               {t.discount}
               {order.promoCode ? ` (${order.promoCode})` : ''}
@@ -235,7 +235,7 @@ export default async function MyOrderDetailPage({
             <span className="font-medium text-primary">−{formatPrice(Number(order.discountTotal), 'UAH', locale)}</span>
           </div>
         )}
-        <div className="flex items-center justify-between border-t border-border px-5 py-4">
+        <div className="flex items-center justify-between border-t border-border px-4 py-4 sm:px-5">
           <span className="font-semibold text-card-foreground">{t.grandTotal}</span>
           <span className="text-lg font-bold text-primary">{formatPrice(Number(order.total), 'UAH', locale)}</span>
         </div>
