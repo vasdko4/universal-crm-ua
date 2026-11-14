@@ -19,20 +19,12 @@ import { cn } from '@/lib/utils'
 
 /**
  * Account navigation.
- * Mobile: horizontally-scrollable tab bar pinned under the sticky site
- * header while scrolling. Desktop (lg+): vertical sidebar, also pinned
- * under the header.
- *
- * The STICKY element is the wrapper div, not the <nav>: on mobile the
- * wrapper is a direct block child of the (tall) account container, so it
- * can stick while the page scrolls; the <nav> inside it is short and could
- * not stick on its own (its containing block would be its own height).
- * The parent in (protected)/layout.tsx is therefore a plain block on
- * mobile and only becomes a grid on lg.
- *
- * Offsets are the measured sticky header heights: mobile header is 61px
- * (py-2 16px + h-11 search field 44px + 1px border), desktop header is
- * ~112px (top row ~68px + nav row ~44px) + 16px gap = 128px.
+ * Mobile: all sections visible at once as a 3-column grid — no horizontal
+ * scrolling, no cut-off labels ("Мої замов…" was the complaint). Tabs wrap
+ * to two lines when a label is long; the bar scrolls away with the page
+ * (a 2-row sticky bar would eat ~170px of the screen together with the
+ * site header). Desktop (lg+): vertical sidebar, pinned under the header
+ * (sticky top 128px = ~112px header + 16px gap).
  */
 export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
@@ -61,40 +53,40 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const tabClass = (active: boolean) =>
     cn(
-      'flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+      'flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-center text-[13px] font-medium transition-colors lg:justify-start lg:gap-2 lg:whitespace-nowrap lg:px-3 lg:text-sm',
       active
         ? 'bg-primary text-primary-foreground shadow-sm'
         : 'text-muted-foreground hover:bg-muted hover:text-foreground',
     )
 
   return (
-    <div className="sticky top-[61px] z-30 min-w-0 lg:top-[128px] lg:w-[220px] lg:self-start">
+    <div className="min-w-0 lg:sticky lg:top-[128px] lg:w-[220px] lg:self-start">
       <nav
         aria-label={dict.account.title}
-        className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] supports-[backdrop-filter]:bg-card/80 lg:flex-col lg:overflow-visible lg:bg-card lg:p-2 lg:shadow-none"
+        className="grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 lg:flex lg:flex-col lg:overflow-visible lg:bg-card lg:p-2 lg:shadow-none"
       >
         {LINKS.map((l) => {
           const Icon = l.icon
           return (
             <Link key={l.href} href={lp(l.href)} className={tabClass(isActive(l.href, l.exact))}>
               <Icon className="size-4 shrink-0" />
-              {l.label}
+              <span className="leading-tight">{l.label}</span>
             </Link>
           )
         })}
         {isAdmin && (
           <Link
             href="/admin"
-            className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+            className="flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-center text-[13px] font-medium text-primary transition-colors hover:bg-primary/10 lg:justify-start lg:gap-2 lg:whitespace-nowrap lg:px-3 lg:text-sm"
           >
             <ShieldCheck className="size-4 shrink-0" />
-            {dict.account.navAdmin}
+            <span className="leading-tight">{dict.account.navAdmin}</span>
           </Link>
         )}
         <button
           type="button"
           onClick={logout}
-          className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:mt-1 lg:border-t lg:border-border lg:pt-3"
+          className="col-span-3 flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:col-span-1 lg:mt-1 lg:justify-start lg:gap-2 lg:border-t lg:border-border lg:px-3 lg:pt-3 lg:text-sm"
         >
           <LogOut className="size-4 shrink-0" />
           {dict.account.logout}
