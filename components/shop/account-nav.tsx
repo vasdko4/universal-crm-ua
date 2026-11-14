@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  ChevronRight,
   Heart,
   LayoutDashboard,
   LogOut,
@@ -19,12 +20,13 @@ import { cn } from '@/lib/utils'
 
 /**
  * Account navigation.
- * Mobile: all sections visible at once as a 3-column grid — no horizontal
- * scrolling, no cut-off labels ("Мої замов…" was the complaint). Tabs wrap
- * to two lines when a label is long; the bar scrolls away with the page
- * (a 2-row sticky bar would eat ~170px of the screen together with the
- * site header). Desktop (lg+): vertical sidebar, pinned under the header
- * (sticky top 128px = ~112px header + 16px gap).
+ * A plain vertical list on all sizes — one full-width row per section,
+ * icon left, label on one line, chevron right (mobile). The 3-column grid
+ * from 3.4.99 wrapped labels mid-phrase ("Мої / замовлення") and looked
+ * ragged; the list cannot wrap and matches the desktop sidebar, which
+ * was already a list. The bar scrolls away with the page (a sticky bar
+ * would eat too much screen). Desktop (lg+): same list, pinned under the
+ * header (sticky top 128px = ~112px header + 16px gap).
  */
 export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
@@ -53,7 +55,7 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const tabClass = (active: boolean) =>
     cn(
-      'flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-center text-[13px] font-medium transition-colors lg:justify-start lg:gap-2 lg:whitespace-nowrap lg:px-3 lg:text-sm',
+      'flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors lg:py-2 lg:text-sm',
       active
         ? 'bg-primary text-primary-foreground shadow-sm'
         : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -63,30 +65,32 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
     <div className="min-w-0 lg:sticky lg:top-[128px] lg:w-[220px] lg:self-start">
       <nav
         aria-label={dict.account.title}
-        className="grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 lg:flex lg:flex-col lg:overflow-visible lg:bg-card lg:p-2 lg:shadow-none"
+        className="flex flex-col gap-0.5 rounded-2xl border border-border bg-card p-1.5 shadow-sm lg:p-2 lg:shadow-none"
       >
         {LINKS.map((l) => {
           const Icon = l.icon
           return (
             <Link key={l.href} href={lp(l.href)} className={tabClass(isActive(l.href, l.exact))}>
               <Icon className="size-4 shrink-0" />
-              <span className="leading-tight">{l.label}</span>
+              {l.label}
+              <ChevronRight className="ml-auto size-4 shrink-0 opacity-50 lg:hidden" />
             </Link>
           )
         })}
         {isAdmin && (
           <Link
             href="/admin"
-            className="flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-center text-[13px] font-medium text-primary transition-colors hover:bg-primary/10 lg:justify-start lg:gap-2 lg:whitespace-nowrap lg:px-3 lg:text-sm"
+            className="flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-[15px] font-medium text-primary transition-colors hover:bg-primary/10 lg:py-2 lg:text-sm"
           >
             <ShieldCheck className="size-4 shrink-0" />
-            <span className="leading-tight">{dict.account.navAdmin}</span>
+            {dict.account.navAdmin}
+            <ChevronRight className="ml-auto size-4 shrink-0 opacity-50 lg:hidden" />
           </Link>
         )}
         <button
           type="button"
           onClick={logout}
-          className="col-span-3 flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:col-span-1 lg:mt-1 lg:justify-start lg:gap-2 lg:border-t lg:border-border lg:px-3 lg:pt-3 lg:text-sm"
+          className="mt-1 flex items-center gap-2.5 whitespace-nowrap rounded-xl border-t border-border px-3 pt-2.5 pb-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive lg:py-2 lg:text-sm lg:pt-3"
         >
           <LogOut className="size-4 shrink-0" />
           {dict.account.logout}
