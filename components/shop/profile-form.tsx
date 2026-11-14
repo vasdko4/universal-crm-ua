@@ -13,7 +13,6 @@ import {
   Lock,
   Mail,
   ShieldCheck,
-  UserRound,
 } from 'lucide-react'
 import {
   updateCustomerProfile,
@@ -199,11 +198,12 @@ export function ProfileForm({
         onSubmit={onSubmit}
         className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
       >
-        <SectionHead
-          icon={<UserRound className="size-5" />}
-          title={t.sectionTitle}
-          hint={t.sectionDescription}
-        />
+        {/*
+          No card header here: the page above renders the "Особисті дані"
+          <h2> (SectionHeader) with the same title + description, and the
+          e2e cabinet test asserts that h2 exists. The email/password cards
+          below keep their own (h3) headers.
+        */}
         <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
           <Field id="name" label={t.nameLabel}>
             <Input
