@@ -48,9 +48,9 @@ export function CartDrawer({ children }: { children: ReactNode }) {
             <div className="-mx-6 flex-1 space-y-4 overflow-y-auto px-6">
               {items.map((item) => (
                 <div key={item.key} className="flex gap-3">
-                  <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                  <div className="relative size-18 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {item.image ? (
-                      <Image src={item.image || '/placeholder.svg'} alt={item.name} fill sizes="64px" unoptimized={isProxiedMedia(item.image)} className="object-cover" />
+                      <Image src={item.image || '/placeholder.svg'} alt={item.name} fill sizes="72px" unoptimized={isProxiedMedia(item.image)} className="object-cover" />
                     ) : null}
                   </div>
                   <div className="flex flex-1 flex-col gap-1">
@@ -87,7 +87,7 @@ export function CartDrawer({ children }: { children: ReactNode }) {
                           <Plus className="size-3" />
                         </Button>
                       </div>
-                      <span className="text-sm font-semibold">{formatPrice(item.price * item.quantity, 'UAH', locale)}</span>
+                      <span className="text-sm font-bold">{formatPrice(item.price * item.quantity, 'UAH', locale)}</span>
                     </div>
                   </div>
                   <Button
@@ -106,9 +106,9 @@ export function CartDrawer({ children }: { children: ReactNode }) {
             <SheetFooter className="flex-col gap-3 sm:flex-col">
               <div className="flex items-center justify-between text-base">
                 <span className="text-muted-foreground">{t.total}:</span>
-                <span className="text-xl font-bold">{formatPrice(total, 'UAH', locale)}</span>
+                <span className="text-xl font-extrabold">{formatPrice(total, 'UAH', locale)}</span>
               </div>
-              <Button asChild size="lg" className="w-full" onClick={() => setDrawerOpen(false)}>
+              <Button asChild size="lg" className="h-12 w-full rounded-full" onClick={() => setDrawerOpen(false)}>
                 <Link href={lp('/checkout')}>{t.checkout}</Link>
               </Button>
               <Button variant="outline" className="w-full" onClick={() => setDrawerOpen(false)}>

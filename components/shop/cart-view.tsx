@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react'
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Package, RotateCcw, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useCart, formatPrice } from '@/lib/shop/cart-context'
 import { isProxiedMedia } from '@/lib/shop/own-image-url'
@@ -13,6 +13,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
   const { items, setQuantity, remove, total, count } = useCart()
   const { locale, dict } = useI18n()
   const t = dict.cart
+  const tc = dict.checkout
   const lp = (p: string) => localizedPath(p, locale)
   const minOrderShortfall =
     minOrder?.enabled && minOrder.amount > 0 ? Math.max(0, minOrder.amount - total) : 0
@@ -153,6 +154,20 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
           <Button asChild variant="ghost" className="mt-2 w-full">
             <Link href={lp('/catalog')}>{t.continueShopping}</Link>
           </Button>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <Package className="size-5 text-primary" />
+            <span className="text-[11px] leading-tight text-muted-foreground">{tc.trustFreeShipping}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <RotateCcw className="size-5 text-primary" />
+            <span className="text-[11px] leading-tight text-muted-foreground">{tc.trustReturn}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <ShieldCheck className="size-5 text-primary" />
+            <span className="text-[11px] leading-tight text-muted-foreground">{tc.trustSecurePayment}</span>
+          </div>
         </div>
       </aside>
     </div>

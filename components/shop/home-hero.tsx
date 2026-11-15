@@ -80,7 +80,7 @@ function BoutiqueHero({ content: c, locale, image }: { content: HeroContent; loc
                 {c.heroTitle}
               </h2>
               <p className="mt-2 max-w-md text-pretty text-sm text-white/85 sm:mt-4 sm:text-lg">{c.heroText}</p>
-              <Button asChild size="lg" className="mt-4 sm:mt-7">
+              <Button asChild size="lg" className="mt-4 rounded-full sm:mt-7">
                 <Link href={localizedPath('/catalog', locale)}>
                   {c.toCatalog} <ArrowRight className="ml-1 size-5" />
                 </Link>

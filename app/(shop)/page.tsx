@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight, Truck, ShieldCheck, CreditCard, Headphones } from 'lucide-react'
+import { ArrowRight, BadgePercent, ChevronRight, Flame, LayoutGrid, Truck, ShieldCheck, CreditCard, Headphones } from 'lucide-react'
 import { ProductCard } from '@/components/shop/product-card'
 import { HomeHero } from '@/components/shop/home-hero'
 import { resolveHeroSlides } from '@/lib/shop/home-hero-slides'
@@ -43,6 +43,7 @@ const HOME_CONTENT = {
     // names — otherwise Lighthouse flags identical links.
     viewAllPopular: 'Дивитися всі популярні товари',
     viewAllDiscounts: 'Дивитися всі товари зі знижками',
+    viewAllCategories: 'Дивитися всі категорії',
     noPhoto: 'Немає фото',
     benefits: [
       { title: 'Швидка доставка', text: 'Нова Пошта по всій Україні' },
@@ -71,6 +72,7 @@ const HOME_CONTENT = {
     // names — otherwise Lighthouse flags identical links.
     viewAllPopular: 'Смотреть все популярные товары',
     viewAllDiscounts: 'Смотреть все товары со скидками',
+    viewAllCategories: 'Смотреть все категории',
     noPhoto: 'Нет фото',
     benefits: [
       { title: 'Быстрая доставка', text: 'Нова Пошта по всей Украине' },
@@ -244,21 +246,70 @@ export default async function HomePage() {
         locale={locale}
       />
 
+      {/* Categories — Prom-style tiles, top-level categories only */}
+      {topCategories.length > 0 && (
+        <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
+          <div className="mb-4 flex items-center justify-between lg:mb-5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-9">
+                <LayoutGrid className="size-4 lg:size-5" />
+              </span>
+              <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">{c.categories}</h2>
+            </div>
+            <Link href={lp('/catalog')} aria-label={c.viewAllCategories} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              {c.viewAll} <ArrowRight className="size-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+            {topCategories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={lp(cat.slug ? `/category/${cat.slug}` : '/catalog')}
+                className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md"
+              >
+                <div className="relative aspect-[4/3] overflow-hidden bg-primary/10">
+                  {cat.image ? (
+                    <Image
+                      src={cat.image}
+                      alt=""
+                      fill
+                      sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 16vw"
+                      unoptimized={isProxiedMedia(cat.image)}
+                      className="object-cover transition duration-500 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <span className="flex h-full items-center justify-center text-3xl font-bold text-primary">
+                      {cat.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-start justify-between gap-1 px-3 py-2.5">
+                  <span className="min-w-0 line-clamp-2 text-sm font-semibold leading-snug text-foreground group-hover:text-primary">
+                    {cat.name}
+                  </span>
+                  <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Benefits — one compact row on mobile, 4-col grid on desktop */}
       <section className="mx-auto max-w-7xl px-3 py-3 sm:px-4 lg:px-8 lg:py-10">
         <div className="-mx-3 flex flex-nowrap gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
           {benefits.map((b) => (
             <div key={b.title} className="flex min-w-[210px] shrink-0 items-center gap-2.5 rounded-2xl border border-border/70 bg-card/80 p-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] sm:min-w-0 sm:items-start sm:gap-3 sm:p-4">
-              <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary sm:size-10">
+              <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary sm:size-12">
                 {b.iconUrl ? (
-                  <Image src={b.iconUrl} alt={b.title} width={40} height={40} unoptimized={isProxiedMedia(b.iconUrl)} className="size-full object-cover" />
+                  <Image src={b.iconUrl} alt={b.title} width={48} height={48} unoptimized={isProxiedMedia(b.iconUrl)} className="size-full object-cover" />
                 ) : (
-                  <b.icon className="size-4 sm:size-5" />
+                  <b.icon className="size-5 sm:size-6" />
                 )}
               </div>
               <div className="min-w-0">
-                <h3 className="truncate text-xs font-semibold text-foreground sm:text-sm">{b.title}</h3>
-                <p className="line-clamp-1 text-[11px] text-muted-foreground sm:line-clamp-none sm:text-xs">{b.text}</p>
+                <h3 className="truncate text-sm font-semibold text-foreground">{b.title}</h3>
+                <p className="line-clamp-1 text-xs text-muted-foreground sm:line-clamp-none sm:text-sm">{b.text}</p>
               </div>
             </div>
           ))}
@@ -269,16 +320,21 @@ export default async function HomePage() {
       {popularCards.length > 0 && (
         <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
           <div className="mb-4 flex items-center justify-between lg:mb-5">
-            <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">
-              <Link href={lp('/catalog?popular=1')} className="hover:text-primary">
-                {c.popular}
-              </Link>
-            </h2>
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-9">
+                <Flame className="size-4 lg:size-5" />
+              </span>
+              <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">
+                <Link href={lp('/catalog?popular=1')} className="hover:text-primary">
+                  {c.popular}
+                </Link>
+              </h2>
+            </div>
             <Link href={lp('/catalog?popular=1')} aria-label={c.viewAllPopular} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
+          <div className="product-grid">
             {popularCards.map((p, i) => (
               // Only the first row is eager: everything below the fold is
               // lazy-loaded by next/image. On mobile the grid is 2 columns,
@@ -294,12 +350,17 @@ export default async function HomePage() {
       {discountedCards.length > 0 && (
         <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
           <div className="mb-4 flex items-center justify-between lg:mb-5">
-            <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">{c.discounts}</h2>
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-9">
+                <BadgePercent className="size-4 lg:size-5" />
+              </span>
+              <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">{c.discounts}</h2>
+            </div>
             <Link href={lp('/catalog')} aria-label={c.viewAllDiscounts} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6">
+          <div className="product-grid">
             {discountedCards.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -310,12 +371,17 @@ export default async function HomePage() {
       {/* All products — infinite scroll */}
       {allProductCards.length > 0 && (
         <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
-          <h2 className="mb-4 text-lg font-bold tracking-tight text-foreground lg:mb-5 lg:text-2xl">{c.allProducts}</h2>
+          <div className="mb-4 flex items-center gap-2.5 lg:mb-5">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-9">
+              <LayoutGrid className="size-4 lg:size-5" />
+            </span>
+            <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">{c.allProducts}</h2>
+          </div>
           <InfiniteProducts
             initialItems={allProductCards}
             total={allProducts.total}
             params={allProductsParams}
-            gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4 xl:grid-cols-6"
+            gridClassName="product-grid"
             priorityInitialImages={false}
           />
         </section>

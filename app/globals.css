@@ -54,6 +54,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-brand-orange: var(--brand-orange);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
@@ -107,8 +108,17 @@
 /* ============================================================
    Storefront templates (multi-theme)
    Applied on the shop wrapper via [data-template="..."].
-   "classic" is the default (:root) and needs no overrides.
+   "classic" is the default (:root); the block below pins the
+   PowerFox brand tokens for the shop wrapper.
    ============================================================ */
+
+/* Classic — PowerFox brand (teal primary + orange accent) */
+[data-template='classic'] {
+  --primary: oklch(0.50 0.10 181);
+  --ring: oklch(0.50 0.10 181);
+  --accent: oklch(0.96 0.02 181);
+  --brand-orange: oklch(0.65 0.18 45);
+}
 
 /* Warm — тёплая палитра, крупные скругления */
 [data-template='warm'] {

@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ChevronDown, ChevronRight, LayoutGrid, Percent } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { HeaderCategory } from '@/components/shop/site-header'
+import { isProxiedMedia } from '@/lib/shop/own-image-url'
 import { useI18n } from '@/lib/i18n/client'
 import { localizedPath } from '@/lib/i18n/config'
 
@@ -79,13 +81,29 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
                       onMouseEnter={() => setActiveId(c.id)}
                       onClick={close}
                       className={cn(
-                        'flex items-center justify-between gap-2 px-4 py-2.5 text-sm transition-colors',
+                        'flex items-center gap-3 px-4 py-2 text-sm transition-colors',
                         activeId === c.id
                           ? 'bg-accent text-accent-foreground'
                           : 'text-foreground hover:bg-accent/60',
                       )}
                     >
-                      <span className="truncate">{c.name}</span>
+                      <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                        {c.image ? (
+                          <Image
+                            src={c.image || '/placeholder.svg'}
+                            alt=""
+                            width={40}
+                            height={40}
+                            unoptimized={isProxiedMedia(c.image)}
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex size-full items-center justify-center bg-primary/10 text-base font-bold text-primary">
+                            {c.name.charAt(0)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{c.name}</span>
                       {hasChildren && <ChevronRight className="size-4 shrink-0 opacity-60" />}
                     </Link>
                   </li>

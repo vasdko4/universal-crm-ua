@@ -218,14 +218,31 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
         <div className="mt-auto flex flex-col items-stretch gap-2 pt-1">
           <div className="flex min-h-[2.5rem] w-full flex-col items-start justify-center">
             {product.oldPrice && product.oldPrice > product.price ? (
-              <span className="block truncate text-xs leading-none text-muted-foreground line-through">
+              <span className="block truncate text-sm leading-none text-muted-foreground line-through">
                 {formatPrice(product.oldPrice, product.currency, locale)}
               </span>
             ) : null}
-            <span className="block truncate text-base font-bold leading-tight tracking-tight text-foreground sm:text-lg">
+            <span className="block truncate text-lg font-extrabold leading-tight tracking-tight text-foreground">
               {formatPrice(product.price, product.currency, locale)}
             </span>
           </div>
+          {/* Stock line — only for regular listings; preorder / coming-soon
+              already carry their own badge, so they keep an empty line to
+              keep the buy buttons aligned across the row. */}
+          <span
+            className={cn(
+              'text-xs font-medium',
+              product.inStock ? 'text-success' : 'text-muted-foreground',
+            )}
+          >
+            {product.isPreorder || product.isComingSoon
+              ? ''
+              : product.inStock
+                ? locale === 'ru'
+                  ? 'В наличии'
+                  : 'В наявності'
+                : dict.product.outOfStock}
+          </span>
           <Button
             size="sm"
             onClick={handleAdd}

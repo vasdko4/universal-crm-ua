@@ -102,7 +102,7 @@ export default async function CheckoutPage({
         initialName={shopUser?.name ?? undefined}
         initialEmail={shopUser?.email ?? undefined}
       />
-      <section className="mt-10 rounded-lg border border-border bg-muted/40 p-5 text-sm text-muted-foreground">
+      <section className="mt-10 rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground md:p-6">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           {trustLinks.map((l) => (
             <a key={l.href} href={l.href} className="underline underline-offset-2 hover:text-foreground">

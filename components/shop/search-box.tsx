@@ -144,7 +144,7 @@ export function SearchBox({
       {showDropdown && (
         <div
           id="search-suggestions"
-          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(24rem,calc(100dvh-11rem))] overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover shadow-lg"
+          className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(24rem,calc(100dvh-11rem))] overflow-hidden overflow-y-auto rounded-2xl border border-border bg-popover shadow-lg"
         >
           {isLoading && items.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">{dict.common.loading}</p>
@@ -159,9 +159,9 @@ export function SearchBox({
                     onClick={close}
                     className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent"
                   >
-                    <div className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+                    <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {p.image ? (
-                        <Image src={p.image || '/placeholder.svg'} alt="" fill sizes="44px" unoptimized={isProxiedMedia(p.image)} className="object-cover" />
+                        <Image src={p.image || '/placeholder.svg'} alt="" fill sizes="48px" unoptimized={isProxiedMedia(p.image)} className="object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
                           <ImageIcon className="size-4 text-muted-foreground/50" />

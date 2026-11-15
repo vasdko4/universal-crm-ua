@@ -112,7 +112,7 @@ export function CatalogToolbar({
     : dict.catalog.price
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 lg:sticky lg:top-[159px] lg:z-30 lg:bg-card/95 lg:backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <p className="text-sm text-muted-foreground">
           {dict.catalog.found}: <span className="font-semibold text-foreground">{total}</span>
@@ -121,7 +121,7 @@ export function CatalogToolbar({
           {/* The trigger had no accessible name (axe: "Buttons do not have
               an accessible name" on the category page); the visible label
               comes from the selected option, which the audit does not count. */}
-          <SelectTrigger className="w-44 shrink-0" aria-label={dict.catalog.sort}>
+          <SelectTrigger className="w-52 shrink-0" aria-label={dict.catalog.sort}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -276,7 +276,7 @@ export function CatalogToolbar({
       {activeCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
           {priceActive && (
-            <Badge variant="secondary" className="gap-1 pr-1">
+            <Badge variant="secondary" className="gap-1 border-primary/30 bg-primary/10 pr-1 text-primary">
               {priceLabel}
               <button
                 type="button"
@@ -296,7 +296,7 @@ export function CatalogToolbar({
             </Badge>
           )}
           {inStock && (
-            <Badge variant="secondary" className="gap-1 pr-1">
+            <Badge variant="secondary" className="gap-1 border-primary/30 bg-primary/10 pr-1 text-primary">
               {dict.catalog.inStockOnly}
               <button
                 type="button"
@@ -309,7 +309,7 @@ export function CatalogToolbar({
             </Badge>
           )}
           {charFilters.map((f) => (
-            <Badge key={`${f.name}:${f.value}`} variant="secondary" className="gap-1 pr-1">
+            <Badge key={`${f.name}:${f.value}`} variant="secondary" className="gap-1 border-primary/30 bg-primary/10 pr-1 text-primary">
               {facetLabel(f.name, locale === 'ru' ? 'ru' : 'uk')}: {f.value}
               <button
                 type="button"
@@ -322,7 +322,7 @@ export function CatalogToolbar({
             </Badge>
           ))}
           {discount && (
-            <Badge variant="secondary" className="gap-1 pr-1">
+            <Badge variant="secondary" className="gap-1 border-primary/30 bg-primary/10 pr-1 text-primary">
               {dict.catalog.discountOnly}
               <button
                 type="button"

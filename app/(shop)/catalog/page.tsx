@@ -145,6 +145,20 @@ export default async function CatalogPage({
       )}
 
       <div className="space-y-6">
+        {topCategories.length > 0 && (
+          <div className="hidden flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden">
+            {topCategories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={lp(`/category/${cat.slug}`)}
+                className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
+              >
+                {cat.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
         <CatalogToolbar total={total} priceBounds={priceBounds} facets={facets} />
 
         {items.length === 0 ? (
@@ -153,7 +167,7 @@ export default async function CatalogPage({
           </div>
         ) : (
           <InfiniteProducts
-            gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 lg:grid-cols-5 lg:gap-4"
+            gridClassName="product-grid"
             key={`${params.search ?? ''}|${params.sort}|${params.inStockOnly}|${params.discountOnly}|${params.popularOnly}|${params.minPrice ?? ''}|${params.maxPrice ?? ''}|${JSON.stringify(params.charFilters ?? [])}`}
             initialItems={items}
             total={total}

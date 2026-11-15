@@ -820,12 +820,12 @@ export function CheckoutFlow({
               <div key={s.step} className="flex flex-1 items-center">
                 <div className="flex items-center gap-2">
                   <div className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-colors',
+                    'flex size-10 shrink-0 items-center justify-center rounded-full text-base font-semibold transition-colors',
                     done
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground',
                   )}>
-                    {done ? <Check className="size-4" /> : s.step}
+                    {done ? <Check className="size-5" /> : s.step}
                   </div>
                   <span className="hidden text-sm font-medium text-foreground sm:block">{s.label}</span>
                 </div>
@@ -1331,7 +1331,7 @@ export function CheckoutFlow({
               very bottom of the checkout. */}
           <Button
             size="lg"
-            className="mt-5 w-full gap-2"
+            className="mt-5 h-12 w-full gap-2 rounded-full text-base font-bold"
             onClick={handleSubmit}
             disabled={submitting || belowMinOrder}
           >
@@ -1381,7 +1381,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Icon className="size-5" />
       </div>
       <div>

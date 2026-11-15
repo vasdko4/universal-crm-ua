@@ -50,7 +50,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
     >
       <div className="mx-auto max-w-7xl px-3 py-2 lg:px-8 lg:py-6">
         <div
-          className="relative overflow-hidden rounded-2xl bg-neutral-900 text-white lg:rounded-3xl"
+          className="relative overflow-hidden rounded-3xl bg-neutral-900 text-white"
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
           onPointerCancel={() => {
@@ -117,7 +117,7 @@ export function HomeHeroCarousel({ slides }: { slides: HeroSlide[] }) {
                     {slide.text}
                   </p>
                   {i === index ? (
-                    <Button asChild size="lg" variant="secondary" className="mt-1 h-10 w-fit rounded-full sm:mt-3">
+                    <Button asChild size="lg" className="mt-1 h-10 w-fit rounded-full sm:mt-3">
                       <Link href={slide.href}>
                         {slide.cta} <ArrowRight className="ml-1 size-4" />
                       </Link>

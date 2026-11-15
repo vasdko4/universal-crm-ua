@@ -72,8 +72,8 @@ export function MobileBottomNav({
 
   const itemClass = (active: boolean) =>
     cn(
-      'flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium transition-colors',
-      active ? 'text-primary' : 'text-muted-foreground',
+      'mx-1 my-1 flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium transition-colors',
+      active ? 'bg-primary/10 text-primary' : 'text-muted-foreground',
     )
 
   const badge = (n: number) =>

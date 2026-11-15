@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ShoppingCart, User, Heart } from 'lucide-react'
+import { ShoppingCart, User, Heart, Phone, Clock, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CartDrawer } from '@/components/shop/cart-drawer'
 import { SearchBox } from '@/components/shop/search-box'
@@ -24,18 +24,32 @@ export type HeaderCategory = {
   image?: string | null
 }
 
+// "Доставка по Україні" — static service fact, both locales (HOME_CONTENT pattern).
+const UTILITY_DELIVERY: Record<string, string> = {
+  uk: 'Доставка по Україні',
+  ru: 'Доставка по Украине',
+}
+
 export function SiteHeader({
   storeName,
   logoUrl,
   faviconUrl,
   categories,
   googleAuthEnabled = false,
+  phone = null,
+  workingHoursShort = null,
 }: {
   storeName: string
   logoUrl: string | null
   faviconUrl: string | null
   categories: HeaderCategory[]
   googleAuthEnabled?: boolean
+  /** First contact phone from settings (layout passes it); null hides the row. */
+  phone?: string | null
+  /** Working hours preformatted on the server (e.g. "Пн–Пт 9:00–18:00");
+      null hides the row. The header is a client component and cannot format
+      the raw settings itself. */
+  workingHoursShort?: string | null
 }) {
   const { count } = useCart()
   const { count: favCount } = useFavorites()
@@ -53,6 +67,34 @@ export function SiteHeader({
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-card/95 backdrop-blur-xl">
+      {/* Desktop utility bar above the main row: real contact facts + locale.
+          Mobile header stays search-only (Prom-style) — this bar is lg-only. */}
+      <div className="hidden border-b border-border/60 bg-muted/40 lg:block">
+        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-1.5 text-xs text-muted-foreground lg:px-8">
+          {phone?.trim() ? (
+            <a
+              href={`tel:${phone.replace(/\s/g, '')}`}
+              className="flex items-center gap-1.5 font-medium text-foreground transition-colors hover:text-primary"
+            >
+              <Phone className="size-3.5" aria-hidden="true" />
+              {phone}
+            </a>
+          ) : null}
+          {workingHoursShort?.trim() ? (
+            <span className="flex min-w-0 items-center gap-1.5 truncate">
+              <Clock className="size-3.5 shrink-0" aria-hidden="true" />
+              {workingHoursShort}
+            </span>
+          ) : null}
+          <span className="flex items-center gap-1.5">
+            <Truck className="size-3.5" aria-hidden="true" />
+            {UTILITY_DELIVERY[locale] ?? UTILITY_DELIVERY.uk}
+          </span>
+          <span className="ml-auto flex items-center">
+            <LocaleSwitcher />
+          </span>
+        </div>
+      </div>
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
       <div className="hidden items-center gap-3 py-2 lg:flex lg:gap-4 lg:py-3">
         {/* Logo */}
@@ -73,9 +115,8 @@ export function SiteHeader({
           <SearchBox />
         </div>
 
-        {/* Actions */}
+        {/* Actions (locale lives in the utility bar above) */}
         <div className="ml-auto flex shrink-0 items-center gap-0.5 lg:gap-1">
-          <LocaleSwitcher />
           <Button variant="ghost" size="icon" className="relative hidden lg:inline-flex" asChild aria-label={dict.favorites.title}>
             <Link href={lp(favoritesHref)}>
               <Heart className="size-5" />
@@ -144,6 +185,18 @@ export function SiteHeader({
           >
             {dict.nav.articles}
           </Link>
+          {categories
+            .filter((c) => !c.parentId)
+            .slice(0, 6)
+            .map((c) => (
+              <Link
+                key={c.id}
+                href={lp(`/category/${c.slug}`)}
+                className="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary"
+              >
+                {c.name}
+              </Link>
+            ))}
         </div>
       </nav>
 

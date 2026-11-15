@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Minus, Plus, ShoppingCart, Star, ShieldCheck } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { CreditCard, Minus, Plus, ShoppingCart, Star, ShieldCheck, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ProductGallery } from '@/components/shop/product-gallery'
+import { ProductStickyBuyBar } from '@/components/shop/product-sticky-buy-bar'
 import { ProductVariantSelector } from '@/components/shop/product-variant-selector'
 import { FavoriteButton } from '@/components/shop/favorite-button'
 import { OneClickBuyButton } from '@/components/shop/one-click-buy'
@@ -61,6 +62,7 @@ export function ProductPurchasePanel({
   const { dict, locale } = useI18n()
   const tp = dict.product
   const [qty, setQty] = useState(1)
+  const panelRef = useRef<HTMLDivElement>(null)
   const hasVariants = product.variantsEnabled && product.options.length > 0 && product.variants.length > 0
   const [selected, setSelected] = useState<Record<string, string>>({})
 
@@ -133,7 +135,8 @@ export function ProductPurchasePanel({
   }
 
   return (
-    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,1fr)] lg:gap-10">
+    <>
+    <div ref={panelRef} className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,1fr)] lg:gap-10">
       <ProductGallery
         images={galleryImages}
         alt={product.name}
@@ -287,8 +290,18 @@ export function ProductPurchasePanel({
           </div>
         )}
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <ShieldCheck className="size-5 text-primary" /> {tp.officialWarranty}
+        <div className="space-y-2 border-t border-border pt-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Truck className="size-4 shrink-0 text-primary" />
+            {locale === 'ru' ? 'Нова Пошта по всей Украине' : 'Нова Пошта по всій Україні'}
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CreditCard className="size-4 shrink-0 text-primary" />
+            {locale === 'ru' ? 'Наложенный платёж или по реквизитам' : 'Накладений платіж або за реквізитами'}
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ShieldCheck className="size-4 shrink-0 text-primary" /> {tp.officialWarranty}
+          </div>
         </div>
 
         <PaymentDeliveryBadges delivery={deliveryMethods} payment={paymentMethods} />
@@ -299,5 +312,17 @@ export function ProductPurchasePanel({
           duplicate floated over the bottom navigation and covered content.
           The bottom app navigation itself is untouched. */}
     </div>
+
+    <ProductStickyBuyBar
+      targetRef={panelRef}
+      name={product.name}
+      image={galleryMediaPath(selectedVariant?.image ?? product.image)}
+      price={formatPrice(displayPrice, product.currency, locale)}
+      oldPrice={displayOldPrice ? formatPrice(displayOldPrice, product.currency, locale) : null}
+      buyLabel={product.isPreorder ? tp.preorderCta : tp.addToCart}
+      canBuy={available}
+      onBuy={addToCart}
+    />
+    </>
   )
 }

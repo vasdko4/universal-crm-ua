@@ -1,9 +1,10 @@
 import Link from 'next/link'
-import { Phone, Mail, MapPin, Clock } from 'lucide-react'
+import { Phone, Mail, MapPin, Clock, Truck, ShieldCheck, CreditCard, Headphones, type LucideIcon } from 'lucide-react'
 import { FooterSection } from '@/components/shop/footer-section'
 import type { HeaderCategory } from '@/components/shop/site-header'
 import type { Dictionary } from '@/lib/i18n/dictionaries'
 import type { ContactData } from '@/app/actions/settings-store'
+import { getActivePaymentMethods } from '@/lib/shop/queries'
 import { localizedPath, type Locale } from '@/lib/i18n/config'
 
 type Social = { instagram?: string; telegram?: string; viber?: string; tiktok?: string }
@@ -48,7 +49,8 @@ const DAY_LABELS: Record<Locale, Record<string, string>> = {
 }
 
 // Groups consecutive days with identical hours into ranges, e.g. "Пн–Пт 9:00–18:00".
-function formatWorkingHours(
+// Exported for the header utility bar, which shows the same hours in short form.
+export function formatWorkingHours(
   wh: ContactData['workingHours'],
   locale: Locale,
 ): { label: string; value: string }[] {
@@ -76,7 +78,24 @@ function formatWorkingHours(
   return rows
 }
 
-export function SiteFooter({
+// Same 4 benefits as the home page (HOME_CONTENT in app/(shop)/page.tsx),
+// kept in sync by hand — the footer cannot import the home page.
+const FOOTER_TRUST: Record<Locale, { title: string; text: string; Icon: LucideIcon }[]> = {
+  uk: [
+    { title: 'Швидка доставка', text: 'Нова Пошта по всій Україні', Icon: Truck },
+    { title: 'Гарантія якості', text: 'Офіційна гарантія на всі товари', Icon: ShieldCheck },
+    { title: 'Зручна оплата', text: 'Накладений платіж або за реквізитами', Icon: CreditCard },
+    { title: 'Підтримка 24/7', text: "Завжди на зв'язку та готові допомогти", Icon: Headphones },
+  ],
+  ru: [
+    { title: 'Быстрая доставка', text: 'Нова Пошта по всей Украине', Icon: Truck },
+    { title: 'Гарантия качества', text: 'Официальная гарантия на все товары', Icon: ShieldCheck },
+    { title: 'Удобная оплата', text: 'Наложенный платёж или по реквизитам', Icon: CreditCard },
+    { title: 'Поддержка 24/7', text: 'Всегда на связи и готовы помочь', Icon: Headphones },
+  ],
+}
+
+export async function SiteFooter({
   storeName,
   phones = [],
   address,
@@ -109,9 +128,34 @@ export function SiteFooter({
     { key: 'viber', label: 'Viber', url: social.viber, Icon: ViberIcon },
     { key: 'tiktok', label: 'TikTok', url: social.tiktok, Icon: TikTokIcon },
   ].filter((s) => s.url)
+  // Real payment methods from the same DB source as checkout
+  // (getActivePaymentMethods), labelled exactly as checkout shows them.
+  const paymentRows = await getActivePaymentMethods()
+  const paymentLabels = paymentRows.map((m) => {
+    if (m.code === 'cod') return dict.checkout.mCod
+    if (m.code === 'online') return dict.checkout.mOnline
+    if (m.code === 'requisites') return dict.checkout.mRequisites
+    return m.name
+  })
 
   return (
     <footer className="mt-8 border-t border-border bg-card lg:mt-16">
+      {/* Trust row — the same 4 benefits as the home page. */}
+      <div className="border-b border-border">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 py-6 lg:grid-cols-4 lg:gap-8 lg:px-8">
+          {FOOTER_TRUST[locale].map((b) => (
+            <div key={b.title} className="flex items-start gap-3">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <b.Icon className="size-6" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">{b.title}</span>
+                <span className="block text-sm text-muted-foreground">{b.text}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="mx-auto max-w-7xl px-4 py-6 lg:grid lg:grid-cols-4 lg:gap-8 lg:px-8 lg:py-12">
         {/* Brand — always visible. A <p>, not an <h3>: the brand name is not
             a section heading, and as an h3 it broke heading order (h1 → h3)
@@ -242,6 +286,18 @@ export function SiteFooter({
         </FooterSection>
       </div>
       <div className="border-t border-border py-6 text-center text-sm text-muted-foreground">
+        {paymentLabels.length > 0 && (
+          <div className="mx-auto mb-4 flex max-w-7xl flex-wrap items-center justify-center gap-2 px-4">
+            {paymentLabels.map((label) => (
+              <span
+                key={label}
+                className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
         © {new Date().getFullYear()} {storeName}. {dict.footer.rights}
       </div>
     </footer>

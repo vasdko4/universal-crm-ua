@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { CartProvider } from '@/lib/shop/cart-context'
 import { FavoritesProvider } from '@/lib/shop/favorites-context'
 import { SiteHeader, type HeaderCategory } from '@/components/shop/site-header'
-import { SiteFooter } from '@/components/shop/site-footer'
+import { SiteFooter, formatWorkingHours } from '@/components/shop/site-footer'
 import { ContactWidgetButton } from '@/components/shop/contact-widget'
 import { MobileBottomNav } from '@/components/shop/mobile-bottom-nav'
 import { AnalyticsTracker } from '@/components/shop/analytics-tracker'
@@ -93,6 +93,14 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
               faviconUrl={settings?.faviconUrl ?? null}
               categories={categories}
               googleAuthEnabled={googleAuthEnabled}
+              phone={settings?.contact.phones?.[0] ?? null}
+              workingHoursShort={
+                settings?.contact.workingHours
+                  ? formatWorkingHours(settings.contact.workingHours, locale)
+                      .map((r) => `${r.label} ${r.value}`)
+                      .join(' · ')
+                  : null
+              }
             />
             <main className="flex-1">{children}</main>
             <SiteFooter
