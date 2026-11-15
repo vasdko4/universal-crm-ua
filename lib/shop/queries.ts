@@ -1222,7 +1222,56 @@ async function _getShopCategories(locale: Locale = 'uk') {
     .from(categories)
     .where(eq(categories.isVisible, true))
     .orderBy(asc(categories.sortOrder), asc(name))
-  return rows.map((row) => ({ ...row, image: promMediaPath(row.image) }))
+  // Fallback: a category without an admin image shows the first product
+  // photo from the category itself or any descendant, instead of a bare
+  // letter tile. Live categories have no image set, so without this every
+  // home tile (and mega-menu thumbnail) is a letter.
+  const directImage = new Map<number, string>()
+  if (rows.some((r) => !r.image?.trim())) {
+    // In-stock first, but any visible product photo will do for a tile —
+    // a category whose only products are out of stock still gets a picture.
+    const imageRows = await db
+      .select({ categoryId: productCategory.categoryId, image: products.image })
+      .from(productCategory)
+      .innerJoin(products, eq(products.id, productCategory.productId))
+      .where(and(baseWhere, isNotNull(products.image), ne(products.image, '')))
+      .orderBy(
+        asc(sql`CASE WHEN (${plainOutOfStockSql}) THEN 1 ELSE 0 END`),
+        desc(products.isPopular),
+        desc(products.ordersCount),
+        asc(products.id),
+      )
+    for (const r of imageRows) {
+      if (!directImage.has(r.categoryId) && r.image) directImage.set(r.categoryId, r.image)
+    }
+  }
+  const childrenOf = new Map<number, number[]>()
+  for (const row of rows) {
+    if (row.parentId == null) continue
+    const list = childrenOf.get(row.parentId) ?? []
+    list.push(row.id)
+    childrenOf.set(row.parentId, list)
+  }
+  const fallbackImage = (id: number): string | null => {
+    // BFS: own products first, then descendants in sort order.
+    const queue = [id]
+    const visited = new Set([id])
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      const img = directImage.get(current)
+      if (img) return img
+      for (const child of childrenOf.get(current) ?? []) {
+        if (visited.has(child)) continue
+        visited.add(child)
+        queue.push(child)
+      }
+    }
+    return null
+  }
+  return rows.map((row) => ({
+    ...row,
+    image: promMediaPath(row.image?.trim() ? row.image : fallbackImage(row.id)),
+  }))
 }
 
 /**
