@@ -1222,12 +1222,49 @@ async function _getShopCategories(locale: Locale = 'uk') {
     .from(categories)
     .where(eq(categories.isVisible, true))
     .orderBy(asc(categories.sortOrder), asc(name))
+  const childrenOf = new Map<number, number[]>()
+  for (const row of rows) {
+    if (row.parentId == null) continue
+    const list = childrenOf.get(row.parentId) ?? []
+    list.push(row.id)
+    childrenOf.set(row.parentId, list)
+  }
+  // Hide categories with no visible products in their whole subtree: the
+  // storefront lists every visible top-level category, so an empty one
+  // (e.g. Зоотовари after its only product moved out) would otherwise
+  // render as a bare letter tile and a dead nav link. A parent counts its
+  // descendants' products, so a parent with no direct products but products
+  // in a subcategory stays visible.
+  const countRows = await db
+    .select({ categoryId: productCategory.categoryId, c: sql<number>`count(*)::int` })
+    .from(productCategory)
+    .innerJoin(products, eq(products.id, productCategory.productId))
+    .where(baseWhere)
+    .groupBy(productCategory.categoryId)
+  const directCount = new Map<number, number>()
+  for (const r of countRows) directCount.set(r.categoryId, r.c)
+  const subtreeCount = (id: number): number => {
+    let total = 0
+    const queue = [id]
+    const visited = new Set([id])
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      total += directCount.get(current) ?? 0
+      for (const child of childrenOf.get(current) ?? []) {
+        if (visited.has(child)) continue
+        visited.add(child)
+        queue.push(child)
+      }
+    }
+    return total
+  }
+  const nonEmpty = rows.filter((row) => subtreeCount(row.id) > 0)
   // Fallback: a category without an admin image shows the first product
   // photo from the category itself or any descendant, instead of a bare
   // letter tile. Live categories have no image set, so without this every
   // home tile (and mega-menu thumbnail) is a letter.
   const directImage = new Map<number, string>()
-  if (rows.some((r) => !r.image?.trim())) {
+  if (nonEmpty.some((r) => !r.image?.trim())) {
     // In-stock first, but any visible product photo will do for a tile —
     // a category whose only products are out of stock still gets a picture.
     const imageRows = await db
@@ -1245,13 +1282,6 @@ async function _getShopCategories(locale: Locale = 'uk') {
       if (!directImage.has(r.categoryId) && r.image) directImage.set(r.categoryId, r.image)
     }
   }
-  const childrenOf = new Map<number, number[]>()
-  for (const row of rows) {
-    if (row.parentId == null) continue
-    const list = childrenOf.get(row.parentId) ?? []
-    list.push(row.id)
-    childrenOf.set(row.parentId, list)
-  }
   const fallbackImage = (id: number): string | null => {
     // BFS: own products first, then descendants in sort order.
     const queue = [id]
@@ -1268,7 +1298,7 @@ async function _getShopCategories(locale: Locale = 'uk') {
     }
     return null
   }
-  return rows.map((row) => ({
+  return nonEmpty.map((row) => ({
     ...row,
     image: promMediaPath(row.image?.trim() ? row.image : fallbackImage(row.id)),
   }))
