@@ -228,7 +228,14 @@ export function ProductPurchasePanel({
           )}
         </div>
 
-        {discount > 0 && promo && <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} />}
+        {/* The timer shows whenever a real automatic promotion targets this
+            product — not only when an oldPrice cut exists. The discount is
+            applied at checkout, so when the displayed price has no cut the
+            hint below says so instead of implying a lower price. */}
+        {promo && <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} />}
+        {promo && discount === 0 && (
+          <p className="text-xs text-muted-foreground">{dict.product.promoCheckoutHint}</p>
+        )}
 
         {hasVariants && (
           <ProductVariantSelector

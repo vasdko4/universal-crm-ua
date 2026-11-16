@@ -127,8 +127,17 @@ export default async function CatalogPage({
           ? `${dict.catalog.resultsFor}: «${params.search}»`
           : params.popularOnly
             ? dict.home.popular
-            : dict.catalog.title}
+            : params.discountOnly
+              ? dict.catalog.discountOnly
+              : dict.catalog.title}
       </h1>
+      {params.discountOnly && (
+        <p className="mb-4 -mt-2 text-sm text-muted-foreground">
+          <Link href={lp('/promotions')} className="font-medium text-primary hover:underline">
+            {dict.catalog.viewAllPromotions} →
+          </Link>
+        </p>
+      )}
 
       {topCategories.length > 0 && (
         <div className="-mx-3 mb-4 flex flex-nowrap gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-4 sm:px-4 lg:hidden [&::-webkit-scrollbar]:hidden">

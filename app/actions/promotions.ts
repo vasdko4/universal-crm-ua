@@ -6,6 +6,7 @@ import { db, withDbClient, dbForClient } from '@/lib/db'
 import { promotions, promotionUsages, productGroups, productGroupItems, products } from '@/lib/db/schema'
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { revalidateStorefront } from '@/lib/shop/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { getLocale } from '@/lib/i18n/server'
@@ -218,6 +219,10 @@ export async function createPromotion(input: PromotionInput) {
     throw e
   }
   revalidatePath('/admin/promotions')
+  // Storefront promo caches (banner, /promotions page, "Акції" filter, card
+  // badges) read through the catalog tag — bust them so a new/changed
+  // campaign shows up without a redeploy.
+  revalidateStorefront()
   return { success: true }
 }
 
@@ -242,6 +247,7 @@ export async function updatePromotion(id: number, input: PromotionInput) {
   }
   revalidatePath('/admin/promotions')
   revalidatePath(`/admin/promotions/${id}/edit`)
+  revalidateStorefront()
   return { success: true }
 }
 
@@ -249,6 +255,7 @@ export async function togglePromotionActive(id: number, isActive: boolean) {
   await assertWritePermission('promotions')
   await db.update(promotions).set({ isActive, updatedAt: new Date() }).where(eq(promotions.id, id))
   revalidatePath('/admin/promotions')
+  revalidateStorefront()
   return { success: true }
 }
 
@@ -260,6 +267,7 @@ export async function deletePromotion(id: number) {
     await tx.delete(promotions).where(eq(promotions.id, id))
   })
   revalidatePath('/admin/promotions')
+  revalidateStorefront()
   return { success: true }
 }
 

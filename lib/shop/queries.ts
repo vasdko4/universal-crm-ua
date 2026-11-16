@@ -260,6 +260,15 @@ export type ShopProduct = {
   /** True when quantity is 0 but the admin enabled pre-orders (visible, purchasable). */
   isPreorder: boolean
   /**
+   * Best active automatic-promotion percentage for this product (3.4.103).
+   * The discount is applied at checkout, never to the displayed price — so
+   * this is only ever a badge, never a struck-through price. Null when no
+   * percentage promotion targets the product.
+   */
+  promoDiscountPct?: number | null
+  /** True when an active fixed-amount automatic promotion targets this product. */
+  promoFixed?: boolean
+  /**
    * Listing cards strip options/variants to keep the payload small. This flag
    * is computed before that strip: true only when the shopper must pick among
    * more than one variant. A single "34-37" range is not a choice.
@@ -602,8 +611,23 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
   if (params.minPrice != null) conditions.push(sql`${products.price} >= ${params.minPrice}`)
   if (params.maxPrice != null) conditions.push(sql`${products.price} <= ${params.maxPrice}`)
   if (params.inStockOnly) conditions.push(sql`${products.quantity} > 0`)
-  if (params.discountOnly)
-    conditions.push(sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`)
+  if (params.discountOnly) {
+    // "Акції" is not only oldPrice cuts: a product targeted by a live
+    // automatic discount gets its discount at checkout (see
+    // findBestAutomaticDiscount), so it belongs on the promotions page even
+    // when no oldPrice is set. Cart-level rules (min order, usage limit)
+    // are enforced at checkout, not here.
+    const oldPriceCond = sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`
+    const promos = await _getActiveAutoDiscounts()
+    const { all, ids } = await resolvePromoTargetProductIds(promos)
+    if (all) {
+      // Some live promotion targets every product — the filter is a no-op.
+    } else if (ids.size > 0) {
+      conditions.push(or(oldPriceCond, inArray(products.id, [...ids])))
+    } else {
+      conditions.push(oldPriceCond)
+    }
+  }
   const charWhere = characteristicFilterCondition(params.charFilters)
   if (charWhere) conditions.push(charWhere)
 
@@ -688,8 +712,9 @@ async function _getCatalogProducts(params: CatalogParams = {}) {
     db.select({ c: sql<number>`count(*)::int` }).from(products).where(where),
   ])
 
+  const items = await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
   return {
-    items: await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>))),
+    items: await attachPromoBadges(items),
     total: countRes[0]?.c ?? 0,
     page,
     perPage,
@@ -1540,4 +1565,239 @@ export async function getProductPromotionDeadline(
     matches[0],
   )
   return { name: soonest.name, endsAt: new Date(soonest.endsAt as Date).toISOString() }
+}
+
+// ---------------------------------------------------------------------------
+// Promotions showcase (3.4.103)
+//
+// Honesty rule for everything below: an automatic ("Скидка") promotion
+// changes ONLY the checkout total — findBestAutomaticDiscount evaluates cart
+// lines with DB prices and createStorefrontOrder subtracts the result from
+// the order total; displayed product prices (cards, product page) are never
+// rewritten. So a percentage promotion gives a real "−N%" badge (that % of
+// the eligible base comes off at checkout), a fixed-amount promotion gets a
+// generic badge (its per-product % would depend on the rest of the cart),
+// and no struck-through "discounted price" is ever shown for an
+// auto-discount-only product.
+// ---------------------------------------------------------------------------
+
+export type ActivePromotion = {
+  id: number
+  name: string
+  discountType: 'percentage' | 'fixed'
+  discountValue: number
+  targetType: 'all' | 'groups' | 'products'
+  targetGroupIds: number[]
+  targetProductIds: number[]
+  startsAt: string
+  endsAt: string | null
+}
+
+function toActivePromotion(row: typeof promotions.$inferSelect): ActivePromotion {
+  return {
+    id: row.id,
+    name: row.name,
+    discountType: row.discountType as 'percentage' | 'fixed',
+    discountValue: Number(row.discountValue),
+    targetType: row.targetType as 'all' | 'groups' | 'products',
+    targetGroupIds: (row.targetGroupIds as number[]) ?? [],
+    targetProductIds: (row.targetProductIds as number[]) ?? [],
+    startsAt: new Date(row.startsAt).toISOString(),
+    endsAt: row.endsAt ? new Date(row.endsAt).toISOString() : null,
+  }
+}
+
+// An automatic promotion that is live right now: active, started, not ended
+// (an endsAt of null means open-ended). Display-time targeting deliberately
+// ignores cart-level rules (minOrderAmount, usageLimit, excludeWholesale):
+// those are enforced authoritatively at checkout, so a product shown as
+// "on promotion" is one the promotion CAN apply to, not a promise about a
+// specific cart.
+function activeAutoDiscountWhere() {
+  const now = new Date()
+  return and(
+    eq(promotions.type, 'discount'),
+    eq(promotions.isActive, true),
+    lte(promotions.startsAt, now),
+    or(isNull(promotions.endsAt), gt(promotions.endsAt, now)),
+  )
+}
+
+async function _getActiveAutoDiscounts(): Promise<ActivePromotion[]> {
+  const rows = await db
+    .select()
+    .from(promotions)
+    .where(activeAutoDiscountWhere())
+    .orderBy(sql`${promotions.endsAt} ASC NULLS LAST`, desc(promotions.discountValue), asc(promotions.id))
+  return rows.map(toActivePromotion)
+}
+
+/** All currently-active automatic discounts, soonest-ending first. */
+export function getActivePromotions() {
+  return cachedQuery(['active-promotions'], [CACHE_TAGS.catalog], () => _getActiveAutoDiscounts())
+}
+
+/** The active automatic discount with the soonest future deadline, if any. */
+export function getSoonestEndingPromotion(): Promise<ActivePromotion | null> {
+  return cachedQuery(['soonest-promotion'], [CACHE_TAGS.catalog], async () => {
+    const rows = await db
+      .select()
+      .from(promotions)
+      .where(and(activeAutoDiscountWhere(), isNotNull(promotions.endsAt)))
+      .orderBy(asc(promotions.endsAt))
+      .limit(1)
+    return rows.length > 0 ? toActivePromotion(rows[0]) : null
+  })
+}
+
+// Product IDs a set of active auto-discounts can apply to. all=true means
+// some promotion targets every product, so no ID list is needed.
+async function resolvePromoTargetProductIds(
+  promos: ActivePromotion[],
+): Promise<{ all: boolean; ids: Set<number> }> {
+  if (promos.some((p) => p.targetType === 'all')) return { all: true, ids: new Set() }
+  const ids = new Set<number>()
+  for (const promo of promos) {
+    if (promo.targetType === 'products') {
+      for (const id of promo.targetProductIds) ids.add(id)
+    }
+  }
+  const groupIds = [...new Set(promos.flatMap((p) => (p.targetType === 'groups' ? p.targetGroupIds : [])))]
+  if (groupIds.length > 0) {
+    const memberRows = await db
+      .select({ productId: productGroupItems.productId })
+      .from(productGroupItems)
+      .where(inArray(productGroupItems.groupId, groupIds))
+    for (const row of memberRows) ids.add(row.productId)
+  }
+  return { all: false, ids }
+}
+
+// Attaches honest promo badges to listing products (see the honesty rule
+// above). Best percentage across all promotions targeting the product wins;
+// a fixed-amount promotion only sets the generic flag.
+export async function attachPromoBadges(items: ShopProduct[]): Promise<ShopProduct[]> {
+  if (items.length === 0) return items
+  const promos = await _getActiveAutoDiscounts()
+  if (promos.length === 0) return items
+  const ids = items.map((p) => p.id)
+  const memberships = new Map<number, Set<number>>()
+  const memberRows = await db
+    .select({ productId: productGroupItems.productId, groupId: productGroupItems.groupId })
+    .from(productGroupItems)
+    .where(inArray(productGroupItems.productId, ids))
+  for (const row of memberRows) {
+    const set = memberships.get(row.productId) ?? new Set<number>()
+    set.add(row.groupId)
+    memberships.set(row.productId, set)
+  }
+  const targets = (promo: ActivePromotion, productId: number): boolean => {
+    if (promo.targetType === 'all') return true
+    if (promo.targetType === 'products') return promo.targetProductIds.includes(productId)
+    if (promo.targetType === 'groups') {
+      const groups = memberships.get(productId)
+      return groups ? promo.targetGroupIds.some((g) => groups.has(g)) : false
+    }
+    return false
+  }
+  return items.map((item) => {
+    let pct: number | null = null
+    let fixed = false
+    for (const promo of promos) {
+      if (!targets(promo, item.id)) continue
+      if (promo.discountType === 'percentage') {
+        pct = pct == null ? promo.discountValue : Math.max(pct, promo.discountValue)
+      } else {
+        fixed = true
+      }
+    }
+    return { ...item, promoDiscountPct: pct, promoFixed: fixed }
+  })
+}
+
+/** Up to `limit` visible products under one promotion (for the /promotions page). */
+export async function getPromotionProducts(
+  promo: ActivePromotion,
+  limit = 8,
+  locale: Locale = 'uk',
+): Promise<ShopProduct[]> {
+  const productSelect = buildProductSelect(locale)
+  const orderByPopularity = [desc(products.isPopular), desc(products.ordersCount), asc(products.id)]
+  if (promo.targetType === 'all') {
+    const rows = await db
+      .select(productSelect)
+      .from(products)
+      .where(baseWhere)
+      .orderBy(...orderByPopularity)
+      .limit(limit)
+    return attachPromoBadges(await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>))))
+  }
+  const { ids } = await resolvePromoTargetProductIds([promo])
+  if (ids.size === 0) return []
+  const rows = await db
+    .select(productSelect)
+    .from(products)
+    .where(and(baseWhere, inArray(products.id, [...ids].slice(0, 200))))
+    .orderBy(...orderByPopularity)
+    .limit(limit)
+  return attachPromoBadges(await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>))))
+}
+
+export type DealOfTheDay = {
+  product: ShopProduct
+  promotion: ActivePromotion
+}
+
+/** "Товар дня": one product under the biggest active discount that has a real deadline. Null when none exists — the section stays hidden, never faked. */
+export function getDealOfTheDay(locale: Locale = 'uk'): Promise<DealOfTheDay | null> {
+  return cachedQuery(['deal-of-the-day', locale], [CACHE_TAGS.catalog], () => _getDealOfTheDay(locale))
+}
+
+async function _getDealOfTheDay(locale: Locale): Promise<DealOfTheDay | null> {
+  const promos = await _getActiveAutoDiscounts()
+  const withDeadline = promos.filter((p) => p.endsAt != null)
+  // Biggest percentage first (a real per-product %); fixed-amount promos
+  // only as a fallback.
+  const ordered = [...withDeadline].sort((a, b) => {
+    const aPct = a.discountType === 'percentage' ? 1 : 0
+    const bPct = b.discountType === 'percentage' ? 1 : 0
+    if (aPct !== bPct) return bPct - aPct
+    return b.discountValue - a.discountValue
+  })
+  for (const promo of ordered) {
+    const product = await findDealProduct(promo, locale)
+    if (product) return { product, promotion: promo }
+  }
+  return null
+}
+
+async function findDealProduct(promo: ActivePromotion, locale: Locale): Promise<ShopProduct | null> {
+  let candidateIds: number[] | null = null
+  if (promo.targetType === 'products') {
+    candidateIds = promo.targetProductIds
+  } else if (promo.targetType === 'groups') {
+    if (promo.targetGroupIds.length === 0) return null
+    const memberRows = await db
+      .select({ productId: productGroupItems.productId })
+      .from(productGroupItems)
+      .where(inArray(productGroupItems.groupId, promo.targetGroupIds))
+    candidateIds = [...new Set(memberRows.map((r) => r.productId))]
+  }
+  // 'all' (candidateIds null) → any visible in-stock product, most popular first.
+  const conditions = [baseWhere, sql`${products.quantity} > 0`]
+  if (candidateIds) {
+    if (candidateIds.length === 0) return null
+    conditions.push(inArray(products.id, candidateIds))
+  }
+  const productSelect = buildProductSelect(locale)
+  const rows = await db
+    .select(productSelect)
+    .from(products)
+    .where(and(...conditions))
+    .orderBy(desc(products.isPopular), desc(products.ordersCount), asc(products.id))
+    .limit(1)
+  if (rows.length === 0) return null
+  const [product] = await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
+  const [badged] = await attachPromoBadges([product])
+  return badged
 }

@@ -99,6 +99,7 @@ export type Dictionary = {
     searchCategories: string
     searchCategoriesNoResults: string
     viewAllInCategory: string
+    viewAllPromotions: string
     subcategoriesCountOne: string
     subcategoriesCountFew: string
     subcategoriesCountMany: string
@@ -151,6 +152,8 @@ export type Dictionary = {
     officialWarranty: string
     recentlyViewed: string
     promoTimerLabel: string
+    promoCheckoutHint: string
+    promoBadge: string
     cancel: string
     noDescription: string
     rating: string
@@ -728,6 +731,7 @@ const uk: Dictionary = {
     searchCategories: 'Пошук категорії...',
     searchCategoriesNoResults: 'Категорій не знайдено',
     viewAllInCategory: 'Усі товари в категорії',
+    viewAllPromotions: 'Дивитись усі акції',
     subcategoriesCountOne: 'підкатегорія',
     subcategoriesCountFew: 'підкатегорії',
     subcategoriesCountMany: 'підкатегорій',
@@ -780,6 +784,8 @@ const uk: Dictionary = {
     officialWarranty: 'Офіційна гарантія',
     recentlyViewed: 'Недавно переглянуті товари',
     promoTimerLabel: 'Акція діє ще:',
+    promoCheckoutHint: 'Знижка за акцією — при оформленні замовлення',
+    promoBadge: 'Акція',
     cancel: 'Скасувати',
     noDescription: 'Опис відсутній.',
     rating: 'Оцінка',
@@ -1355,6 +1361,7 @@ const ru: Dictionary = {
     searchCategories: 'Поиск категории...',
     searchCategoriesNoResults: 'Категории не найдены',
     viewAllInCategory: 'Все товары в категории',
+    viewAllPromotions: 'Смотреть все акции',
     subcategoriesCountOne: 'подкатегория',
     subcategoriesCountFew: 'подкатегории',
     subcategoriesCountMany: 'подкатегорий',
@@ -1407,6 +1414,8 @@ const ru: Dictionary = {
     officialWarranty: 'Официальная гарантия',
     recentlyViewed: 'Недавно просмотренные товары',
     promoTimerLabel: 'Акция действует ещё:',
+    promoCheckoutHint: 'Скидка по акции — при оформлении заказа',
+    promoBadge: 'Акция',
     cancel: 'Отмена',
     noDescription: 'Описание отсутствует.',
     rating: 'Оценка',

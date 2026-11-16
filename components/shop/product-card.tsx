@@ -70,6 +70,13 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
     product.oldPrice && product.oldPrice > product.price
       ? Math.round((1 - product.price / product.oldPrice) * 100)
       : 0
+  // Automatic-promotion badge (3.4.103): the discount is applied at checkout,
+  // never to the displayed price — so a percentage promo gives a real "−N%"
+  // and a fixed-amount promo gets a generic badge with no invented number.
+  // Only when there is no oldPrice cut (that badge already shows the real
+  // displayed price cut and takes precedence).
+  const promoDiscountPct = discount === 0 ? (product.promoDiscountPct ?? 0) : 0
+  const promoFixed = discount === 0 && promoDiscountPct === 0 && Boolean(product.promoFixed)
 
   function handleAdd() {
     if (!product.inStock) return
@@ -152,6 +159,16 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
           {discount > 0 && (
             <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-destructive-foreground">
               −{discount}%
+            </span>
+          )}
+          {promoDiscountPct > 0 && (
+            <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-destructive-foreground">
+              −{promoDiscountPct}%
+            </span>
+          )}
+          {promoFixed && (
+            <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-destructive-foreground">
+              {dict.product.promoBadge}
             </span>
           )}
           {/* «Хіт» is admin-curated; Prom imports leave isPopular unset, and

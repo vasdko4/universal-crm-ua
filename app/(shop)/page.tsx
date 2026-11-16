@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight, BadgePercent, ChevronRight, Flame, LayoutGrid, Truck, ShieldCheck, CreditCard, Headphones } from 'lucide-react'
 import { ProductCard } from '@/components/shop/product-card'
+import { PromoTimer } from '@/components/shop/promo-timer'
 import { HomeHero } from '@/components/shop/home-hero'
 import { resolveHeroSlides } from '@/lib/shop/home-hero-slides'
 import { getTemplate } from '@/lib/shop/templates'
@@ -12,8 +13,11 @@ import {
   getDiscountedProducts,
   getShopCategories,
   getCatalogProducts,
+  getSoonestEndingPromotion,
+  getDealOfTheDay,
   toListingCard,
 } from '@/lib/shop/queries'
+import { formatPrice } from '@/lib/shop/format'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getServerDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
@@ -36,6 +40,10 @@ const HOME_CONTENT = {
     categories: 'Категорії',
     popular: 'Популярні товари',
     discounts: 'Знижки',
+    dealOfDay: 'Товар дня',
+    campaignCta: 'Дивитись акцію',
+    dealCta: 'Дивитись товар',
+    viewPromotions: 'Усі акції',
     allProducts: 'Усі товари',
     viewAll: 'Дивитися всі',
     // The two "Дивитися всі" links point to different destinations
@@ -65,6 +73,10 @@ const HOME_CONTENT = {
     categories: 'Категории',
     popular: 'Популярные товары',
     discounts: 'Скидки',
+    dealOfDay: 'Товар дня',
+    campaignCta: 'Смотреть акцию',
+    dealCta: 'Смотреть товар',
+    viewPromotions: 'Все акции',
     allProducts: 'Все товары',
     viewAll: 'Смотреть все',
     // The two "Смотреть все" links point to different destinations
@@ -84,7 +96,7 @@ const HOME_CONTENT = {
 } as const
 
 export default async function HomePage() {
-  const { locale } = await getServerDictionary()
+  const { locale, dict } = await getServerDictionary()
   const c = HOME_CONTENT[locale]
   // Plain out-of-stock products never show up on the homepage — only in
   // the catalog/search page, where they're sorted to the bottom instead.
@@ -101,12 +113,16 @@ export default async function HomePage() {
     locale,
     hideOutOfStock: true as const,
   }
-  const [popular, discounted, categories, settings, allProducts] = await Promise.all([
+  const [popular, discounted, categories, settings, allProducts, campaign, deal] = await Promise.all([
     getPopularProducts(HOME_ROW_SIZE, locale),
     getDiscountedProducts(HOME_ROW_SIZE, locale),
     getShopCategories(locale),
     getStoreSettingsInternal().catch(() => null),
     getCatalogProducts(allProductsParams),
+    // Live campaign banner (3.4.103): the soonest-ending active automatic
+    // discount, if any — never a fabricated promotion.
+    getSoonestEndingPromotion(),
+    getDealOfTheDay(locale),
   ])
   const topCategories = categories.filter((cat) => !cat.parentId).slice(0, 12)
   const template = getTemplate(settings?.activeTemplate ?? 'classic')
@@ -231,6 +247,34 @@ export default async function HomePage() {
       <h1 className="sr-only">
         {storeName} — {c.pageHeading}
       </h1>
+      {/* Live campaign banner (3.4.103): only when a real automatic discount
+          is active right now; otherwise the page starts with the hero as before. */}
+      {campaign && (
+        <div className="border-b border-border bg-card">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-3 sm:px-4 lg:px-8">
+            <span className="rounded bg-destructive px-2 py-1 text-xs font-bold text-destructive-foreground">
+              {campaign.discountType === 'percentage'
+                ? `−${campaign.discountValue}%`
+                : `−${formatPrice(campaign.discountValue, 'UAH', locale)}`}
+            </span>
+            <Link
+              href={lp('/promotions')}
+              className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground hover:text-primary"
+            >
+              {campaign.name}
+            </Link>
+            {campaign.endsAt && (
+              <PromoTimer endsAt={campaign.endsAt} label={dict.product.promoTimerLabel} />
+            )}
+            <Link
+              href={lp('/promotions')}
+              className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              {c.campaignCta} <ArrowRight className="size-4" />
+            </Link>
+          </div>
+        </div>
+      )}
       {/* Hero — layout depends on the active storefront template */}
       <HomeHero
         layout={template.layout}
@@ -364,6 +408,96 @@ export default async function HomePage() {
             {discountedCards.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Deal of the day (3.4.103): one product under the biggest active
+          discount with a real deadline. Hidden entirely when no such deal
+          exists — never a fabricated "deal". The discount is applied at
+          checkout, so the block shows the real price plus the promo badge,
+          timer and the checkout hint. */}
+      {deal && (
+        <section className="mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-8 lg:py-8">
+          <div className="mb-4 flex items-center justify-between lg:mb-5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-9">
+                <Flame className="size-4 lg:size-5" />
+              </span>
+              <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">
+                {c.dealOfDay}
+              </h2>
+            </div>
+            <Link
+              href={lp('/promotions')}
+              aria-label={c.viewPromotions}
+              className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              {c.viewAll} <ArrowRight className="size-4" />
+            </Link>
+          </div>
+          <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:gap-6 sm:p-6">
+            <Link
+              href={lp(`/product/${deal.product.slug}`)}
+              className="relative mx-auto block aspect-square w-full max-w-[280px] shrink-0 overflow-hidden rounded-xl bg-muted sm:mx-0 sm:w-64"
+            >
+              {deal.product.image ? (
+                <Image
+                  src={deal.product.image}
+                  alt={deal.product.name}
+                  fill
+                  sizes="280px"
+                  unoptimized={isProxiedMedia(deal.product.image)}
+                  className="object-cover"
+                />
+              ) : (
+                <span className="flex h-full items-center justify-center text-3xl font-bold text-primary">
+                  {deal.product.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </Link>
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded bg-destructive px-2 py-1 text-sm font-bold text-destructive-foreground">
+                  {deal.promotion.discountType === 'percentage'
+                    ? `−${deal.promotion.discountValue}%`
+                    : `−${formatPrice(deal.promotion.discountValue, 'UAH', locale)}`}
+                </span>
+                <span className="text-sm font-medium text-muted-foreground">
+                  {deal.promotion.name}
+                </span>
+              </div>
+              <Link
+                href={lp(`/product/${deal.product.slug}`)}
+                className="text-lg font-bold leading-snug text-foreground hover:text-primary lg:text-xl"
+              >
+                {deal.product.name}
+              </Link>
+              <div className="flex items-end gap-3">
+                {deal.product.oldPrice && (
+                  <span className="text-base text-muted-foreground line-through">
+                    {formatPrice(deal.product.oldPrice, deal.product.currency, locale)}
+                  </span>
+                )}
+                <span className="text-2xl font-bold text-foreground lg:text-3xl">
+                  {formatPrice(deal.product.price, deal.product.currency, locale)}
+                </span>
+              </div>
+              {deal.promotion.endsAt && (
+                <div>
+                  <PromoTimer endsAt={deal.promotion.endsAt} label={dict.product.promoTimerLabel} />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">{dict.product.promoCheckoutHint}</p>
+              <div>
+                <Link
+                  href={lp(`/product/${deal.product.slug}`)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  {c.dealCta} <ArrowRight className="size-4" />
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
       )}
