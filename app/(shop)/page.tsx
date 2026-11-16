@@ -47,7 +47,7 @@ const HOME_CONTENT = {
     allProducts: 'Усі товари',
     viewAll: 'Дивитися всі',
     // The two "Дивитися всі" links point to different destinations
-    // (/catalog?popular=1 vs /catalog), so they need distinct accessible
+    // (/catalog?popular=1 vs /catalog?discount=1), so they need distinct accessible
     // names — otherwise Lighthouse flags identical links.
     viewAllPopular: 'Дивитися всі популярні товари',
     viewAllDiscounts: 'Дивитися всі товари зі знижками',
@@ -400,7 +400,7 @@ export default async function HomePage() {
               </span>
               <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-2xl">{c.discounts}</h2>
             </div>
-            <Link href={lp('/catalog')} aria-label={c.viewAllDiscounts} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+            <Link href={lp('/catalog?discount=1')} aria-label={c.viewAllDiscounts} className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
               {c.viewAll} <ArrowRight className="size-4" />
             </Link>
           </div>

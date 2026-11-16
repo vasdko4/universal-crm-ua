@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { and, desc, eq, isNull } from 'drizzle-orm'
-import { db, pool } from '@/lib/db'
+import { db, dbForClient, pool, withDbClient } from '@/lib/db'
 import {
   categories,
   importTasks,
@@ -13,7 +13,7 @@ import {
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-import { generateUniqueSlug } from '@/lib/product-slug'
+import { generateUniqueSlug, withSlugRetry } from '@/lib/product-slug'
 import {
   fetchListingPage,
   fetchProduct,
@@ -732,16 +732,43 @@ export async function continuePromImport(taskId: number) {
 
       let productId: number
       if (existing.length > 0) {
-        await db.update(products).set(values).where(eq(products.id, existing[0].id))
         productId = existing[0].id
+        if (existing[0].slug) {
+          await db.update(products).set(values).where(eq(products.id, productId))
+        } else {
+          // Self-heal: this row never got a slug, so `values.slug` is
+          // freshly generated and can still race another import of a
+          // same-name product (23505) — retry the whole UPDATE in a fresh
+          // transaction with a bumped suffix, same as createProduct.
+          await withSlugRetry(slug, async (candidate) => {
+            await withDbClient(async (client) => {
+              const tx = dbForClient(client)
+              await tx.update(products).set({ ...values, slug: candidate }).where(eq(products.id, productId))
+            })
+          })
+        }
         // Re-imports refresh characteristics/variants from the source
         // rather than appending duplicates.
         await db.delete(productCharacteristics).where(eq(productCharacteristics.productId, productId))
         await db.delete(productVariants).where(eq(productVariants.productId, productId))
       } else {
         try {
-          const insertedRows: { id: number }[] = await db.insert(products).values(values).returning({ id: products.id })
-          productId = insertedRows[0].id
+          // The pool-checked slug can still collide with a concurrent
+          // import of a same-name product — retry the whole INSERT in a
+          // fresh transaction with a bumped suffix instead of failing the
+          // row (a failed INSERT aborts its transaction, so the retry can
+          // never reuse it).
+          const { result } = await withSlugRetry(slug, async (candidate) => {
+            return withDbClient(async (client) => {
+              const tx = dbForClient(client)
+              const insertedRows: { id: number }[] = await tx
+                .insert(products)
+                .values({ ...values, slug: candidate })
+                .returning({ id: products.id })
+              return insertedRows[0].id
+            })
+          })
+          productId = result
         } catch (dbError) {
           const msg = dbError instanceof Error ? dbError.message : String(dbError)
           throw new Error(`DB insert failed for "${p.nameUk}" (promId ${item.id}, slug "${slug}"): ${msg}`)

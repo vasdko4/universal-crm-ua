@@ -187,6 +187,34 @@ try {
       // says to apply db/migrate.sql first.
     }
   }
+  // Audit A18 (3.4.103 live test): node-postgres serializes a JS array
+  // parameter as a Postgres array literal ({"a","b"}), which is not valid
+  // JSON — so INSERTing a json/jsonb column holding an array (or a plain
+  // string scalar) failed with "invalid input syntax for type json" and
+  // rolled back the whole restore. Look the json/jsonb columns up once
+  // and JSON.stringify their values on INSERT; every other column type
+  // keeps the driver's native handling (real Postgres array columns,
+  // if any, must NOT be stringified). The dump itself is correct —
+  // the rows are proper JSON in the .jsonl.gz file.
+  const { rows: jsonColRows } = await client.query(
+    `SELECT table_name, column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND data_type IN ('json', 'jsonb')`,
+  )
+  const jsonCols = new Set(jsonColRows.map((r) => `${r.table_name}.${r.column_name}`))
+
+  // Audit A18 (3.4.103 live test), second failure: products.search_vector
+  // is a GENERATED ALWAYS column (tsvector, recomputed from name/sku/
+  // description on write). Postgres rejects any explicit INSERT into it
+  // ("cannot insert a non-DEFAULT value"), so generated columns must be
+  // left out of the INSERT — the database recomputes them. Looked up
+  // once, like the json columns above; old backups that still carry the
+  // value restore fine because the column is dropped here, not in the dump.
+  const { rows: genColRows } = await client.query(
+    `SELECT table_name, column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND is_generated = 'ALWAYS'`,
+  )
+  const generatedCols = new Set(genColRows.map((r) => `${r.table_name}.${r.column_name}`))
+
   await client.query('BEGIN')
 
   // Audit F2 (3.4.96): the TRUNCATE list comes from the manifest, not from
@@ -233,7 +261,14 @@ try {
     const colList = cols.map(quoteIdent).join(', ')
     const values = []
     const placeholders = pending.map((row, ri) => {
-      const rowValues = cols.map((c) => revive(row[c]))
+      const rowValues = cols.map((c) => {
+        const v = revive(row[c])
+        // Audit A18: json/jsonb values must go in as JSON text — a raw JS
+        // array/string parameter is serialized as a Postgres array literal
+        // or bare text, which Postgres rejects as JSON input.
+        if (v !== null && v !== undefined && jsonCols.has(`${currentTable}.${c}`)) return JSON.stringify(v)
+        return v
+      })
       values.push(...rowValues)
       const base = ri * cols.length
       return `(${cols.map((_, ci) => `$${base + ci + 1}`).join(', ')})`
@@ -254,7 +289,11 @@ try {
       if (currentTable !== null) logTable(currentTable)
       currentTable = t
       if (!tableMeta.has(t)) {
-        tableMeta.set(t, { cols: Object.keys(r), hasId: Object.prototype.hasOwnProperty.call(r, 'id'), count: 0 })
+        // Audit A18: GENERATED ALWAYS columns (e.g. products.search_vector)
+        // are recomputed by Postgres and cannot be INSERTed — drop them
+        // from the column list; their values in the dump are ignored.
+        const cols = Object.keys(r).filter((c) => !generatedCols.has(`${t}.${c}`))
+        tableMeta.set(t, { cols, hasId: Object.prototype.hasOwnProperty.call(r, 'id'), count: 0 })
       }
     }
     const meta = tableMeta.get(t)

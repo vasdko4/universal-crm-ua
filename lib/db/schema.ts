@@ -165,7 +165,9 @@ export const productGroups = pgTable('product_groups', {
   id: serial('id').primaryKey(),
   nameUk: varchar('name_uk', { length: 255 }).notNull(),
   nameRu: varchar('name_ru', { length: 255 }).notNull(),
-  slug: varchar('slug', { length: 255 }).notNull(),
+  // Unique (fix 3): a bare slugify used to let two groups
+  // share one slug. The matching index + dedup backfill live in db/migrate.sql.
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
   descriptionUk: text('description_uk'),
   descriptionRu: text('description_ru'),
   sortOrder: integer('sort_order').default(0),

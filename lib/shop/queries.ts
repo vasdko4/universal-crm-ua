@@ -27,6 +27,7 @@ import {
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { galleryMediaPath, galleryMediaPathList, promMediaPath, promMediaPathList } from '@/lib/shop/own-image-url'
+import { realPurchaseCountSql } from '@/lib/shop/purchase-count'
 import { decodeHtmlEntities } from '@/lib/html-entities'
 import { getStorefrontQueryTtl } from '@/lib/shop/storefront-ttl'
 
@@ -251,7 +252,10 @@ export type ShopProduct = {
   weight: number | null
   metaTitle: string | null
   metaDescription: string | null
-  /** Displayed purchase count: real storefront orders only (boost is sort-only). */
+  /** Displayed purchase count: derived from real orders at read time
+   * (see lib/shop/purchase-count.ts) — cancelled, unpaid-pending and
+   * refunded orders never count. The admin-set boost is sort-only and is
+   * never added to this number. */
   purchasedCount: number
   /** Admin-set marketing status while quantity is 0 — see schema.ts for details. */
   availabilityMode: 'default' | 'coming_soon' | 'preorder'
@@ -557,7 +561,13 @@ function buildProductSelect(locale: Locale = 'uk') {
     meta_title: metaTitle,
     meta_description: metaDescription,
     feed_title: feedTitle,
-    orders_count: products.ordersCount,
+    // Honest purchase counter (fix #1): derived from real orders at read
+    // time — NOT the stored products.orders_count, which fulfillment bumps
+    // at order creation and nothing ever decrements (cancelled test orders
+    // counted forever). The stored column still feeds the
+    // ordersCount + purchasesBoost SORT below; only the displayed count is
+    // derived. See lib/shop/purchase-count.ts.
+    orders_count: realPurchaseCountSql(),
     purchases_boost: products.purchasesBoost,
     variants_enabled: products.variantsEnabled,
   }
@@ -848,7 +858,8 @@ async function _getPopularProducts(limit = 8, locale: Locale = 'uk') {
     .where(and(homeWhere, eq(products.isPopular, true)))
     .orderBy(desc(sql`${products.ordersCount} + ${products.purchasesBoost}`))
     .limit(limit)
-  if (rows.length > 0) return withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
+  if (rows.length > 0)
+    return attachPromoBadges(await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>))))
   // Fallback: newest products if nothing marked popular.
   const fallback = await db
     .select(productSelect)
@@ -856,7 +867,7 @@ async function _getPopularProducts(limit = 8, locale: Locale = 'uk') {
     .where(homeWhere)
     .orderBy(desc(products.createdAt))
     .limit(limit)
-  return withListingSizes(fallback.map((r) => toShopProduct(r as Record<string, unknown>)))
+  return attachPromoBadges(await withListingSizes(fallback.map((r) => toShopProduct(r as Record<string, unknown>))))
 }
 
 // Fetch a set of visible products by id, preserving the given id order
@@ -870,8 +881,11 @@ export async function getProductsByIds(ids: number[], locale: Locale = 'uk') {
     .from(products)
     .where(and(baseWhere, inArray(products.id, clean)))
   const mapped = await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
+  // Favorites / Recently viewed go through here, so badges must be attached
+  // here too — getCatalogProducts/getPromotionProducts are not in this path.
+  const badged = await attachPromoBadges(mapped)
   const order = new Map(clean.map((id, i) => [id, i]))
-  return mapped.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+  return badged.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
 }
 
 export type FeedProduct = ShopProduct & { brand: string | null }
@@ -969,13 +983,25 @@ export function getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
 
 async function _getDiscountedProducts(limit = 8, locale: Locale = 'uk') {
   const productSelect = buildProductSelect(locale)
+  // Same predicate as the «Акції» filter in _getCatalogProducts: an
+  // oldPrice cut OR a live automatic discount targeting the product. The
+  // discount itself is applied at checkout only — the rail shows the real
+  // price plus the honest promo badge attached below.
+  const oldPriceCond = sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`
+  const promos = await _getActiveAutoDiscounts()
+  const { all, ids } = await resolvePromoTargetProductIds(promos)
+  const discountWhere = all
+    ? homeWhere
+    : ids.size > 0
+      ? and(homeWhere, or(oldPriceCond, inArray(products.id, [...ids])))
+      : and(homeWhere, oldPriceCond)
   const rows = await db
     .select(productSelect)
     .from(products)
-    .where(and(homeWhere, sql`${products.oldPrice} IS NOT NULL AND ${products.oldPrice} > ${products.price}`))
+    .where(discountWhere)
     .orderBy(desc(products.updatedAt))
     .limit(limit)
-  return withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>)))
+  return attachPromoBadges(await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>))))
 }
 
 export function getProductById(id: number, locale: Locale = 'uk') {
@@ -1503,16 +1529,17 @@ export function getActiveGateways() {
   )()
 }
 
-// Soonest end date among currently-active automatic "Акція" (type: 'discount')
-// promotions that actually target this product (all products / this specific
-// product / a group the product belongs to) and have a real endsAt in the
-// future. Used to power the "Акція діє ще: HH:MM:SS" countdown on the product
-// page — deliberately returns null (no timer) when no real promotion with a
-// deadline applies, since a fabricated deadline would be misleading.
+// The currently-active automatic "Акція" (type: 'discount') promotion
+// targeting this product (all products / this specific product / a group the
+// product belongs to), soonest-ending first. Used on the product page: a
+// promo WITH a deadline powers the "Акція діє ще: HH:MM:SS" countdown, while
+// an open-ended promo (endsAt null) is still returned — with endsAt null —
+// so the page can show it honestly without a countdown instead of hiding it.
+// Returns null only when no live promotion targets this product at all.
 export async function getProductPromotionDeadline(
   productId: number,
   categoryIds: number[] = [],
-): Promise<{ name: string; endsAt: string } | null> {
+): Promise<{ name: string; endsAt: string | null } | null> {
   const now = new Date()
   const candidates = await db
     .select()
@@ -1521,8 +1548,7 @@ export async function getProductPromotionDeadline(
       and(
         eq(promotions.type, 'discount'),
         eq(promotions.isActive, true),
-        isNotNull(promotions.endsAt),
-        gt(promotions.endsAt, now),
+        or(isNull(promotions.endsAt), gt(promotions.endsAt, now)),
         lte(promotions.startsAt, now),
         or(
           eq(promotions.targetType, 'all'),
@@ -1560,11 +1586,21 @@ export async function getProductPromotionDeadline(
   const matches = [...allCandidates, ...productCandidates, ...groupCandidates]
   if (matches.length === 0) return null
 
-  const soonest = matches.reduce(
-    (best, p) => (new Date(p.endsAt as Date) < new Date(best.endsAt as Date) ? p : best),
-    matches[0],
-  )
-  return { name: soonest.name, endsAt: new Date(soonest.endsAt as Date).toISOString() }
+  // A dated promo wins (the page shows its countdown); an open-ended promo
+  // is the fallback and is returned with endsAt null — never with a
+  // fabricated deadline. Among open-ended promos the biggest discount wins.
+  const dated = matches.filter((p) => p.endsAt != null)
+  if (dated.length > 0) {
+    const soonest = dated.reduce(
+      (best, p) => (new Date(p.endsAt as Date) < new Date(best.endsAt as Date) ? p : best),
+      dated[0],
+    )
+    return { name: soonest.name, endsAt: new Date(soonest.endsAt as Date).toISOString() }
+  }
+  const openEnded = [...matches].sort(
+    (a, b) => Number(b.discountValue) - Number(a.discountValue) || a.id - b.id,
+  )[0]
+  return { name: openEnded.name, endsAt: null }
 }
 
 // ---------------------------------------------------------------------------

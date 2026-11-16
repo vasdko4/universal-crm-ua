@@ -154,6 +154,7 @@ export type Dictionary = {
     promoTimerLabel: string
     promoCheckoutHint: string
     promoBadge: string
+    promoNoEndDate: string
     cancel: string
     noDescription: string
     rating: string
@@ -786,6 +787,7 @@ const uk: Dictionary = {
     promoTimerLabel: 'Акція діє ще:',
     promoCheckoutHint: 'Знижка за акцією — при оформленні замовлення',
     promoBadge: 'Акція',
+    promoNoEndDate: 'Акція діє безстроково',
     cancel: 'Скасувати',
     noDescription: 'Опис відсутній.',
     rating: 'Оцінка',
@@ -1416,6 +1418,7 @@ const ru: Dictionary = {
     promoTimerLabel: 'Акция действует ещё:',
     promoCheckoutHint: 'Скидка по акции — при оформлении заказа',
     promoBadge: 'Акция',
+    promoNoEndDate: 'Акция действует бессрочно',
     cancel: 'Отмена',
     noDescription: 'Описание отсутствует.',
     rating: 'Оценка',

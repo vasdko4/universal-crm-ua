@@ -1,6 +1,6 @@
 'use server'
 
-import { db } from '@/lib/db'
+import { db, dbForClient, withDbClient } from '@/lib/db'
 import {
   productGroups,
   productGroupItems,
@@ -12,6 +12,8 @@ import { and, asc, eq, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { slugify } from '@/lib/text'
+import { ensureUniqueSlug } from '@/lib/unique-slug'
+import { withSlugRetry } from '@/lib/product-slug'
 import { ADMIN_MAX_LEN, INT32_MAX, adminStringTooLong, toIntInRange } from '@/lib/shop/checkout-validation'
 
 // SECURITY: these three reads had no permission check — reachable directly
@@ -67,19 +69,50 @@ function validate(input: GroupInput): string | null {
   return null
 }
 
+/**
+ * Unique group slug (fix 3): the old bare `slugify` let two groups share
+ * one slug. Same pattern as categories (fix 4): `runner` runs the check on
+ * the caller's transaction connection; the unique index remains the final
+ * arbiter and callers retry on 23505 via withSlugRetry.
+ */
+async function generateUniqueGroupSlug(
+  name: string,
+  fallbackId: number,
+  excludeId?: number,
+  runner?: Pick<typeof db, 'select'>,
+): Promise<string> {
+  const tx = runner ?? db
+  return ensureUniqueSlug(
+    slugify(name, 'group'),
+    `group-${fallbackId}`,
+    async (candidate) => {
+      const rows = await tx
+        .select({ id: productGroups.id })
+        .from(productGroups)
+        .where(eq(productGroups.slug, candidate))
+        .limit(1)
+      return rows.length > 0 ? rows[0].id : null
+    },
+    excludeId,
+  )
+}
+
 export async function createGroup(input: GroupInput) {
   await assertWritePermission('groups')
   const error = validate(input)
   if (error) return { success: false, error }
 
-  await db.insert(productGroups).values({
-    nameUk: input.nameUk.trim(),
-    nameRu: input.nameRu.trim(),
-    slug: slugify(input.nameUk, 'group'),
-    descriptionUk: input.descriptionUk || null,
-    descriptionRu: input.descriptionRu || null,
-    sortOrder: input.sortOrder ?? 0,
-    isActive: input.isActive ?? true,
+  const firstSlug = await generateUniqueGroupSlug(input.nameUk, Date.now())
+  await withSlugRetry(firstSlug, async (slug) => {
+    await db.insert(productGroups).values({
+      nameUk: input.nameUk.trim(),
+      nameRu: input.nameRu.trim(),
+      slug,
+      descriptionUk: input.descriptionUk || null,
+      descriptionRu: input.descriptionRu || null,
+      sortOrder: input.sortOrder ?? 0,
+      isActive: input.isActive ?? true,
+    })
   })
   revalidatePath('/admin/groups')
   return { success: true }
@@ -90,21 +123,42 @@ export async function updateGroup(id: number, input: GroupInput) {
   const error = validate(input)
   if (error) return { success: false, error }
 
-  const updated = await db
-    .update(productGroups)
-    .set({
-      nameUk: input.nameUk.trim(),
-      nameRu: input.nameRu.trim(),
-      slug: slugify(input.nameUk, 'group'),
-      descriptionUk: input.descriptionUk || null,
-      descriptionRu: input.descriptionRu || null,
-      sortOrder: input.sortOrder ?? 0,
-      isActive: input.isActive ?? true,
-      updatedAt: new Date(),
+  // Slugs are set once at creation and kept stable across renames — the
+  // same rule as categories: a rename must not change the slug. Only
+  // self-heal groups that predate the slug. The read + write run inside
+  // one transaction under a row lock, so a concurrent save cannot
+  // interleave a stale slug; on a 23505 race the retry uses the bumped
+  // suffix.
+  const firstSlug = await generateUniqueGroupSlug(input.nameUk, id, id)
+  const { result: updated } = await withSlugRetry(firstSlug, async (candidate) => {
+    return withDbClient(async (client) => {
+      const tx = dbForClient(client)
+      const [current] = await tx
+        .select({ slug: productGroups.slug })
+        .from(productGroups)
+        .where(eq(productGroups.id, id))
+        .for('update')
+        .limit(1)
+      if (!current) return null
+      const slug = current.slug || candidate
+      const rows = await tx
+        .update(productGroups)
+        .set({
+          nameUk: input.nameUk.trim(),
+          nameRu: input.nameRu.trim(),
+          slug,
+          descriptionUk: input.descriptionUk || null,
+          descriptionRu: input.descriptionRu || null,
+          sortOrder: input.sortOrder ?? 0,
+          isActive: input.isActive ?? true,
+          updatedAt: new Date(),
+        })
+        .where(eq(productGroups.id, id))
+        .returning({ id: productGroups.id })
+      return rows.length > 0 ? rows[0] : null
     })
-    .where(eq(productGroups.id, id))
-    .returning({ id: productGroups.id })
-  if (updated.length === 0) return { success: false, error: 'Группа не найдена' }
+  })
+  if (!updated) return { success: false, error: 'Группа не найдена' }
   revalidatePath('/admin/groups')
   return { success: true }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { CreditCard, Minus, Plus, ShoppingCart, Star, ShieldCheck, Truck } from 'lucide-react'
+import { CreditCard, Flame, Minus, Plus, ShoppingCart, Star, ShieldCheck, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ProductGallery } from '@/components/shop/product-gallery'
@@ -56,7 +56,7 @@ export function ProductPurchasePanel({
   labels: Labels
   deliveryMethods?: SafeMethod[]
   paymentMethods?: SafeMethod[]
-  promo?: { name: string; endsAt: string } | null
+  promo?: { name: string; endsAt: string | null } | null
 }) {
   const { add } = useCart()
   const { dict, locale } = useI18n()
@@ -230,10 +230,20 @@ export function ProductPurchasePanel({
 
         {/* The timer shows whenever a real automatic promotion targets this
             product — not only when an oldPrice cut exists. The discount is
-            applied at checkout, so when the displayed price has no cut the
-            hint below says so instead of implying a lower price. */}
-        {promo && <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} />}
-        {promo && discount === 0 && (
+            applied at checkout, never to the displayed price, so the hint
+            below always shows with a promo — including when the product also
+            has an oldPrice cut — so the two discounts are never confused.
+            An open-ended promo (endsAt null) has no countdown to show, so
+            it renders the same-styled banner with the no-expiry wording. */}
+        {promo && promo.endsAt ? (
+          <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} />
+        ) : promo ? (
+          <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-medium text-destructive">
+            <Flame className="size-4 shrink-0" />
+            <span>{dict.product.promoNoEndDate}</span>
+          </div>
+        ) : null}
+        {promo && (
           <p className="text-xs text-muted-foreground">{dict.product.promoCheckoutHint}</p>
         )}
 

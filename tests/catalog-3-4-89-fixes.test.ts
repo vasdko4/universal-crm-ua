@@ -185,3 +185,30 @@ describe('catalog 3.4.89 structural checks', () => {
     expect(queries.match(/\.limit\(100\)/g)).toHaveLength(2)
   })
 })
+
+describe('slug retry in import paths (fix 2)', () => {
+  it('csv import: new-product insert and slug self-heal retry on 23505', () => {
+    const src = source('app/actions/import.ts')
+    expect(src).toContain("import { generateUniqueSlug, withSlugRetry } from '@/lib/product-slug'")
+    // One withSlugRetry for the INSERT, one for the self-heal UPDATE.
+    expect(src.match(/withSlugRetry\(firstSlug/g)).toHaveLength(2)
+    // Each attempt runs in a fresh transaction (withDbClient BEGIN/COMMITs
+    // per call) — a failed INSERT/UPDATE aborts its transaction.
+    expect(src).toContain('withDbClient(async (client) => {')
+    expect(src).toContain('dbForClient(client)')
+  })
+
+  it('prom import: new-product insert and slug self-heal retry on 23505', () => {
+    const src = source('app/actions/prom-import.ts')
+    expect(src).toContain("import { generateUniqueSlug, withSlugRetry } from '@/lib/product-slug'")
+    // One withSlugRetry for the INSERT, one for the self-heal UPDATE.
+    expect(src.match(/withSlugRetry\(slug/g)).toHaveLength(2)
+    expect(src).toContain('withDbClient(async (client) => {')
+    expect(src).toContain('dbForClient(client)')
+  })
+
+  it('products: create/update/duplicate still retry (no regression)', () => {
+    const src = source('app/actions/products.ts')
+    expect(src.match(/withSlugRetry\(firstSlug/g)).toHaveLength(3)
+  })
+})

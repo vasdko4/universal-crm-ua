@@ -112,7 +112,7 @@ export function CatalogToolbar({
     : dict.catalog.price
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 lg:sticky lg:top-[159px] lg:z-30 lg:bg-card/95 lg:backdrop-blur">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 lg:sticky lg:top-[155px] lg:z-30 lg:bg-card/95 lg:backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <p className="text-sm text-muted-foreground">
           {dict.catalog.found}: <span className="font-semibold text-foreground">{total}</span>

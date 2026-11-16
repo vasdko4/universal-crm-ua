@@ -22,8 +22,8 @@ type Props = {
 
 /**
  * Desktop-only sticky buy bar (hidden lg:flex). It sits directly under the
- * sticky site header (top 110px — measured header height: 68px main row +
- * 41px nav row + 1px border) and slides in once the purchase panel has
+ * sticky site header (top 155px — measured header height: 43px utility bar +
+ * 69px main row + 43px nav row, verified live on powerfox.shop) and slides in once the purchase panel has
  * scrolled out of view. Deliberately NOT rendered on mobile: the pinned
  * duplicate used to float over the bottom navigation and cover content.
  */
@@ -53,7 +53,7 @@ export function ProductStickyBuyBar({
     <div
       aria-hidden={!pastPanel}
       className={cn(
-        'fixed inset-x-0 top-[159px] z-30 hidden border-b border-border bg-card/95 backdrop-blur transition-all duration-300 lg:flex lg:justify-center',
+        'fixed inset-x-0 top-[155px] z-30 hidden border-b border-border bg-card/95 backdrop-blur transition-all duration-300 lg:flex lg:justify-center',
         pastPanel ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-full opacity-0',
       )}
     >

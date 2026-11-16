@@ -26,7 +26,8 @@ import { cn } from '@/lib/utils'
  * ragged; the list cannot wrap and matches the desktop sidebar, which
  * was already a list. The bar scrolls away with the page (a sticky bar
  * would eat too much screen). Desktop (lg+): same list, pinned under the
- * header (sticky top 128px = ~112px header + 16px gap).
+ * header (sticky top 171px = 155px header + 16px gap; header measured live
+ * on powerfox.shop: 43px utility bar + 69px main row + 43px nav row).
  */
 export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
@@ -62,7 +63,7 @@ export function AccountNav({ isAdmin = false }: { isAdmin?: boolean }) {
     )
 
   return (
-    <div className="min-w-0 lg:sticky lg:top-[128px] lg:w-[220px] lg:self-start">
+    <div className="min-w-0 lg:sticky lg:top-[171px] lg:w-[220px] lg:self-start">
       <nav
         aria-label={dict.account.title}
         className="flex flex-col gap-0.5 rounded-2xl border border-border bg-card p-1.5 shadow-sm lg:p-2 lg:shadow-none"

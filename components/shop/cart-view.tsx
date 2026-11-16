@@ -117,7 +117,7 @@ export function CartView({ minOrder }: { minOrder?: { enabled: boolean; amount: 
         ))}
       </ul>
 
-      <aside className="lg:sticky lg:top-24 lg:self-start">
+      <aside className="lg:sticky lg:top-[171px] lg:self-start">
         <div className="rounded-2xl border border-border bg-card p-5">
           <h2 className="text-base font-semibold text-foreground">{t.total}</h2>
           <div className="mt-4 flex justify-between text-sm text-muted-foreground">

@@ -780,3 +780,38 @@ BEGIN
     );
 END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_tracking_number ON public.orders (tracking_number);
+
+-- ---------- Группы товаров: уникальный slug (fix 3) ----------
+-- Тот же дефект, что у категорий (3.4.89, fix 4): голый slugify давал
+-- двум группам с одинаковым названием один slug. Сначала переименовываем
+-- дубликаты, затем добавляем уникальный индекс. Идемпотентно: после
+-- первого прогона дубликатов нет, и блок ничего не трогает; повторный
+-- запуск безопасен. Кандидат проверяется against живой таблицей
+-- (WHILE EXISTS), поэтому переименование уникально по построению даже
+-- если суффикс -2 уже занят. Группы нигде не ищутся по slug (только по
+-- id — см. app/actions/promotions.ts и app/actions/products.ts), так что
+-- переименование дубликатов ничего не ломает.
+DO $$
+DECLARE
+  dup RECORD;
+  candidate text;
+  suffix integer;
+BEGIN
+  -- Keep the lowest id per slug; rename the rest with an incrementing
+  -- suffix, checking each candidate against the live table.
+  FOR dup IN
+    SELECT id, slug FROM product_groups
+    WHERE slug IN (SELECT slug FROM product_groups GROUP BY slug HAVING COUNT(*) > 1)
+      AND id NOT IN (SELECT MIN(id) FROM product_groups GROUP BY slug)
+    ORDER BY id
+  LOOP
+    suffix := 2;
+    candidate := LEFT(dup.slug, 240) || '-' || suffix;
+    WHILE EXISTS (SELECT 1 FROM product_groups WHERE slug = candidate) LOOP
+      suffix := suffix + 1;
+      candidate := LEFT(dup.slug, 240) || '-' || suffix;
+    END LOOP;
+    UPDATE product_groups SET slug = candidate WHERE id = dup.id;
+  END LOOP;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_product_groups_slug ON public.product_groups (slug);

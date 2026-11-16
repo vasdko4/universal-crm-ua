@@ -6,6 +6,7 @@ import { getGroups, getSiteGroups, getMarketplaceCategories } from '@/app/action
 import { ProductForm, type ProductFormData } from '@/components/products/product-form'
 import { ProductAnalyticsPanel } from '@/components/products/product-analytics-panel'
 import { StockHistory } from '@/components/products/stock-history'
+import { getRealOrdersCount } from '@/lib/shop/purchase-count'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,12 +20,16 @@ export default async function EditProductPage({
   if (!Number.isInteger(productId) || productId <= 0) notFound()
 
   const admin = await requireWritePermission('products')
-  const [product, categories, groups, siteGroups, marketplaceCategories] = await Promise.all([
+  const [product, categories, groups, siteGroups, marketplaceCategories, realOrdersCount] = await Promise.all([
     getProduct(productId),
     getCategories(),
     getGroups(),
     getSiteGroups(),
     getMarketplaceCategories(),
+    // Honest purchase counter (fix #1): the form's "real orders" field must
+    // count real orders only — the stored products.orders_count still holds
+    // cancelled test orders until scripts/recompute-orders-count.mjs runs.
+    getRealOrdersCount(productId),
   ])
 
   if (!product) notFound()
@@ -63,7 +68,7 @@ export default async function EditProductPage({
     isVisible: product.isVisible ?? true,
     isPopular: product.isPopular ?? false,
     purchasesBoost: String(product.purchasesBoost ?? 0),
-    realOrdersCount: product.ordersCount ?? 0,
+    realOrdersCount,
     metaTitleUk: product.metaTitleUk ?? '',
     metaTitleRu: product.metaTitleRu ?? '',
     metaDescriptionUk: product.metaDescriptionUk ?? '',

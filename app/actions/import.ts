@@ -1,12 +1,12 @@
 'use server'
 
-import { db } from '@/lib/db'
+import { db, dbForClient, withDbClient } from '@/lib/db'
 import { importTasks, products } from '@/lib/db/schema'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { revalidateStorefront } from '@/lib/shop/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
-import { generateUniqueSlug } from '@/lib/product-slug'
+import { generateUniqueSlug, withSlugRetry } from '@/lib/product-slug'
 
 export type ImportRow = {
   name_uk?: string
@@ -130,60 +130,77 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
 
       if (existing.length > 0) {
         const ex = existing[0]
-        // BUGFIX: legacy imports left slug = NULL → storefront 404 /
-        // redirect loop for those products. Self-heal the slug on re-import.
-        const healSlug = ex.slug ? undefined : await generateUniqueSlug(nameUk || nameRu || sku || 'product', ex.id, ex.id)
-        await db
-          .update(products)
-          .set({
-            nameRu: nameRu || undefined,
-            nameUk: nameUk || undefined,
-            descriptionRu: row.description_ru || undefined,
-            descriptionUk: row.description_uk || undefined,
-            metaDescriptionRu: row.meta_description_ru?.trim() || undefined,
-            metaDescriptionUk: row.meta_description_uk?.trim() || undefined,
-            price: String(price),
-            // Invalid old_price must not overwrite the saved one with null —
-            // only a valid value (or an empty cell meaning "don't touch") applies.
-            ...(hasOldPrice && oldPrice != null ? { oldPrice } : {}),
-            ...(hasQuantity
-              ? {
-                  quantity,
-                  stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
-                  isInStock: quantity > 0,
-                }
-              : {}),
-            // An empty unit cell means "don't touch", not "reset to 'шт'".
-            ...(row.unit?.trim() ? { unit: row.unit.trim() } : {}),
-            updatedAt: sql`now()`,
-            ...(healSlug ? { slug: healSlug } : {}),
+        const updateValues = {
+          nameRu: nameRu || undefined,
+          nameUk: nameUk || undefined,
+          descriptionRu: row.description_ru || undefined,
+          descriptionUk: row.description_uk || undefined,
+          metaDescriptionRu: row.meta_description_ru?.trim() || undefined,
+          metaDescriptionUk: row.meta_description_uk?.trim() || undefined,
+          price: String(price),
+          // Invalid old_price must not overwrite the saved one with null —
+          // only a valid value (or an empty cell meaning "don't touch") applies.
+          ...(hasOldPrice && oldPrice != null ? { oldPrice } : {}),
+          ...(hasQuantity
+            ? {
+                quantity,
+                stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
+                isInStock: quantity > 0,
+              }
+            : {}),
+          // An empty unit cell means "don't touch", not "reset to 'шт'".
+          ...(row.unit?.trim() ? { unit: row.unit.trim() } : {}),
+          updatedAt: sql`now()`,
+        }
+        if (ex.slug) {
+          await db.update(products).set(updateValues).where(eq(products.id, ex.id))
+        } else {
+          // BUGFIX: legacy imports left slug = NULL → storefront 404 /
+          // redirect loop for those products. Self-heal the slug on
+          // re-import. The freshly generated slug can still race another
+          // import of a same-name product (23505) — retry the whole UPDATE
+          // in a fresh transaction with a bumped suffix, same as
+          // createProduct (a failed UPDATE aborts its transaction, so the
+          // retry can never reuse it).
+          const firstSlug = await generateUniqueSlug(nameUk || nameRu || sku || 'product', ex.id, ex.id)
+          await withSlugRetry(firstSlug, async (slug) => {
+            await withDbClient(async (client) => {
+              const tx = dbForClient(client)
+              await tx.update(products).set({ ...updateValues, slug }).where(eq(products.id, ex.id))
+            })
           })
-          .where(eq(products.id, ex.id))
+        }
       } else {
         const nameForSlug = nameUk || nameRu || sku || 'product'
         // Generate the slug BEFORE the insert so the row is never created
         // with slug = NULL (the old separate UPDATE left a window where the
         // product 404'd / redirect-looped). The numeric fallback only
-        // matters when the name has no slugifiable characters at all.
-        const slug = await generateUniqueSlug(nameForSlug, 0)
-        await db
-          .insert(products)
-          .values({
-            nameRu: nameRu || null,
-            nameUk: nameUk || null,
-            descriptionRu: row.description_ru || null,
-            descriptionUk: row.description_uk || null,
-            metaDescriptionRu: row.meta_description_ru?.trim() || null,
-            metaDescriptionUk: row.meta_description_uk?.trim() || null,
-            sku,
-            slug,
-            price: String(price),
-            oldPrice,
-            quantity,
-            unit: row.unit?.trim() || 'шт',
-            stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
-            isInStock: quantity > 0,
+        // matters when the name has no slugifiable characters at all. The
+        // pool-checked slug can still collide with a concurrent import of
+        // a same-name product — retry the whole INSERT in a fresh
+        // transaction with a bumped suffix instead of failing the row.
+        const firstSlug = await generateUniqueSlug(nameForSlug, 0)
+        await withSlugRetry(firstSlug, async (slug) => {
+          await withDbClient(async (client) => {
+            const tx = dbForClient(client)
+            await tx.insert(products).values({
+              nameRu: nameRu || null,
+              nameUk: nameUk || null,
+              descriptionRu: row.description_ru || null,
+              descriptionUk: row.description_uk || null,
+              metaDescriptionRu: row.meta_description_ru?.trim() || null,
+              metaDescriptionUk: row.meta_description_uk?.trim() || null,
+              sku,
+              slug,
+              price: String(price),
+              oldPrice,
+              quantity,
+              unit: row.unit?.trim() || 'шт',
+              stockStatus: quantity > 0 ? 'В наявності' : 'Немає в наявності',
+              isInStock: quantity > 0,
+            })
           })
+        })
       }
       success++
     } catch (e) {

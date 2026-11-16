@@ -73,10 +73,13 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
   // Automatic-promotion badge (3.4.103): the discount is applied at checkout,
   // never to the displayed price — so a percentage promo gives a real "−N%"
   // and a fixed-amount promo gets a generic badge with no invented number.
-  // Only when there is no oldPrice cut (that badge already shows the real
-  // displayed price cut and takes precedence).
-  const promoDiscountPct = discount === 0 ? (product.promoDiscountPct ?? 0) : 0
-  const promoFixed = discount === 0 && promoDiscountPct === 0 && Boolean(product.promoFixed)
+  // This is a separate fact from the oldPrice cut above: the two are never
+  // merged into one number, so the promo badge is always shown, even when
+  // the product already has a displayed-price cut. It is labelled
+  // "Акція −N%" (not a bare "−N%") so it cannot be mistaken for part of
+  // that cut.
+  const promoDiscountPct = product.promoDiscountPct ?? 0
+  const promoFixed = promoDiscountPct === 0 && Boolean(product.promoFixed)
 
   function handleAdd() {
     if (!product.inStock) return
@@ -163,7 +166,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
           )}
           {promoDiscountPct > 0 && (
             <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-destructive-foreground">
-              −{promoDiscountPct}%
+              {dict.product.promoBadge} −{promoDiscountPct}%
             </span>
           )}
           {promoFixed && (
