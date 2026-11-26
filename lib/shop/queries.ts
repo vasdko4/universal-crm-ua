@@ -1668,14 +1668,32 @@ async function _getActiveAutoDiscounts(): Promise<ActivePromotion[]> {
   return rows.map(toActivePromotion)
 }
 
+// Whether a promotion is live at `now`: started and not yet ended (an
+// endsAt of null means open-ended). Mirrors activeAutoDiscountWhere() — the
+// cached entries below can outlive a campaign's end inside the cache TTL,
+// so callers filter at read time instead of trusting the cached rows.
+export function isPromotionLiveNow(promo: ActivePromotion, now: Date): boolean {
+  if (new Date(promo.startsAt) > now) return false
+  if (promo.endsAt == null) return true
+  return new Date(promo.endsAt) > now
+}
+
+/** Drop promotions that are no longer live at `now` (stale cached entries). */
+export function filterLivePromotions(promos: ActivePromotion[], now: Date): ActivePromotion[] {
+  return promos.filter((promo) => isPromotionLiveNow(promo, now))
+}
+
 /** All currently-active automatic discounts, soonest-ending first. */
-export function getActivePromotions() {
-  return cachedQuery(['active-promotions'], [CACHE_TAGS.catalog], () => _getActiveAutoDiscounts())
+export async function getActivePromotions(): Promise<ActivePromotion[]> {
+  const promos = await cachedQuery(['active-promotions'], [CACHE_TAGS.catalog], () =>
+    _getActiveAutoDiscounts(),
+  )
+  return filterLivePromotions(promos, new Date())
 }
 
 /** The active automatic discount with the soonest future deadline, if any. */
-export function getSoonestEndingPromotion(): Promise<ActivePromotion | null> {
-  return cachedQuery(['soonest-promotion'], [CACHE_TAGS.catalog], async () => {
+export async function getSoonestEndingPromotion(): Promise<ActivePromotion | null> {
+  const promo = await cachedQuery(['soonest-promotion'], [CACHE_TAGS.catalog], async () => {
     const rows = await db
       .select()
       .from(promotions)
@@ -1684,6 +1702,7 @@ export function getSoonestEndingPromotion(): Promise<ActivePromotion | null> {
       .limit(1)
     return rows.length > 0 ? toActivePromotion(rows[0]) : null
   })
+  return promo != null && isPromotionLiveNow(promo, new Date()) ? promo : null
 }
 
 // Product IDs a set of active auto-discounts can apply to. all=true means
@@ -1763,7 +1782,7 @@ export async function getPromotionProducts(
     const rows = await db
       .select(productSelect)
       .from(products)
-      .where(baseWhere)
+      .where(and(baseWhere, sql`${products.quantity} > 0`))
       .orderBy(...orderByPopularity)
       .limit(limit)
     return attachPromoBadges(await withListingSizes(rows.map((r) => toShopProduct(r as Record<string, unknown>))))

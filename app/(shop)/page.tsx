@@ -251,28 +251,25 @@ export default async function HomePage() {
           is active right now; otherwise the page starts with the hero as before. */}
       {campaign && (
         <div className="border-b border-border bg-card">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-3 sm:px-4 lg:px-8">
+          <Link
+            href={lp('/promotions')}
+            className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-3 sm:px-4 lg:px-8"
+          >
             <span className="rounded bg-destructive px-2 py-1 text-xs font-bold text-destructive-foreground">
               {campaign.discountType === 'percentage'
                 ? `−${campaign.discountValue}%`
                 : `−${formatPrice(campaign.discountValue, 'UAH', locale)}`}
             </span>
-            <Link
-              href={lp('/promotions')}
-              className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground hover:text-primary"
-            >
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground hover:text-primary">
               {campaign.name}
-            </Link>
+            </span>
             {campaign.endsAt && (
-              <PromoTimer endsAt={campaign.endsAt} label={dict.product.promoTimerLabel} />
+              <PromoTimer endsAt={campaign.endsAt} label={dict.product.promoTimerLabel} locale={locale} />
             )}
-            <Link
-              href={lp('/promotions')}
-              className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline"
-            >
+            <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline">
               {c.campaignCta} <ArrowRight className="size-4" />
-            </Link>
-          </div>
+            </span>
+          </Link>
         </div>
       )}
       {/* Hero — layout depends on the active storefront template */}
@@ -485,7 +482,7 @@ export default async function HomePage() {
               </div>
               {deal.promotion.endsAt && (
                 <div>
-                  <PromoTimer endsAt={deal.promotion.endsAt} label={dict.product.promoTimerLabel} />
+                  <PromoTimer endsAt={deal.promotion.endsAt} label={dict.product.promoTimerLabel} locale={locale} />
                 </div>
               )}
               <p className="text-xs text-muted-foreground">{dict.product.promoCheckoutHint}</p>

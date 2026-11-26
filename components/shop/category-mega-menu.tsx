@@ -60,7 +60,7 @@ export function CategoryMegaMenu({ categories }: { categories: HeaderCategory[] 
               {/* Promotions highlight row */}
               <li className="mb-1 border-b border-border pb-1">
                 <Link
-                  href={lp('/catalog?discount=1')}
+                  href={lp('/promotions')}
                   onClick={close}
                   onMouseEnter={() => setActiveId(null)}
                   className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"

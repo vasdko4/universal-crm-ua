@@ -236,7 +236,7 @@ export function ProductPurchasePanel({
             An open-ended promo (endsAt null) has no countdown to show, so
             it renders the same-styled banner with the no-expiry wording. */}
         {promo && promo.endsAt ? (
-          <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} />
+          <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} locale={locale} />
         ) : promo ? (
           <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-medium text-destructive">
             <Flame className="size-4 shrink-0" />

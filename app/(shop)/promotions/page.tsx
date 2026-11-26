@@ -66,12 +66,14 @@ export default async function PromotionsPage() {
   })
 
   const promotions = await getActivePromotions()
-  const withProducts = await Promise.all(
-    promotions.map(async (promo) => ({
-      promo,
-      products: await getPromotionProducts(promo, 8, locale),
-    })),
-  )
+  const withProducts = (
+    await Promise.all(
+      promotions.map(async (promo) => ({
+        promo,
+        products: await getPromotionProducts(promo, 8, locale),
+      })),
+    )
+  ).filter(({ products }) => products.length > 0)
 
   const breadcrumbLd = buildBreadcrumbLd(
     [
@@ -135,7 +137,7 @@ export default async function PromotionsPage() {
                 </p>
                 {promo.endsAt && (
                   <div className="mt-3">
-                    <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} />
+                    <PromoTimer endsAt={promo.endsAt} label={dict.product.promoTimerLabel} locale={locale} />
                   </div>
                 )}
               </div>
