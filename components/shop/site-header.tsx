@@ -167,18 +167,24 @@ export function SiteHeader({
       {/* Desktop primary nav */}
       <nav className="hidden border-t border-border lg:block">
         <div className="mx-auto flex max-w-7xl items-center gap-1 px-4 lg:px-8">
-          {categories
-            .filter((c) => !c.parentId)
-            .slice(0, 6)
-            .map((c) => (
-              <Link
-                key={c.id}
-                href={lp(`/category/${c.slug}`)}
-                className="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary"
-              >
-                {c.name}
-              </Link>
-            ))}
+          <Link
+            href={lp('/catalog')}
+            className="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary"
+          >
+            {dict.nav.allProducts}
+          </Link>
+          <Link
+            href={lp('/catalog?discount=1')}
+            className="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-primary hover:border-primary"
+          >
+            {dict.nav.promotions}
+          </Link>
+          <Link
+            href={lp('/articles')}
+            className="border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary hover:text-primary"
+          >
+            {dict.nav.articles}
+          </Link>
         </div>
       </nav>
 
