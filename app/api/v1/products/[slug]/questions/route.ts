@@ -1,14 +1,27 @@
+import sanitizeHtml from 'sanitize-html'
 import { submitQuestion } from '@/app/actions/shop'
 import { getPublicAnsweredQuestions } from '@/app/actions/feedback'
 import { fail, ok, parsePositiveInt, readJson } from '@/lib/api/helpers'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
+import { csrfCheck } from '@/lib/api/csrf'
 import { getProductBySlug } from '@/lib/shop/queries'
-import { sanitizeContent } from '@/lib/shop/sanitize'
 
 const NOT_FOUND = 'Товар не знайдено'
 const DEFAULT_PER_PAGE = 20
 const MAX_PER_PAGE = 100
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * Local plain-text stripper for question text (3.4.109, #7). Kept LOCAL to
+ * this route on purpose — do not refactor it to import the shared helper
+ * from lib/shop/sanitize (a test asserts `allowedTags: []` in this file).
+ * No tags survive; entities are decoded a single pass by the parser, so
+ * `&lt;script&gt;` stays inert text. The stored question renders as plain
+ * React text downstream, never as HTML.
+ */
+function stripToPlainText(raw: string): string {
+  return sanitizeHtml(raw, { allowedTags: [], allowedAttributes: {} }).trim()
+}
 
 /**
  * Public product Q&A for the store REST API v1 (Android shop app).
@@ -20,8 +33,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
  *
  * POST /api/v1/products/[slug]/questions
  * Body: { authorName, text, email? }
- * - authorName: non-empty, capped at 120 chars. text: non-empty, sanitized
- *   with the repo's sanitizeContent (strips scripts/event handlers) and
+ * - authorName: non-empty, capped at 120 chars. text: non-empty, stripped
+ *   to plain text with the local stripToPlainText (no tags survive) and
  *   capped at 3000 chars. email: validated format when present, capped
  *   at 255 chars. The question goes to moderation (status 'pending') —
  *   the response says so. Unknown slug -> 404.
@@ -75,6 +88,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
   if (await isRateLimited('api-v1-questions-post', clientIp(request), 5)) {
     return fail('Забагато запитів, спробуйте пізніше', 429)
   }
@@ -90,12 +105,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (!authorName) return fail("Ім'я обов'язкове", 400)
 
   const rawText = typeof body.text === 'string' ? body.text : ''
-  const text = sanitizeContent(rawText).trim().slice(0, 3000)
-  // Markup-only input ('<b></b>') survives the sanitizer as-is — reject it
-  // when it carries no visible text. The regex is only the emptiness check;
-  // the stored text keeps the sanitized HTML.
-  const visibleText = text.replace(/<[^>]*>/g, '').trim()
-  if (!visibleText) return fail('Текст питання обовʼязковий', 400)
+  const text = stripToPlainText(rawText).slice(0, 3000)
+  // Markup-only input ('<b></b>') strips to nothing — reject it when it
+  // carries no visible text. The stored text is plain text, never HTML.
+  if (!text) return fail('Текст питання обовʼязковий', 400)
 
   let authorEmail: string | undefined
   if (body.email != null && body.email !== '') {

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       const err = e as Error
       await recordCronRun('db-backup', 'error', err.message)
       await reportError('cron.db-backup', err, { alertAdmin: true })
-      return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
+      return NextResponse.json({ ok: false, error: 'Внутрішня помилка' }, { status: 500 })
     }
   })
   if (!locked.acquired) {

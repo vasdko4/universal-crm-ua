@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
       // A dead analytics-retention lets analytics_events grow without bound —
       // ping the admin, not just the logs.
       void reportError('cron.analytics-retention', e, { alertAdmin: true })
-      return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+      return NextResponse.json({ ok: false, error: 'Внутрішня помилка' }, { status: 500 })
     }
   })
   if (!locked.acquired) {

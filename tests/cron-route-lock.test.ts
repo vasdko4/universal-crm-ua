@@ -50,9 +50,12 @@ describe('cron route single-flight lock (audit A4/A5)', () => {
     }
   })
 
-  it('prom-sync is untouched: its lock already lives inside syncPromProducts', () => {
+  it('prom-sync has the route-level lock + enabled toggle (3.4.109 #8)', () => {
     const src = source('app/api/cron/prom-sync/route.ts')
-    expect(src).not.toContain('withCronLock')
+    // #8: the route was missing isCronJobEnabled + withCronLock (the inner
+    // syncPromProducts lock is a different advisory lock, kept as-is).
+    expect(src).toContain('withCronLock')
+    expect(src).toContain("isCronJobEnabled('prom-sync')")
     expect(src).toContain('syncPromProducts')
   })
 

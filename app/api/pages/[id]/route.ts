@@ -1,6 +1,7 @@
 import { getPublicPublishedPageById, updatePage, deletePage, type PageInput } from '@/app/actions/pages'
 import { ok, fail, readJson, parsePositiveInt } from '@/lib/api/helpers'
 import { getAdminUserWithWritePermission } from '@/lib/session'
+import { csrfCheck } from '@/lib/api/csrf'
 import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { pickLocalized } from '@/lib/i18n/config'
 
@@ -21,6 +22,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  // CSRF first (audit #5): a cross-site POST from an attacker's page runs
+  // with the admin's cookies — refuse a foreign Origin before any auth or
+  // DB work. No-Origin requests (non-browser clients) are allowed.
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
   if (!(await getAdminUserWithWritePermission('pages'))) return fail('Не авторизовано', 403)
   const { id } = await params
   const idNum = parsePositiveInt(id)
@@ -32,7 +38,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   return ok({ updated: true })
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  // CSRF first (audit #5): a cross-site POST from an attacker's page runs
+  // with the admin's cookies — refuse a foreign Origin before any auth or
+  // DB work. No-Origin requests (non-browser clients) are allowed.
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
   if (!(await getAdminUserWithWritePermission('pages'))) return fail('Не авторизовано', 403)
   const { id } = await params
   const idNum = parsePositiveInt(id)

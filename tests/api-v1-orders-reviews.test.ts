@@ -281,11 +281,11 @@ describe('POST /api/v1/products/[slug]/reviews', () => {
     expect(mockedSubmitReview).not.toHaveBeenCalled()
   })
 
-  it('rejects a supplied orderNumber that does not exist', async () => {
+  it('accepts a supplied orderNumber that does not exist (no existence lookup, 3.4.109 #7)', async () => {
     dbState.byTable.set(orders, [])
     const res = await postReviewReq('test-slug', { ...validReview, orderNumber: '000000000000' })
-    expect(res.status).toBe(400)
-    expect(mockedSubmitReview).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+    expect(mockedSubmitReview).toHaveBeenCalled()
   })
 
   it('accepts a supplied orderNumber that exists and submits the review', async () => {

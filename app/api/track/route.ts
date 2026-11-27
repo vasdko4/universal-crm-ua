@@ -2,13 +2,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { trackEvent } from '@/app/actions/analytics'
 import { readJson } from '@/lib/api/helpers'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
+import { csrfCheck } from '@/lib/api/csrf'
 import { isValidTrackPath } from '@/lib/analytics/track-validation'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
   const ip = clientIp(req)
-  if (await isRateLimited('track', ip, 60, 60_000, { relaxUnknown: true })) {
+  if (await isRateLimited('track', ip, 60, 60_000)) {
     return NextResponse.json({ success: false, error: 'Too many events' }, { status: 429 })
   }
 

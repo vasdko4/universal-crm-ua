@@ -44,6 +44,30 @@ async function isGoogleLinked(userId: string): Promise<boolean> {
   return rows.length > 0
 }
 
+const UNVERIFIED_EMAIL_ERROR = 'Спочатку підтвердіть свій поточний email.'
+
+/**
+ * 3.4.109 #44 (low-friction only — this must NOT gate checkout or
+ * sign-in): email/password change flows require the CURRENT email to be
+ * verified first, so a stolen session on an unverified account cannot
+ * take it over by swapping the address or password. Returns the error
+ * string when `emailVerified === false`; `null` (never verified — e.g.
+ * legacy rows) passes through to the flow's own errors, exactly like
+ * `true`.
+ *
+ * Wired into requestEmailChange, confirmEmailChange, requestPasswordChange
+ * and confirmPasswordChange ONLY — grep for UNVERIFIED_EMAIL_ERROR to
+ * prove it is used nowhere else.
+ */
+async function requireVerifiedCurrentEmail(userId: string): Promise<string | null> {
+  const { rows } = await pool.query<{ emailVerified: boolean | null }>(
+    `SELECT "emailVerified" FROM "user" WHERE id=$1 LIMIT 1`,
+    [userId],
+  )
+  if (rows[0]?.emailVerified === false) return UNVERIFIED_EMAIL_ERROR
+  return null
+}
+
 // Pre-registration check used by the sign-up form BEFORE creating the account,
 // so we never end up with an account that has a duplicate phone.
 export async function checkPhoneAvailable(phone: string) {
@@ -187,7 +211,10 @@ export async function saveCustomerPhone(phone: string) {
 export async function updateCustomerProfile(input: { name: string }) {
   const user = await getShopUser()
   if (!user) return { success: false, error: 'Не авторизован' }
-  const name = input.name?.trim()
+  // ITEM 0 (3.4.109): typeof-check + 120-char cap. The write itself is
+  // parameterised ($1/$2), so no SQL injection is possible through name.
+  if (typeof input?.name !== 'string') return { success: false, error: 'Введите имя' }
+  const name = input.name.trim().slice(0, 120)
   if (!name) return { success: false, error: 'Введите имя' }
   await pool.query(`UPDATE "user" SET name=$1, "updatedAt"=NOW() WHERE id=$2`, [name, user.id])
   return { success: true }
@@ -265,6 +292,11 @@ export async function requestEmailChange(
   const user = await getShopUser()
   if (!user) return { success: false, error: 'Не авторизован' }
 
+  const unverifiedError = await requireVerifiedCurrentEmail(user.id)
+  if (unverifiedError) return { success: false, error: unverifiedError }
+
+  if (typeof newEmailRaw !== 'string') return { success: false, error: 'Введите корректный email' }
+
   // SECURITY: each request emails a code to an arbitrary address — without a
   // limit a logged-in account could be scripted into an email-bombing tool.
   if (await isRateLimited('email-change-req', user.id, 3, 900_000)) {
@@ -295,7 +327,7 @@ export async function requestEmailChange(
     hasPassword: await hasCredentialPassword(user.id),
   })
   if (reauthKind === 'password') {
-    const currentPassword = reauth?.currentPassword ?? ''
+    const currentPassword = typeof reauth?.currentPassword === 'string' ? reauth.currentPassword : ''
     if (!currentPassword) return { success: false, error: 'Введіть поточний пароль' }
     const { rows } = await pool.query<{ password: string | null }>(
       `SELECT password FROM account WHERE "userId"=$1 AND "providerId"='credential' LIMIT 1`,
@@ -307,7 +339,7 @@ export async function requestEmailChange(
     const ok = storedHash ? await verifyPassword({ hash: storedHash, password: currentPassword }) : false
     if (!ok) return { success: false, error: 'Невірний поточний пароль' }
   } else {
-    const oldCode = (reauth?.oldEmailCode ?? '').trim()
+    const oldCode = (typeof reauth?.oldEmailCode === 'string' ? reauth.oldEmailCode : '').trim()
     if (!/^\d{6}$/.test(oldCode)) {
       return { success: false, error: 'Введіть код з листа на поточну пошту' }
     }
@@ -349,6 +381,11 @@ export async function requestEmailChange(
 export async function confirmEmailChange(codeRaw: string) {
   const user = await getShopUser()
   if (!user) return { success: false, error: 'Не авторизован' }
+
+  const unverifiedError = await requireVerifiedCurrentEmail(user.id)
+  if (unverifiedError) return { success: false, error: unverifiedError }
+
+  if (typeof codeRaw !== 'string') return { success: false, error: 'Код должен состоять из 6 цифр' }
 
   // SECURITY: the code is 6 digits with a 15-minute TTL — cap verification
   // attempts so it cannot be brute-forced (10 tries per 15 minutes).
@@ -443,6 +480,9 @@ export async function requestPasswordChange() {
   const user = await getShopUser()
   if (!user) return { success: false as const, error: 'Не авторизован' }
 
+  const unverifiedError = await requireVerifiedCurrentEmail(user.id)
+  if (unverifiedError) return { success: false as const, error: unverifiedError }
+
   if (await isRateLimited('password-change-req', user.id, 3, 900_000)) {
     return { success: false as const, error: 'Забагато запитів. Спробуйте через 15 хвилин.' }
   }
@@ -501,6 +541,13 @@ export async function confirmPasswordChange(codeRaw: string, newPasswordRaw: str
   const user = await getShopUser()
   if (!user) return { success: false as const, error: 'Не авторизован' }
 
+  const unverifiedError = await requireVerifiedCurrentEmail(user.id)
+  if (unverifiedError) return { success: false as const, error: unverifiedError }
+
+  if (typeof codeRaw !== 'string' || typeof newPasswordRaw !== 'string') {
+    return { success: false as const, error: 'Некорректні дані' }
+  }
+
   if (await isRateLimited('password-change-confirm', user.id, 10, 900_000)) {
     return { success: false as const, error: 'Забагато спроб. Запросіть новий код.' }
   }
@@ -513,6 +560,7 @@ export async function confirmPasswordChange(codeRaw: string, newPasswordRaw: str
   if (!/^\d{6}$/.test(code)) return { success: false as const, error: 'Код має складатися з 6 цифр' }
   const password = newPasswordRaw
   if (password.length < 8) return { success: false as const, error: 'Пароль має бути не коротшим за 8 символів' }
+  if (password.length > 128) return { success: false as const, error: 'Пароль має бути не довшим за 128 символів' }
 
   const identifier = `password-change:${user.id}`
   // Atomic consume: the DELETE itself matches the code hash, so two

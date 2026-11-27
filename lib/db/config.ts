@@ -143,12 +143,29 @@ export function buildConnectionString(parts: {
   password: string
   ssl?: boolean
 }): string {
+  // The wizard feeds admin-typed values straight into a URL the server then
+  // probes — validate every interpolated part so a crafted host/port cannot
+  // inject URL structure (`@`, `/`, `?`, `#`) and redirect the probe.
   const host = parts.host.trim() || 'localhost'
-  const port = String(parts.port || 5432).trim()
+  if (host.length > 253 || !/^(\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+)$/.test(host)) {
+    throw new Error('Некорректный хост базы данных')
+  }
+  // An empty port keeps the old default (the wizard form may omit it).
+  const portNum = parts.port === '' || parts.port == null ? 5432 : Number(parts.port)
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+    throw new Error('Некорректный порт базы данных')
+  }
   const database = parts.database.trim()
-  const user = encodeURIComponent(parts.user.trim())
-  const password = encodeURIComponent(parts.password)
-  const auth = password ? `${user}:${password}` : user
+  if (!database || database.length > 63 || /[/?#\s]/.test(database)) {
+    throw new Error('Некорректное имя базы данных')
+  }
+  const user = parts.user.trim()
+  if (!user || user.length > 63 || /[/?#\s]/.test(user)) {
+    throw new Error('Некорректное имя пользователя базы данных')
+  }
+  const auth = encodeURIComponent(parts.password)
+    ? `${encodeURIComponent(user)}:${encodeURIComponent(parts.password)}`
+    : encodeURIComponent(user)
   const query = parts.ssl ? '?sslmode=require' : ''
-  return `postgresql://${auth}@${host}:${port}/${database}${query}`
+  return `postgresql://${auth}@${host}:${portNum}/${database}${query}`
 }

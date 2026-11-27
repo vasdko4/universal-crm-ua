@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server'
 import { listOrders, createOrder } from '@/app/actions/orders'
 import { ok, fail, parsePositiveInt, sanitizeSearch, readJson } from '@/lib/api/helpers'
 import { getAdminUserWithPermission, getAdminUserWithWritePermission } from '@/lib/session'
+import { csrfCheck } from '@/lib/api/csrf'
 import { ORDER_STATUSES } from '@/lib/order-status'
 
 const ALLOWED_STATUSES = new Set<string>(['all', ...ORDER_STATUSES.map((s) => s.value)])
@@ -47,6 +48,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF first (audit #5): a cross-site POST from an attacker's page runs
+  // with the admin's cookies — refuse a foreign Origin before any auth or
+  // DB work. No-Origin requests (non-browser clients) are allowed.
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
   const me = await getAdminUserWithWritePermission('orders')
   if (!me) return fail('Не авторизован', 401)
   const body = await readJson<{ items?: unknown[] }>(req)

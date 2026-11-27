@@ -4,6 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { APP_VERSION } from '@/lib/app-version'
+import { decryptBackupBytes } from '@/lib/shop/backup-crypto'
+
+// Backups are encrypted since 3.4.109: the writer fails closed without a
+// key, so the suite sets a fixed test key (32 zero-ish bytes, base64).
+const TEST_BACKUP_KEY = Buffer.alloc(32, 7).toString('base64')
 
 // Behavioral tests for the streaming backup writer (audit A17/A18/A19/A20).
 // The pool is faked: two tables (t1 with 3 rows incl. a serial id, t2 empty),
@@ -75,6 +80,7 @@ let dir = ''
 async function loadBackupModule() {
   dir = await mkdtemp(join(tmpdir(), 'db-backup-test-'))
   process.env.BACKUP_DIR = dir
+  process.env.BACKUP_ENCRYPTION_KEY = TEST_BACKUP_KEY
   vi.resetModules()
   return import('@/lib/shop/db-backup')
 }
@@ -87,7 +93,7 @@ afterEach(async () => {
 })
 
 describe('runDatabaseBackup streams a format-identical dump (A17/A18/A20)', () => {
-  it('writes manifest + NDJSON rows to .jsonl.gz, no .tmp left behind', async () => {
+  it('writes manifest + NDJSON rows to .jsonl.gz.enc, no .tmp left behind', async () => {
     mockPool.connect.mockImplementation(async () => makeClient())
     const mod = await loadBackupModule()
     const summary = await mod.runDatabaseBackup(new Date(Date.UTC(2026, 9, 1, 0, 30, 5)))
@@ -97,12 +103,13 @@ describe('runDatabaseBackup streams a format-identical dump (A17/A18/A20)', () =
     expect(summary.bytes).toBeGreaterThan(0)
     expect(summary.pruned).toBe(0)
     expect(summary.pruneErrors).toBe(0)
-    expect(summary.pathname).toBe(join(dir, '2026-10-01-003005.jsonl.gz'))
+    expect(summary.pathname).toBe(join(dir, '2026-10-01-003005.jsonl.gz.enc'))
 
     const entries = await readdir(dir)
-    expect(entries).toEqual(['2026-10-01-003005.jsonl.gz'])
+    expect(entries).toEqual(['2026-10-01-003005.jsonl.gz.enc'])
 
-    const text = gunzipSync(await readFile(summary.pathname)).toString('utf8')
+    const decrypted = await decryptBackupBytes(await readFile(summary.pathname))
+    const text = gunzipSync(decrypted).toString('utf8')
     const lines = text.split('\n').filter((l) => l.length > 0)
     const manifest = JSON.parse(lines[0])
     expect(manifest._manifest).toBe(true)

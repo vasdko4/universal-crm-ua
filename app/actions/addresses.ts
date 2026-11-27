@@ -72,6 +72,32 @@ export async function saveUserAddress(
   if (!input.firstName?.trim() || !input.phone?.trim()) {
     return { ok: false, error: 'invalid' }
   }
+  // Column lengths (lib/db/schema.ts user_addresses): overlong values used
+  // to 500 on the varchar columns. Reject instead of silently truncating —
+  // a truncated branch/city could misroute a delivery.
+  const caps: [unknown, number][] = [
+    [input.label, 120],
+    [input.firstName, 150],
+    [input.lastName, 150],
+    [input.phone, 50],
+    [input.city, 255],
+    [input.cityRef, 120],
+    [input.branch, 255],
+    [input.branchType, 20],
+    [input.postIndex, 20],
+  ]
+  if (caps.some(([v, max]) => typeof v === 'string' && v.trim().length > max)) {
+    return { ok: false, error: 'invalid' }
+  }
+  if (
+    input.deliveryMethod != null &&
+    !['nova_poshta', 'ukrposhta', 'courier', 'pickup'].includes(input.deliveryMethod)
+  ) {
+    return { ok: false, error: 'invalid' }
+  }
+  if (input.id != null && (!Number.isInteger(input.id) || input.id < 1)) {
+    return { ok: false, error: 'invalid' }
+  }
 
   const method = input.deliveryMethod || 'nova_poshta'
   const makeDefault = input.isDefault ?? false
@@ -166,6 +192,7 @@ export async function saveUserAddress(
 export async function deleteUserAddress(id: number): Promise<{ ok: boolean }> {
   const user = await getShopUser()
   if (!user) return { ok: false }
+  if (!Number.isInteger(id) || id < 1) return { ok: false }
   await pool.query(`DELETE FROM "user_addresses" WHERE id = $1 AND user_id = $2`, [id, user.id])
   revalidatePath('/account/addresses')
   return { ok: true }
@@ -174,6 +201,7 @@ export async function deleteUserAddress(id: number): Promise<{ ok: boolean }> {
 export async function setDefaultAddress(id: number): Promise<{ ok: boolean; error?: 'not_found' }> {
   const user = await getShopUser()
   if (!user) return { ok: false }
+  if (!Number.isInteger(id) || id < 1) return { ok: false }
   const client = await pool.connect()
   try {
     await client.query('BEGIN')

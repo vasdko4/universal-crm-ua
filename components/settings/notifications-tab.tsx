@@ -71,7 +71,7 @@ export function NotificationsSection({ data, setData, t }: SectionProps) {
     setTesting(true)
     try {
       const { sendTestTelegram } = await import('@/app/actions/notifications')
-      const res = await sendTestTelegram({ botToken: n.telegramBotToken, chatId: n.telegramChatId })
+      const res = await sendTestTelegram()
       if (res.success) toast.success(t.toastTelegramSent)
       else toast.error(res.error ?? t.toastTelegramError)
     } finally {

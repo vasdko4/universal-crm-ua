@@ -12,6 +12,17 @@ async function dismissLocaleModal(page: import('@playwright/test').Page) {
   if (await lang.isVisible().catch(() => false)) await lang.click()
 }
 
+async function dismissPromoPopup(page: import('@playwright/test').Page) {
+  // 3.4.108 entry promo popup (once per session, on /, /catalog, /category,
+  // /product): a modal dialog that aria-hides the page behind it and
+  // intercepts clicks until dismissed — same as a real shopper closing it.
+  // Call only after hydration (cart-ready), so the dialog has had a chance
+  // to open; a no-op when no campaign is live.
+  const close = page.getByRole('dialog', { name: 'Акція' }).getByRole('button', { name: 'Close' })
+  await close.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
+  if (await close.isVisible().catch(() => false)) await close.click()
+}
+
 async function cartItemCount(page: import('@playwright/test').Page) {
   return page.evaluate(() => {
     try {
@@ -27,6 +38,8 @@ async function cartItemCount(page: import('@playwright/test').Page) {
 test('home page renders storefront chrome', async ({ page }) => {
   const res = await page.goto('/')
   expect(res?.ok()).toBeTruthy()
+  await expect(page.getByTestId('cart-ready')).toHaveAttribute('data-ready', '1', { timeout: 30_000 })
+  await dismissPromoPopup(page)
   await expect(page.locator('header').first()).toBeVisible()
   await expect(page.getByRole('search').first()).toBeVisible()
 })
@@ -56,6 +69,7 @@ test('catalog add-to-cart reaches a non-empty cart', async ({ page }) => {
   // Client cart writes only after hydration. Clicking the SSR button before
   // that is a no-op and leaves localStorage empty.
   await expect(page.getByTestId('cart-ready')).toHaveAttribute('data-ready', '1', { timeout: 30_000 })
+  await dismissPromoPopup(page)
   await expect(page.locator('article a[href*="/product/"]').first()).toBeVisible()
 
   const listingAdd = page.locator('[data-testid="add-to-cart"]:not([disabled])').first()

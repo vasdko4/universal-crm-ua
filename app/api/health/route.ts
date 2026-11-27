@@ -12,7 +12,7 @@ let probe: { at: number; ok: boolean } | null = null
  * DB probe is cached so anonymous GETs cannot exhaust the pool (FIX-31).
  */
 export async function GET(req: Request) {
-  if (await isRateLimited('health', clientIp(req), 60, 60_000, { relaxUnknown: true })) {
+  if (await isRateLimited('health', clientIp(req), 60, 60_000)) {
     return NextResponse.json({ status: 'error' }, { status: 429 })
   }
 

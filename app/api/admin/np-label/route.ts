@@ -6,6 +6,7 @@ import { getAdminUserWithPermission } from '@/lib/session'
 import { novaPoshtaPrintUrl } from '@/lib/delivery/ttn'
 import { parsePositiveInt } from '@/lib/api/helpers'
 import { decryptSecret } from '@/lib/secrets'
+import { isRateLimited } from '@/lib/api/rate-limit'
 
 /**
  * Proxies Nova Poshta printDocument PDF so the API key never lands in the
@@ -14,6 +15,9 @@ import { decryptSecret } from '@/lib/secrets'
 export async function GET(req: NextRequest) {
   const me = await getAdminUserWithPermission('orders')
   if (!me) return new NextResponse('Unauthorized', { status: 401 })
+  if (await isRateLimited('admin-np-label', me.id, 60, 60_000)) {
+    return new NextResponse('Too many requests', { status: 429 })
+  }
 
   const orderId = parsePositiveInt(req.nextUrl.searchParams.get('orderId') ?? '')
   if (orderId == null) return new NextResponse('Bad orderId', { status: 400 })

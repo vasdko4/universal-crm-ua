@@ -47,6 +47,7 @@ import { decryptConfigSecrets, GATEWAY_CONFIG_SECRET_KEYS } from '@/lib/secrets'
 import { getDictionary, fillTemplate } from '@/lib/i18n/dictionaries'
 import { formatPrice } from '@/lib/shop/format'
 import { computeOrderTotals } from '@/lib/shop/order-totals'
+import { stripToPlainText, parseStrictRating, safeTextField } from '@/lib/shop/sanitize'
 import { composeCheckoutNote, formatRequisitesNote } from '@/lib/payments/public-requisites'
 
 // Guest access token cookie (3.4.107, fix 5). The cookie holds ONLY the
@@ -713,6 +714,31 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         actor: customerName,
       })
 
+      // 3.4.109: reserve the promo slots in the SAME transaction as the
+      // order insert, on the same client (FIX-11: a pool connection cannot
+      // see the uncommitted order, and a rollback must not leave an
+      // orphaned hold). The conditional UPDATE inside claims one slot per
+      // promo leg; a lost race throws 'promo-limit' and the whole order
+      // rolls back, so the shopper learns the code is exhausted BEFORE
+      // paying. Cash/requisite orders consume the reservation right below,
+      // in this same transaction, via applyOrderFulfillment; online orders
+      // hold it until finalizePaidOrder converts it at payment.
+      const { reservePromoUsageForOrder } = await import('@/lib/shop/promo-usage')
+      await reservePromoUsageForOrder(
+        {
+          orderId: created.id,
+          orderNumber,
+          customerName,
+          promoCode: appliedPromoCode,
+          discountTotal: discount.toFixed(2),
+          autoDiscountId,
+          autoDiscountAmount: autoDiscountId ? autoDiscountAmount.toFixed(2) : null,
+          total: total.toFixed(2),
+        },
+        client,
+        { strict: true },
+      )
+
       // Cash / requisite orders are finalized right away. Online orders defer
       // their side effects (stock, promo, analytics) until payment is confirmed.
       // Strict stock mode: if the atomic reservation loses a race, the error
@@ -728,6 +754,12 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
     // reservation: the transaction rolled back, tell the shopper plainly.
     if (e instanceof InsufficientStockError) {
       return { success: false, error: t.someItemsUnavailable }
+    }
+    // Lost a promo race between the availability pre-check (evaluatePromoCode)
+    // and the atomic reservation: the transaction rolled back, tell the
+    // shopper the code is exhausted instead of the generic invoice error.
+    if ((e as Error).message === 'promo-limit') {
+      return { success: false, error: t.promoUsageLimitReached }
     }
     // Idempotency race: a parallel submit with the same key won the insert.
     // Return the winner instead of an error — same pattern as one-click.
@@ -842,7 +874,7 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
         })
         await pool.query(
           `UPDATE orders SET status = 'cancelled', note = COALESCE(note || E'\n', '') || $1 WHERE id = $2`,
-          [`${locale === 'ru' ? 'Ошибка шлюза' : 'Помилка шлюзу'} ${gateway.code}: ${result.message ?? (locale === 'ru' ? 'неизвестная ошибка' : 'невідома помилка')}`, order.id],
+          [`${locale === 'ru' ? 'Ошибка шлюза' : 'Помилка шлюзу'} ${gateway.code}`, order.id],
         )
         return {
           success: false,
@@ -1505,19 +1537,25 @@ export async function submitReview(input: {
     return { success: false, error: dict.serverErrors.rateLimitGeneric }
   }
   const user = await getShopUser()
-  const name = (input.authorName?.trim() || user?.name || dict.common.anonymous).slice(0, 120)
-  if (!input.body?.trim()) return { success: false, error: dict.serverErrors.reviewTextRequired }
+  const name = safeTextField(input.authorName, 120) ?? safeTextField(user?.name, 120) ?? dict.common.anonymous
+  // 3.4.109 #7: store plain text, not raw HTML — the body/pros/cons render
+  // as plain React text downstream. Emptiness is checked AFTER stripping,
+  // so markup-only input ('<b></b>') is rejected instead of stored empty.
+  const body = stripToPlainText(typeof input.body === 'string' ? input.body : '')
+  if (!body) return { success: false, error: dict.serverErrors.reviewTextRequired }
   const resolved = await resolveFeedbackProductId(input.productId, dict.serverErrors.productNotFound)
   if ('error' in resolved) return { success: false, error: resolved.error }
   const productId = resolved.productId
+  const rating = parseStrictRating(input.rating)
+  if (rating == null) return { success: false, error: 'Оцінка має бути цілим числом від 1 до 5' }
   await db.insert(productReviews).values({
     productId,
     authorName: name,
-    authorEmail: (input.authorEmail?.trim() || user?.email || null)?.slice(0, 255) ?? null,
-    rating: Math.min(5, Math.max(1, input.rating)),
-    body: input.body.trim().slice(0, 5000),
-    pros: input.pros?.trim().slice(0, 2000) || null,
-    cons: input.cons?.trim().slice(0, 2000) || null,
+    authorEmail: safeTextField(input.authorEmail, 255) ?? safeTextField(user?.email, 255),
+    rating,
+    body: body.slice(0, 5000),
+    pros: (typeof input.pros === 'string' ? stripToPlainText(input.pros).slice(0, 2000) : '') || null,
+    cons: (typeof input.cons === 'string' ? stripToPlainText(input.cons).slice(0, 2000) : '') || null,
     status: 'pending',
   })
   return { success: true }
@@ -1535,16 +1573,18 @@ export async function submitQuestion(input: {
     return { success: false, error: dict.serverErrors.rateLimitGeneric }
   }
   const user = await getShopUser()
-  const name = (input.authorName?.trim() || user?.name || dict.common.anonymous).slice(0, 120)
-  if (!input.question?.trim()) return { success: false, error: dict.serverErrors.questionRequired }
+  const name = safeTextField(input.authorName, 120) ?? safeTextField(user?.name, 120) ?? dict.common.anonymous
+  // 3.4.109 #7: store plain text, not raw HTML — see submitReview above.
+  const question = stripToPlainText(typeof input.question === 'string' ? input.question : '')
+  if (!question) return { success: false, error: dict.serverErrors.questionRequired }
   const resolved = await resolveFeedbackProductId(input.productId, dict.serverErrors.productNotFound)
   if ('error' in resolved) return { success: false, error: resolved.error }
   const productId = resolved.productId
   await db.insert(productQuestions).values({
     productId,
     authorName: name,
-    authorEmail: (input.authorEmail?.trim() || user?.email || null)?.slice(0, 255) ?? null,
-    question: input.question.trim().slice(0, 3000),
+    authorEmail: safeTextField(input.authorEmail, 255) ?? safeTextField(user?.email, 255),
+    question: question.slice(0, 3000),
     status: 'pending',
   })
   return { success: true }

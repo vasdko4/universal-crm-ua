@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
       // ping the admin, not just the logs.
       await recordCronRun('delivery-sync', 'error', (e as Error).message)
       void reportError('cron.delivery-sync', e, { alertAdmin: true })
-      return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+      return NextResponse.json({ ok: false, error: 'Внутрішня помилка' }, { status: 500 })
     }
   })
   if (!locked.acquired) {

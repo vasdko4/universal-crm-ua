@@ -460,6 +460,27 @@ export const promotionUsages = pgTable('promotion_usages', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 
+// Promocode usage reservations (3.4.109): a hold on one usageLimit slot
+// while an online order sits unpaid (see lib/shop/promo-usage.ts). The
+// reservation holds the SLOT ONLY — no discount/order amounts are stored
+// here; at consume time the order's current promo fields are the source of
+// truth. Rows are never deleted: status flips active -> consumed | released
+// | expired, so the table doubles as the audit trail for held slots.
+export const promotionReservations = pgTable('promotion_reservations', {
+  id: serial('id').primaryKey(),
+  promotionId: integer('promotion_id')
+    .notNull()
+    .references(() => promotions.id, { onDelete: 'cascade' }),
+  orderId: integer('order_id').references(() => orders.id, { onDelete: 'cascade' }),
+  orderNumber: varchar('order_number', { length: 100 }).notNull(),
+  // active | consumed | released | expired
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+})
+
 export const pages = pgTable('pages', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
@@ -796,6 +817,7 @@ export type ModalAd = typeof modalAds.$inferSelect
 export type AdminLog = typeof adminLogs.$inferSelect
 export type AbandonedCart = typeof abandonedCarts.$inferSelect
 export type PromotionUsage = typeof promotionUsages.$inferSelect
+export type PromotionReservation = typeof promotionReservations.$inferSelect
 
 export type Customer = typeof customers.$inferSelect
 export type CustomerContact = typeof customerContacts.$inferSelect

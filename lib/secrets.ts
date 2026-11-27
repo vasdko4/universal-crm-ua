@@ -150,6 +150,41 @@ export function decryptConfigSecrets<T extends Record<string, unknown>>(
   return out as T
 }
 
+/** Env var holding the current backup encryption key (base64, 32 bytes). */
+export const BACKUP_ENCRYPTION_KEY_ENV = 'BACKUP_ENCRYPTION_KEY'
+
+/**
+ * Backup encryption key (3.4.109 backup-encryption design §3): a dedicated
+ * 32-byte KEK, base64 in env — deliberately NOT derived from
+ * BETTER_AUTH_SECRET, so rotating the auth secret never orphans backups.
+ *
+ * `keyId` selects a retained rotation key (`BACKUP_ENCRYPTION_KEY_<keyId>`,
+ * e.g. `…_2026-12`); with no keyId the current key is returned with
+ * keyId 'current'. Throws a clear, actionable error when the key is
+ * missing or malformed — the backup writer must fail loudly instead of
+ * writing an unencrypted backup, and the restorer must name the env var
+ * the admin has to supply. Never log the key itself.
+ */
+export function getBackupDataKey(keyId?: string): { key: Buffer; keyId: string } {
+  const id = keyId?.trim() || 'current'
+  if (id !== 'current' && !/^[A-Za-z0-9_-]{1,32}$/.test(id)) {
+    throw new Error('[secrets] Invalid backup key id')
+  }
+  const envName = id === 'current' ? BACKUP_ENCRYPTION_KEY_ENV : `${BACKUP_ENCRYPTION_KEY_ENV}_${id}`
+  const raw = process.env[envName]?.trim()
+  if (!raw) {
+    throw new Error(
+      `[secrets] ${envName} is not set — generate one with: openssl rand -base64 32 ` +
+        '(store it in a password manager + an offline copy; key loss = backup loss)',
+    )
+  }
+  const key = Buffer.from(raw, 'base64')
+  if (key.length !== 32 || !/^[A-Za-z0-9+/=]+$/.test(raw)) {
+    throw new Error(`[secrets] ${envName} must be base64 of exactly 32 random bytes`)
+  }
+  return { key, keyId: id }
+}
+
 /** Secret-bearing keys inside `payment_gateways.config` JSONB. */
 export const GATEWAY_CONFIG_SECRET_KEYS = ['token', 'merchantSecretKey', 'merchantPassword'] as const
 

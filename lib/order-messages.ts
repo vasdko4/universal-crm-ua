@@ -47,6 +47,26 @@ function safeUrl(raw: string, siteUrl?: string): string {
 
 export type OrderMessageKind = 'confirmation' | 'shipped' | 'status' | 'instruction'
 
+export const ORDER_MESSAGE_KINDS = ['confirmation', 'shipped', 'status', 'instruction'] as const
+
+/** Runtime allowlist: kind arrives unchecked from the admin message route — reject anything else with 400 there, never render a mystery kind. */
+export function isValidOrderMessageKind(value: unknown): value is OrderMessageKind {
+  return (
+    typeof value === 'string' && (ORDER_MESSAGE_KINDS as readonly string[]).includes(value)
+  )
+}
+
+export const ORDER_MESSAGE_CHANNELS = ['email', 'viber', 'telegram', 'whatsapp', 'sms'] as const
+
+export type OrderMessageChannel = (typeof ORDER_MESSAGE_CHANNELS)[number]
+
+/** Runtime allowlist for the channel: an unknown channel used to fall through to `links[channel] ?? null` and still log the send as prepared. */
+export function isValidOrderMessageChannel(value: unknown): value is OrderMessageChannel {
+  return (
+    typeof value === 'string' && (ORDER_MESSAGE_CHANNELS as readonly string[]).includes(value)
+  )
+}
+
 // Store branding/context injected into every email so the template looks like
 // a real storefront newsletter instead of a bare-bones transactional stub.
 export type StoreEmailContext = {
@@ -68,6 +88,9 @@ export function buildOrderMessage(
   // build this with getProductSlugMap() before invoking buildOrderMessage.
   productSlugs: Record<number, string> = {},
 ): { subject: string; text: string; html: string } {
+  if (!isValidOrderMessageKind(kind)) {
+    throw new Error(`Unknown order message kind: ${String(kind)}`)
+  }
   const storeName = store.storeName || 'Наш магазин'
   const siteUrl = (store.siteUrl || '').replace(/\/$/, '')
   const loc: 'uk' | 'ru' = store.locale === 'ru' ? 'ru' : 'uk'
@@ -311,7 +334,7 @@ ${L.footer}`
   <tr><td style="padding:20px 28px;background:#fafaf8;border-top:1px solid #ececea">
     <p style="margin:0 0 4px;font-size:13px;color:#6b6b68">${esc(L.regards)}, ${esc(L.team)} <strong style="color:#1a1a1a">${esc(storeName)}</strong></p>
     ${store.phone ? `<p style="margin:0 0 2px;font-size:13px;color:#6b6b68">${esc(L.phone)}: <a href="tel:${store.phone.replace(/[^+\d]/g, '')}" style="color:#6b6b68">${esc(store.phone)}</a></p>` : ''}
-    ${store.supportEmail ? `<p style="margin:0 0 2px;font-size:13px;color:#6b6b68">Email: <a href="mailto:${store.supportEmail}" style="color:#6b6b68">${esc(store.supportEmail)}</a></p>` : ''}
+    ${store.supportEmail ? `<p style="margin:0 0 2px;font-size:13px;color:#6b6b68">Email: <a href="mailto:${esc(store.supportEmail)}" style="color:#6b6b68">${esc(store.supportEmail)}</a></p>` : ''}
     ${siteUrl ? `<p style="margin:0 0 8px;font-size:13px;color:#6b6b68"><a href="${esc(siteUrl)}" style="color:#6b6b68">${esc(siteUrl.replace(/^https?:\/\//, ''))}</a></p>` : ''}
     <p style="margin:8px 0 0;font-size:12px;color:#9a9a97">${esc(L.footerHtml)} ${esc(storeName)}. ${esc(L.service)}</p>
   </td></tr>

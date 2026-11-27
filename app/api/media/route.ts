@@ -9,5 +9,5 @@ import { proxyImageResponse } from '@/lib/api/proxy-image'
  * the raw `src` query never reaches fetch.
  */
 export async function GET(req: NextRequest) {
-  return proxyImageResponse(req, 'media-image', 2400)
+  return proxyImageResponse(req, 'media-image', 60)
 }

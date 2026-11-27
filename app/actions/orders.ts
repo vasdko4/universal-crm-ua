@@ -14,6 +14,8 @@ import {
 } from '@/lib/db/schema'
 import { getAdminUser, assertPermission, assertWritePermission } from '@/lib/session'
 import { escapeLikeWildcards, ilikeEscaped } from '@/lib/api/helpers'
+import { isRateLimited } from '@/lib/api/rate-limit'
+import { CHECKOUT_DELIVERY_METHODS, CHECKOUT_PAYMENT_METHODS, MONEY_12_2_MAX } from '@/lib/shop/checkout-validation'
 import { ORDER_STATUSES, PAYMENT_STATUSES, getOrderStatusLabel, getPaymentStatusLabel, isOrderStatusTransitionAllowed, isPaymentStatusTransitionAllowed } from '@/lib/order-status'
 import { computeOrderTotals } from '@/lib/shop/order-totals'
 import type { OrderItemInput, OrderListParams } from '@/lib/order-status'
@@ -44,25 +46,43 @@ export async function listOrders(params: OrderListParams = {}) {
       ),
     )
   }
+  // 3.4.109 #13: filter values are allowlisted — an unknown status /
+  // payment status / delivery method is ignored instead of reaching the
+  // query (and silently matching nothing, or worse, a future enum value).
   if (params.status && params.status !== 'all') {
-    conditions.push(eq(orders.status, params.status))
+    if (ORDER_STATUSES.some((s) => s.value === params.status)) {
+      conditions.push(eq(orders.status, params.status))
+    }
   }
   if (params.paymentStatus && params.paymentStatus !== 'all') {
-    conditions.push(eq(orders.paymentStatus, params.paymentStatus))
+    if (PAYMENT_STATUSES.some((s) => s.value === params.paymentStatus)) {
+      conditions.push(eq(orders.paymentStatus, params.paymentStatus))
+    }
   }
   if (params.deliveryMethod && params.deliveryMethod !== 'all') {
-    conditions.push(eq(orders.deliveryMethod, params.deliveryMethod))
+    if ((CHECKOUT_DELIVERY_METHODS as readonly string[]).includes(params.deliveryMethod)) {
+      conditions.push(eq(orders.deliveryMethod, params.deliveryMethod))
+    }
   }
   if (params.missingTtn) {
     conditions.push(
       sql`${orders.deliveryMethod} = 'nova_poshta' AND (${orders.trackingNumber} IS NULL OR ${orders.trackingNumber} = '')`,
     )
   }
+  // Invalid dates are ignored (a garbage `from`/`to` used to reach the
+  // ::timestamptz cast and 500 the list). Valid ones are normalized to ISO
+  // so only a real timestamp reaches the query.
   if (params.from) {
-    conditions.push(sql`${orders.createdAt} >= ${params.from}::timestamptz`)
+    const from = new Date(params.from)
+    if (!Number.isNaN(from.getTime())) {
+      conditions.push(sql`${orders.createdAt} >= ${from.toISOString()}::timestamptz`)
+    }
   }
   if (params.to) {
-    conditions.push(sql`${orders.createdAt} < (${params.to}::date + interval '1 day')`)
+    const to = new Date(params.to)
+    if (!Number.isNaN(to.getTime())) {
+      conditions.push(sql`${orders.createdAt} < (${to.toISOString()}::date + interval '1 day')`)
+    }
   }
   const where = conditions.length ? and(...conditions) : undefined
 
@@ -273,8 +293,18 @@ export async function bulkUpdateOrderStatus(ids: number[], status: string) {
 }
 
 export async function refundOrder(orderId: number, amount?: number) {
-  await assertWritePermission('orders')
+  const me = await assertWritePermission('orders')
   await assertWritePermission('payments')
+  if (!Number.isInteger(orderId) || orderId < 1) {
+    return { ok: false, message: 'Некорректний id замовлення' }
+  }
+  // 3.4.109 #13/#16: refundPayment has no rate limit of its own (verified),
+  // so the admin refund path is capped here — 10/min per admin. Amount
+  // bounds (finite, > 0, within the remaining sum) are enforced by
+  // refundPayment's refundPlan; an invalid amount is rejected there.
+  if (await isRateLimited('order-refund', String(me?.id ?? 'unknown'), 10, 60_000)) {
+    return { ok: false, message: 'Забагато спроб повернення. Спробуйте пізніше.' }
+  }
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1)
   if (!order) return { ok: false, message: 'Замовлення не знайдено' }
   const { payments } = await import('@/lib/db/schema')
@@ -320,14 +350,64 @@ export async function createOrder(input: {
   if (input.paymentStatus != null && !PAYMENT_STATUSES.some((s) => s.value === input.paymentStatus)) {
     return { success: false, error: 'Невідомий статус оплати' }
   }
+  // 3.4.109 #13: admin-created orders are validated like the storefront
+  // checkout (enums, caps, money bounds) — a direct action call used to
+  // store arbitrary delivery/payment methods, unbounded strings (DB
+  // overflow → 500), unknown customer ids and any number of lines.
+  if (!Array.isArray(input.items)) {
+    return { success: false, error: 'Позиції замовлення обовʼязкові' }
+  }
+  if (input.items.length > 100) {
+    return { success: false, error: 'Не більше 100 позицій в замовленні' }
+  }
+  const tooLong = (v: unknown, max: number): boolean =>
+    v != null && (typeof v !== 'string' || v.length > max)
+  if (tooLong(input.customerName, 255)) return { success: false, error: 'Імʼя клієнта занадто довге' }
+  if (tooLong(input.customerPhone, 50)) return { success: false, error: 'Телефон клієнта занадто довгий' }
+  if (tooLong(input.customerEmail, 255)) return { success: false, error: 'Email клієнта занадто довгий' }
+  if (tooLong(input.deliveryCity, 255)) return { success: false, error: 'Місто доставки занадто довге' }
+  if (tooLong(input.deliveryBranch, 255)) return { success: false, error: 'Відділення доставки занадто довге' }
+  if (tooLong(input.deliveryAddress, 2000)) return { success: false, error: 'Адреса доставки занадто довга' }
+  if (tooLong(input.note, 5000)) return { success: false, error: 'Примітка занадто довга' }
+  if (input.deliveryMethod != null && !(CHECKOUT_DELIVERY_METHODS as readonly string[]).includes(input.deliveryMethod)) {
+    return { success: false, error: 'Невідомий спосіб доставки' }
+  }
+  if (input.paymentMethod != null && !(CHECKOUT_PAYMENT_METHODS as readonly string[]).includes(input.paymentMethod)) {
+    return { success: false, error: 'Невідомий спосіб оплати' }
+  }
+  if (input.deliveryCost != null && (!Number.isFinite(input.deliveryCost) || input.deliveryCost < 0 || input.deliveryCost >= MONEY_12_2_MAX)) {
+    return { success: false, error: 'Некоректна вартість доставки' }
+  }
+  if (input.tags != null) {
+    if (!Array.isArray(input.tags) || input.tags.length > 20 || input.tags.some((t) => typeof t !== 'string' || t.length > 100)) {
+      return { success: false, error: 'Некоректні теги замовлення' }
+    }
+  }
+  if (input.customerId != null) {
+    if (!Number.isInteger(input.customerId) || input.customerId < 1) {
+      return { success: false, error: 'Некорректний id клієнта' }
+    }
+    const [customer] = await db
+      .select({ id: customers.id })
+      .from(customers)
+      .where(and(eq(customers.id, input.customerId), sql`${customers.deletedAt} IS NULL`))
+      .limit(1)
+    if (!customer) return { success: false, error: 'Клієнт не знайдений' }
+  }
   // BUGFIX: quantities were never validated. A line with quantity = -5 passed
   // `applyOrderFulfillment`'s `quantity >= -5` check and INFLATED warehouse
   // stock (quantity - (-5)); quantity = 0 created junk lines. Reject early.
   for (const item of input.items) {
-    if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+    if (typeof item.name !== 'string' || !item.name.trim() || item.name.length > 255) {
+      return { success: false, error: 'Некоректна назва позиції' }
+    }
+    if (item.productId != null && (!Number.isInteger(item.productId) || item.productId < 1)) {
+      return { success: false, error: `Некоректний товар для позиції «${item.name}»` }
+    }
+    if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) {
       return { success: false, error: `Некоректна кількість для позиції «${item.name ?? '?'}»: ${item.quantity}` }
     }
-    if (!Number.isFinite(item.price) || item.price < 0) {
+    if (!Number.isFinite(item.price) || item.price < 0 || item.price >= MONEY_12_2_MAX) {
       return { success: false, error: `Некоректна ціна для позиції «${item.name ?? '?'}` }
     }
   }
@@ -462,6 +542,9 @@ export async function createOrder(input: {
 
 export async function updateOrderStatus(id: number, status: string) {
   const user = await assertWritePermission('orders')
+  if (!Number.isInteger(id) || id < 1) {
+    return { success: false, error: 'Некорректний id замовлення' }
+  }
   if (!ORDER_STATUSES.some((s) => s.value === status)) {
     return { success: false, error: 'Невідомий статус' }
   }
@@ -521,11 +604,31 @@ export async function updateOrderStatus(id: number, status: string) {
       // taken meanwhile; then the order keeps its discount without a slot.
       // Guard against pre-fix rows so a legacy cancelled order can't be
       // double-counted on reopen.
-      const { recordPromoUsageForOrder } = await import('@/lib/shop/promo-usage')
+      const { reservePromoUsageForOrder, recordPromoUsageForOrder } = await import('@/lib/shop/promo-usage')
       const alreadyCounted = await client.query(`SELECT 1 FROM promotion_usages WHERE order_reference = $1 LIMIT 1`, [
         current.order_number,
       ])
       if (alreadyCounted.rowCount === 0) {
+        // 3.4.109: a reopened order re-competes for its slot — reserve a
+        // FRESH reservation (same strict conditional-UPDATE check as
+        // checkout) and consume it in this same transaction, so it cannot
+        // silently take a slot another order reserved meanwhile. Best
+        // effort, as before: a lost race keeps the discount without a
+        // slot (recordPromoUsageForOrder logs it, strict: false).
+        await reservePromoUsageForOrder(
+          {
+            orderId: id,
+            orderNumber: current.order_number,
+            customerName: current.customer_name,
+            promoCode: current.promo_code,
+            discountTotal: current.discount_total,
+            autoDiscountId: current.auto_discount_id,
+            autoDiscountAmount: current.auto_discount_amount,
+            total: current.total,
+          },
+          client,
+          { strict: false },
+        )
         await recordPromoUsageForOrder(
           {
             orderId: id,
@@ -580,6 +683,9 @@ export async function updateOrderPayment(id: number, paymentStatus: string): Pro
   // no payments:write could previously mark orders paid/refunded.
   const user = await assertWritePermission('orders')
   await assertWritePermission('payments')
+  if (!Number.isInteger(id) || id < 1) {
+    return { success: false, error: 'Некорректний id замовлення' }
+  }
   if (!PAYMENT_STATUSES.some((s) => s.value === paymentStatus)) {
     return { success: false, error: 'Невідомий статус оплати' }
   }
@@ -698,6 +804,22 @@ export async function updateOrderDelivery(
   },
 ): Promise<{ success: boolean; error?: string }> {
   const user = await assertWritePermission('orders')
+  if (!Number.isInteger(id) || id < 1) {
+    return { success: false, error: 'Некорректний id замовлення' }
+  }
+  // 3.4.109 #13: delivery fields are capped like createOrder — an unbounded
+  // city/branch/address used to hit the varchar columns as a 500, and an
+  // unknown delivery method was stored verbatim.
+  const tooLong = (v: unknown, max: number): boolean =>
+    v != null && (typeof v !== 'string' || v.length > max)
+  if (data.deliveryMethod !== undefined && !(CHECKOUT_DELIVERY_METHODS as readonly string[]).includes(data.deliveryMethod)) {
+    return { success: false, error: 'Невідомий спосіб доставки' }
+  }
+  if (tooLong(data.deliveryCity, 255)) return { success: false, error: 'Місто доставки занадто довге' }
+  if (tooLong(data.deliveryBranch, 255)) return { success: false, error: 'Відділення доставки занадто довге' }
+  if (tooLong(data.deliveryAddress, 2000)) return { success: false, error: 'Адреса доставки занадто довга' }
+  if (tooLong(data.trackingNumber, 100)) return { success: false, error: 'Номер накладної занадто довгий' }
+  if (tooLong(data.deliveryStatus, 100)) return { success: false, error: 'Статус доставки занадто довгий' }
   // Saving delivery details NEVER changes the order status and NEVER notifies
   // the customer: creating/entering a TTN and telling the customer the order
   // shipped are two separate actions (3.4.83 design intent). The order moves
@@ -744,6 +866,12 @@ export async function updateOrderDelivery(
 
 export async function updateOrderNote(id: number, note: string): Promise<{ success: boolean; error?: string }> {
   await assertWritePermission('orders')
+  if (!Number.isInteger(id) || id < 1) {
+    return { success: false, error: 'Некорректний id замовлення' }
+  }
+  if (typeof note !== 'string' || note.length > 5000) {
+    return { success: false, error: 'Примітка занадто довга' }
+  }
   await db.update(orders).set({ note, updatedAt: new Date() }).where(eq(orders.id, id))
   revalidatePath(`/admin/orders/${id}`)
   return { success: true }
@@ -751,6 +879,12 @@ export async function updateOrderNote(id: number, note: string): Promise<{ succe
 
 export async function updateOrderTags(id: number, tags: string[]) {
   await assertWritePermission('orders')
+  if (!Number.isInteger(id) || id < 1) {
+    return { success: false, error: 'Некорректний id замовлення' }
+  }
+  if (!Array.isArray(tags) || tags.length > 20 || tags.some((t) => typeof t !== 'string' || t.length > 100)) {
+    return { success: false, error: 'Некоректні теги замовлення' }
+  }
   await db.update(orders).set({ tags, updatedAt: new Date() }).where(eq(orders.id, id))
   revalidatePath(`/admin/orders/${id}`)
   return { success: true }

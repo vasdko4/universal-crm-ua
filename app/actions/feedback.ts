@@ -9,6 +9,7 @@ import { CACHE_TAGS } from '@/lib/shop/queries'
 import { assertPermission, assertWritePermission } from '@/lib/session'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { normPageParams } from '@/lib/api/helpers'
+import { stripToPlainText } from '@/lib/shop/sanitize'
 
 type Status = 'pending' | 'approved' | 'rejected'
 
@@ -130,7 +131,11 @@ export async function createReview(input: {
   const product = await requireExistingProduct(input.productId)
   if (!product.ok) return { success: false, error: product.error }
   if (!input.authorName?.trim()) return { success: false, error: 'Имя обязательно' }
-  if (!input.body?.trim()) return { success: false, error: 'Текст отзыва обязателен' }
+  // 3.4.109 #7: store plain text, not raw HTML — body/pros/cons/title render
+  // as plain React text downstream. Emptiness is checked AFTER stripping,
+  // so markup-only input ('<b></b>') is rejected instead of stored empty.
+  const body = stripToPlainText(typeof input.body === 'string' ? input.body : '')
+  if (!body) return { success: false, error: 'Текст отзыва обязателен' }
   const rating = parseRating(input.rating)
   if (rating == null) return { success: false, error: 'Оценка должна быть целым числом от 1 до 5' }
   await db.insert(productReviews).values({
@@ -138,10 +143,10 @@ export async function createReview(input: {
     authorName: input.authorName.trim().slice(0, 120),
     authorEmail: input.authorEmail?.trim().slice(0, 255) || null,
     rating,
-    title: input.title?.trim().slice(0, 300) || null,
-    body: input.body.trim().slice(0, 5000),
-    pros: input.pros?.trim().slice(0, 2000) || null,
-    cons: input.cons?.trim().slice(0, 2000) || null,
+    title: (typeof input.title === 'string' ? stripToPlainText(input.title).slice(0, 300) : '') || null,
+    body: body.slice(0, 5000),
+    pros: (typeof input.pros === 'string' ? stripToPlainText(input.pros).slice(0, 2000) : '') || null,
+    cons: (typeof input.cons === 'string' ? stripToPlainText(input.cons).slice(0, 2000) : '') || null,
     status: 'pending',
   })
   revalidatePath('/admin/reviews')
@@ -255,12 +260,14 @@ export async function createQuestion(input: {
   const product = await requireExistingProduct(input.productId)
   if (!product.ok) return { success: false, error: product.error }
   if (!input.authorName?.trim()) return { success: false, error: 'Имя обязательно' }
-  if (!input.question?.trim()) return { success: false, error: 'Текст вопроса обязателен' }
+  // 3.4.109 #7: store plain text, not raw HTML — see createReview above.
+  const question = stripToPlainText(typeof input.question === 'string' ? input.question : '')
+  if (!question) return { success: false, error: 'Текст вопроса обязателен' }
   await db.insert(productQuestions).values({
     productId: product.id,
     authorName: input.authorName.trim().slice(0, 120),
     authorEmail: input.authorEmail?.trim().slice(0, 255) || null,
-    question: input.question.trim().slice(0, 3000),
+    question: question.slice(0, 3000),
     status: 'pending',
   })
   revalidatePath('/admin/reviews')

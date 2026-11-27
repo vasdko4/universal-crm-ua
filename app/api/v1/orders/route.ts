@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createStorefrontOrder, type CheckoutInput } from '@/app/actions/shop'
 import { ok, fail, readJson } from '@/lib/api/helpers'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
+import { csrfCheck } from '@/lib/api/csrf'
 import { getActiveDeliveryMethods, getActivePaymentMethods } from '@/lib/shop/queries'
 import { normalizeUaPhone } from '@/lib/shop/phone'
 import { looksLikeEmail } from '@/lib/text'
@@ -176,6 +177,11 @@ function validateV1OrderBody(
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF (audit #5): public checkout, but the handler reads the shopper's
+  // session cookie (guest token binding) — refuse a foreign Origin. The
+  // Android app sends no Origin and is unaffected.
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
   const ip = clientIp(req)
   if (await isRateLimited(RATE_LIMIT_SCOPE, ip, RATE_LIMIT_MAX_PER_MIN)) {
     return fail('Слишком много заказов. Попробуйте позже.', 429)

@@ -47,7 +47,31 @@ export type ModalAdListParams = {
 function validate(input: ModalAdInput): string | null {
   if (!input.name?.trim()) return 'Название кампании обязательно'
   if (!input.title?.trim()) return 'Заголовок баннера обязателен'
+  if (input.name.trim().length > 255) return 'Название кампании не должно превышать 255 символов'
+  if (input.title.trim().length > 255) return 'Заголовок баннера не должен превышать 255 символов'
+  if (input.body != null && input.body.trim().length > 20000) return 'Текст баннера слишком длинный'
+  if (input.imageUrl != null && input.imageUrl.trim().length > 500) {
+    return 'Ссылка на изображение не должна превышать 500 символов'
+  }
+  if (input.buttonText != null && input.buttonText.trim().length > 120) {
+    return 'Текст кнопки не должен превышать 120 символов'
+  }
+  if (input.buttonUrl != null && input.buttonUrl.trim().length > 500) {
+    return 'Ссылка кнопки не должна превышать 500 символов'
+  }
   if (!input.targetPages?.length) return 'Выберите хотя бы одну страницу показа'
+  if (
+    !Array.isArray(input.targetPages) ||
+    input.targetPages.some((t) => !['all', 'home', 'catalog', 'product', 'cart'].includes(t))
+  ) {
+    return 'Некорректная страница показа'
+  }
+  if (
+    input.frequencyDays != null &&
+    (!Number.isFinite(input.frequencyDays) || input.frequencyDays < 1 || input.frequencyDays > 3650)
+  ) {
+    return 'Период повторного показа должен быть от 1 до 3650 дней'
+  }
   // BUGFIX: dates and enum-ish fields were trusted from the client — a bad
   // date string produced `Invalid Date` and a 500 on insert; unknown
   // trigger/frequency/size values slipped into the DB on direct calls.

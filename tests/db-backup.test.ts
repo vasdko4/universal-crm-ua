@@ -9,21 +9,21 @@ const root = resolve(import.meta.dirname, '..')
 const source = (file: string) => readFileSync(resolve(root, file), 'utf8').replace(/\r\n/g, '\n')
 
 describe('backupFilenameFor', () => {
-  it('formats the UTC timestamp as YYYY-MM-DD-HHmmss.jsonl.gz', () => {
+  it('formats the UTC timestamp as YYYY-MM-DD-HHmmss.jsonl.gz.enc', () => {
     const d = new Date(Date.UTC(2026, 9, 1, 0, 30))
-    expect(backupFilenameFor(d)).toBe('2026-10-01-003000.jsonl.gz')
+    expect(backupFilenameFor(d)).toBe('2026-10-01-003000.jsonl.gz.enc')
   })
 
   it('zero-pads single-digit parts', () => {
     const d = new Date(Date.UTC(2026, 0, 5, 4, 7))
-    expect(backupFilenameFor(d)).toBe('2026-01-05-040700.jsonl.gz')
+    expect(backupFilenameFor(d)).toBe('2026-01-05-040700.jsonl.gz.enc')
   })
 
   it('includes seconds so two runs in the same minute never collide (audit A4)', () => {
     const a = new Date(Date.UTC(2026, 9, 1, 0, 30, 5))
     const b = new Date(Date.UTC(2026, 9, 1, 0, 30, 45))
-    expect(backupFilenameFor(a)).toBe('2026-10-01-003005.jsonl.gz')
-    expect(backupFilenameFor(b)).toBe('2026-10-01-003045.jsonl.gz')
+    expect(backupFilenameFor(a)).toBe('2026-10-01-003005.jsonl.gz.enc')
+    expect(backupFilenameFor(b)).toBe('2026-10-01-003045.jsonl.gz.enc')
     expect(backupFilenameFor(a)).not.toBe(backupFilenameFor(b))
   })
 })

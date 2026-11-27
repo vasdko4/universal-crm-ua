@@ -1,6 +1,7 @@
 'use server'
 
 import { assertWritePermission } from '@/lib/session'
+import { isRateLimited } from '@/lib/api/rate-limit'
 import { stripTrailingSlashes } from '@/lib/text'
 
 /**
@@ -14,7 +15,12 @@ import { stripTrailingSlashes } from '@/lib/text'
  * (e.g. Vercel, or a Docker install that hasn't opted in yet).
  */
 export async function triggerSelfUpdate(): Promise<{ ok: boolean; error?: string }> {
-  await assertWritePermission('system_updates')
+  const me = await assertWritePermission('system_updates')
+  // A redeploy per click is the whole point of the button — but an
+  // unthrottled admin session could loop it. 5/min per admin.
+  if (await isRateLimited('system-update', me.id, 5, 60_000)) {
+    return { ok: false, error: 'rate_limited' }
+  }
 
   const url = process.env.UPDATER_URL
   const secret = process.env.UPDATER_SECRET

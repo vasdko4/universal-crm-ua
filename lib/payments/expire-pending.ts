@@ -4,6 +4,7 @@ import { paymentGateways, payments } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { monobankCheckStatus, wayforpayCheckStatus } from '@/lib/payments/clients'
 import { settlePayment } from '@/lib/payments/settle'
+import { releasePromotionUsageForOrder } from '@/lib/shop/promo-usage'
 import { reportError } from '@/lib/server-errors'
 
 const DEFAULT_MAX_AGE_MINUTES = 45
@@ -97,6 +98,11 @@ export async function expirePendingPayments(opts?: {
       )
       if (claim.rowCount) {
         cancelled += 1
+        // Free a promo slot held by this order (3.4.109): the route-level
+        // sweeper is only a backstop; releasing here frees the slot at
+        // cancel time. Best-effort — a release failure must never break
+        // the loop (the sweeper + lazy reap still clean up).
+        await releasePromotionUsageForOrder(row.order_number).catch(() => {})
         await pool.query(
           `INSERT INTO order_history (order_id, type, message, actor)
            VALUES ($1, 'status', 'Неоплаченный заказ автоматически отменён', 'System')`,

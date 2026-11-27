@@ -291,6 +291,29 @@ else
   ok "Файл .env уже существует — используем его"
 fi
 
+# 3.4.109: nightly backups are encrypted (AES-256-GCM) — they need
+# BACKUP_ENCRYPTION_KEY. A fresh install gets it here; an .env from an
+# older install gets it here too (once — this block is a no-op when the
+# key already exists). The key is printed ONCE below: store it in a
+# password manager AND an offline copy. Without it, encrypted backups
+# (.jsonl.gz.enc) are UNRECOVERABLE — see docs/db-backup.md. Never copy
+# the key into tickets or logs. (The app container must also receive the
+# key via docker-compose.yml `app.environment`.)
+if ! grep -q '^BACKUP_ENCRYPTION_KEY=' .env 2>/dev/null; then
+  BACKUP_KEY_VALUE=$(if command -v openssl &>/dev/null; then openssl rand -base64 32; else head -c 32 /dev/urandom | base64; fi)
+  BACKUP_KEY_ID_VALUE=$(date -u +%Y-%m 2>/dev/null || echo current)
+  printf '%s\n' "BACKUP_ENCRYPTION_KEY=${BACKUP_KEY_VALUE}" >> .env
+  printf '%s\n' "BACKUP_ENCRYPTION_KEY_ID=${BACKUP_KEY_ID_VALUE}" >> .env
+  chmod 600 .env
+  echo ""
+  echo "BACKUP_ENCRYPTION_KEY (keyId ${BACKUP_KEY_ID_VALUE}) — напечатан ОДИН РАЗ, сохраните его в менеджер паролей И в офлайн-копию:"
+  echo "  ${BACKUP_KEY_VALUE}"
+  echo "Без этого ключа зашифрованные бэкапы (.jsonl.gz.enc) восстановить НЕВОЗМОЖНО — см. docs/db-backup.md. Не копируйте ключ в тикеты и логи."
+fi
+if grep -q '^BACKUP_ENCRYPTION_KEY=' .env 2>/dev/null && ! grep -q '^BACKUP_ENCRYPTION_KEY_ID=' .env 2>/dev/null; then
+  printf '%s\n' "BACKUP_ENCRYPTION_KEY_ID=$(date -u +%Y-%m 2>/dev/null || echo current)" >> .env
+fi
+
 # Sidecar for one-click updates from /admin/updates. install.sh does not
 # clone the repo, so write updater.py next to the generated compose file.
 mkdir -p scripts

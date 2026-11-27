@@ -185,8 +185,68 @@ async function writeStoreSettings(data: Partial<StoreSettingsData>) {
   return { success: true }
 }
 
+
+/** Top-level keys of StoreSettingsData (3.4.109, P3). */
+const STORE_SETTINGS_KEYS = new Set([
+  'storeName', 'storeDescription', 'logoUrl', 'faviconUrl', 'openCartAfterAdd',
+  'storefrontCacheEnabled', 'sessionBindingEnabled', 'defaultLocale',
+  'localePromptMode', 'activeTemplate', 'adminTheme', 'seo', 'social',
+  'googleAds', 'merchantFeed', 'emailSettings', 'contact', 'notifications',
+  'googleAuth', 'homeHero', 'homeBenefits', 'minOrder', 'adsSpend', 'prom',
+])
+
+/**
+ * Shape guard for updateStoreSettings input (3.4.109, P3): the old code
+ * merged arbitrary admin-supplied JSON into the settings row with no
+ * validation at all. Unknown top-level keys are rejected; every string
+ * leaf is capped (5000 chars), numbers must be finite, nesting is bounded.
+ * This is a shape guard, not a per-field schema — field-level rules live
+ * with the individual settings editors.
+ */
+function validateStoreSettingsInput(data: unknown): asserts data is Partial<StoreSettingsData> {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Налаштування мають бути обʼєктом')
+  }
+  for (const key of Object.keys(data)) {
+    if (!STORE_SETTINGS_KEYS.has(key)) {
+      throw new Error(`Невідомий ключ налаштувань: ${key}`)
+    }
+  }
+  const check = (value: unknown, depth: number): void => {
+    if (typeof value === 'string') {
+      if (value.length > 5000) throw new Error('Значення налаштування занадто довге')
+      return
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) throw new Error('Недопустиме числове значення')
+      return
+    }
+    if (typeof value === 'boolean' || value === null) return
+    if (Array.isArray(value)) {
+      if (value.length > 200) throw new Error('Забагато елементів у налаштуванні')
+      if (depth >= 5) throw new Error('Налаштування занадто глибоко вкладені')
+      for (const item of value) check(item, depth + 1)
+      return
+    }
+    if (typeof value === 'object') {
+      const entries = Object.entries(value as Record<string, unknown>)
+      if (entries.length > 100) throw new Error('Забагато ключів у налаштуванні')
+      if (depth >= 5) throw new Error('Налаштування занадто глибоко вкладені')
+      for (const [, v] of entries) check(v, depth + 1)
+      return
+    }
+    throw new Error('Недопустимий тип значення налаштування')
+  }
+  for (const value of Object.values(data as Record<string, unknown>)) check(value, 0)
+}
+
 export async function updateStoreSettings(data: Partial<StoreSettingsData>) {
   const user = await assertWritePermission('settings')
+  try {
+    validateStoreSettingsInput(data)
+  } catch (e) {
+    return { success: false as const, error: e instanceof Error ? e.message : 'Некорректні налаштування' }
+  }
   // The settings UI keeps one big object in state and always submits it in
   // full on save, so `Object.keys(data)` lists every field regardless of
   // what the admin actually touched. Diff against the current row first so

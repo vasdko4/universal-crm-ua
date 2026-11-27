@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { stripLocalePrefix } from '@/lib/i18n/config'
 import type { ContactWidget, WidgetChannelKey } from '@/app/actions/settings-store'
 import { useI18n } from '@/lib/i18n/client'
+import { looksLikeEmail } from '@/lib/text'
 
 /* Brand glyphs (lucide has no brand icons). Kept minimal and monochrome. */
 function ViberIcon({ className }: { className?: string }) {
@@ -121,7 +122,10 @@ export function ContactWidgetButton({ widget }: { widget: ContactWidget }) {
   }, [])
 
   const channels = ORDER.map((key) => ({ key, ...widget.channels[key] })).filter(
-    (c) => c.enabled && c.value.trim(),
+    // An implausible email never renders as a mailto: link — the value is
+    // admin-typed, and `mailto:` + raw text would carry any `?subject=`
+    // injection straight into the href.
+    (c) => c.enabled && c.value.trim() && (c.key !== 'email' || looksLikeEmail(c.value.trim())),
   )
 
   if (!widget.enabled || channels.length === 0) return null

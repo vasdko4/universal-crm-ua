@@ -1,6 +1,7 @@
 import { getPublicPublishedPages, createPage, type PageInput } from '@/app/actions/pages'
 import { ok, fail, parseListParams, readJson } from '@/lib/api/helpers'
 import { getAdminUserWithWritePermission } from '@/lib/session'
+import { csrfCheck } from '@/lib/api/csrf'
 import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { pickLocalized } from '@/lib/i18n/config'
 
@@ -35,6 +36,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // CSRF first (audit #5): a cross-site POST from an attacker's page runs
+  // with the admin's cookies — refuse a foreign Origin before any auth or
+  // DB work. No-Origin requests (non-browser clients) are allowed.
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
   // Check auth here for a clean 403 — the action's own assertPermission()
   // would still block the write, but it throws (500 + noisy error log).
   if (!(await getAdminUserWithWritePermission('pages'))) return fail('Не авторизовано', 403)

@@ -9,6 +9,7 @@ import { CopyRequisites } from '@/components/shop/copy-requisites'
 import { getLocale, getDictionary } from '@/lib/i18n/server'
 import { localizedPath } from '@/lib/i18n/config'
 import { parsePositiveInt } from '@/lib/api/helpers'
+import { looksLikeEmail } from '@/lib/text'
 import { localizeRequisitesBody, requisitesBody } from '@/lib/payments/public-requisites'
 import { OrderStatusBadge, PaymentStatusBadge } from '@/components/shop/account/order-status-badge'
 import { formatKyivDateTime } from '@/components/shop/account/utils'
@@ -95,7 +96,7 @@ export default async function MyOrderDetailPage({
                   <a
                     href={`https://novaposhta.ua/tracking/?cargo_number=${encodeURIComponent(order.trackingNumber)}`}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="font-mono tracking-wide text-primary hover:underline"
                   >
                     {order.trackingNumber}
@@ -104,7 +105,7 @@ export default async function MyOrderDetailPage({
                   <a
                     href={`https://track.ukrposhta.ua/tracking_UA.html?barcode=${encodeURIComponent(order.trackingNumber)}`}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="font-mono tracking-wide text-primary hover:underline"
                   >
                     {order.trackingNumber}
@@ -143,9 +144,13 @@ export default async function MyOrderDetailPage({
               icon={Mail}
               label={t.emailShort}
               value={
-                <a href={`mailto:${order.customerEmail}`} className="hover:text-primary">
-                  {order.customerEmail}
-                </a>
+                looksLikeEmail(order.customerEmail) ? (
+                  <a href={`mailto:${order.customerEmail}`} className="hover:text-primary">
+                    {order.customerEmail}
+                  </a>
+                ) : (
+                  order.customerEmail
+                )
               }
             />
           ) : null}

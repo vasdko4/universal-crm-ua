@@ -288,6 +288,11 @@ export class InsufficientStockError extends Error {
  * history instead of throwing (a throw there would leave a paid order stuck
  * in pending_payment), and an oversold line is flagged for manual
  * reconciliation instead of silently promising missing stock.
+ * 3.4.109: promo usage is reserved at order creation (see
+ * reservePromoUsageForOrder), so by finalize time the slot is already held
+ * and the non-strict branch only covers "no reservation exists" (a legacy
+ * order created before 3.4.109, or a reservation that expired before
+ * payment) — not "limit exhausted on a paid order".
  */
 export async function applyOrderFulfillment(
   orderId: number,
@@ -448,6 +453,12 @@ export async function applyOrderFulfillment(
   // explicitly: money is already captured there, so a missed increment is
   // logged to order history instead of rolling the paid order back to
   // pending_payment (A1).
+  // 3.4.109: recordPromoUsageForOrder first consumes the reservation this
+  // order holds (if any) — ledger + totals from the order's current
+  // amounts, no second usedCount bump — and only falls back to the legacy
+  // claim when no reservation exists. Cash orders reserve + consume in
+  // the same creation transaction, so the consume here always finds the
+  // hold they just made.
   await recordPromoUsageForOrder(
     {
       orderId,
@@ -508,6 +519,10 @@ async function claimAndFulfillPaidOrder(orderNumber: string, client: PoolClient)
   // Money is already captured: a missed promo increment must not throw and
   // roll the paid order back to pending_payment (A1) — the non-strict
   // branch of recordPromoUsageForOrder logs it to order history instead.
+  // 3.4.109: for reserved orders the slot is already held, so this miss
+  // can only happen for a legacy order (or an expired reservation); the
+  // reservation is converted inside the same claim transaction, so a
+  // double-finalize can never double-count.
   await applyOrderFulfillment(orderId, client, { strictPromo: false })
   return orderId
 }

@@ -4,7 +4,7 @@ import { randomInt } from 'node:crypto'
 import { headers } from 'next/headers'
 import { db, withDbClient, dbForClient } from '@/lib/db'
 import { promotions, promotionUsages, productGroups, productGroupItems, products } from '@/lib/db/schema'
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { revalidateStorefront } from '@/lib/shop/cache'
 import { assertPermission, assertWritePermission } from '@/lib/session'
@@ -67,7 +67,37 @@ async function assertUniquePromoCode(code: string | null | undefined, exceptId?:
 
 const DUP_CODE_ERROR = 'Промокод уже используется другой акцией'
 
+const PROMOTION_TYPES = ['promocode', 'discount'] as const
+const PROMOTION_DISCOUNT_TYPES = ['percentage', 'fixed'] as const
+const PROMOTION_TARGET_TYPES = ['all', 'groups', 'products'] as const
+const MAX_TARGET_IDS = 200
+
+function validateTargetIds(ids: unknown, label: string): string | null {
+  if (!Array.isArray(ids)) return `${label} мають бути списком ідентифікаторів`
+  if (ids.length > MAX_TARGET_IDS) return `${label}: не більше ${MAX_TARGET_IDS}`
+  for (const id of ids) {
+    if (typeof id !== 'number' || !Number.isInteger(id) || id < 1) {
+      return `${label} мають бути цілими числами від 1`
+    }
+  }
+  return null
+}
+
 function validate(input: PromotionInput): string | null {
+  if (!input || typeof input !== 'object') return 'Некорректні дані акції'
+  // Enum allowlists: a direct action call (not the admin form) used to be
+  // able to store an arbitrary type/discountType/targetType, which then
+  // broke eligibility evaluation downstream. Reject anything outside the
+  // known sets up front.
+  if (!(PROMOTION_TYPES as readonly string[]).includes(input.type)) {
+    return 'Невідомий тип акції'
+  }
+  if (!(PROMOTION_DISCOUNT_TYPES as readonly string[]).includes(input.discountType)) {
+    return 'Невідомий тип знижки'
+  }
+  if (!(PROMOTION_TARGET_TYPES as readonly string[]).includes(input.targetType)) {
+    return 'Невідомий тип цільової аудиторії'
+  }
   if (!input.name?.trim()) return 'Название акции обязательно'
   if (adminStringTooLong(input.name, ADMIN_MAX_LEN.promoName))
     return `Название акции не должно превышать ${ADMIN_MAX_LEN.promoName} символов`
@@ -101,6 +131,17 @@ function validate(input: PromotionInput): string | null {
   if (input.targetType === 'products' && !(input.targetProductIds && input.targetProductIds.length)) {
     return 'Выберите хотя бы одну позицию'
   }
+  // Target ids arrive from the admin form as numbers, but a direct action
+  // call could pass floats, strings, negatives or a huge array — any of
+  // which would break the eligibility queries or the jsonb columns.
+  if (input.targetType === 'groups') {
+    const err = validateTargetIds(input.targetGroupIds, 'Ідентифікатори груп')
+    if (err) return err
+  }
+  if (input.targetType === 'products') {
+    const err = validateTargetIds(input.targetProductIds, 'Ідентифікатори товарів')
+    if (err) return err
+  }
   // BUGFIX: a fractional usageLimit (direct action call) hit the integer
   // column as a Postgres error → 500. Reject non-integers up front.
   if (
@@ -112,6 +153,33 @@ function validate(input: PromotionInput): string | null {
   if (!DATE_RE.test(input.startsAt)) return 'Некорректная дата начала'
   if (input.endsAt && !DATE_RE.test(input.endsAt)) return 'Некорректная дата окончания'
   if (input.endsAt && input.endsAt < input.startsAt) return 'Дата окончания раньше даты начала'
+  return null
+}
+
+/**
+ * Existence check for the ids validate() already proved well-formed.
+ * Referenced groups/products must exist (and, for products, not be
+ * soft-deleted) — otherwise the promotion could never apply to anything
+ * while looking configured. Runs after validate() in both create and
+ * update; duplicates are collapsed before comparing counts.
+ */
+async function validateTargets(input: PromotionInput): Promise<string | null> {
+  if (input.targetType === 'groups' && input.targetGroupIds?.length) {
+    const ids = [...new Set(input.targetGroupIds)]
+    const rows = await db
+      .select({ id: productGroups.id })
+      .from(productGroups)
+      .where(inArray(productGroups.id, ids))
+    if (rows.length !== ids.length) return 'Обрано неіснуючу групу товарів'
+  }
+  if (input.targetType === 'products' && input.targetProductIds?.length) {
+    const ids = [...new Set(input.targetProductIds)]
+    const rows = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(inArray(products.id, ids), isNull(products.deletedAt)))
+    if (rows.length !== ids.length) return 'Обрано неіснуючий товар'
+  }
   return null
 }
 
@@ -209,6 +277,8 @@ export async function createPromotion(input: PromotionInput) {
   await assertWritePermission('promotions')
   const error = validate(input)
   if (error) return { success: false, error }
+  const targetError = await validateTargets(input)
+  if (targetError) return { success: false, error: targetError }
   const dup = await assertUniquePromoCode(input.type === 'promocode' ? input.promoCode : null)
   if (dup) return { success: false, error: dup }
 
@@ -230,6 +300,8 @@ export async function updatePromotion(id: number, input: PromotionInput) {
   await assertWritePermission('promotions')
   const error = validate(input)
   if (error) return { success: false, error }
+  const targetError = await validateTargets(input)
+  if (targetError) return { success: false, error: targetError }
   const dup = await assertUniquePromoCode(input.type === 'promocode' ? input.promoCode : null, id)
   if (dup) return { success: false, error: dup }
 

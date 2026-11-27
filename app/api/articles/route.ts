@@ -1,6 +1,7 @@
 import { getPublicPublishedArticles, createArticle, type ArticleInput } from '@/app/actions/articles'
 import { ok, fail, parseListParams, readJson, parsePositiveInt } from '@/lib/api/helpers'
 import { getAdminUserWithWritePermission } from '@/lib/session'
+import { csrfCheck } from '@/lib/api/csrf'
 import { localeFromRequest } from '@/lib/i18n/request-locale'
 import { pickLocalized } from '@/lib/i18n/config'
 import { getDictionary } from '@/lib/i18n/dictionaries'
@@ -45,6 +46,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // CSRF first (audit #5): a cross-site POST from an attacker's page runs
+  // with the admin's cookies — refuse a foreign Origin before any auth or
+  // DB work. No-Origin requests (non-browser clients) are allowed.
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
   if (!(await getAdminUserWithWritePermission('articles'))) return fail('Не авторизовано', 403)
   const body = await readJson<ArticleInput>(req)
   if (!body) return fail('Некорректный JSON')

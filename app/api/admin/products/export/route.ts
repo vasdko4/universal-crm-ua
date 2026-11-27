@@ -1,6 +1,7 @@
 import { pool } from '@/lib/db'
 import { getAdminUserWithPermission } from '@/lib/session'
 import { csvCell } from '@/lib/csv'
+import { isRateLimited } from '@/lib/api/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +9,9 @@ export async function GET() {
   const user = await getAdminUserWithPermission('products')
   if (!user) {
     return new Response('Unauthorized', { status: 401 })
+  }
+  if (await isRateLimited('admin-products-export', user.id, 60, 60_000)) {
+    return new Response('Too many requests', { status: 429 })
   }
 
   const { rows } = await pool.query(`

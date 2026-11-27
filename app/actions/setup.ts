@@ -138,10 +138,12 @@ export async function runSetup(input: SetupInput) {
     lock = await tryAdvisoryLock(SETUP_LOCK_NS, SETUP_LOCK_KEY)
   } catch (e) {
     // The database is unreachable: setup cannot proceed at all. Return an
-    // error, never throw — the wizard renders the message.
+    // error, never throw — the wizard renders the message. The raw error
+    // (host/credentials internals) stays in the server log only.
+    console.error('[setup] database unreachable:', e)
     return {
       success: false as const,
-      error: e instanceof Error ? e.message : t.nav.setupFailed,
+      error: t.nav.setupFailed,
     }
   }
   if (!lock) {
@@ -241,9 +243,10 @@ export async function runSetup(input: SetupInput) {
       revokeSetupToken()
       return { success: true as const }
     } catch (e) {
+      console.error('[setup] failed:', e)
       return {
         success: false as const,
-        error: e instanceof Error ? e.message : t.nav.setupFailed,
+        error: t.nav.setupFailed,
       }
     }
   } finally {

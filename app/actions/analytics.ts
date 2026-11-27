@@ -677,7 +677,8 @@ export async function trackEvent(input: {
   // an http(s) URL (see normalizeTrackReferrer — the request's own Referer
   // header would be the shop page itself, not the traffic source).
   const referrer = normalizeTrackReferrer(input.referrer)
-  const productId = Number.isInteger(input.productId) ? input.productId : null
+  const productId =
+    Number.isInteger(input.productId) && (input.productId as number) >= 1 ? input.productId : null
   // Visitor detail: bot detection from User-Agent and geo (country from
   // Cloudflare fast path, region/city via cached lookup). Resolved inline —
   // resolveVisitorGeo never throws and respects an external API budget.

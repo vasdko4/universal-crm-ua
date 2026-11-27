@@ -65,6 +65,19 @@ export async function createUser(input: {
   const me = await requireAdminGuard()
   const roleOk = await requireExistingRole(input.role, me.locale)
   if (!roleOk.success) return roleOk
+  const [dup] = await pool
+    .query(`SELECT id FROM "user" WHERE lower(email) = lower($1) LIMIT 1`, [input.email.trim()])
+    .then((r) => r.rows)
+    .catch(() => [])
+  if (dup) {
+    return {
+      success: false,
+      error:
+        me.locale === 'ru'
+          ? 'Пользователь с таким email уже существует'
+          : 'Користувач з таким email вже існує',
+    }
+  }
   // Create the account via email sign-up, then assign the chosen role directly.
   try {
     const auth = await getAuth()
@@ -72,8 +85,11 @@ export async function createUser(input: {
       body: { name: input.name, email: input.email, password: input.password },
     })
   } catch (e) {
+    // Better Auth / DB internals must not reach the admin UI; a duplicate
+    // email is pre-checked below, so anything else is a generic failure.
+    console.error('[users] createUser sign-up failed:', e)
     const dict = getAdminDictionary(me.locale).users
-    return { success: false, error: e instanceof Error ? e.message : dict.createFailed }
+    return { success: false, error: dict.createFailed }
   }
   try {
     const res = await pool.query(`UPDATE "user" SET role = $1 WHERE email = $2`, [input.role, input.email])
@@ -88,8 +104,9 @@ export async function createUser(input: {
     // every retry died with "user already exists". Roll the account back
     // (session/account rows cascade) so the admin can retry cleanly.
     await pool.query(`DELETE FROM "user" WHERE email = $1`, [input.email]).catch(() => {})
+    console.error('[users] createUser role update failed:', e)
     const dict = getAdminDictionary(me.locale).users
-    return { success: false, error: e instanceof Error ? e.message : dict.createFailed }
+    return { success: false, error: dict.createFailed }
   }
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
@@ -261,7 +278,8 @@ export async function saveRole(input: {
   revalidatePath('/admin/users')
   return { success: true as const, error: undefined as string | undefined }
   } catch (e) {
-    return { success: false as const, error: e instanceof Error ? e.message : dict.roleSaveFailed }
+    console.error('[users] saveRole failed:', e)
+    return { success: false as const, error: dict.roleSaveFailed }
   }
 }
 

@@ -2,28 +2,6 @@
 // The check runs on the server (Better Auth hook) and is duplicated
 // client-side for instant feedback.
 
-export const ALLOWED_EMAIL_DOMAINS = [
-  'gmail.com',
-  'googlemail.com',
-  'ukr.net',
-  'i.ua',
-  'meta.ua',
-  'email.ua',
-  'online.ua',
-  'outlook.com',
-  'hotmail.com',
-  'live.com',
-  'msn.com',
-  'icloud.com',
-  'me.com',
-  'mac.com',
-  'yahoo.com',
-  'proton.me',
-  'protonmail.com',
-  'zoho.com',
-  'aol.com',
-]
-
 /** Well-known throwaway providers — not an exhaustive blocklist. */
 const DISPOSABLE_EMAIL_DOMAINS = new Set([
   'mailinator.com',

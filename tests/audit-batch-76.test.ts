@@ -51,7 +51,10 @@ describe('audit batch 3.4.76 (source-level)', () => {
 
   it('promo release is atomic without a client (db.transaction)', () => {
     const src = source('lib/shop/promo-usage.ts')
-    expect(src).toContain('db.transaction((tx) => releaseWith(tx, orderReference))')
+    // 3.4.109: the no-client path runs ledger + reservation release in one
+    // transaction via the `run` closure (releaseWith is called inside it).
+    expect(src).toContain('await db.transaction(run)')
+    expect(src).toContain('const released = await releaseWith(tx, orderReference)')
     expect(src).toContain('async function releaseWith(')
   })
 

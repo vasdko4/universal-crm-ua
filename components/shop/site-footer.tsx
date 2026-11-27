@@ -6,6 +6,7 @@ import type { Dictionary } from '@/lib/i18n/dictionaries'
 import type { ContactData } from '@/app/actions/settings-store'
 import { getActivePaymentMethods } from '@/lib/shop/queries'
 import { localizedPath, type Locale } from '@/lib/i18n/config'
+import { looksLikeEmail } from '@/lib/text'
 
 type Social = { instagram?: string; telegram?: string; viber?: string; tiktok?: string }
 export type FooterLegalLink = { slug: string; title: string }
@@ -172,7 +173,7 @@ export async function SiteFooter({
                   key={s.key}
                   href={s.url}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   aria-label={s.label}
                   title={s.label}
                   className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
@@ -242,9 +243,15 @@ export async function SiteFooter({
             ))}
             {email && (
               <li>
-                <a href={`mailto:${email}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
-                  <Mail className="size-4 shrink-0" /> {email}
-                </a>
+                {looksLikeEmail(email) ? (
+                  <a href={`mailto:${email}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
+                    <Mail className="size-4 shrink-0" /> {email}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="size-4 shrink-0" /> {email}
+                  </span>
+                )}
               </li>
             )}
             <li className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -273,7 +280,7 @@ export async function SiteFooter({
                   key={s.key}
                   href={s.url}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   aria-label={s.label}
                   title={s.label}
                   className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"

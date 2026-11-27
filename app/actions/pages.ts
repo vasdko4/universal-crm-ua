@@ -103,7 +103,35 @@ async function ensureSlug(desired: string, excludeId?: number): Promise<string> 
 }
 
 function validate(input: PageInput): string | null {
-  return validateTitle(input)
+  const titleError = validateTitle(input)
+  if (titleError) return titleError
+  if (input.title.trim().length > 255) return 'Заголовок не должен превышать 255 символов'
+  if (input.titleRu != null && input.titleRu.trim().length > 255) {
+    return 'Заголовок (RU) не должен превышать 255 символов'
+  }
+  if (input.slug != null && input.slug.trim().length > 255) return 'Slug не должен превышать 255 символов'
+  if (input.coverImage != null && input.coverImage.trim().length > 500) {
+    return 'Ссылка на обложку не должна превышать 500 символов'
+  }
+  if (input.template != null && (typeof input.template !== 'string' || input.template.trim().length > 30)) {
+    return 'Некорректный шаблон страницы'
+  }
+  if (input.menuTitle != null && input.menuTitle.trim().length > 150) {
+    return 'Заголовок меню не должен превышать 150 символов'
+  }
+  if (input.metaTitle != null && input.metaTitle.trim().length > 255) {
+    return 'Meta title не должен превышать 255 символов'
+  }
+  if (input.status != null && input.status !== 'draft' && input.status !== 'published') {
+    return 'Некорректный статус страницы'
+  }
+  if (
+    input.sortOrder != null &&
+    (!Number.isInteger(input.sortOrder) || input.sortOrder < -2147483648 || input.sortOrder > 2147483647)
+  ) {
+    return 'Порядок сортировки должен быть целым числом в пределах int32'
+  }
+  return null
 }
 
 export async function createPage(input: PageInput) {

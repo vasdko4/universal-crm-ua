@@ -7,6 +7,7 @@ import { desc, eq, count } from 'drizzle-orm'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/shop/queries'
 import { assertPermission, assertWritePermission } from '@/lib/session'
+import { isRateLimited } from '@/lib/api/rate-limit'
 import {
   wayforpayCreateInvoice,
   wayforpayCheckStatus,
@@ -56,12 +57,45 @@ async function getGateway(code: string) {
   return g
 }
 
+// Config keys each gateway may store. Anything else is dropped, never
+// persisted into the gateway config JSONB — an arbitrary key there could
+// later be read as a credential or change gateway behaviour.
+const GATEWAY_CONFIG_KEYS: Record<string, readonly string[]> = {
+  wayforpay: ['merchantAccount', 'merchantSecretKey', 'merchantDomainName', 'merchantPassword'],
+  monobank: ['token'],
+} as const
+
 export async function updateGateway(
   code: string,
   data: { isActive: boolean; isTestMode: boolean; config: Record<string, string> },
 ): Promise<ActionResult> {
+  if (code !== 'wayforpay' && code !== 'monobank') {
+    return { ok: false, message: 'Неизвестный шлюз' }
+  }
+  if (typeof data.isActive !== 'boolean' || typeof data.isTestMode !== 'boolean') {
+    return { ok: false, message: 'Некорректные настройки шлюза' }
+  }
+  if (!data.config || typeof data.config !== 'object' || Array.isArray(data.config)) {
+    return { ok: false, message: 'Некорректная конфигурация шлюза' }
+  }
+  const allowed = GATEWAY_CONFIG_KEYS[code]
+  const filteredConfig: Record<string, string> = {}
+  for (const [k, v] of Object.entries(data.config)) {
+    if (!allowed.includes(k)) continue
+    if (typeof v !== 'string' || v.length > 500) {
+      return { ok: false, message: 'Некорректное значение параметра шлюза' }
+    }
+    filteredConfig[k] = v
+  }
+  data = { ...data, config: filteredConfig }
   try {
     await assertWritePermission('payments')
+    const [known] = await db
+      .select({ code: paymentGateways.code })
+      .from(paymentGateways)
+      .where(eq(paymentGateways.code, code))
+      .limit(1)
+    if (!known) return { ok: false, message: 'Шлюз не найден' }
 
     // Validate the Monobank acquiring token against the live API before
     // activating: a personal-API or mistyped token silently breaks checkout.
@@ -123,7 +157,8 @@ export async function updateGateway(
         : 'Настройки шлюза сохранены'
     return { ok: true, message: saved }
   } catch (e) {
-    return { ok: false, message: (e as Error).message }
+    console.error('[payments] updateGateway failed:', e)
+    return { ok: false, message: 'Не удалось сохранить настройки шлюза' }
   }
 }
 
@@ -185,13 +220,34 @@ export async function createPayment(input: {
   customerEmail?: string
   customerPhone?: string
 }): Promise<ActionResult> {
-  await assertWritePermission('payments')
+  const me = await assertWritePermission('payments')
+  // Manual invoices hit the live gateway API — cap per admin so a scripted
+  // session cannot mint invoices in a loop.
+  if (await isRateLimited('payment-create', me.id, 10, 60_000)) {
+    return { ok: false, message: 'Забагато спроб. Спробуйте пізніше.' }
+  }
   const gateway = await getGateway(input.gatewayCode)
   if (!gateway) return { ok: false, message: 'Шлюз не найден' }
   if (!gateway.isActive) return { ok: false, message: 'Шлюз отключён. Активируйте его во вкладке «Шлюзы».' }
   // BUGFIX: Infinity passed the old check (!Infinity === false) and blew up
   // with a 500 on `toFixed`/numeric insert. Require a finite amount.
-  if (!Number.isFinite(input.amount) || input.amount <= 0) return { ok: false, message: 'Укажите корректную сумму' }
+  // Upper bound mirrors payments.amount numeric(12,2).
+  if (!Number.isFinite(input.amount) || input.amount <= 0 || input.amount >= 10_000_000_000) {
+    return { ok: false, message: 'Укажите корректную сумму' }
+  }
+  if (!['UAH', 'USD', 'EUR'].includes(input.currency)) {
+    return { ok: false, message: 'Некорректная валюта' }
+  }
+  if (
+    typeof input.description !== 'string' ||
+    !input.description.trim() ||
+    input.description.trim().length > 2000 ||
+    (input.customerName != null && (typeof input.customerName !== 'string' || input.customerName.length > 255)) ||
+    (input.customerEmail != null && (typeof input.customerEmail !== 'string' || input.customerEmail.length > 255)) ||
+    (input.customerPhone != null && (typeof input.customerPhone !== 'string' || input.customerPhone.length > 50))
+  ) {
+    return { ok: false, message: 'Некорректные данные платежа' }
+  }
 
   const orderReference = genOrderRef()
   // BUGFIX: gateway secrets are stored encrypted (updateGateway encrypts
@@ -259,7 +315,10 @@ export async function createPayment(input: {
 }
 
 export async function refreshPaymentStatus(paymentId: number): Promise<ActionResult> {
-  await assertWritePermission('payments')
+  const me = await assertWritePermission('payments')
+  if (await isRateLimited('payment-status', me.id, 10, 60_000)) {
+    return { ok: false, message: 'Забагато спроб. Спробуйте пізніше.' }
+  }
   const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId))
   if (!payment) return { ok: false, message: 'Платёж не найден' }
   const gateway = await getGateway(payment.gatewayCode)
@@ -432,7 +491,14 @@ export async function refundPayment(
   paymentId: number,
   amount?: number,
 ): Promise<ActionResult> {
-  await assertWritePermission('payments')
+  const me = await assertWritePermission('payments')
+  // Audit #16: refundPayment had no rate limit in the 3.4.108 base (the
+  // audit's "existing isRateLimited" did not exist). refundOrder
+  // (app/actions/orders.ts) delegates here, so this single gate covers both
+  // entry points: 10/min per admin, checked before any gateway call.
+  if (await isRateLimited('refund-payment', me.id, 10, 60_000)) {
+    return { ok: false, message: 'Забагато спроб повернення. Спробуйте через хвилину.' }
+  }
   const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId))
   if (!payment) return { ok: false, message: 'Платёж не найден' }
   if (payment.status === 'refunded') {

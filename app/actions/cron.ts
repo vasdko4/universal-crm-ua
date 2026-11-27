@@ -1,6 +1,7 @@
 'use server'
 
 import { assertPermission, assertWritePermission } from '@/lib/session'
+import { isRateLimited } from '@/lib/api/rate-limit'
 import { getCronJobStates, setCronJobEnabled } from '@/lib/cron/store'
 import { CRON_JOBS } from '@/lib/cron/registry'
 import { revalidatePath } from 'next/cache'
@@ -48,7 +49,8 @@ export async function setCronJobEnabledAction(
     revalidatePath('/admin/cron')
     return { ok: true }
   } catch (e) {
-    return { ok: false, error: (e as Error).message }
+    console.error('[cron] setCronJobEnabled failed:', e)
+    return { ok: false, error: 'cron_failed' }
   }
 }
 
@@ -60,7 +62,11 @@ export async function runCronJobNow(
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await assertWritePermission('system_cron')
+    const me = await assertWritePermission('system_cron')
+    // Manual triggers hit the live job endpoint — 10/min per admin.
+    if (await isRateLimited('cron-run-now', me.id, 10, 60_000)) {
+      return { ok: false, error: 'rate_limited' }
+    }
     // Allowlist: use the registry's own id (trusted constant) in the URL,
     // never the raw request parameter — closes the SSRF dataflow.
     const job = CRON_JOBS.find((j) => j.id === id)
@@ -84,6 +90,7 @@ export async function runCronJobNow(
       clearTimeout(timer)
     }
   } catch (e) {
-    return { ok: false, error: (e as Error).message }
+    console.error('[cron] runCronJobNow failed:', e)
+    return { ok: false, error: 'cron_failed' }
   }
 }

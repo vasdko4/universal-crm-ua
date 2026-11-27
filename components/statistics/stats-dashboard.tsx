@@ -964,7 +964,7 @@ export function StatsDashboard({
                       <a
                         href={p.path}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         title={p.product.name}
                         className="min-w-0 basis-2/5 shrink-0 truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
                       >

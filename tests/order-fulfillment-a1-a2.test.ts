@@ -29,7 +29,11 @@ describe('A1: finalize is non-strict on promo (paid order never stuck)', () => {
 
   it('the non-strict branch logs the miss to order history instead of throwing', () => {
     const promo = source('lib/shop/promo-usage.ts')
-    expect(promo).toContain("if (!usage.counted && strict) throw new Error('promo-limit')")
+    // 3.4.109: claim/ledger split — the miss is a false from
+    // claimPromoSlotTx; non-strict (default) logs it, strict throws.
+    expect(promo).toContain('const strict = opts?.strict ?? false')
+    expect(promo).toContain("throw new Error('promo-limit')")
+    expect(promo).toContain('const counted = await claimPromoSlotTx(tx, leg.promotionId)')
     // The history insert runs for both branches — uncounted + non-strict
     // lands here instead of the throw above.
     expect(promo).toContain('не засчитан: лимит исчерпан')

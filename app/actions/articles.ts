@@ -129,13 +129,57 @@ async function ensureSlug(desired: string, excludeId?: number): Promise<string> 
 }
 
 function validate(input: ArticleInput): string | null {
-  return validateTitle(input)
+  const titleError = validateTitle(input)
+  if (titleError) return titleError
+  if (input.title.trim().length > 255) return 'Заголовок не должен превышать 255 символов'
+  if (input.titleRu != null && input.titleRu.trim().length > 255) {
+    return 'Заголовок (RU) не должен превышать 255 символов'
+  }
+  if (input.slug != null && input.slug.trim().length > 255) return 'Slug не должен превышать 255 символов'
+  if (input.coverImage != null && input.coverImage.trim().length > 500) {
+    return 'Ссылка на обложку не должна превышать 500 символов'
+  }
+  if (input.author != null && input.author.trim().length > 150) {
+    return 'Имя автора не должно превышать 150 символов'
+  }
+  if (input.metaTitle != null && input.metaTitle.trim().length > 255) {
+    return 'Meta title не должен превышать 255 символов'
+  }
+  if (input.status != null && input.status !== 'draft' && input.status !== 'published') {
+    return 'Некорректный статус статьи'
+  }
+  if (
+    input.readingMinutes != null &&
+    (!Number.isInteger(input.readingMinutes) || input.readingMinutes < 0 || input.readingMinutes > 10000)
+  ) {
+    return 'Время чтения должно быть целым числом от 0 до 10000'
+  }
+  if (input.categoryId != null && (!Number.isInteger(input.categoryId) || input.categoryId < 1)) {
+    return 'Некорректная категория'
+  }
+  if (input.tags != null) {
+    if (!Array.isArray(input.tags) || input.tags.length > 50) {
+      return 'Слишком много тегов (максимум 50)'
+    }
+    if (input.tags.some((t) => typeof t !== 'string' || t.trim().length === 0 || t.trim().length > 100)) {
+      return 'Некорректный тег'
+    }
+  }
+  return null
 }
 
 export async function createArticle(input: ArticleInput) {
   await assertWritePermission('articles')
   const error = validate(input)
   if (error) return { success: false, error }
+  if (input.categoryId != null) {
+    const [cat] = await db
+      .select({ id: articleCategories.id })
+      .from(articleCategories)
+      .where(eq(articleCategories.id, input.categoryId))
+      .limit(1)
+    if (!cat) return { success: false, error: 'Категория не найдена' }
+  }
   const firstSlug = await ensureSlug(input.slug?.trim() || input.title)
   const isPublished = input.status === 'published'
   // 23505 race: two admins creating same-titled articles can both pass the
@@ -169,6 +213,14 @@ export async function updateArticle(id: number, input: ArticleInput) {
   await assertWritePermission('articles')
   const error = validate(input)
   if (error) return { success: false, error }
+  if (input.categoryId != null) {
+    const [cat] = await db
+      .select({ id: articleCategories.id })
+      .from(articleCategories)
+      .where(eq(articleCategories.id, input.categoryId))
+      .limit(1)
+    if (!cat) return { success: false, error: 'Категория не найдена' }
+  }
   const current = await getArticleById(id)
   if (!current) return { success: false, error: 'Статья не найдена' }
   // Slugs are set once at creation and kept stable across renames — the
@@ -246,6 +298,7 @@ function isUniqueViolation(e: unknown): boolean {
 export async function createArticleCategory(name: string) {
   await assertWritePermission('articles')
   if (!name.trim()) return { success: false, error: 'Название обязательно' }
+  if (name.trim().length > 150) return { success: false, error: 'Название не должно превышать 150 символов' }
   // BUGFIX: slugify() alone collided on duplicate names → unique violation
   // → unhandled 500. Suffix until free; retry once on a concurrent race.
   const base = slugify(name) || 'category'

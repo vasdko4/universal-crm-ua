@@ -17,6 +17,7 @@ import {
 import type { NpRecentDocument } from '@/lib/delivery/nova-poshta'
 import { reportError } from '@/lib/server-errors'
 import { tryAdvisoryLock } from '@/lib/db/advisory-lock'
+import { isRateLimited } from '@/lib/api/rate-limit'
 import { isUniqueViolation } from '@/lib/db/errors'
 import { updateOrderDelivery } from '@/app/actions/orders'
 import type { NpSenderRefs } from '@/lib/delivery/np-sender'
@@ -67,6 +68,12 @@ export async function createTtnForOrder(
   opts: { weightKg?: number; seats?: number; description?: string; forceCreate?: boolean } = {},
 ): Promise<{ ok: boolean; ttn?: string; printUrl?: string; error?: string; needsConfirm?: boolean }> {
   const user = await assertWritePermission('orders')
+  // Audit #16: creating a TTN calls Nova Poshta with the merchant key — cap
+  // it per admin so a compromised/shared admin session cannot burn quota or
+  // mass-create shipping documents.
+  if (await isRateLimited('ttn-create', user.id, 10, 60_000)) {
+    return { ok: false, error: 'Забагато спроб. Спробуйте через хвилину.' }
+  }
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1)
   if (!order) return { ok: false, error: 'Замовлення не знайдено' }
   if (order.deliveryMethod && order.deliveryMethod !== 'nova_poshta') {
@@ -468,7 +475,13 @@ export async function createTtnForOrder(
 export async function printTtnForOrder(
   orderId: number,
 ): Promise<{ ok: boolean; printUrl?: string; error?: string }> {
-  await assertWritePermission('orders')
+  const user = await assertWritePermission('orders')
+  // Audit #16: printing proxies the NP label PDF with the merchant key in
+  // the upstream URL — cap it per admin (30/min, looser than create: a
+  // label re-print is harmless, the key must still not be hammered).
+  if (await isRateLimited('ttn-print', user.id, 30, 60_000)) {
+    return { ok: false, error: 'Забагато спроб. Спробуйте через хвилину.' }
+  }
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1)
   if (!order) return { ok: false, error: 'Замовлення не знайдено' }
   const ttn = (order.trackingNumber || '').trim()

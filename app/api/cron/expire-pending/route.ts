@@ -14,7 +14,8 @@ export const maxDuration = 60
  * not overwritten. On the Docker VPS the in-process scheduler runs this
  * every 15 minutes (registry interval), so the 45-minute age check is the
  * effective threshold; Vercel Hobby only allows daily crons, so the Vercel
- * schedule is still once a day (04:30 UTC).
+ * schedule is still once a day (04:30 UTC). The same run sweeps expired
+ * promo reservations (3.4.109 backstop — lazy reap is primary).
  */
 export async function GET(req: NextRequest) {
   const auth = authorizeCronRequest(process.env.CRON_SECRET, req.headers.get('authorization'))
@@ -34,8 +35,15 @@ export async function GET(req: NextRequest) {
   const locked = await withCronLock('expire-pending', async () => {
     try {
       const result = await expirePendingPayments()
+      // 3.4.109 backstop: expirePendingPayments cancels stale pending_payment
+      // orders, but their promo reservations live in promotion_reservations
+      // — sweep expired holds (status -> 'expired', slot freed) in the same
+      // pass. Lazy reap at the next checkout for the same promotion is the
+      // primary mechanism; this only frees holds no shopper has reaped yet.
+      const { sweepExpiredReservations } = await import('@/lib/shop/promo-usage')
+      const { swept } = await sweepExpiredReservations()
       await recordCronRun('expire-pending', 'ok')
-      return NextResponse.json({ ok: true, ...result })
+      return NextResponse.json({ ok: true, ...result, reservationsSwept: swept })
     } catch (e) {
       await recordCronRun('expire-pending', 'error', (e as Error).message)
       // A dead expire-pending leaves stale pending_payment orders lingering
@@ -43,7 +51,7 @@ export async function GET(req: NextRequest) {
       // payment — but the orders stay visible in admin and their gateway
       // invoices may still be payable) — ping the admin, not just the logs.
       void reportError('cron.expire-pending', e, { alertAdmin: true })
-      return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+      return NextResponse.json({ ok: false, error: 'Внутрішня помилка' }, { status: 500 })
     }
   })
   if (!locked.acquired) {

@@ -287,11 +287,19 @@ export async function settlePayment(
     // Declined / expired invoices should leave the admin list, not hang as
     // pending_payment forever (FIX-07).
     if ((status === 'failed' || status === 'expired') && order.status === 'pending_payment') {
-      await pool.query(
+      const cancelled = await pool.query(
         `UPDATE orders SET status = 'cancelled', updated_at = NOW()
           WHERE id = $1 AND status = 'pending_payment'`,
         [order.id],
       )
+      // 3.4.109: a failed/expired invoice voids the unpaid order — free
+      // the promo slot its reservation held so the code can be reused.
+      // releasePromotionUsageForOrder also releases still-active
+      // reservations (the order never reached the ledger).
+      if ((cancelled.rowCount ?? 0) > 0) {
+        const { releasePromotionUsageForOrder } = await import('@/lib/shop/promo-usage')
+        await releasePromotionUsageForOrder(orderReference)
+      }
     }
     // A refund initiated in the gateway cabinet (or a chargeback) never
     // goes through refundPayment. Full refunds restore stock once; partial

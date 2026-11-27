@@ -32,6 +32,14 @@ const CURRENCY_CODES: Record<string, number> = {
   EUR: 978,
 }
 
+export const GATEWAY_CURRENCIES = ['UAH', 'USD', 'EUR'] as const
+
+/** True only for currencies both gateways support. Anything else is rejected
+ * by the invoice creators below instead of being signed/sent as-is. */
+export function isSupportedGatewayCurrency(currency: unknown): currency is (typeof GATEWAY_CURRENCIES)[number] {
+  return typeof currency === 'string' && (GATEWAY_CURRENCIES as readonly string[]).includes(currency)
+}
+
 /* ------------------------------- WayForPay -------------------------------- */
 
 type WayForPayConfig = {
@@ -161,6 +169,9 @@ export async function wayforpayCreateInvoice(
   const { merchantAccount, merchantSecretKey, merchantDomainName } = config
   if (!merchantAccount || !merchantSecretKey || !merchantDomainName) {
     return { ok: false, message: 'WayForPay: не заполнены учётные данные шлюза' }
+  }
+  if (!isSupportedGatewayCurrency(params.currency)) {
+    return { ok: false, message: 'WayForPay: неподдерживаемая валюта' }
   }
   const orderDate = Math.floor(Date.now() / 1000)
   const amount = Number(params.amount.toFixed(2))
@@ -395,7 +406,10 @@ export async function monobankCreateInvoice(
   if (!config.token) {
     return { ok: false, message: 'Monobank: не указан токен эквайринга' }
   }
-  const ccy = CURRENCY_CODES[params.currency] ?? 980
+  if (!isSupportedGatewayCurrency(params.currency)) {
+    return { ok: false, message: 'Monobank: неподдерживаемая валюта' }
+  }
+  const ccy = CURRENCY_CODES[params.currency]
   const body = {
     amount: Math.round(params.amount * 100),
     ccy,

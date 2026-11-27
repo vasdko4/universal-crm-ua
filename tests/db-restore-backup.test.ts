@@ -42,7 +42,7 @@ describe('audit F1 (3.4.96): --latest guard', () => {
     // The old guard threw for --latest before the listing branch could run;
     // deleting only the first disjunct is not enough either ('--latest'
     // matches neither .jsonl.gz nor '/'), so the guard must exempt it.
-    expect(script).toContain("if (arg !== '--latest' && !arg.endsWith('.jsonl.gz') && !arg.includes('/')) {")
+    expect(script).toContain("if (arg !== '--latest' && !arg.endsWith('.jsonl.gz') && !arg.endsWith('.jsonl.gz.enc') && !arg.includes('/')) {")
     expect(script).not.toContain("if (arg === '--latest' || (!arg.endsWith('.jsonl.gz')")
   })
 

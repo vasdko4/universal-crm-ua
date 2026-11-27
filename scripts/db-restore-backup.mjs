@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Restores a nightly backup produced by the /api/cron/db-backup endpoint
- * (gzipped NDJSON in Vercel Blob under db-backups/, or a local .jsonl.gz file).
+ * (encrypted .jsonl.gz.enc in Vercel Blob under db-backups/, or a local
+ * .jsonl.gz.enc file; legacy plaintext .jsonl.gz files still restore).
  *
  * The dump is DATA ONLY — the schema must already exist (db/migrate.sql).
  * Strategy: TRUNCATE every dumped table (CASCADE), then re-INSERT rows with
@@ -10,11 +11,15 @@
  * INSERT chunk is held in memory at a time.
  *
  * Usage:
- *   node --env-file=.env.local scripts/db-restore-backup.mjs db-backups/2026-10-01-0030.jsonl.gz
- *   node --env-file=.env.local scripts/db-restore-backup.mjs ./backup.jsonl.gz
+ *   node --env-file=.env.local scripts/db-restore-backup.mjs db-backups/2026-10-01-003000.jsonl.gz.enc
+ *   node --env-file=.env.local scripts/db-restore-backup.mjs ./backup.jsonl.gz.enc
+ *   node --env-file=.env.local scripts/db-restore-backup.mjs ./backup.jsonl.gz   # legacy plaintext, still works
  *   node --env-file=.env.local scripts/db-restore-backup.mjs --latest   # newest backup in Blob
  *
- * Env: DATABASE_URL, BLOB_READ_WRITE_TOKEN (only for Blob sources).
+ * Env: DATABASE_URL, BLOB_READ_WRITE_TOKEN (only for Blob sources),
+ *   BACKUP_ENCRYPTION_KEY (+ BACKUP_ENCRYPTION_KEY_<keyId> for retained old
+ *   keys) — only for .jsonl.gz.enc restores; the key comes from env only,
+ *   never from a CLI argument. Legacy plaintext backups need no key.
  * DANGER: this wipes current data in the target database. Double-check DATABASE_URL.
  */
 import { Pool } from 'pg'
@@ -22,9 +27,10 @@ import { list } from '@vercel/blob'
 import { createReadStream } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
-import { Readable } from 'node:stream'
+import { Readable, Transform } from 'node:stream'
 import { StringDecoder } from 'node:string_decoder'
 import { createGunzip } from 'node:zlib'
+import { createDecipheriv } from 'node:crypto'
 
 const BACKUP_PREFIX = 'db-backups/'
 
@@ -57,7 +63,7 @@ async function loadBackup() {
   // below could ever run. Note the trap: just deleting that disjunct is
   // not enough, '--latest' matches neither '.jsonl.gz' nor '/' either, so
   // the guard has to exempt it explicitly.
-  if (arg !== '--latest' && !arg.endsWith('.jsonl.gz') && !arg.includes('/')) {
+  if (arg !== '--latest' && !arg.endsWith('.jsonl.gz') && !arg.endsWith('.jsonl.gz.enc') && !arg.includes('/')) {
     throw new Error('Blob download by prefix listing is only supported with an exact pathname or --latest')
   }
   if (arg.startsWith(BACKUP_PREFIX) || arg === '--latest') {
@@ -131,6 +137,202 @@ function gunzippedLines(inputStream) {
   return linesOf(gunzip)
 }
 
+
+// ── 3.4.109: encrypted backups (AES-256-GCM) ─────────────────────────
+// Wire format is defined in lib/shop/backup-crypto.ts — keep these
+// constants in sync with it. This script runs under plain `node` and
+// cannot import that TS module, so the format is implemented here a
+// second time; tests/db-backup-encryption.test.ts cross-checks the two
+// by building encrypted dumps with the TS helper and restoring them
+// with this script.
+//   [8-byte magic "PFBKUP01"][2-byte header length][JSON header]
+//   [ciphertext][16-byte GCM tag]
+// JSON header: { v: 1, alg: "aes-256-gcm", keyId, nonce (base64) }.
+// The key comes from env only — never from a CLI argument (it would land
+// in shell history / process lists). Plaintext `.jsonl.gz` backups keep
+// restoring exactly as before (no key needed).
+const BACKUP_MAGIC = 'PFBKUP01'
+const BACKUP_TAG_BYTES = 16
+const BACKUP_NONCE_BYTES = 12
+const BACKUP_KEY_BYTES = 32
+
+function currentBackupKeyId() {
+  const explicit = process.env.BACKUP_ENCRYPTION_KEY_ID?.trim()
+  if (explicit) return explicit
+  const now = new Date()
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function decodeBackupKey(raw, envVar) {
+  if (!raw || !raw.trim()) {
+    throw new Error(`${envVar} is not set — cannot decrypt this backup. Generate one with: openssl rand -base64 32`)
+  }
+  const value = raw.trim()
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value)) {
+    throw new Error(`${envVar} is not valid base64 — expected the output of: openssl rand -base64 32`)
+  }
+  const key = Buffer.from(value, 'base64')
+  if (key.length !== BACKUP_KEY_BYTES) {
+    throw new Error(`${envVar} must decode to ${BACKUP_KEY_BYTES} bytes (generate with: openssl rand -base64 32), got ${key.length}.`)
+  }
+  return key
+}
+
+// Resolve the key for a backup stamped with `keyId`: a retained old key in
+// BACKUP_ENCRYPTION_KEY_<keyId> wins; otherwise the current key in
+// BACKUP_ENCRYPTION_KEY applies when `keyId` is the current key id.
+// Unknown keyId → a clear error naming the keyId and the env var that
+// should hold it (a GCM tag failure would only say "decrypt failed").
+function resolveBackupKey(keyId) {
+  if (!keyId || typeof keyId !== 'string') {
+    throw new Error('Backup header has no keyId — the file is corrupt or not an encrypted backup.')
+  }
+  const retainedVar = `BACKUP_ENCRYPTION_KEY_${keyId}`
+  const retained = process.env[retainedVar]
+  if (retained) return decodeBackupKey(retained, retainedVar)
+  if (keyId === currentBackupKeyId()) {
+    const current = process.env.BACKUP_ENCRYPTION_KEY
+    if (current) return decodeBackupKey(current, 'BACKUP_ENCRYPTION_KEY')
+  }
+  throw new Error(
+    `Unknown backup keyId "${keyId}": no key found. ` +
+      `Set ${retainedVar} to the 32-byte base64 key that encrypted this backup ` +
+      `(or BACKUP_ENCRYPTION_KEY if "${keyId}" is the current key id). ` +
+      'Without that key the backup cannot be decrypted — see docs/db-backup.md, "If the key is lost".',
+  )
+}
+
+// Decrypts ciphertext whose last 16 bytes are the GCM tag (the header is
+// parsed separately and not fed in here). The tag is held back from the
+// decipher until the stream ends, then verified: a wrong key or any
+// tampered byte fails here (decipher.final() fails authentication),
+ // never silently.
+class BackupDecryptStream extends Transform {
+  constructor(key, nonce) {
+    super()
+    this.decipher = createDecipheriv('aes-256-gcm', key, nonce)
+    this.tail = Buffer.alloc(0)
+  }
+  _transform(chunk, _encoding, callback) {
+    try {
+      const data = Buffer.concat([this.tail, chunk])
+      if (data.length <= BACKUP_TAG_BYTES) {
+        this.tail = data
+        callback()
+        return
+      }
+      const cut = data.length - BACKUP_TAG_BYTES
+      this.tail = data.subarray(cut)
+      this.push(this.decipher.update(data.subarray(0, cut)))
+      callback()
+    } catch (e) {
+      callback(e)
+    }
+  }
+  _flush(callback) {
+    try {
+      if (this.tail.length !== BACKUP_TAG_BYTES) {
+        throw new Error('Encrypted backup is truncated: the 16-byte GCM tag is missing.')
+      }
+      this.decipher.setAuthTag(this.tail)
+      // Throws on a wrong key or any tampered byte — fail closed.
+      this.push(this.decipher.final())
+      callback()
+    } catch (e) {
+      callback(e)
+    }
+  }
+}
+
+// Read exactly `n` bytes from the head of a stream, returning the head plus
+// a stream that replays any surplus and then continues the source. Used to
+// peek the magic/header without losing bytes.
+async function splitStream(stream, n) {
+  const reader = stream[Symbol.asyncIterator]()
+  let buf = Buffer.alloc(0)
+  while (buf.length < n) {
+    const { value, done } = await reader.next()
+    if (done) break
+    buf = Buffer.concat([buf, Buffer.from(value)])
+  }
+  const rest = Readable.from(
+    (async function* () {
+      if (buf.length > n) yield buf.subarray(n)
+      for await (const chunk of reader) yield chunk
+    })(),
+  )
+  return { head: buf.subarray(0, Math.min(n, buf.length)), rest }
+}
+
+function concatStream(head, rest) {
+  return Readable.from(
+    (async function* () {
+      if (head.length > 0) yield head
+      yield* rest
+    })(),
+  )
+}
+
+// Open the dump as plaintext lines — decrypting first when the file is an
+// encrypted backup. Detection is by magic + extension: a mismatch errors
+// out rather than guessing. The GCM tag is verified at the end of the
+// stream, i.e. before the restore commits (the whole replay runs inside
+// one transaction), so a tampered file rolls everything back.
+async function* backupLines() {
+  const raw = await openStream()
+  const { head, rest } = await splitStream(raw, 10)
+  const encrypted = head.length >= 8 && head.subarray(0, 8).toString('ascii') === BACKUP_MAGIC
+  if (!encrypted) {
+    if (label.endsWith('.jsonl.gz.enc')) {
+      throw new Error(`Backup ${label} has a .jsonl.gz.enc name but no encrypted-backup magic — wrong file, or the header is corrupt.`)
+    }
+    yield* gunzippedLines(concatStream(head, rest))
+    return
+  }
+  if (!label.endsWith('.jsonl.gz.enc')) {
+    throw new Error(
+      `Backup ${label} starts with the encrypted-backup magic but its name does not end in .jsonl.gz.enc — ` +
+        'rename it to *.jsonl.gz.enc or pass the right file.',
+    )
+  }
+  if (head.length < 10) {
+    throw new Error(`Backup ${label} is truncated: the encrypted-backup header is incomplete.`)
+  }
+  const headerLen = head.readUInt16BE(8)
+  const { head: headerBytes, rest: cipherStream } = await splitStream(rest, headerLen)
+  if (headerBytes.length < headerLen) {
+    throw new Error(`Backup ${label} is truncated: the encrypted-backup header is incomplete.`)
+  }
+  let header
+  try {
+    header = JSON.parse(headerBytes.toString('utf8'))
+  } catch {
+    throw new Error(`Backup ${label} has a corrupt encrypted-backup header (not valid JSON).`)
+  }
+  if (
+    header?.v !== 1 ||
+    header?.alg !== 'aes-256-gcm' ||
+    typeof header?.keyId !== 'string' ||
+    !header.keyId ||
+    typeof header?.nonce !== 'string' ||
+    !header.nonce
+  ) {
+    throw new Error(`Backup ${label} has an unsupported encrypted-backup header (expected { v: 1, alg: "aes-256-gcm", keyId, nonce }).`)
+  }
+  const nonce = Buffer.from(header.nonce, 'base64')
+  if (nonce.length !== BACKUP_NONCE_BYTES) {
+    throw new Error(`Backup ${label} has an invalid nonce in its header (expected ${BACKUP_NONCE_BYTES} bytes).`)
+  }
+  const key = resolveBackupKey(header.keyId)
+  console.log(`Encrypted backup (keyId=${header.keyId}) — decrypting …`)
+  const decrypt = new BackupDecryptStream(key, nonce)
+  // pipe() does not forward source errors — without this a read failure
+  // would hang the line iterator instead of failing the restore.
+  cipherStream.on('error', (e) => decrypt.destroy(e))
+  cipherStream.pipe(decrypt)
+  yield* gunzippedLines(decrypt)
+}
+
 function quoteIdent(name) {
   return `"${name.replace(/"/g, '""')}"`
 }
@@ -140,11 +342,23 @@ const { label, openStream } = await loadBackup()
 // Audit F2 (3.4.96): the dump is streamed line by line through gunzip —
 // never gunzipSync'd, never split into a lines array, never grouped into a
 // byTable Map. At most one bounded INSERT chunk is buffered at a time.
-const lines = gunzippedLines(await openStream())
-const first = await lines.next()
-if (first.done) throw new Error('Backup file is empty')
-const manifest = JSON.parse(first.value)
-if (!manifest._manifest) throw new Error('First line is not a backup manifest — wrong file?')
+// The manifest read happens before the transaction (and before the pool
+// exists), so a failure here has nothing to roll back — but it must still
+// fail gracefully: a wrong key or a tampered file surfaces as a stream
+// error on this very first pull, and without this catch it would die as
+// an uncaught stack dump instead of "✗ Restore failed".
+let lines
+let manifest
+try {
+  lines = backupLines()
+  const first = await lines.next()
+  if (first.done) throw new Error('Backup file is empty')
+  manifest = JSON.parse(first.value)
+  if (!manifest._manifest) throw new Error('First line is not a backup manifest — wrong file?')
+} catch (e) {
+  console.error('✗ Restore failed:', e.message)
+  process.exit(1)
+}
 const manifestTables = Array.isArray(manifest.tables) ? manifest.tables : []
 console.log(`Backup ${label}: dumpedAt=${manifest.dumpedAt}, tables=${manifestTables.length}`)
 
@@ -235,7 +449,7 @@ try {
       if (typeof t === 'string' && t) seen.add(t)
     }
     tableNames = [...seen]
-    rowLines = gunzippedLines(await openStream())
+    rowLines = backupLines()
     const again = await rowLines.next() // skip the manifest line on the second pass
     if (again.done) throw new Error('Backup file is empty')
   }

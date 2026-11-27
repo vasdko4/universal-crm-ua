@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { syncPromProducts } from '@/lib/prom/sync'
 import { authorizeCronRequest } from '@/lib/cron-auth'
-import { recordCronRun } from '@/lib/cron/store'
+import { isCronJobEnabled, recordCronRun } from '@/lib/cron/store'
+import { withCronLock } from '@/lib/cron/with-cron-lock'
 import { reportError } from '@/lib/server-errors'
 
 export const dynamic = 'force-dynamic'
@@ -28,13 +29,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status })
   }
 
-  try {
-    const result = await syncPromProducts()
-    await recordCronRun('prom-sync', result.ok ? 'ok' : 'error', result.ok ? undefined : 'sync failed')
-    return NextResponse.json(result, { status: result.ok ? 200 : 422 })
-  } catch (e) {
-    await recordCronRun('prom-sync', 'error', (e as Error).message)
-    void reportError('cron.prom-sync', e, { alertAdmin: true })
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+  // Admin Cron tab kill-switch: disabled jobs refuse to run (fail closed).
+  // prom-sync is not in the cron registry (settings-driven schedule), but
+  // isCronJobEnabled is free-form — no row means enabled, same as the rest.
+  if (!(await isCronJobEnabled('prom-sync'))) {
+    return NextResponse.json({ ok: false, error: 'cron job disabled' }, { status: 503 })
   }
+
+  // Single-flight (audit A4/A5): a second concurrent trigger gets 409
+  // instead of a duplicate run. Auth + kill-switch stay first (cheap
+  // checks before taking the lock). The lock key here is `cron-run:prom-sync`
+  // (withCronLock); the inner syncPromProducts lock is a DIFFERENT advisory
+  // key (`prom-sync`) guarding the sync itself for ALL entry points
+  // (scheduler, manual button, this route) — the two never collide.
+  const locked = await withCronLock('prom-sync', async () => {
+    try {
+      const result = await syncPromProducts()
+      await recordCronRun('prom-sync', result.ok ? 'ok' : 'error', result.ok ? undefined : 'sync failed')
+      return NextResponse.json(result, { status: result.ok ? 200 : 422 })
+    } catch (e) {
+      await recordCronRun('prom-sync', 'error', (e as Error).message)
+      void reportError('cron.prom-sync', e, { alertAdmin: true })
+      return NextResponse.json({ ok: false, error: 'Внутрішня помилка' }, { status: 500 })
+    }
+  })
+  if (!locked.acquired) {
+    return NextResponse.json({ ok: false, error: 'cron job already running' }, { status: 409 })
+  }
+  return locked.result
 }

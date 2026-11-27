@@ -824,3 +824,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_product_groups_slug ON public.product_grou
 -- доступа к заказам не даёт). NULL для заказов, созданных до релиза, —
 -- они недоступны гостю по куке, только через phone-verified lookup.
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "guest_access_token_hash" varchar(64);
+
+-- ---------- Промокоды: бронирование слота usageLimit (3.4.109) ----------
+-- Два чекаута на последний слот usageLimit: 1 раньше оба создавали заказ
+-- pending_payment, оба платили, а слот доставался только первому
+-- финализировавшемуся — второй сохранял скидку бесплатно. Теперь слот
+-- бронируется при создании заказа (см. lib/shop/promo-usage.ts):
+-- usedCount растёт уже в момент брони, а при оплате бронь превращается в
+-- запись promotion_usages без повторного инкремента. TTL 45 минут — то же
+-- окно, что и DEFAULT_MAX_AGE_MINUTES в lib/payments/expire-pending.ts.
+-- Бронь хранит ТОЛЬКО слот (без сумм); суммы берутся из заказа в момент
+-- потребления. Строки никогда не удаляются — статус active | consumed |
+-- released | expired. Без backfill: заказы pending_payment, созданные до
+-- 3.4.109, финализируются по старому пути (без брони).
+CREATE TABLE IF NOT EXISTS promotion_reservations (
+  id serial PRIMARY KEY,
+  promotion_id integer NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+  order_id integer REFERENCES orders(id) ON DELETE CASCADE,
+  order_number varchar(100) NOT NULL,
+  status varchar(20) NOT NULL DEFAULT 'active',
+  expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  consumed_at timestamptz,
+  released_at timestamptz
+);
+CREATE UNIQUE INDEX IF NOT EXISTS promotion_reservations_active_order_idx
+  ON promotion_reservations (promotion_id, order_number) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS promotion_reservations_expires_idx
+  ON promotion_reservations (expires_at) WHERE status = 'active';
+

@@ -13,6 +13,7 @@ import {
 } from '@/lib/db/schema'
 import type { ProductOption, VariantOptions } from '@/lib/db/schema'
 import { assertPermission, assertWritePermission } from '@/lib/session'
+import { isRateLimited } from '@/lib/api/rate-limit'
 import { generateUniqueSlug, withSlugRetry } from '@/lib/product-slug'
 import {
   fetchListingPage,
@@ -68,7 +69,13 @@ type PromImportState = {
 
 /** Starts a new Prom.ua shop import: discovers every product link, then returns a task id to poll. */
 export async function startPromImport(shopUrl: string, skipExisting = false) {
-  await assertWritePermission('import')
+  const me = await assertWritePermission('import')
+  // Audit #16: starting an import scrapes up to 500 Prom.ua product pages —
+  // cap new jobs at 5/hour per admin so one session cannot turn the shop
+  // into a scraper.
+  if (await isRateLimited('prom-import-start', me.id, 5, 3_600_000)) {
+    return { success: false as const, error: 'Забагато спроб. Спробуйте через годину.' }
+  }
   const trimmed = shopUrl.trim()
   if (!isAllowedPromUrl(trimmed)) {
     return { success: false as const, error: 'Ссылка должна вести на prom.ua (страницу магазина)' }
@@ -560,6 +567,7 @@ export async function continuePromImport(taskId: number) {
         throw new Error(`не вдалося завантажити сторінку товару (${detailed.reason}: ${detailed.url})`)
       }
       const p = detailed.product
+      if (p.price == null) throw new Error('немає ціни')
 
       // Prom.ua listings are frequently written in Russian or mixed language.
       // Fix unambiguous standalone Russian words in the Ukrainian description
@@ -825,7 +833,10 @@ export async function continuePromImport(taskId: number) {
       success++
     } catch (e) {
       failed++
-      errors.push(`${item.urlText}: ${e instanceof Error ? e.message : 'ошибка'}`)
+      const msg =
+        e instanceof Error && !('code' in e) ? e.message.slice(0, 200) : 'помилка збереження'
+      if (e instanceof Error && 'code' in e) console.error('[prom-import] item failed:', e)
+      errors.push(`${item.urlText}: ${msg}`)
     }
   }
 

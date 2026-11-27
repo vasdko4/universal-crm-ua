@@ -87,17 +87,25 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
     }
   }
 
-  const url =
-    input.mode === 'url'
-      ? input.url.trim()
-      : buildConnectionString({
-          host: input.host,
-          port: input.port,
-          database: input.database,
-          user: input.user,
-          password: input.password,
-          ssl: input.ssl,
-        })
+  // buildConnectionString throws on a malformed host/port/database/user —
+  // turn that into a wizard error instead of an unhandled 500.
+  let url: string
+  try {
+    url =
+      input.mode === 'url'
+        ? input.url.trim()
+        : buildConnectionString({
+            host: input.host,
+            port: input.port,
+            database: input.database,
+            user: input.user,
+            password: input.password,
+            ssl: input.ssl,
+          })
+  } catch (e) {
+    console.error('[db-config] invalid connection fields:', e)
+    return { ok: false, error: t.invalidPostgres }
+  }
 
   if (!url || !/^postgres(ql)?:\/\//.test(url)) {
     return { ok: false, error: t.invalidPostgres }
@@ -125,7 +133,7 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
     })
   } catch (e) {
     console.error('[db-config] SSL config failed:', (e as Error).message)
-    return { ok: false, error: (e as Error).message }
+    return { ok: false, error: t.connectFailed }
   }
   try {
     await client.connect()

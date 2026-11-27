@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { pool } from '@/lib/db'
-import { getAdminUser } from '@/lib/session'
+import { getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { isLocale, type Locale } from '@/lib/i18n/config'
 
 /**
@@ -15,6 +15,7 @@ export async function setAdminLocale(value: string): Promise<{ success: boolean;
   if (!isLocale(value)) return { success: false }
   const user = await getAdminUser()
   if (!user) return { success: false }
+  if (!(await staffTwoFactorSatisfied(user.id))) return { success: false }
 
   await pool.query('UPDATE "user" SET locale = $1 WHERE id = $2', [value, user.id])
   revalidatePath('/admin', 'layout')

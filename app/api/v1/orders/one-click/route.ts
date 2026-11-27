@@ -1,6 +1,7 @@
 import { createOneClickOrder } from '@/app/actions/shop'
 import { fail, ok, readJson } from '@/lib/api/helpers'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
+import { csrfCheck } from '@/lib/api/csrf'
 import { getDictionary } from '@/lib/i18n/dictionaries'
 import { toUuid } from '@/lib/shop/one-click'
 
@@ -32,6 +33,8 @@ function toPositiveInt(v: unknown): number | null {
  * surfaced as 429 rather than 400.
  */
 export async function POST(request: Request) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
   if (await isRateLimited('api-v1-one-click', clientIp(request), 10)) {
     return fail('Забагато запитів, спробуйте пізніше', 429)
   }

@@ -8,6 +8,8 @@ import { canWrite } from '@/lib/permissions'
 import { readJson } from '@/lib/api/helpers'
 import { detectImageKind, extForImageKind, mimeForImageKind } from '@/lib/api/image-kind'
 import { isOwnBlobUrl } from '@/lib/api/blob-url'
+import { csrfCheck } from '@/lib/api/csrf'
+import { isRateLimited } from '@/lib/api/rate-limit'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8 MB
 const MAX_DIMENSION = 1600
@@ -39,6 +41,9 @@ async function storeLocally(body: Buffer, ext: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
+  // CSRF first (audit #5): cookie-authenticated admin handler.
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
   const admin = await getAdminUser()
   if (
     !admin ||
@@ -46,6 +51,9 @@ export async function POST(request: NextRequest) {
     !(canWrite(admin.permissions, 'products') || canWrite(admin.permissions, 'settings'))
   ) {
     return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
+  }
+  if (await isRateLimited('admin-upload', admin.id, 30, 60_000)) {
+    return NextResponse.json({ error: 'Забагато запитів' }, { status: 429 })
   }
 
   // Before parsing a multipart body, reject bodies that cannot possibly fit
@@ -60,6 +68,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData()
+    // Count limit: exactly one file per request — extra parts are rejected
+    // instead of silently ignored, so a multi-file body cannot smuggle
+    // unvalidated files past the single-file checks below.
+    const files = formData.getAll('file')
+    if (files.length > 1) {
+      return NextResponse.json({ error: 'Можно загрузить только один файл за раз' }, { status: 400 })
+    }
     const file = formData.get('file')
 
     if (!file || !(file instanceof File)) {
@@ -143,6 +158,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
   const admin = await getAdminUser()
   if (
     !admin ||
@@ -150,6 +167,9 @@ export async function DELETE(request: NextRequest) {
     !(canWrite(admin.permissions, 'products') || canWrite(admin.permissions, 'settings'))
   ) {
     return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 })
+  }
+  if (await isRateLimited('admin-upload', admin.id, 30, 60_000)) {
+    return NextResponse.json({ error: 'Забагато запитів' }, { status: 429 })
   }
 
   try {

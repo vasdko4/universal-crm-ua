@@ -326,21 +326,33 @@ function parseProductCard(p: any) {
     name: a.name,
     value: (a.values || []).map((v: any) => v.value).join(', '),
   }))
-  const price = p.hasDiscount ? (p.discountedPrice ?? p.price) : (p.price ?? p.priceOriginal)
-  const rawOld = p.hasDiscount && p.priceOriginal && p.priceOriginal !== price ? p.priceOriginal : null
-  const oldPrice = honestOldPrice(price != null ? Number(price) : null, rawOld != null ? Number(rawOld) : null)
+  const price = toSafePrice(p.hasDiscount ? (p.discountedPrice ?? p.price) : (p.price ?? p.priceOriginal))
+  const rawOld = p.hasDiscount && p.priceOriginal ? toSafePrice(p.priceOriginal) : null
+  const oldPrice = honestOldPrice(price, rawOld != null && rawOld !== price ? rawOld : null)
   return {
     promId: p.id as number,
     name: decodeHtmlEntities((p.name || '') as string),
     description: (p.descriptionFull || p.descriptionPlain || '') as string,
-    price: price != null ? Number(price) : null,
-    oldPrice: oldPrice != null ? Number(oldPrice) : null,
+    price,
+    oldPrice,
     sku: (p.sku || '') as string,
     inStock: p.presence?.isAvailable !== false,
     images,
     breadcrumbs,
     attributes,
   }
+}
+
+/**
+ * Safe price from an untrusted Prom.ua payload: finite, >= 0 and inside
+ * numeric(10,2) (< 100M). Anything else (NaN, Infinity, negative, huge,
+ * non-numeric strings) is null so the importer can fail the item with a
+ * clear message instead of importing a 0/NaN price or 500ing on insert.
+ */
+export function toSafePrice(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : Number.NaN
+  if (!Number.isFinite(n) || n < 0 || n >= 100_000_000) return null
+  return n
 }
 
 /**

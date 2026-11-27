@@ -168,6 +168,8 @@ if [[ ! -f .env ]]; then
   # in standard base64 would be decoded as spaces or path segments.
   SETUP_TOKEN_VAL=$(if command -v openssl &>/dev/null; then openssl rand -hex 32; else head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi)
   UPDATER_SECRET_VAL=$(gen_secret)
+  BACKUP_KEY_VALUE=$(gen_secret)
+  BACKUP_KEY_ID_VALUE=$(date -u +%Y-%m 2>/dev/null || echo current)
   DB_PASSWORD=$(gen_password)
   # FTP — opt-in: пароль генерируем только при ENABLE_FTP=1, иначе
   # в .env остаются пустые значения и ftp-профиль не включается.
@@ -194,6 +196,12 @@ CRON_SECRET=${CRON_SECRET_VAL}
 SETUP_TOKEN=${SETUP_TOKEN_VAL}
 UPDATER_SECRET=${UPDATER_SECRET_VAL}
 
+# Ключ шифрования бэкапов (3.4.109): без него бэкапы не пишутся (fail-closed).
+# Напечатан ОДИН РАЗ ниже — сохраните в менеджер паролей И в офлайн-копию:
+# без этого ключа зашифрованные бэкапы (.jsonl.gz.enc) восстановить НЕВОЗМОЖНО.
+BACKUP_ENCRYPTION_KEY=${BACKUP_KEY_VALUE}
+BACKUP_ENCRYPTION_KEY_ID=${BACKUP_KEY_ID_VALUE}
+
 # Имя проекта docker-compose (= эта папка) — нужно для сайдкара автообновления
 # (страница /admin/updates → «Обновить»), чтобы он гарантированно обновлял
 # именно этот стек контейнеров.
@@ -216,6 +224,10 @@ DOMAIN=${DOMAIN}
 ENVEOF
   chmod 600 .env
   ok "Файл .env создан: адрес ${PUBLIC_URL}, секреты и пароли сгенерированы"
+  echo ""
+  echo "BACKUP_ENCRYPTION_KEY (keyId ${BACKUP_KEY_ID_VALUE}) — напечатан ОДИН РАЗ, сохраните его в менеджер паролей И в офлайн-копию:"
+  echo "  ${BACKUP_KEY_VALUE}"
+  echo "Без этого ключа зашифрованные бэкапы (.jsonl.gz.enc) восстановить НЕВОЗМОЖНО — см. docs/db-backup.md. Не копируйте ключ в тикеты и логи."
 else
   ok "Файл .env уже существует — используем его"
 fi

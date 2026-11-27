@@ -1,7 +1,8 @@
 /**
  * Nightly PostgreSQL backup → local disk.
  *
- * The dump is a gzipped NDJSON stream: one JSON object per line.
+ * The dump is a gzipped NDJSON stream, encrypted with AES-256-GCM
+ * (3.4.109, lib/shop/backup-crypto.ts): one JSON object per line.
  *   {"_manifest":true,"dumpedAt":"...","retentionDays":10,"tables":[{"name":"orders","rows":12}]}
  *   {"t":"orders","r":{...row...}}
  *
@@ -15,8 +16,13 @@
  * Storage: local directory (BACKUP_DIR env, default /app/data/backups).
  * In docker-compose.yml this path is a named volume (techno_store_backups)
  * so dumps survive container recreates. Retention: files older than
- * BACKUP_RETENTION_DAYS (default 10) are deleted, matched by filename date.
- * Restore: scripts/db-restore-backup.mjs <local .jsonl.gz file>.
+ * BACKUP_RETENTION_DAYS (default 10) are deleted, matched by filename date
+ * (both `.jsonl.gz` and `.jsonl.gz.enc` during the transition).
+ * New backups are `YYYY-MM-DD-HHmmss.jsonl.gz.enc` (gzip, then AES-256-GCM;
+ * header first, GCM tag last). The writer FAILS CLOSED without
+ * BACKUP_ENCRYPTION_KEY — it never writes an unencrypted backup.
+ * Restore: scripts/db-restore-backup.mjs <local .jsonl.gz.enc file>;
+ * legacy plaintext `.jsonl.gz` backups still restore unchanged.
  */
 import { createGzip } from 'node:zlib'
 import { chmod, mkdir, readdir, rename, unlink } from 'node:fs/promises'
@@ -29,6 +35,12 @@ import type { PoolClient } from 'pg'
 import { pool } from '@/lib/db'
 import { APP_VERSION } from '@/lib/app-version'
 import { reportError } from '@/lib/server-errors'
+import {
+  BACKUP_ENCRYPTED_SUFFIX,
+  BACKUP_PLAINTEXT_SUFFIX,
+  BackupEncryptStream,
+  currentBackupKey,
+} from '@/lib/shop/backup-crypto'
 
 export const BACKUP_DIR = process.env.BACKUP_DIR || '/app/data/backups'
 export const BACKUP_RETENTION_DAYS = 10
@@ -70,18 +82,22 @@ export interface BackupSummary {
   pruneErrors: number
 }
 
-/** Filenames look like 2026-10-01-003015.jsonl.gz (seconds included so two
- *  runs started in the same minute never share a filename — defense in
- *  depth next to the route-level single-flight lock). */
+/** Filenames look like 2026-10-01-003015.jsonl.gz.enc (seconds included
+ *  so two runs started in the same minute never share a filename — defense
+ *  in depth next to the route-level single-flight lock). Since 3.4.109
+ *  backups are encrypted (AES-256-GCM); pre-3.4.109 plaintext files kept
+ *  the `.jsonl.gz` suffix and still restore. */
 export function backupFilenameFor(date: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   const stamp = `${date.getUTCFullYear()}-${p(date.getUTCMonth() + 1)}-${p(date.getUTCDate())}-${p(date.getUTCHours())}${p(date.getUTCMinutes())}${p(date.getUTCSeconds())}`
-  return `${stamp}.jsonl.gz`
+  return `${stamp}${BACKUP_ENCRYPTED_SUFFIX}`
 }
 
 function parseBackupDate(filename: string): Date | null {
   // Seconds are optional: backups written before 3.4.93 used HHmm.
-  const m = basename(filename).match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})?\.jsonl\.gz$/)
+  // Matches both suffixes: plaintext `.jsonl.gz` (pre-3.4.109) and
+  // encrypted `.jsonl.gz.enc` — prune must catch stale files of either kind.
+  const m = basename(filename).match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})?\.jsonl\.gz(\.enc)?$/)
   if (!m) return null
   const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0)))
   return Number.isNaN(d.getTime()) ? null : d
@@ -99,7 +115,7 @@ export function backupsToDelete(filenames: string[], now: Date, retentionDays: n
 async function listBackupFilenames(): Promise<string[]> {
   try {
     const entries = await readdir(BACKUP_DIR)
-    return entries.filter((e) => e.endsWith('.jsonl.gz'))
+    return entries.filter((e) => e.endsWith(BACKUP_PLAINTEXT_SUFFIX) || e.endsWith(BACKUP_ENCRYPTED_SUFFIX))
   } catch {
     return []
   }
@@ -138,7 +154,7 @@ function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`
 }
 
-/** Counts compressed bytes passing through; aborts the pipeline past the cap. */
+/** Counts bytes passing through (encrypted bytes, after gzip + encrypt); aborts the pipeline past the cap. */
 class ByteCounter extends Transform {
   bytes = 0
   constructor(private readonly maxBytes: number) {
@@ -163,6 +179,13 @@ class ByteCounter extends Transform {
  * so a crash mid-write never leaves a truncated backup listed as valid.
  */
 export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary> {
+  // 3.4.109: backups are encrypted (AES-256-GCM, lib/shop/backup-crypto).
+  // Fail closed: without BACKUP_ENCRYPTION_KEY there is no backup at all —
+  // a silent plaintext fallback would repeat the exact failure mode
+  // encryption exists to fix. Resolved before mkdir/pool so nothing is
+  // written and no DB work happens.
+  const { key: backupKey, keyId: backupKeyId } = currentBackupKey()
+
   await mkdir(BACKUP_DIR, { recursive: true })
 
   const filename = backupFilenameFor(now)
@@ -220,14 +243,17 @@ export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary
       sequences,
     }
 
-    // Stream: manifest + NDJSON rows → gzip → byte cap → tmp file.
+    // Stream: manifest + NDJSON rows → gzip → AES-256-GCM encrypt → byte
+    // cap → tmp file. The encrypt Transform writes the plaintext header
+    // first and appends the GCM tag last (lib/shop/backup-crypto).
     // Audit P2 (3.4.108): backups hold the whole database — the tmp file
     // is created 0600 so no other local user can read it while it streams.
     const fileStream = createWriteStream(tmpPathname, { mode: 0o600 })
     const gzip = createGzip({ level: 6 })
+    const encrypt = new BackupEncryptStream(backupKey, backupKeyId)
     const counter = new ByteCounter(MAX_DUMP_BYTES)
     let streamError: Error | null = null
-    const done = pipeline(gzip, counter, fileStream).catch((e: Error) => {
+    const done = pipeline(gzip, encrypt, counter, fileStream).catch((e: Error) => {
       streamError = e
       throw e
     })
@@ -275,8 +301,8 @@ export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary
     // The mode above only applies when the tmp file is created fresh: a
     // leftover tmp from a crashed run keeps its old permissions. chmod the
     // final file so backups are always 0600 regardless of umask/leftovers.
-    // (The manifest lives inside this same file, so it is covered too.
-    // No encryption here — that is 3.4.109.)
+    // (The manifest lives inside the encrypted stream, so it is covered
+    // too. 0600 stays as defense-in-depth — encryption does not replace it.)
     await chmod(pathname, 0o600)
 
     const { pruned, failed: pruneErrors } = await pruneOldBackups(now, BACKUP_RETENTION_DAYS)

@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       // checkout — ping, not just logs.
       await recordCronRun('anomaly-alert', 'error', (e as Error).message)
       void reportError('cron.anomaly-alert', e, { alertAdmin: true })
-      return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 })
+      return NextResponse.json({ ok: false, error: 'Внутрішня помилка' }, { status: 500 })
     }
   })
   if (!locked.acquired) {

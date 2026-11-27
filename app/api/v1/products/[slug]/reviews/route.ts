@@ -1,11 +1,9 @@
-import { eq } from 'drizzle-orm'
 import { type NextRequest } from 'next/server'
+import sanitizeHtml from 'sanitize-html'
 import { submitReview } from '@/app/actions/shop'
-import { db } from '@/lib/db'
-import { orders } from '@/lib/db/schema'
 import { fail, ok, parsePositiveInt, readJson } from '@/lib/api/helpers'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
-import { sanitizeContent } from '@/lib/shop/sanitize'
+import { csrfCheck } from '@/lib/api/csrf'
 import { summarizeReviews } from '@/lib/shop/review-summary'
 import { getApprovedReviews, getProductBySlug } from '@/lib/shop/queries'
 
@@ -17,6 +15,18 @@ const MAX_NAME_LENGTH = 120
 const MAX_TEXT_LENGTH = 5000
 
 type RouteParams = { params: Promise<{ slug: string }> }
+
+/**
+ * Local plain-text stripper for review bodies (3.4.109, #7). Kept LOCAL to
+ * this route on purpose — do not refactor it to import the shared helper
+ * from lib/shop/sanitize (a test asserts `allowedTags: []` in this file).
+ * No tags survive; entities are decoded a single pass by the parser, so
+ * `&lt;script&gt;` stays inert text. The stored body renders as plain
+ * React text downstream, never as HTML.
+ */
+function stripToPlainText(raw: string): string {
+  return sanitizeHtml(raw, { allowedTags: [], allowedAttributes: {} }).trim()
+}
 
 function parseListParams(req: NextRequest): { page: number; perPage: number } | { error: string } {
   const sp = new URL(req.url).searchParams
@@ -51,7 +61,7 @@ function parseListParams(req: NextRequest): { page: number; perPage: number } | 
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
   const ip = clientIp(req)
-  if (await isRateLimited('api-v1-reviews-list', ip, LIST_MAX_PER_MIN, 60_000, { relaxUnknown: true })) {
+  if (await isRateLimited('api-v1-reviews-list', ip, LIST_MAX_PER_MIN, 60_000)) {
     return fail('Забагато запитів, спробуйте пізніше', 429)
   }
   const parsed = parseListParams(req)
@@ -83,15 +93,18 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
  *
  * Validation is strict (400, not silent truncation — unlike the website
  * form, which slices overlong input): the app must show the user the
- * problem. The text is sanitized with the repo helper before storing;
- * review bodies render as plain text on the site. `orderNumber` is
- * optional — when supplied it must belong to an existing order (existence
- * only; no purchase linkage is required or checked). The insert itself is
- * delegated to submitReview (app/actions/shop): same caps, same
- * pending-moderation status, same per-IP backstop limiter as the website.
- * Returns the same result the website gets: { success: true }.
+ * problem. The text is stripped to plain text with the local
+ * stripToPlainText before storing; review bodies render as plain text on
+ * the site. `orderNumber`, when supplied, is accepted as-is and is NOT
+ * checked against existing orders (no existence lookup, no purchase
+ * linkage). The insert itself is delegated to submitReview
+ * (app/actions/shop): same caps, same pending-moderation status, same
+ * per-IP backstop limiter as the website. Returns the same result the
+ * website gets: { success: true }.
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
   const ip = clientIp(req)
   // Strict ceiling, no relaxUnknown — a public write endpoint.
   if (await isRateLimited('api-v1-reviews-submit', ip, SUBMIT_MAX_PER_MIN)) {
@@ -119,18 +132,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const rawText = typeof body.text === 'string' ? body.text : ''
   if (!rawText.trim()) return fail('Текст відгуку обовʼязковий', 400)
   if (rawText.length > MAX_TEXT_LENGTH) return fail('Текст відгуку занадто довгий', 400)
-  const text = sanitizeContent(rawText).trim()
+  const text = stripToPlainText(rawText)
   if (!text) return fail('Текст відгуку обовʼязковий', 400)
-
-  if (body.orderNumber != null && body.orderNumber !== '') {
-    if (typeof body.orderNumber !== 'string') return fail('Некорректний номер замовлення', 400)
-    const [order] = await db
-      .select({ id: orders.id })
-      .from(orders)
-      .where(eq(orders.orderNumber, body.orderNumber))
-      .limit(1)
-    if (!order) return fail('Замовлення не знайдено', 400)
-  }
 
   const res = await submitReview({ productId, rating, body: text, authorName })
   if (!res.success) return fail(res.error ?? 'Не вдалося надіслати відгук', 400)

@@ -28,7 +28,7 @@ const NOT_FOUND = 'Замовлення не знайдено'
  */
 export async function POST(req: Request) {
   const ip = clientIp(req)
-  if (await isRateLimited('api-v1-order-lookup', ip, MAX_PER_MIN, 60_000, { relaxUnknown: true })) {
+  if (await isRateLimited('api-v1-order-lookup', ip, MAX_PER_MIN, 60_000)) {
     return fail('Забагато запитів, спробуйте пізніше', 429)
   }
   const body = await readJson<Record<string, unknown>>(req)

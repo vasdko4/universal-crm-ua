@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { sendMail } from '@/lib/mailer'
 import { getOrder } from '@/app/actions/orders'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
-import { buildOrderMessage, type OrderMessageKind } from '@/lib/order-messages'
+import {
+  buildOrderMessage,
+  isValidOrderMessageChannel,
+  isValidOrderMessageKind,
+} from '@/lib/order-messages'
+import { csrfCheck } from '@/lib/api/csrf'
+import { isRateLimited } from '@/lib/api/rate-limit'
 import { getAdminUserWithWritePermission } from '@/lib/session'
 import { db } from '@/lib/db'
 import { orderHistory } from '@/lib/db/schema'
@@ -10,6 +16,13 @@ import { getProductSlugMap } from '@/lib/shop/queries'
 import { readJson, parsePositiveInt } from '@/lib/api/helpers'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // CSRF first (audit #5): a cross-site POST from an attacker's page runs
+  // with the admin's cookies — refuse a foreign Origin before any auth or
+  // DB work. No-Origin requests (non-browser clients) are allowed by the
+  // helper.
+  const csrf = csrfCheck(req)
+  if (csrf) return csrf
+
   // Was gated only on "is some admin-center user", not on the 'orders'
   // permission — like every other order mutation in app/actions/orders.ts.
   // That let a staff account with e.g. only the 'articles'/'pages' role
@@ -20,9 +33,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const orderId = parsePositiveInt(id)
   if (orderId == null) return NextResponse.json({ error: 'Некорректный id' }, { status: 400 })
-  const body = (await readJson<{ channel?: string; kind?: OrderMessageKind }>(req)) ?? {}
-  const channel: string = body.channel ?? 'email'
-  const kind: OrderMessageKind = body.kind ?? 'confirmation'
+  const body = (await readJson<{ channel?: string; kind?: string }>(req)) ?? {}
+  // Audit #10: kind/channel arrive unchecked — an unknown kind used to fall
+  // through to the 'status' template and an unknown channel to
+  // `links[channel] ?? null` while still logging the send as prepared.
+  const channel = body.channel ?? 'email'
+  const kind = body.kind ?? 'confirmation'
+  if (!isValidOrderMessageChannel(channel)) {
+    return NextResponse.json({ error: 'Невідомий канал повідомлення' }, { status: 400 })
+  }
+  if (!isValidOrderMessageKind(kind)) {
+    return NextResponse.json({ error: 'Невідомий тип повідомлення' }, { status: 400 })
+  }
+  // Audit #10: 5/hour per admin+order — manual order emails are a spam
+  // vector (and a gateway for harassing a customer) if an admin account
+  // is shared or compromised.
+  if (await isRateLimited('order-message', `${me.id}:${orderId}`, 5, 3_600_000)) {
+    return NextResponse.json({ error: 'Забагато спроб. Спробуйте пізніше.' }, { status: 429 })
+  }
 
   const data = await getOrder(orderId)
   if (!data) return NextResponse.json({ error: 'Заказ не найден' }, { status: 404 })

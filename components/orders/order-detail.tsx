@@ -594,7 +594,7 @@ export function OrderDetail({
                       <a
                         href={novaPoshtaTrackingUrl(order.trackingNumber)}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                       >
                         {t.trackTtn}
                       </a>

@@ -47,6 +47,8 @@ export async function deleteImportTask(id: number) {
 
 export async function runImport(fileName: string, sourceType: 'csv' | 'xml', rows: ImportRow[]) {
   await assertWritePermission('import')
+  if (typeof fileName !== 'string' || !fileName.trim()) return { success: false, error: 'Файл не передан' }
+  fileName = fileName.trim().slice(0, 255)
   if (rows.length === 0) return { success: false, error: 'Файл не содержит товаров' }
   if (rows.length > 1000) return { success: false, error: 'Максимум 1000 товаров за один импорт' }
 
@@ -101,6 +103,10 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
           .limit(1)
       }
       if (existing.length === 0 && !nameRu && !nameUk) throw new Error('немає назви')
+      if ((nameRu && nameRu.length > 255) || (nameUk && nameUk.length > 255)) {
+        throw new Error('назва товару перевищує 255 символів')
+      }
+      if (row.unit?.trim() && row.unit.trim().length > 50) throw new Error('одиниця виміру перевищує 50 символів')
 
       // BUGFIX: price/quantity validation. An empty or malformed price cell
       // used to become price 0 silently (Number('') === 0), zeroing out a
@@ -109,7 +115,7 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       const priceRaw = (row.price ?? '').toString().trim()
       if (!priceRaw) throw new Error('некоректна ціна: порожнє значення')
       const price = Number(priceRaw)
-      if (!Number.isFinite(price) || price < 0) throw new Error('некоректна ціна')
+      if (!Number.isFinite(price) || price < 0 || price >= 100_000_000) throw new Error('некоректна ціна')
 
       const quantityRaw = (row.quantity ?? '').toString().trim()
       let quantity = 0
@@ -122,7 +128,9 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       const oldPriceRaw = (row.old_price ?? '').toString().trim()
       const oldPriceNum = oldPriceRaw ? Number(oldPriceRaw) : Number.NaN
       const oldPrice =
-        oldPriceRaw && Number.isFinite(oldPriceNum) && oldPriceNum >= 0 ? row.old_price : null
+        oldPriceRaw && Number.isFinite(oldPriceNum) && oldPriceNum >= 0 && oldPriceNum < 100_000_000
+          ? row.old_price
+          : null
       // For price-only updates, an empty quantity/old_price cell means
       // "don't touch" — not "set to zero/clear".
       const hasQuantity = quantityRaw !== ''
@@ -205,12 +213,19 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
       success++
     } catch (e) {
       failed++
-      errors.push(`Строка ${i + 1}: ${e instanceof Error ? e.message : 'ошибка'}`)
+      // Controlled row-validation errors carry our own message; DB errors
+      // (varchar/numeric overflow, unique violations) carry a PG `code` and
+      // their text must not land in the admin-visible import log.
+      const msg =
+        e instanceof Error && !('code' in e) ? e.message.slice(0, 200) : 'помилка збереження'
+      if (e instanceof Error && 'code' in e) console.error('[import] row failed:', e)
+      errors.push(`Строка ${i + 1}: ${msg}`)
     }
   }
   } catch (e) {
     // BUGFIX: an unexpected failure (e.g. lost DB connection mid-import) used
     // to leave the task stuck in 'processing' forever. Mark it failed.
+    console.error('[import] aborted:', e)
     await db
       .update(importTasks)
       .set({
@@ -218,7 +233,7 @@ export async function runImport(fileName: string, sourceType: 'csv' | 'xml', row
         processedItems: rows.length,
         successItems: success,
         failedItems: failed,
-        errorLog: `Импорт прерван: ${e instanceof Error ? e.message : 'внутренняя ошибка'}`,
+        errorLog: 'Импорт прерван: внутренняя ошибка',
         completedAt: new Date(),
         updatedAt: new Date(),
       })

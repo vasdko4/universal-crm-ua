@@ -5,7 +5,8 @@
 #   bash scripts/setup.sh
 #
 # What it does (default — clean install configured via the web wizard):
-#   1. Creates .env.local (mode 0600, with a generated BETTER_AUTH_SECRET) if missing
+#   1. Creates .env.local (mode 0600, with generated BETTER_AUTH_SECRET,
+#      CRON_SECRET and BACKUP_ENCRYPTION_KEY) if missing
 #   2. Installs npm dependencies with pnpm
 #   3. Starts a local Postgres via Docker (docker compose)
 #   4. Applies db/schema.sql (empty store — the setup wizard opens on first
@@ -53,6 +54,30 @@ if [[ ! -f .env.local ]]; then
   fi
 else
   ok ".env.local already exists — keeping it"
+fi
+
+# 3.4.109: nightly backups are encrypted (AES-256-GCM) — they need
+# BACKUP_ENCRYPTION_KEY in .env.local. An .env.local from an older setup
+# has none — generate once (no-op when already present). The key is
+# printed ONCE below: store it in a password manager AND an offline copy.
+# Without it, encrypted backups (.jsonl.gz.enc) are UNRECOVERABLE —
+# see docs/db-backup.md. Never copy the key into tickets or logs.
+if ! grep -q '^BACKUP_ENCRYPTION_KEY=' .env.local 2>/dev/null; then
+  if command -v openssl >/dev/null; then
+    BACKUP_KEY_VAL="$(openssl rand -base64 32)"
+    BACKUP_KEY_ID_VAL="$(date -u +%Y-%m 2>/dev/null || echo current)"
+    printf '%s\n' "BACKUP_ENCRYPTION_KEY=${BACKUP_KEY_VAL}" >> .env.local
+    printf '%s\n' "BACKUP_ENCRYPTION_KEY_ID=${BACKUP_KEY_ID_VAL}" >> .env.local
+    chmod 600 .env.local
+    echo "Generated BACKUP_ENCRYPTION_KEY (keyId ${BACKUP_KEY_ID_VAL}) — printed once, store it in a password manager AND an offline copy:"
+    echo "  ${BACKUP_KEY_VAL}"
+    echo "Without this key encrypted backups (.jsonl.gz.enc) are UNRECOVERABLE — see docs/db-backup.md."
+  else
+    err "openssl not found — set BACKUP_ENCRYPTION_KEY in .env.local manually (openssl rand -base64 32); without it nightly backups fail."
+  fi
+fi
+if grep -q '^BACKUP_ENCRYPTION_KEY=' .env.local 2>/dev/null && ! grep -q '^BACKUP_ENCRYPTION_KEY_ID=' .env.local 2>/dev/null; then
+  printf '%s\n' "BACKUP_ENCRYPTION_KEY_ID=$(date -u +%Y-%m 2>/dev/null || echo current)" >> .env.local
 fi
 
 # ── 3. Dependencies ─────────────────────────────────────────────────

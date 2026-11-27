@@ -53,7 +53,18 @@ function validate(input: CategoryInput): string | null {
     return `Название категории не должно превышать ${ADMIN_MAX_LEN.categoryName} символов`
   if (input.sortOrder != null && toIntInRange(input.sortOrder, -INT32_MAX - 1, INT32_MAX) == null)
     return 'Порядок сортировки должен быть целым числом в пределах int32'
+  if (input.parentId != null && toIntInRange(input.parentId, 1, INT32_MAX) == null)
+    return 'Некорректная родительская категория'
+  if (adminStringTooLong(input.image, 255)) return 'Ссылка на изображение не должна превышать 255 символов'
+  if (input.descriptionUk != null && typeof input.descriptionUk !== 'string') return 'Некорректное описание'
+  if (input.descriptionRu != null && typeof input.descriptionRu !== 'string') return 'Некорректное описание'
   return null
+}
+
+async function assertParentExists(parentId: number | null | undefined): Promise<string | null> {
+  if (parentId == null) return null
+  const [row] = await db.select({ id: categories.id }).from(categories).where(eq(categories.id, parentId)).limit(1)
+  return row ? null : 'Родительская категория не найдена'
 }
 
 /**
@@ -88,6 +99,8 @@ export async function createCategory(input: CategoryInput) {
   await assertWritePermission('categories')
   const error = validate(input)
   if (error) return { success: false, error }
+  const parentError = await assertParentExists(input.parentId)
+  if (parentError) return { success: false, error: parentError }
 
   const firstSlug = await generateUniqueCategorySlug(input.nameUk, Date.now())
   await withSlugRetry(firstSlug, async (slug) => {
@@ -133,6 +146,8 @@ export async function updateCategory(id: number, input: CategoryInput) {
   await assertWritePermission('categories')
   const error = validate(input)
   if (error) return { success: false, error }
+  const parentError = await assertParentExists(input.parentId)
+  if (parentError) return { success: false, error: parentError }
 
   if (input.parentId === id) return { success: false, error: 'Категория не может быть родителем самой себя' }
   // BUGFIX: only the self-parent case was rejected. A↔B cycles were creatable

@@ -22,7 +22,10 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
   const canEdit = canWrite('delivery')
   const [isPending, startTransition] = useTransition()
   const initialConfig = (method.config ?? {}) as Record<string, string>
-  const [apiKey, setApiKey] = useState(initialConfig.apiKey ?? '')
+  // The server never sends the stored key — only whether one exists.
+  const hasStoredApiKey =
+    (method as { hasSecret?: Record<string, boolean> }).hasSecret?.apiKey === true
+  const [apiKey, setApiKey] = useState('')
   const [senderCityRef, setSenderCityRef] = useState(initialConfig.senderCityRef ?? '')
   const [senderRef, setSenderRef] = useState(initialConfig.senderRef ?? '')
   const [senderAddressRef, setSenderAddressRef] = useState(initialConfig.senderAddressRef ?? '')
@@ -105,7 +108,7 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
             disabled={!canEdit}
           />
           <p className="text-xs text-muted-foreground">
-            {apiKey.trim() ? t.delivery.npApiKeyHintReal : t.delivery.npApiKeyHintDemo}
+            {apiKey.trim() || hasStoredApiKey ? t.delivery.npApiKeyHintReal : t.delivery.npApiKeyHintDemo}
           </p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -137,7 +140,7 @@ function NovaPoshtaCard({ method }: { method: DeliveryMethod }) {
         <p className="text-xs text-muted-foreground">{t.delivery.npPullHint}</p>
         <div className="flex flex-wrap justify-end gap-2">
           {canEdit && (
-            <Button type="button" variant="outline" onClick={pullSender} disabled={isPending || !apiKey.trim()}>
+            <Button type="button" variant="outline" onClick={pullSender} disabled={isPending || (!apiKey.trim() && !hasStoredApiKey)}>
               {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
               {t.delivery.npPullFromCabinet}
             </Button>

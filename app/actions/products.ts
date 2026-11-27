@@ -586,14 +586,15 @@ export async function updateProduct(id: number, input: ProductInput) {
 
 export async function softDeleteProducts(ids: number[]) {
   const user = await assertWritePermission('products')
-  if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
-  await db.update(products).set({ deletedAt: new Date() }).where(inArray(products.id, ids))
+  const unique = uniqueIds(ids)
+  if (unique.length === 0) return { success: false, error: 'Ничего не выбрано' }
+  await db.update(products).set({ deletedAt: new Date() }).where(inArray(products.id, unique))
 
   void auditLog({
     userId: user.id, userName: user.name, userEmail: user.email,
     action: 'delete', entity: 'product',
     details: fillAuditTemplate(getAdminDictionary(user.locale).auditLog.productsTrashed, {
-      ids: ids.join(', '),
+      ids: unique.join(', '),
     }),
   })
 
@@ -605,11 +606,12 @@ export async function softDeleteProducts(ids: number[]) {
 
 export async function setProductsVisibility(ids: number[], isVisible: boolean) {
   await assertWritePermission('products')
-  if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
+  const unique = uniqueIds(ids)
+  if (unique.length === 0) return { success: false, error: 'Ничего не выбрано' }
   await db
     .update(products)
     .set({ isVisible, updatedAt: new Date() })
-    .where(inArray(products.id, ids))
+    .where(inArray(products.id, unique))
   revalidatePath('/admin/products')
   revalidateStorefront()
   return { success: true }
@@ -772,8 +774,9 @@ export async function getTrashedProducts() {
 
 export async function restoreProducts(ids: number[]) {
   await assertWritePermission('trash')
-  if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
-  await db.update(products).set({ deletedAt: null }).where(inArray(products.id, ids))
+  const unique = uniqueIds(ids)
+  if (unique.length === 0) return { success: false, error: 'Ничего не выбрано' }
+  await db.update(products).set({ deletedAt: null }).where(inArray(products.id, unique))
   revalidatePath('/admin/products')
   revalidatePath('/admin/trash')
   revalidateStorefront()
@@ -782,13 +785,14 @@ export async function restoreProducts(ids: number[]) {
 
 export async function permanentlyDeleteProducts(ids: number[]) {
   await assertWritePermission('trash')
-  if (ids.length === 0) return { success: false, error: 'Ничего не выбрано' }
+  const unique = uniqueIds(ids)
+  if (unique.length === 0) return { success: false, error: 'Ничего не выбрано' }
   await withDbClient(async (client) => {
     const tx = dbForClient(client)
-    await tx.delete(productCategory).where(inArray(productCategory.productId, ids))
-    await tx.delete(productGroupItems).where(inArray(productGroupItems.productId, ids))
-    await tx.delete(productCharacteristics).where(inArray(productCharacteristics.productId, ids))
-    await tx.delete(products).where(and(inArray(products.id, ids), isNotNull(products.deletedAt)))
+    await tx.delete(productCategory).where(inArray(productCategory.productId, unique))
+    await tx.delete(productGroupItems).where(inArray(productGroupItems.productId, unique))
+    await tx.delete(productCharacteristics).where(inArray(productCharacteristics.productId, unique))
+    await tx.delete(products).where(and(inArray(products.id, unique), isNotNull(products.deletedAt)))
   })
   revalidatePath('/admin/trash')
   revalidateStorefront()
@@ -799,6 +803,8 @@ export async function permanentlyDeleteProducts(ids: number[]) {
 // admin dashboard so the owner can reorder before sales stop.
 export async function getLowStockProducts(threshold = 3, limit = 6) {
   await assertPermission('dashboard')
+  threshold = Number.isInteger(threshold) ? Math.min(Math.max(threshold, 0), 2147483647) : 3
+  limit = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 100) : 6
   return db
     .select({
       id: products.id,

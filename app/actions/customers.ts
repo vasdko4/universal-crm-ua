@@ -125,10 +125,56 @@ function isUniqueViolation(e: unknown): boolean {
 }
 
 function validate(input: CustomerInput): string | null {
+  if (!input || typeof input !== 'object') return 'Некорректні дані клієнта'
+  // typeof guards: a direct action call could pass numbers/objects where
+  // strings are expected — `.trim()` on those throws, and a non-string
+  // reliabilityScore used to reach the integer column as a 500.
+  const badString = (v: unknown): boolean => v != null && typeof v !== 'string'
+  if (badString(input.firstName) || badString(input.lastName) || badString(input.phone) ||
+      badString(input.email) || badString(input.note)) {
+    return 'Некорректні дані клієнта'
+  }
   if (!input.firstName?.trim()) return 'Имя обязательно'
   if (!input.phone?.trim()) return 'Основной телефон обязателен'
+  // Column caps (schema: first_name/last_name varchar(150), phone
+  // varchar(50), email varchar(255), note text) — overlong values used to
+  // hit Postgres as a 500 instead of a friendly error.
+  if (input.firstName.trim().length > 150) return 'Імʼя занадто довге'
+  if (input.lastName && input.lastName.trim().length > 150) return 'Прізвище занадто довге'
+  if (input.phone.trim().length > 50) return 'Телефон занадто довгий'
+  if (input.email && input.email.trim().length > 255) return 'Email занадто довгий'
+  if (input.note && input.note.length > 5000) return 'Примітка занадто довга'
   if (input.email && input.email.trim() && !looksLikeEmail(input.email.trim())) {
     return 'Некорректный email'
+  }
+  // 3.4.109 #14: reliabilityScore is an integer 0–100 when present — a
+  // fractional, out-of-range or non-numeric value is rejected, not stored.
+  // Absent (null/undefined) means "keep the default 100" at insert time.
+  if (input.reliabilityScore != null) {
+    if (
+      typeof input.reliabilityScore !== 'number' ||
+      !Number.isInteger(input.reliabilityScore) ||
+      input.reliabilityScore < 0 ||
+      input.reliabilityScore > 100
+    ) {
+      return 'Оцінка надійності має бути цілим числом від 0 до 100'
+    }
+  }
+  if (input.contacts != null) {
+    if (!Array.isArray(input.contacts) || input.contacts.length > 20) {
+      return 'Некоректні додаткові контакти'
+    }
+    for (const c of input.contacts) {
+      // NB: missing type/value are invalid here (unlike the top-level
+      // optional strings) — badString() would let undefined through and
+      // `.trim()` below would throw, so check typeof strictly.
+      if (!c || typeof c !== 'object' || typeof c.type !== 'string' || typeof c.value !== 'string') {
+        return 'Некоректні додаткові контакти'
+      }
+      if (c.type.trim().length > 30 || c.value.trim().length > 255) {
+        return 'Додатковий контакт занадто довгий'
+      }
+    }
   }
   return null
 }
@@ -136,7 +182,8 @@ function validate(input: CustomerInput): string | null {
 function cleanContacts(contacts?: ContactInput[]) {
   return (contacts ?? [])
     .filter((c) => c.type?.trim() && c.value?.trim())
-    .map((c, i) => ({ type: c.type.trim(), value: c.value.trim(), sortOrder: i }))
+    .map((c, i) => ({ type: c.type.trim().slice(0, 30), value: c.value.trim().slice(0, 255), sortOrder: i }))
+    .slice(0, 20)
 }
 
 export async function createCustomer(input: CustomerInput) {
@@ -184,9 +231,13 @@ export async function updateCustomer(id: number, input: CustomerInput) {
   // statements. If the INSERT failed, the customer's contacts were already
   // deleted — unrecoverable data loss. Run atomically in one transaction.
   try {
+    // 3.4.109 #14: the UPDATE must prove the customer exists (.returning())
+    // BEFORE the contacts are deleted — updating a nonexistent id used to
+    // silently wipe that id's contacts (no rows matched, no error).
+    let found = false
     await withDbClient(async (client) => {
       const tx = dbForClient(client)
-      await tx
+      const [updated] = await tx
         .update(customers)
         .set({
           firstName: input.firstName.trim(),
@@ -198,6 +249,9 @@ export async function updateCustomer(id: number, input: CustomerInput) {
           updatedAt: new Date(),
         })
         .where(eq(customers.id, id))
+        .returning({ id: customers.id })
+      if (!updated) return
+      found = true
 
       // Пересобираем дополнительные контакты
       await tx.delete(customerContacts).where(eq(customerContacts.customerId, id))
@@ -208,6 +262,7 @@ export async function updateCustomer(id: number, input: CustomerInput) {
         )
       }
     })
+    if (!found) return { success: false, error: 'Клиент не найден' }
   } catch (e) {
     if (isUniqueViolation(e)) return { success: false, error: 'Клиент с таким телефоном уже есть' }
     throw e

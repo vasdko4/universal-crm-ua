@@ -162,8 +162,9 @@ function buildAuth(google: GoogleCreds) {
         trustedProviders: ['google'],
       },
     },
-    // Storefront sign-up policy: only well-known mail providers are accepted,
-    // which blocks disposable/temporary mailboxes. Internal server-side calls
+    // Storefront sign-up policy: disposable/temporary mailboxes are blocked
+    // (see isAllowedEmailDomain — any other real domain is accepted).
+    // Internal server-side calls
     // (admin user creation from the admin center) have no HTTP request attached
     // and are exempt from this rule.
     hooks: {
@@ -331,7 +332,11 @@ function buildAuth(google: GoogleCreds) {
               secure: true,
             },
           }
-        : {}),
+        : {
+            defaultCookieAttributes: {
+              sameSite: 'lax' as const,
+            },
+          }),
     },
   })
 }

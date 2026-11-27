@@ -50,7 +50,11 @@ export function looksLikeEmail(value: string): boolean {
   const dot = domain.lastIndexOf('.')
   if (dot < 1 || dot >= domain.length - 1) return false
   for (const ch of value) {
-    if (ch === ' ' || ch === '\n' || ch === '\t') return false
+    // Whitespace/controls, HTML-attribute breakouts and mailto query
+    // injection (`?subject=` / `&body=`) — none of these occur in a real
+    // address, and any of them in a mailto: href turns the address into
+    // markup or extra URI parameters.
+    if (ch <= ' ' || ch === '"' || ch === "'" || ch === '<' || ch === '>' || ch === '?' || ch === '&' || ch === '#') return false
   }
   return true
 }
