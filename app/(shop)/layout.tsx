@@ -13,12 +13,14 @@ import { GoogleTag, GoogleAnalyticsPageview } from '@/components/shop/google-ads
 import { CookieConsentModal } from '@/components/shop/cookie-consent-modal'
 import { LocaleModal } from '@/components/shop/locale-modal'
 import { ModalAdHost } from '@/components/shop/modal-ad'
+import { PromoPopupHost } from '@/components/shop/promo-popup'
 import { LocaleProvider } from '@/lib/i18n/client'
 import { getGoogleAuthEnabled } from '@/app/actions/settings-store'
 import { getStoreSettingsInternal } from '@/lib/store-settings'
 import { getActiveModalAds } from '@/app/actions/modal-ads'
 import { isSetupNeeded } from '@/app/actions/setup'
 import { getShopCategories } from '@/lib/shop/queries'
+import { getActivePromotions } from '@/lib/shop/queries'
 import { getPublishedLegalPages } from '@/lib/shop/pages'
 import { headers } from 'next/headers'
 import { getLocale, hasLocaleCookie, getDictionary } from '@/lib/i18n/server'
@@ -40,11 +42,15 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     getGoogleAuthEnabled(),
   ])
   const dict = getDictionary(locale)
-  const [categoriesRaw, legalLinks, modalAdsList] = await Promise.all([
+  const [categoriesRaw, legalLinks, modalAdsList, activePromos] = await Promise.all([
     getShopCategories(locale).catch(() => []),
     getPublishedLegalPages(locale).catch(() => []),
     getActiveModalAds().catch(() => []),
+    getActivePromotions().catch(() => []),
   ])
+  // Soonest-ending active campaign first (getActivePromotions orders that
+  // way); open-ended campaigns sort last, so [0] is the one to announce.
+  const promoPopup = activePromos.length > 0 ? activePromos[0] : null
 
   const nonce = (await headers()).get('x-nonce')
   const storeName = settings?.storeName?.trim() || 'Мій магазин'
@@ -126,6 +132,9 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             />
           )}
           {chosenLocale && modalAdsList.length > 0 && <ModalAdHost ads={modalAdsList} />}
+          {chosenLocale && process.env.PROMO_POPUP_ENABLED !== '0' && promoPopup && (
+            <PromoPopupHost promo={promoPopup} />
+          )}
           {((settings?.googleAds.enabled && settings.googleAds.conversionId) ||
             (settings?.googleAds.gaEnabled && settings.googleAds.gaMeasurementId)) && (
             <CookieConsentModal />

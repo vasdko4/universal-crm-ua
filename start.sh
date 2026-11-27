@@ -5,6 +5,7 @@
 # Использование:
 #   chmod +x start.sh
 #   ./start.sh
+#   ENABLE_FTP=1 ./start.sh   — включить FTP-доступ к загрузкам (по умолчанию выключен)
 #
 # Скрипт полностью автоматический:
 #   0. На Linux-ВМ: пакеты, timezone, swap, firewall
@@ -30,6 +31,10 @@ err()  { printf "${RED}✗ %s${NC}\n" "$1" >&2; }
 info() { printf "  %s\n" "$1"; }
 
 cd "$(dirname "$0")"
+
+# FTP по умолчанию выключен (opt-in): ENABLE_FTP=1 включает генерацию
+# FTP_USER/FTP_PASSWORD в .env, ftp-профиль и FTP-порты в firewall.
+ENABLE_FTP="${ENABLE_FTP:-0}"
 
 as_root() {
   if [[ "$(id -u)" = "0" ]]; then
@@ -164,8 +169,15 @@ if [[ ! -f .env ]]; then
   SETUP_TOKEN_VAL=$(if command -v openssl &>/dev/null; then openssl rand -hex 32; else head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi)
   UPDATER_SECRET_VAL=$(gen_secret)
   DB_PASSWORD=$(gen_password)
-  FTP_USER_VAL="magazine"
-  FTP_PASSWORD_VAL=$(gen_password)
+  # FTP — opt-in: пароль генерируем только при ENABLE_FTP=1, иначе
+  # в .env остаются пустые значения и ftp-профиль не включается.
+  if [[ "$ENABLE_FTP" = "1" ]]; then
+    FTP_USER_VAL="magazine"
+    FTP_PASSWORD_VAL=$(gen_password)
+  else
+    FTP_USER_VAL=""
+    FTP_PASSWORD_VAL=""
+  fi
   PROJECT_NAME_VAL="$(basename "$PWD")"
 
   cat > .env <<ENVEOF
@@ -191,6 +203,8 @@ COMPOSE_PROJECT_NAME=${PROJECT_NAME_VAL}
 POSTGRES_PASSWORD=${DB_PASSWORD}
 
 # FTP-доступ к папке загрузок (фото товаров): порт 21, пассивные 21000-21010.
+# По умолчанию ВЫКЛЮЧЕН (opt-in): включение — только запуском с ENABLE_FTP=1,
+# тогда сюда запишутся FTP_USER/FTP_PASSWORD и стартует ftp-профиль.
 FTP_USER=${FTP_USER_VAL}
 FTP_PASSWORD=${FTP_PASSWORD_VAL}
 # Для доступа к FTP извне укажите внешний IP или домен сервера:
@@ -211,10 +225,9 @@ if [[ "$(uname -s)" = "Linux" ]] && command -v ufw >/dev/null 2>&1 && as_root tr
   as_root ufw allow OpenSSH >/dev/null 2>&1 || as_root ufw allow 22/tcp >/dev/null 2>&1 || true
   as_root ufw allow 80/tcp >/dev/null 2>&1 || true
   as_root ufw allow 443/tcp >/dev/null 2>&1 || true
-  if ! grep -qE '^DOMAIN=[^[:space:]]+' .env 2>/dev/null; then
-    as_root ufw allow 3000/tcp >/dev/null 2>&1 || true
-  fi
-  if grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null; then
+  # FTP-порты — только когда FTP реально включён: ENABLE_FTP=1 И в .env
+  # задан FTP_PASSWORD (иначе ftp-профиль не стартует, см. раздел 3).
+  if [[ "${ENABLE_FTP:-0}" = "1" ]] && grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null; then
     as_root ufw allow 21/tcp >/dev/null 2>&1 || true
     as_root ufw allow 21000:21010/tcp >/dev/null 2>&1 || true
   fi
@@ -225,7 +238,7 @@ fi
 say "Запуск контейнеров (первая сборка может занять 2-5 минут)"
 
 PROFILES=""
-if grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null; then
+if [[ "${ENABLE_FTP:-0}" = "1" ]] && grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null; then
   PROFILES="ftp"
 fi
 if grep -qE '^DOMAIN=[^[:space:]]+' .env 2>/dev/null; then

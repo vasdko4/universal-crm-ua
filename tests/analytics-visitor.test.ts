@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { detectBot, botName, hashIp } from '@/lib/analytics/visitor'
+
+const root = resolve(import.meta.dirname, '..')
 
 describe('detectBot', () => {
   it('detects major search crawlers', () => {
@@ -58,5 +62,18 @@ describe('hashIp', () => {
     expect(h1).not.toContain('203.0.113.7')
     expect(h1).toHaveLength(64)
     expect(hashIp('203.0.113.8')).not.toBe(h1)
+  })
+})
+
+describe('audit P2 (3.4.108): geo lookup over HTTPS via ipwho.is', () => {
+  it('uses https://ipwho.is and never the old plain-HTTP lookup', () => {
+    const src = readFileSync(resolve(root, 'lib/analytics/visitor.ts'), 'utf8').replace(/\r\n/g, '\n')
+    expect(src).toContain('https://ipwho.is/')
+    expect(src).toContain('lookupIpWhoIs')
+    expect(src).toContain('country_code')
+    expect(src).toContain('success')
+    expect(src).not.toContain('http://ip-api.com')
+    expect(src).not.toContain('lookupIpApi')
+    expect(src).not.toContain('countryCode')
   })
 })

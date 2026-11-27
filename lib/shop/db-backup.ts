@@ -19,7 +19,7 @@
  * Restore: scripts/db-restore-backup.mjs <local .jsonl.gz file>.
  */
 import { createGzip } from 'node:zlib'
-import { mkdir, readdir, rename, unlink } from 'node:fs/promises'
+import { chmod, mkdir, readdir, rename, unlink } from 'node:fs/promises'
 import { createWriteStream } from 'node:fs'
 import { join, basename } from 'node:path'
 import { once } from 'node:events'
@@ -221,7 +221,9 @@ export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary
     }
 
     // Stream: manifest + NDJSON rows → gzip → byte cap → tmp file.
-    const fileStream = createWriteStream(tmpPathname)
+    // Audit P2 (3.4.108): backups hold the whole database — the tmp file
+    // is created 0600 so no other local user can read it while it streams.
+    const fileStream = createWriteStream(tmpPathname, { mode: 0o600 })
     const gzip = createGzip({ level: 6 })
     const counter = new ByteCounter(MAX_DUMP_BYTES)
     let streamError: Error | null = null
@@ -270,6 +272,12 @@ export async function runDatabaseBackup(now = new Date()): Promise<BackupSummary
 
     await client.query('COMMIT')
     await rename(tmpPathname, pathname)
+    // The mode above only applies when the tmp file is created fresh: a
+    // leftover tmp from a crashed run keeps its old permissions. chmod the
+    // final file so backups are always 0600 regardless of umask/leftovers.
+    // (The manifest lives inside this same file, so it is covered too.
+    // No encryption here — that is 3.4.109.)
+    await chmod(pathname, 0o600)
 
     const { pruned, failed: pruneErrors } = await pruneOldBackups(now, BACKUP_RETENTION_DAYS)
     return { pathname, tables: tables.length, rows: totalRows, bytes: counter.bytes, dumpedAt, pruned, pruneErrors }

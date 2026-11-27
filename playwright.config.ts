@@ -32,6 +32,12 @@ export default defineConfig({
         env: {
           ...process.env,
           PORT: String(port),
+          // The seeded e2e DB has an active auto-discount, so the promo entry
+          // popup would open on the first page of every test and its modal
+          // overlay would intercept clicks (e.g. add-to-cart). Suppress it
+          // for the suite; the popup is verified manually against a
+          // production build.
+          PROMO_POPUP_ENABLED: '0',
         },
       },
 })

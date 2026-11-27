@@ -5,7 +5,7 @@
 #   bash scripts/setup.sh
 #
 # What it does (default — clean install configured via the web wizard):
-#   1. Creates .env.local (with a generated BETTER_AUTH_SECRET) if missing
+#   1. Creates .env.local (mode 0600, with a generated BETTER_AUTH_SECRET) if missing
 #   2. Installs npm dependencies with pnpm
 #   3. Starts a local Postgres via Docker (docker compose)
 #   4. Applies db/schema.sql (empty store — the setup wizard opens on first
@@ -36,6 +36,9 @@ fi
 if [[ ! -f .env.local ]]; then
   say "Creating .env.local"
   cp .env.example .env.local
+  # .env.local holds secrets (BETTER_AUTH_SECRET, CRON_SECRET, DATABASE_URL):
+  # owner-only from the moment it is created.
+  chmod 600 .env.local
   if command -v openssl >/dev/null; then
     SECRET="$(openssl rand -base64 32)"
     CRON_SECRET_VAL="$(openssl rand -base64 32)"

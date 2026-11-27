@@ -4,7 +4,7 @@ import { pool } from '@/lib/db'
 import { extractProductSlug } from '@/lib/shop/product-path'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
-import { assertPermission, assertWritePermission, getAdminUser } from '@/lib/session'
+import { assertPermission, assertWritePermission, getAdminUser, staffTwoFactorSatisfied } from '@/lib/session'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { detectBot, botName, resolveVisitorGeo } from '@/lib/analytics/visitor'
 import { isValidTrackPath, normalizeTrackReferrer } from '@/lib/analytics/track-validation'
@@ -56,6 +56,10 @@ function categoryNameExpr(locale: Locale): string {
 async function assertDashboardOrStatistics() {
   const user = await getAdminUser()
   if (!user) throw new Error('Не авторизовано')
+  // Audit P1 (3.4.108): getStatsSummary() backs /admin and /admin/statistics
+  // and this was the only getAdminUser caller without a 2FA check —
+  // assertPermission/assertWritePermission enforce it everywhere else.
+  if (!(await staffTwoFactorSatisfied(user.id))) throw new Error('Потрібен код 2FA')
   if (!hasPermission(user.permissions, 'dashboard') && !hasPermission(user.permissions, 'statistics')) {
     throw new Error('Немає прав доступу: dashboard/statistics')
   }

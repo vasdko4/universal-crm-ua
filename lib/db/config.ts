@@ -63,17 +63,56 @@ export function saveDatabaseUrl(url: string) {
 }
 
 /**
+ * Resolve the CA certificate for verified TLS (sslmode=verify-ca /
+ * verify-full). Sources, in order:
+ * 1. DB_SSL_CA — the CA certificate itself, as PEM text.
+ * 2. PGSSLROOTCERT — path to a PEM file (the libpq convention).
+ *
+ * Throws when neither is set: verified TLS without a CA would silently
+ * fall back to unverified, so fail loudly at boot instead. lib/db/index.ts
+ * calls sslForConnectionString() at module load, so this surfaces before
+ * the pool ever connects.
+ */
+export function resolveSslCa(): string {
+  const pem = process.env.DB_SSL_CA?.trim()
+  if (pem) {
+    // .env values often carry the PEM with literal \n escapes instead of
+    // real newlines; normalize so node-postgres accepts the certificate.
+    return pem.includes('\n') ? pem : pem.replace(/\\n/g, '\n')
+  }
+  const path = process.env.PGSSLROOTCERT?.trim()
+  if (path) return readFileSync(path, 'utf8')
+  throw new Error(
+    'DATABASE_URL requests verified TLS (sslmode=verify-ca or verify-full) but no CA is configured: ' +
+      'set DB_SSL_CA to the CA certificate (PEM) or PGSSLROOTCERT to the path of a CA file.',
+  )
+}
+
+/**
  * Decide the SSL setting for a connection string. Local Postgres (OSPanel,
  * Docker, a plain local install) has no TLS, so SSL must be OFF or the
  * handshake fails. Managed providers require SSL, so enable it for them or
  * when the URL explicitly asks (sslmode=require).
  */
-export function sslForConnectionString(url: string): false | { rejectUnauthorized: false } {
+export function sslForConnectionString(
+  url: string,
+): false | { rejectUnauthorized: boolean; ca?: string } {
+  const mode = /[?&]sslmode=([a-z-]+)/.exec(url)?.[1]
+  if (mode === 'verify-full' || mode === 'verify-ca') {
+    // Verified TLS: rejectUnauthorized + the CA. resolveSslCa() throws
+    // when no CA is configured, so a misconfigured URL fails at boot
+    // instead of silently connecting unverified.
+    return { rejectUnauthorized: true, ca: resolveSslCa() }
+  }
   // Managed Postgres (Neon/Supabase/RDS) terminates TLS with a CA Node does
-  // not ship. Encrypt the wire, skip hostname pinning — same as `sslmode=require`.
+  // not ship. Deliberate tradeoff, same as `sslmode=require`: encrypt the
+  // wire and skip CA verification — this protects against passive sniffing
+  // but not an active MITM on the provider's own network. Pinning the
+  // providers' rotating certificates is not practical; use
+  // sslmode=verify-full with DB_SSL_CA/PGSSLROOTCERT when verification
+  // matters (e.g. a self-hosted Postgres behind a known CA).
   // nosemgrep: javascript.lang.security.audit.ssl-verify-disabled.bypass-tls-verification
-  if (/[?&]sslmode=(require|verify-ca|verify-full)/.test(url)) return { rejectUnauthorized: false }
-  if (/\b(neon\.tech|supabase\.co|amazonaws\.com|render\.com|azure\.com|cockroachlabs\.cloud)\b/.test(url))
+  if (mode === 'require' || /\b(neon\.tech|supabase\.co|amazonaws\.com|render\.com|azure\.com|cockroachlabs\.cloud)\b/.test(url))
     return { rejectUnauthorized: false }
   return false
 }

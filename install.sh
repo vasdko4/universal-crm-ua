@@ -7,15 +7,16 @@
 #
 # Что делает на чистой виртуальной машине (Ubuntu/Debian):
 #   0. Готовит ОС: пакеты, timezone Europe/Kyiv, swap на слабом VPS,
-#      Docker + Compose, firewall (22/80/443, при необходимости 3000 и FTP)
-#   1. Спрашивает домен (Enter — пропустить, будет http://IP:3000)
-#   2. Генерирует .env с секретами и паролями (БД, FTP, auth)
+#      Docker + Compose, firewall (22/80/443; FTP-порты — только при ENABLE_FTP=1)
+#   1. Спрашивает домен (Enter — пропустить: магазин только локально, через SSH-туннель)
+#   2. Генерирует .env с секретами и паролями (БД, auth; FTP — только при ENABLE_FTP=1)
 #   3. Скачивает образ ghcr.io/vasdko4/universal-crm-ua:latest и запускает всё
 #   4. При указанном домене поднимает Caddy с автоматическим HTTPS
 #
 # Неинтерактивно: DOMAIN=shop.example.com bash install.sh
 # Другая версия:  IMAGE=ghcr.io/vasdko4/universal-crm-ua:3.0.0 bash install.sh
 # Пропустить hardening ОС: SKIP_VM_SETUP=1 bash install.sh
+# Включить FTP-доступ к загрузкам: ENABLE_FTP=1 bash install.sh
 #
 # ПОЧЕМУ ghcr.io, А НЕ Docker Hub: release.yml (CI) публикует каждый
 # релиз в GitHub Container Registry всегда; в Docker Hub — только если
@@ -30,6 +31,8 @@ set -euo pipefail
 IMAGE="${IMAGE:-ghcr.io/vasdko4/universal-crm-ua:latest}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/magazine}"
 SKIP_VM_SETUP="${SKIP_VM_SETUP:-0}"
+# FTP по умолчанию выключен (opt-in): ENABLE_FTP=1 — включить.
+ENABLE_FTP="${ENABLE_FTP:-0}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 say()  { printf "\n${CYAN}${BOLD}── %s${NC}\n" "$1"; }
@@ -130,16 +133,12 @@ open_firewall() {
   as_root ufw allow OpenSSH >/dev/null 2>&1 || as_root ufw allow 22/tcp >/dev/null 2>&1 || true
   as_root ufw allow 80/tcp >/dev/null 2>&1 || true
   as_root ufw allow 443/tcp >/dev/null 2>&1 || true
-  # Без домена магазин слушает :3000 на хосте.
-  local domain_val=""
-  if [[ -f .env ]]; then
-    domain_val="$(grep -E '^DOMAIN=' .env | cut -d= -f2- || true)"
-  fi
-  domain_val="${domain_val:-${DOMAIN:-}}"
-  if [[ -z "$domain_val" ]]; then
-    as_root ufw allow 3000/tcp >/dev/null 2>&1 || true
-  fi
-  if [[ -f .env ]] && grep -qE '^FTP_PASSWORD=.+' .env; then
+  # Порт 3000 НЕ открываем: приложение слушает только 127.0.0.1:3000
+  # (см. docker-compose.yml ниже), наружу его отдаёт только Caddy
+  # (80/443) при заданном домене; без домена — только SSH-туннель.
+  # FTP-порты открываем только когда FTP реально включён: задан
+  # ENABLE_FTP=1 И в .env есть FTP_PASSWORD (см. раздел 3).
+  if [[ "${ENABLE_FTP:-0}" = "1" ]] && [[ -f .env ]] && grep -qE '^FTP_PASSWORD=.+' .env; then
     as_root ufw allow 21/tcp >/dev/null 2>&1 || true
     as_root ufw allow 21000:21010/tcp >/dev/null 2>&1 || true
   fi
@@ -209,7 +208,7 @@ if [[ ! -f .env ]]; then
   if [[ -z "${DOMAIN:-}" ]] && [[ -r /dev/tty ]]; then
     echo ""
     echo "  Укажите домен, на котором будет работать магазин"
-    echo "  (например: shop.example.com). Enter — пропустить (доступ по IP:3000)."
+    echo "  (например: shop.example.com). Enter — пропустить (без домена — только локально, через SSH-туннель)."
     read -r -p "  Домен: " DOMAIN < /dev/tty || DOMAIN=""
   fi
   DOMAIN="${DOMAIN:-}"
@@ -226,22 +225,28 @@ if [[ ! -f .env ]]; then
 
   if [[ -n "$DOMAIN" ]]; then
     PUBLIC_URL="https://${DOMAIN}"
-  elif [[ -n "$PUBLIC_IP" ]]; then
-    PUBLIC_URL="http://${PUBLIC_IP}:3000"
   else
+    # Без домена приложение слушает только 127.0.0.1:3000, поэтому адрес —
+    # localhost: открыть магазин можно через SSH-туннель
+    # (ssh -L 3000:localhost:3000 <user>@<server-ip>).
     PUBLIC_URL="http://localhost:3000"
   fi
 
   gen_secret()   { if command -v openssl &>/dev/null; then openssl rand -base64 32; else head -c 32 /dev/urandom | base64; fi; }
   gen_password() { if command -v openssl &>/dev/null; then openssl rand -hex 16; else head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi; }
 
-  # FTP passive mode needs the server's real public IP, not the domain: most
-  # domains are proxied (Cloudflare etc.), and FTP data connections can't
-  # traverse an HTTP(S) reverse proxy the way the app's own traffic does.
-  FTP_ADDRESS="$PUBLIC_IP"
-  if [[ -z "$FTP_ADDRESS" ]]; then
-    FTP_ADDRESS="$DOMAIN"
-    [[ -n "$DOMAIN" ]] && warn "Не удалось определить публичный IP сервера — FTP_ADDRESS временно указывает на домен ${DOMAIN}. Если домен проксируется (например, через Cloudflare), FTP не будет работать: замените FTP_ADDRESS в .env на реальный IP сервера и перезапустите контейнер ftp."
+  # FTP по умолчанию ВЫКЛЮЧЕН (opt-in): адрес для пассивного режима
+  # вычисляем только при ENABLE_FTP=1, иначе FTP_ADDRESS остаётся пустым.
+  FTP_ADDRESS=""
+  if [[ "$ENABLE_FTP" = "1" ]]; then
+    # FTP passive mode needs the server's real public IP, not the domain: most
+    # domains are proxied (Cloudflare etc.), and FTP data connections can't
+    # traverse an HTTP(S) reverse proxy the way the app's own traffic does.
+    FTP_ADDRESS="$PUBLIC_IP"
+    if [[ -z "$FTP_ADDRESS" ]]; then
+      FTP_ADDRESS="$DOMAIN"
+      [[ -n "$DOMAIN" ]] && warn "Не удалось определить публичный IP сервера — FTP_ADDRESS временно указывает на домен ${DOMAIN}. Если домен проксируется (например, через Cloudflare), FTP не будет работать: замените FTP_ADDRESS в .env на реальный IP сервера и перезапустите контейнер ftp."
+    fi
   fi
 
   # Generate the one-time setup token first so it can be written to both
@@ -252,6 +257,19 @@ if [[ ! -f .env ]]; then
   printf '%s' "$SETUP_TOKEN_VALUE" > .setup-token
   chmod 600 .setup-token
 
+  # FTP — opt-in: учётные данные генерируем только при ENABLE_FTP=1.
+  # Иначе в .env пишутся закомментированные строки, ftp-профиль не
+  # стартует, а FTP-порты не открываются (см. open_firewall и раздел 5).
+  if [[ "$ENABLE_FTP" = "1" ]]; then
+    FTP_USER_LINE="FTP_USER=unicrm"
+    FTP_PASSWORD_LINE="FTP_PASSWORD=$(gen_password)"
+    FTP_ADDRESS_LINE="FTP_ADDRESS=${FTP_ADDRESS}"
+  else
+    FTP_USER_LINE="# FTP выключен (opt-in): запустите с ENABLE_FTP=1,"
+    FTP_PASSWORD_LINE="# чтобы сгенерировать FTP_USER/FTP_PASSWORD в .env"
+    FTP_ADDRESS_LINE="# FTP_ADDRESS= — внешний IP/домен для пассивного режима FTP"
+  fi
+
   cat > .env <<ENVEOF
 # Сгенерировано автоматически скриптом install.sh (Magazine 3.0)
 BETTER_AUTH_URL=${PUBLIC_URL}
@@ -260,9 +278,9 @@ BETTER_AUTH_SECRET=$(gen_secret)
 CRON_SECRET=$(gen_secret)
 SETUP_TOKEN=${SETUP_TOKEN_VALUE}
 POSTGRES_PASSWORD=$(gen_password)
-FTP_USER=unicrm
-FTP_PASSWORD=$(gen_password)
-FTP_ADDRESS=${FTP_ADDRESS}
+${FTP_USER_LINE}
+${FTP_PASSWORD_LINE}
+${FTP_ADDRESS_LINE}
 DOMAIN=${DOMAIN}
 UPDATER_SECRET=$(gen_secret)
 COMPOSE_PROJECT_NAME=magazine
@@ -360,9 +378,14 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      # Loopback only: напрямую :3000 снаружи недоступен; единственный
+      # вход — Caddy (80/443) при заданном домене, без домена — SSH-туннель.
+      - "127.0.0.1:3000:3000"
     volumes:
       - magazine_uploads:/app/public/uploads
+      # Бэкапы БД (BACKUP_DIR=/app/data/backups) — в отдельном томе,
+      # чтобы не терялись при пересоздании контейнера.
+      - magazine_backups:/app/data/backups
       - ./.setup-token:/app/.setup-token:ro
     environment:
       DATABASE_URL: postgres://techno:\${POSTGRES_PASSWORD}@db:5432/magazine
@@ -397,6 +420,8 @@ services:
     command: >
       sh -c "apk add --no-cache docker-cli docker-cli-compose >/dev/null 2>&1 && python3 scripts/updater.py"
 
+  # FTP (opt-in): запускается только с профилем "ftp", который install.sh
+  # включает только при ENABLE_FTP=1 и заданном FTP_PASSWORD в .env.
   ftp:
     image: delfer/alpine-ftp-server:latest
     container_name: magazine-ftp
@@ -431,6 +456,7 @@ services:
 volumes:
   magazine_pgdata:
   magazine_uploads:
+  magazine_backups:
   magazine_caddy_data:
   magazine_caddy_config:
 COMPOSEEOF
@@ -442,7 +468,7 @@ open_firewall
 say "Скачивание образа и запуск (1-3 минуты)"
 
 PROFILES=""
-grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null && PROFILES="ftp"
+[[ "${ENABLE_FTP:-0}" = "1" ]] && grep -qE '^FTP_PASSWORD=.+' .env 2>/dev/null && PROFILES="ftp"
 # DOMAIN= (пустое) не должно включать Caddy — иначе контейнер падает на ${DOMAIN:?...}
 if grep -qE '^DOMAIN=[^[:space:]]+' .env 2>/dev/null; then
   PROFILES="${PROFILES:+${PROFILES},}proxy"
@@ -517,6 +543,13 @@ if [[ -n "${DOMAIN_SHOW}" ]]; then
   echo "  Let's Encrypt для ${DOMAIN_SHOW} (nginx настраивать не нужно)."
   echo "  Убедитесь, что A-запись домена указывает на IP этого сервера"
   echo "  и порты 80/443 открыты."
+fi
+if [[ -z "${DOMAIN_SHOW}" ]]; then
+  echo ""
+  echo "  Без домена магазин доступен ТОЛЬКО с этого сервера (localhost:3000):"
+  echo "  порт 3000 наружу не публикуется. Откройте его со своего компьютера"
+  echo "  через SSH-туннель и заходите на http://localhost:3000:"
+  echo "    ssh -L 3000:localhost:3000 <пользователь>@<IP-сервера>"
 fi
 if [[ -n "${FTP_PASS_SHOW}" ]]; then
   echo ""

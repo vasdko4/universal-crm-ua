@@ -113,9 +113,10 @@ services:
       sh -c "apk add --no-cache docker-cli docker-cli-compose >/dev/null 2>&1 && python3 scripts/updater.py"
 
   # Optional FTP access to the uploads volume (product photos, logos) so you
-  # can manage files without entering the container. Started only with the
-  # "ftp" profile: `docker compose --profile ftp up -d` (start.sh does this
-  # automatically and generates the credentials into .env).
+  # can manage files without entering the container. OFF by default (opt-in):
+  # started only with the "ftp" profile: `docker compose --profile ftp up -d`.
+  # start.sh / install.sh enable the profile only with ENABLE_FTP=1 and
+  # generate FTP_USER/FTP_PASSWORD into .env only then.
   ftp:
     image: delfer/alpine-ftp-server:latest
     container_name: magazine-ftp
@@ -125,8 +126,9 @@ services:
       - "21:21"
       - "21000-21010:21000-21010"
     environment:
-      # start.sh generates FTP_USER/FTP_PASSWORD into .env; without a password
-      # the service is not started (start.sh checks before enabling the profile).
+      # start.sh / install.sh generate FTP_USER/FTP_PASSWORD into .env only
+      # when ENABLE_FTP=1; without a password the profile is never enabled
+      # (both scripts check before enabling it).
       USERS: "${FTP_USER:-techno}|${FTP_PASSWORD:-}|/ftp/uploads"
       ADDRESS: ${FTP_ADDRESS:-}
       MIN_PORT: "21000"

@@ -25,6 +25,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'cron job disabled' }, { status: 503 })
   }
 
+  // Audit P1 (3.4.108): Vercel's filesystem is ephemeral — a backup
+  // written there vanishes on the next deploy, so the cron would report
+  // success for a dump nobody can restore. Skip the write on Vercel
+  // (self-hosted runs are unaffected).
+  if (process.env.VERCEL) {
+    console.log('[cron.db-backup] skipped: Vercel ephemeral filesystem')
+    return NextResponse.json({ ok: true, skipped: true, reason: 'vercel-ephemeral-fs' })
+  }
+
   // Single-flight (audit A4/A5): without it two same-minute runs write
   // the same file and one dump is silently lost. Auth + kill-switch stay
   // first (cheap checks before taking the lock).

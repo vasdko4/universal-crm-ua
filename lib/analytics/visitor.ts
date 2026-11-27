@@ -5,7 +5,7 @@
  *   (search crawlers, social preview fetchers, SEO scanners).
  * - Geo comes from the `cf-ipcountry` header when the request passes
  *   through Cloudflare (fast path, no external call). Region/city fall
- *   back to a cached ip-api.com lookup so we never hammer the free API.
+ *   back to a cached ipwho.is lookup so we never hammer the free API.
  * - IPs are never stored raw: only a sha256 hash is kept, and the hash
  *   is what keys the geo_cache table.
  */
@@ -77,8 +77,8 @@ export function hashIp(ip: string): string {
 }
 
 const GEO_TIMEOUT_MS = 2500
-// ip-api.com free tier: 45 req/min. Cache makes repeated hits free;
-// this in-process budget is a backstop for bursts of brand-new IPs.
+// ipwho.is free tier: 10k req/month, no key. Cache makes repeated hits
+// free; this in-process budget is a backstop for bursts of brand-new IPs.
 let geoBudgetReset = 0
 let geoBudgetUsed = 0
 const GEO_BUDGET_PER_MIN = 30
@@ -92,9 +92,13 @@ function geoBudgetAvailable(): boolean {
   return geoBudgetUsed < GEO_BUDGET_PER_MIN
 }
 
-async function lookupIpApi(ip: string): Promise<GeoInfo | null> {
+// Audit P2 (3.4.108): the old geo lookup went over plain HTTP, so
+// visitor IPs leaked in cleartext to the network. ipwho.is serves the
+// same data over HTTPS, free tier 10k req/month, no API key.
+// Response shape: { success, country_code, region, city }.
+async function lookupIpWhoIs(ip: string): Promise<GeoInfo | null> {
   if (!geoBudgetAvailable()) return null
-  // Skip private/loopback — ip-api would fail on them anyway.
+  // Skip private/loopback — ipwho.is would fail on them anyway.
   if (!ip || ip === 'unknown' || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|::1)/.test(ip)) {
     return null
   }
@@ -102,22 +106,19 @@ async function lookupIpApi(ip: string): Promise<GeoInfo | null> {
   try {
     const ctrl = new AbortController()
     const t = setTimeout(() => ctrl.abort(), GEO_TIMEOUT_MS)
-    const res = await fetch(
-      `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,countryCode,regionName,city`,
-      { signal: ctrl.signal },
-    )
+    const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, { signal: ctrl.signal })
     clearTimeout(t)
     if (!res.ok) return null
     const j = (await res.json()) as {
-      status?: string
-      countryCode?: string
-      regionName?: string
+      success?: boolean
+      country_code?: string
+      region?: string
       city?: string
     }
-    if (j.status !== 'success') return null
+    if (j.success !== true) return null
     return {
-      country: j.countryCode || null,
-      region: j.regionName || null,
+      country: j.country_code || null,
+      region: j.region || null,
       city: j.city || null,
     }
   } catch {
@@ -129,7 +130,7 @@ async function lookupIpApi(ip: string): Promise<GeoInfo | null> {
  * Resolve geo for a visitor IP. Order:
  * 1. cf-ipcountry header (Cloudflare fast path — country only).
  * 2. geo_cache by IP hash (region/city from earlier lookups).
- * 3. ip-api.com lookup with budget guard, then cached.
+ * 3. ipwho.is lookup (HTTPS) with budget guard, then cached.
  * Never throws — returns nulls on any failure.
  */
 export async function resolveVisitorGeo(
@@ -158,7 +159,7 @@ export async function resolveVisitorGeo(
   } catch {
     return fast
   }
-  const looked = await lookupIpApi(ip)
+  const looked = await lookupIpWhoIs(ip)
   const geo: GeoInfo = {
     country: looked?.country ?? fast.country,
     region: looked?.region ?? null,

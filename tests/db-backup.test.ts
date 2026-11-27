@@ -157,3 +157,16 @@ describe('audit A19/A20: honest prune count, atomic write', () => {
     expect(src).not.toContain('await writeFile(pathname, body)')
   })
 })
+
+describe('audit P2 (3.4.108): backup files are private (0600)', () => {
+  const src = source('lib/shop/db-backup.ts')
+
+  it('creates the tmp file with mode 0600', () => {
+    expect(src).toContain('createWriteStream(tmpPathname, { mode: 0o600 })')
+  })
+
+  it('chmods the final file to 0600 after the atomic rename (covers crashed-run leftovers)', () => {
+    expect(src).toContain('await chmod(pathname, 0o600)')
+    expect(src).toContain("import { chmod, mkdir, readdir, rename, unlink } from 'node:fs/promises'")
+  })
+})

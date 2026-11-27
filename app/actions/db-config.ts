@@ -112,11 +112,21 @@ export async function saveDatabaseConfig(input: SaveDatabaseInput): Promise<Save
 
   // Bound the probe: node-postgres defaults to no connect timeout, so a
   // black-holed internal host would hang this server action indefinitely.
-  const client = new Client({
-    connectionString: url,
-    ssl: sslForConnectionString(url),
-    connectionTimeoutMillis: 10_000,
-  })
+  // The constructor call sits inside try/catch: sslForConnectionString()
+  // THROWS when the URL asks for verified TLS (verify-ca/verify-full) with
+  // no CA configured, and that must surface as an actionable wizard error
+  // instead of crashing the setup action.
+  let client: Client
+  try {
+    client = new Client({
+      connectionString: url,
+      ssl: sslForConnectionString(url),
+      connectionTimeoutMillis: 10_000,
+    })
+  } catch (e) {
+    console.error('[db-config] SSL config failed:', (e as Error).message)
+    return { ok: false, error: (e as Error).message }
+  }
   try {
     await client.connect()
     // Bound the DDL too (same 120s value as the migrate runner): the schema
