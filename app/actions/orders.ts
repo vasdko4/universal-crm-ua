@@ -21,6 +21,7 @@ import { fillAuditTemplate } from '@/lib/audit-log'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { isUniqueViolation } from '@/lib/db/errors'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
+import { createGuestAccessToken } from '@/lib/orders/guest-token'
 import { getProductSlugMap } from '@/lib/shop/queries'
 import { restoreStockOnce, claimStockRededuct, adjustStockForOrder, applyOrderFulfillment, InsufficientStockError } from '@/lib/shop/order-fulfillment'
 
@@ -347,6 +348,11 @@ export async function createOrder(input: {
       }
     }
   }
+  // Guest access token (3.4.107, fix 5): the guest can later reach this
+  // order via the phone-verified lookup; the plaintext token is discarded
+  // here (no cookie is set for the admin browser) and only its SHA-256
+  // hash is stored, so a DB leak alone grants no order access.
+  const guestAccess = createGuestAccessToken()
   const itemsTotal = input.items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const { deliveryCost, total } = computeOrderTotals({
     itemsTotal,
@@ -363,6 +369,7 @@ export async function createOrder(input: {
         .insert(orders)
         .values({
           orderNumber,
+          guestAccessTokenHash: guestAccess.tokenHash,
           status: 'new',
           customerId: input.customerId,
           customerName: input.customerName,

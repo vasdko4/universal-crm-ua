@@ -1,4 +1,6 @@
 import { pool } from '@/lib/db'
+import { CLOUDFLARE_IP_RANGES } from '@/lib/net/cloudflare-ips'
+import { isIpInCidrs } from '@/lib/net/ip'
 
 /**
  * Shared rate limiter for public write endpoints (checkout, reviews, OTP,
@@ -12,28 +14,36 @@ import { pool } from '@/lib/db'
  *   3. Process memory, only if both shared stores fail — still better than
  *      no limit, but not multi-instance safe
  *
- * Client-IP resolution (`clientIpFromHeaders`) trusts only headers a proxy
- * in our chain sets authoritatively: Cloudflare's cf-connecting-ip (only
- * when cf-ray proves the request came through Cloudflare) and Vercel's
- * x-vercel-forwarded-for (only when actually running on Vercel, VERCEL=1).
- * `x-real-ip` is never trusted — no proxy in the chain sets it, so it is
- * purely client-controlled. Otherwise the last X-Forwarded-For hop is used:
- * the proxy appends the address it actually saw, so the first hop
- * (client-controlled) can never mint a fresh rate-limit bucket. This holds
- * even with direct origin access: a spoofed header can only fall through
- * to the last XFF hop or 'unknown'.
+ * Client-IP resolution (`clientIpFromHeaders`) walks X-Forwarded-For from
+ * the right, skipping hops that belong to a trusted proxy (Cloudflare edge
+ * ranges in lib/net/cloudflare-ips.ts, plus loopback / the Docker bridge
+ * gateway; TRUSTED_PROXIES overrides the list). The first untrusted hop is
+ * the client: a hop is only vouched for when a trusted proxy appended it.
+ * cf-connecting-ip, cf-ray and x-real-ip are NEVER trusted — with the
+ * origin reachable directly, anyone can send them (3.4.107 fix 1: the old
+ * code trusted cf-connecting-ip whenever cf-ray was present, and cf-ray is
+ * trivially spoofable). Vercel's x-vercel-forwarded-for is trusted only
+ * when actually running on Vercel (VERCEL=1), where the platform sets it.
  */
 
 type Bucket = { count: number; resetAt: number }
 const memory = new Map<string, Bucket>()
 
-function lastForwardedHop(value: string | null): string | null {
-  if (!value) return null
-  const hops = value
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-  return hops.at(-1) ?? null
+/**
+ * CIDRs the rate limiter trusts as proxies when walking X-Forwarded-For.
+ * Mirrors trustedAuthProxies() in lib/auth.ts: the TRUSTED_PROXIES env
+ * override wins; the default is loopback + the Docker bridge gateway +
+ * the Cloudflare edge ranges.
+ */
+function trustedProxyCidrs(): string[] {
+  const raw = process.env.TRUSTED_PROXIES?.trim()
+  if (raw) {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }
+  return ['127.0.0.1/32', '::1/128', '172.16.0.0/12', ...CLOUDFLARE_IP_RANGES]
 }
 
 function isValidIp(value: string): boolean {
@@ -53,26 +63,32 @@ export function clientIpFromHeaders(h: { get(name: string): string | null }): st
     const vercel = h.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
     if (vercel && isValidIp(vercel)) return vercel
   }
-  // Cloudflare fast path. Behind Cloudflare, x-forwarded-for ends with a
-  // Cloudflare edge IP (the last hop is the edge, not the shopper), so
-  // every visitor used to share a handful of edge IPs: rate-limit buckets
-  // collided (real shoppers 429'd, one bot poisoned the bucket) and geo
-  // region/city resolved to the datacenter, not the shopper. Cloudflare
-  // overwrites cf-connecting-ip with the real client IP, so it is trusted
-  // ONLY when cf-ray is present — that header is set by Cloudflare itself
-  // and proves the request actually came through the proxy. Without cf-ray
-  // a directly-sent cf-connecting-ip is ignored as spoofed.
-  const cfRay = h.get('cf-ray')?.trim()
-  const cfIp = h.get('cf-connecting-ip')?.trim()
-  if (cfRay && cfIp && isValidIp(cfIp)) return cfIp
-  // x-real-ip is deliberately NOT trusted: neither Cloudflare nor Caddy
-  // sets it authoritatively (Caddy passes a client-sent value through
-  // unchanged), so it is purely client-controlled.
-  // XFF last hop: the proxy appends the address it actually saw, so the
-  // first hop (client-controlled) can never mint a fresh bucket. Validated
-  // — garbage never becomes a rate-limit key.
-  const forwarded = lastForwardedHop(h.get('x-forwarded-for'))
-  if (forwarded && isValidIp(forwarded)) return forwarded
+  // cf-connecting-ip is NEVER read here: anyone reaching the origin
+  // directly can send any value, and cf-ray proves nothing (it is just
+  // another client-sent header). x-real-ip is likewise never trusted —
+  // neither Cloudflare nor Caddy sets it authoritatively.
+  //
+  // Walk X-Forwarded-For from the right, skipping trusted proxies. The
+  // first untrusted hop is the client — it is the address the nearest
+  // trusted proxy actually saw. A garbage hop makes the chain
+  // untrustworthy past that point, so it resolves to 'unknown' instead of
+  // keying a bucket on attacker-chosen text. When every hop is a trusted
+  // proxy (e.g. a lone Cloudflare edge IP), no client IP was vouched for
+  // and the result is 'unknown' rather than the shared edge IP.
+  const forwarded = h.get('x-forwarded-for')
+  if (forwarded) {
+    const hops = forwarded
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const trusted = trustedProxyCidrs()
+    for (let i = hops.length - 1; i >= 0; i--) {
+      const hop = hops[i]
+      if (!isValidIp(hop)) return 'unknown'
+      if (isIpInCidrs(hop, trusted)) continue
+      return hop
+    }
+  }
   return 'unknown'
 }
 

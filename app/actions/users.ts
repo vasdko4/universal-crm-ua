@@ -143,6 +143,16 @@ export async function setUserActive(userId: string, isActive: boolean) {
   if (activeRes.rowCount === 0) {
     return { success: false, error: getAdminDictionary(me.locale).users.userNotFound }
   }
+  if (!isActive) {
+    // SECURITY (3.4.107 fix 2): deactivation must kill the user's sessions —
+    // flipping is_active alone left every existing session valid until it
+    // expired, so a deactivated user kept acting. Same DELETE pattern as
+    // deleteUser below. Runs only after the UPDATE matched a row, so an
+    // unknown id deletes nothing. getShopUser also refuses deactivated
+    // users, so a session created in the race between the two statements
+    // still cannot act.
+    await pool.query(`DELETE FROM session WHERE "userId" = $1`, [userId])
+  }
   void auditLog({
     userId: me.id, userName: me.name, userEmail: me.email,
     action: 'security', entity: 'user', entityId: userId,

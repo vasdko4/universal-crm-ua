@@ -8,7 +8,9 @@ import {
   STORE_SETTINGS_TAG,
   getStoreSettingsInternal,
   normalizeStoreSettingsRow,
+  projectPublicStoreSettings,
   stripSecrets,
+  type PublicStoreSettings,
   type StoreSettingsData,
 } from '@/lib/store-settings'
 import {
@@ -39,6 +41,7 @@ export type {
   HomeBenefitItem,
   HomeBenefitsSettings,
   MinOrderSettings,
+  PublicStoreSettings,
   StoreSettingsData,
 } from '@/lib/store-settings'
 
@@ -55,12 +58,15 @@ export async function getStoreSettings(): Promise<StoreSettingsData> {
   return stripSecrets(await getStoreSettingsInternal())
 }
 
-// Public, unauthenticated projection for storefront pages (layout, homepage,
-// robots.txt, sign-in, articles, etc.) that only need branding/SEO/contact
-// fields — secrets are stripped. Prefer getStoreSettingsInternal() directly
-// for server-only library code instead of this, to avoid the extra copy.
-export async function getPublicStoreSettings(): Promise<StoreSettingsData> {
-  return stripSecrets(await getStoreSettingsInternal())
+// Public, unauthenticated projection for storefront pages (cart, checkout,
+// one-click buy) and GET /api/v1/store. Returns ONLY the allowlisted
+// PublicStoreSettings shape (projectPublicStoreSettings) — no secrets, no
+// integration config, no admin-only flags ever leave the server here, even
+// though this action is directly invocable by anyone. Prefer
+// getStoreSettingsInternal() directly for server-only library code instead
+// of this, to avoid the extra copy.
+export async function getPublicStoreSettings(): Promise<PublicStoreSettings> {
+  return projectPublicStoreSettings(await getStoreSettingsInternal())
 }
 
 // Shared writer. Not exported directly — the public entrypoint below adds the

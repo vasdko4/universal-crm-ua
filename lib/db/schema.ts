@@ -630,6 +630,11 @@ export const orders = pgTable('orders', {
   // modal open; a retried submit with the same key returns the existing order
   // instead of creating a duplicate. NULL for all other order types.
   idempotencyKey: varchar('idempotency_key', { length: 64 }),
+  // Guest access token hash (3.4.107, fix 5): SHA-256 hex of the random
+  // token held in the pf_last_order cookie. The plaintext token is never
+  // stored. NULL for orders created before this release — those are not
+  // guest-accessible via cookie, only via the phone-verified lookup.
+  guestAccessTokenHash: varchar('guest_access_token_hash', { length: 64 }),
   // True once stock has been restored for this (cancelled) order, so
   // toggling the status back and forth never double-counts the restock.
   stockRestored: boolean('stock_restored').notNull().default(false),

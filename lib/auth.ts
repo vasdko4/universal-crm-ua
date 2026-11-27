@@ -5,6 +5,7 @@ import { pool } from '@/lib/db'
 import { sendMail } from '@/lib/mailer'
 import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR } from '@/lib/shop/email-domains'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
+import { CLOUDFLARE_IP_RANGES } from '@/lib/net/cloudflare-ips'
 import { authRateLimitStorage } from '@/lib/auth-rate-limit-storage'
 import { decryptSecret } from '@/lib/secrets'
 import { reportError } from '@/lib/server-errors'
@@ -22,6 +23,9 @@ import { buildPasswordResetMail } from '@/lib/shop/auth-emails'
  * mistake a client for a proxy. On Vercel/dev the peer is never in this
  * range, so the entry is inert there. Without it the XFF walk has no
  * trusted peer at all and every visitor shares one rate-limit counter.
+ * The Cloudflare edge ranges are trusted too: a hop is only vouched for
+ * when a real Cloudflare edge appended it (3.4.107 fix 1). The list is
+ * refreshed with `pnpm refresh:cloudflare-ips`.
  */
 export function trustedAuthProxies(): string[] {
   const raw = process.env.TRUSTED_PROXIES?.trim()
@@ -33,26 +37,18 @@ export function trustedAuthProxies(): string[] {
   }
   // Non-empty list enables XFF chain walking (last untrusted hop = client).
   // Keep this tight — RFC1918 also covers real clients on LAN/VPN.
-  return ['127.0.0.1/32', '::1/128', '172.16.0.0/12']
+  return ['127.0.0.1/32', '::1/128', '172.16.0.0/12', ...CLOUDFLARE_IP_RANGES]
 }
 
 // Better Auth reads the first header carrying a valid address, so this
-// order IS the trust order. cf-connecting-ip comes first: Cloudflare
-// overwrites any client-sent value with the real TCP source, so it is
-// trustworthy — and the origin is reachable only via the loopback-bound
-// port (docker-compose.yml), so a client cannot reach the app directly to
-// spoof it. The rest are fallbacks for Vercel (x-vercel-forwarded-for)
-// and dev (x-real-ip / x-forwarded-for, walked with trustedProxies —
-// never trusted blindly). Note this list is Better Auth's own IP
-// resolution; the rate limiter and session binding use clientIpFromHeaders
-// (lib/api/rate-limit.ts), which additionally refuses x-real-ip outright
-// and gates x-vercel-forwarded-for on VERCEL=1.
-export const AUTH_IP_ADDRESS_HEADERS: string[] = [
-  'cf-connecting-ip',
-  'x-vercel-forwarded-for',
-  'x-real-ip',
-  'x-forwarded-for',
-]
+// list IS the trust list — and it is walked with trustedProxies, never
+// trusted blindly. Only x-forwarded-for is listed: cf-connecting-ip,
+// cf-ray and x-real-ip are all client-sendable (3.4.107 fix 1 — the old
+// list trusted cf-connecting-ip first, so anyone reaching the origin
+// directly could mint any session IP / rate-limit bucket by sending it).
+// On Vercel, Better Auth itself reads x-vercel-forwarded-for; it is not
+// listed here because off Vercel that header is purely client-controlled.
+export const AUTH_IP_ADDRESS_HEADERS: string[] = ['x-forwarded-for']
 
 // Google OAuth credentials are configured in the admin center (Настройки →
 // Вход через Google) and stored in the store_settings table. Env vars remain
@@ -213,7 +209,7 @@ function buildAuth(google: GoogleCreds) {
     },
     user: {
       additionalFields: {
-        role: { type: 'string', required: false, defaultValue: 'manager', input: false },
+        role: { type: 'string', required: false, defaultValue: 'customer', input: false },
         is_active: { type: 'boolean', required: false, defaultValue: true, input: false },
         phone: { type: 'string', required: false, input: true },
         // Interface language (uk/ru). Default matches the storefront
@@ -266,12 +262,14 @@ function buildAuth(google: GoogleCreds) {
           // /sign-up/email flow relies entirely on a *client-side, best-effort,
           // post-creation* call (finalizeCustomerRole) to downgrade the role
           // afterwards — nothing enforced this atomically at creation time.
-          // Since additionalFields.role defaults to 'manager', and the seeded
-          // 'manager' role has real permissions (orders/products/customers/
-          // reviews), anyone could call POST /api/auth/sign-up/email directly
-          // (bypassing the storefront's RegisterForm JS entirely, e.g. via
-          // curl) and simply never call finalizeCustomerRole — landing with a
-          // live session carrying full manager-level admin-panel access.
+          // additionalFields.role now defaults to 'customer' (3.4.107 fix 3),
+          // but this hook stays as defence in depth: the seeded 'manager'
+          // role has real permissions (orders/products/customers/reviews),
+          // so no public sign-up path may ever depend on the default alone.
+          // Without this hook, anyone calling POST /api/auth/sign-up/email
+          // directly (bypassing the storefront's RegisterForm JS entirely,
+          // e.g. via curl) and never calling finalizeCustomerRole would land
+          // with a live session carrying manager-level admin-panel access.
           //
           // ctx.request is only set for requests that went through the real
           // HTTP handler (app/api/auth/[...all]/route.ts) — i.e. any public

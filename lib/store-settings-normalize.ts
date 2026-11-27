@@ -183,6 +183,39 @@ export type StoreSettingsData = {
   prom: PromSettings
 }
 
+/**
+ * The unauthenticated public projection of store settings — the only shape
+ * that may reach an anonymous visitor (public pages, GET /api/v1/store, the
+ * one-click-buy client component). See projectPublicStoreSettings(): every
+ * field here is explicitly allowlisted; anything not listed is never sent.
+ * Email exposes only the sender address + whether notifications are on —
+ * never SMTP host/user/password or DKIM material.
+ */
+export type PublicStoreSettings = {
+  storeName: string
+  storeDescription: string | null
+  logoUrl: string | null
+  faviconUrl: string | null
+  activeTemplate: string
+  adminTheme: string
+  seo: SeoSettings
+  social: {
+    instagram: SocialLink
+    telegram: SocialLink
+    viber: SocialLink
+    tiktok: SocialLink
+  }
+  googleAds: StoreSettingsData['googleAds']
+  emailSettings: {
+    enabled: boolean
+    fromEmail: string
+  }
+  contact: ContactData
+  homeHero: HomeHeroSettings
+  homeBenefits: HomeBenefitsSettings
+  minOrder: MinOrderSettings
+}
+
 export const DEFAULTS: StoreSettingsData = {
   storeName: 'Мій магазин',
   storeDescription: '',
@@ -484,6 +517,123 @@ export function stripSecrets(s: StoreSettingsData): StoreSettingsData {
     notifications: { ...s.notifications, telegramBotToken: '', telegramChatId: '' },
     googleAuth: { ...s.googleAuth, clientSecret: '' },
     prom: { ...s.prom, apiToken: '' },
+  }
+}
+
+/**
+ * Public allowlist projection of store settings — the ONLY shape that may
+ * leave the server unauthenticated (public pages, GET /api/v1/store, the
+ * one-click-buy client component via the getPublicStoreSettings action).
+ *
+ * SECURITY: built field-by-field from the allowlist below — the input is
+ * never spread, so a field added to StoreSettingsData later (a new secret,
+ * an admin-only flag, an integration token) cannot leak by accident; it is
+ * absent until someone deliberately adds it here. In particular this omits
+ * the whole notifications / googleAuth / prom / merchantFeed / adsSpend
+ * sections, the SMTP/DKIM fields of emailSettings, and the internal flags
+ * (sessionBindingEnabled, storefrontCacheEnabled, openCartAfterAdd,
+ * defaultLocale, localePromptMode). Nested objects/arrays are copied, never
+ * aliased, so mutating the returned shape cannot touch the internal row.
+ */
+export function projectPublicStoreSettings(s: StoreSettingsData): PublicStoreSettings {
+  const day = (d: WeekDay): DayHours => ({
+    open: s.contact.workingHours[d].open,
+    close: s.contact.workingHours[d].close,
+    closed: s.contact.workingHours[d].closed,
+  })
+  const channel = (k: WidgetChannelKey): WidgetChannel => ({
+    value: s.contact.widget.channels[k].value,
+    enabled: s.contact.widget.channels[k].enabled,
+  })
+  const link = (k: 'instagram' | 'telegram' | 'viber' | 'tiktok'): SocialLink => ({
+    url: s.social[k].url,
+    enabled: s.social[k].enabled,
+  })
+  const heroLocale = (loc: HomeHeroLocaleContent): HomeHeroLocaleContent => ({
+    badge: loc.badge,
+    title: loc.title,
+    text: loc.text,
+    buttonText: loc.buttonText,
+  })
+  const slideLocale = (loc: HomeHeroSlideLocale): HomeHeroSlideLocale => ({
+    badge: loc.badge,
+    title: loc.title,
+    text: loc.text,
+    cta: loc.cta,
+  })
+  return {
+    storeName: s.storeName,
+    storeDescription: s.storeDescription,
+    logoUrl: s.logoUrl,
+    faviconUrl: s.faviconUrl,
+    activeTemplate: s.activeTemplate,
+    adminTheme: s.adminTheme,
+    seo: {
+      siteUrl: s.seo.siteUrl,
+      metaTitle: s.seo.metaTitle,
+      metaDescription: s.seo.metaDescription,
+      keywords: s.seo.keywords,
+      googleVerification: s.seo.googleVerification,
+      indexingEnabled: s.seo.indexingEnabled,
+      ogImageUrl: s.seo.ogImageUrl,
+    },
+    social: {
+      instagram: link('instagram'),
+      telegram: link('telegram'),
+      viber: link('viber'),
+      tiktok: link('tiktok'),
+    },
+    googleAds: {
+      conversionId: s.googleAds.conversionId,
+      conversionLabel: s.googleAds.conversionLabel,
+      enabled: s.googleAds.enabled,
+      gaEnabled: s.googleAds.gaEnabled,
+      gaMeasurementId: s.googleAds.gaMeasurementId,
+      enhancedConversionsEnabled: s.googleAds.enhancedConversionsEnabled,
+    },
+    emailSettings: {
+      enabled: s.emailSettings.enabled,
+      fromEmail: s.emailSettings.fromEmail,
+    },
+    contact: {
+      phones: [...s.contact.phones],
+      address: s.contact.address,
+      workingHours: {
+        mon: day('mon'),
+        tue: day('tue'),
+        wed: day('wed'),
+        thu: day('thu'),
+        fri: day('fri'),
+        sat: day('sat'),
+        sun: day('sun'),
+      },
+      widget: {
+        enabled: s.contact.widget.enabled,
+        channels: {
+          phone: channel('phone'),
+          email: channel('email'),
+          viber: channel('viber'),
+          telegram: channel('telegram'),
+          whatsapp: channel('whatsapp'),
+        },
+      },
+    },
+    homeHero: {
+      imageUrl: s.homeHero.imageUrl,
+      uk: heroLocale(s.homeHero.uk),
+      ru: heroLocale(s.homeHero.ru),
+      slides: s.homeHero.slides.map((slide) => ({
+        image: slide.image,
+        href: slide.href,
+        uk: slideLocale(slide.uk),
+        ru: slideLocale(slide.ru),
+      })),
+    },
+    homeBenefits: {
+      uk: s.homeBenefits.uk.map((b) => ({ title: b.title, text: b.text, iconUrl: b.iconUrl })),
+      ru: s.homeBenefits.ru.map((b) => ({ title: b.title, text: b.text, iconUrl: b.iconUrl })),
+    },
+    minOrder: { enabled: s.minOrder.enabled, amount: s.minOrder.amount },
   }
 }
 

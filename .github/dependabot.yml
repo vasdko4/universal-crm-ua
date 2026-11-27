@@ -1,0 +1,9 @@
+# Dependabot keeps npm dependencies up to date.
+# Note: Dependabot alerts have run on this repo before without this file;
+# this config adds the automated update schedule.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"

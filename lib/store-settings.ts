@@ -41,6 +41,7 @@ export {
   normalizeStoreSettingsRow,
   normalizeAdsSpend,
   stripSecrets,
+  projectPublicStoreSettings,
   mergeContact,
   mergeHomeHero,
   mergeHomeBenefits,
@@ -65,6 +66,7 @@ export type {
   HomeBenefitsSettings,
   MinOrderSettings,
   PromSettings,
+  PublicStoreSettings,
   StoreSettingsData,
 } from '@/lib/store-settings-normalize'
 

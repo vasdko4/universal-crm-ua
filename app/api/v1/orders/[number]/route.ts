@@ -1,10 +1,7 @@
-import { asc, eq } from 'drizzle-orm'
 import { type NextRequest } from 'next/server'
-import { db } from '@/lib/db'
-import { orderItems, orders } from '@/lib/db/schema'
 import { fail, ok } from '@/lib/api/helpers'
+import { lookupOrderByNumberAndPhone } from '@/lib/api/order-lookup'
 import { clientIp, isRateLimited } from '@/lib/api/rate-limit'
-import { normalizeUaPhone } from '@/lib/shop/phone'
 
 const MAX_PER_MIN = 30
 const NOT_FOUND = 'Замовлення не знайдено'
@@ -13,6 +10,11 @@ const NOT_FOUND = 'Замовлення не знайдено'
  * Public order-status lookup (REST API v1, Android shop app).
  *
  * GET /api/v1/orders/[number]?phone=+380XXXXXXXXX
+ *
+ * @deprecated The phone travels in the URL query string, so it leaks into
+ * access logs. Use POST /api/v1/orders/lookup with { number, phone } in the
+ * body instead (same response, same 30/min limit). Kept for the Android
+ * app v4, which still calls this endpoint.
  *
  * The caller must prove they know the order's phone number: the supplied
  * phone is normalized (lib/shop/phone) and compared with the phone stored on
@@ -34,43 +36,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ numb
     return fail('Забагато запитів, спробуйте пізніше', 429)
   }
   const { number } = await params
-  const phone = normalizeUaPhone(new URL(req.url).searchParams.get('phone') ?? '')
-  if (!phone) return fail(NOT_FOUND, 404)
-
-  const [order] = await db.select().from(orders).where(eq(orders.orderNumber, number)).limit(1)
-  if (!order) return fail(NOT_FOUND, 404)
-  const orderPhone = order.customerPhone ? normalizeUaPhone(order.customerPhone) : null
-  if (!orderPhone || orderPhone !== phone) return fail(NOT_FOUND, 404)
-
-  const items = await db
-    .select()
-    .from(orderItems)
-    .where(eq(orderItems.orderId, order.id))
-    .orderBy(asc(orderItems.id))
-
-  return ok({
-    orderNumber: order.orderNumber,
-    status: order.status,
-    paymentStatus: order.paymentStatus,
-    paymentMethod: order.paymentMethod,
-    items: items.map((item) => ({
-      name: item.name,
-      quantity: item.quantity,
-      price: Number(item.price),
-    })),
-    totals: {
-      itemsTotal: Number(order.itemsTotal),
-      deliveryCost: Number(order.deliveryCost),
-      discountTotal: Number(order.discountTotal),
-      total: Number(order.total),
-    },
-    delivery: {
-      method: order.deliveryMethod,
-      city: order.deliveryCity,
-      branch: order.deliveryBranch,
-      address: order.deliveryAddress,
-      trackingNumber: order.trackingNumber,
-    },
-    createdAt: order.createdAt ? order.createdAt.toISOString() : null,
-  })
+  const phone = new URL(req.url).searchParams.get('phone') ?? ''
+  const data = await lookupOrderByNumberAndPhone(number, phone)
+  if (!data) return fail(NOT_FOUND, 404)
+  return ok(data)
 }

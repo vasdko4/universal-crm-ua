@@ -249,14 +249,25 @@ export async function getShopUser(): Promise<ShopUser | null> {
     name: string
     email: string
     phone?: string | null
+    is_active?: boolean
   }
+  // SECURITY (3.4.107 fix 2): a deactivated account is locked out even if a
+  // session row survived deactivation (setUserActive deletes sessions, but a
+  // session created in the race — or restored from backup — must not act).
+  // Same payload check as getAdminUser; the DB row below is authoritative.
+  if (u.is_active === false) return null
   try {
-    const { rows } = await pool.query<{ name: string | null; phone: string | null }>(
-      `SELECT name, phone FROM "user" WHERE id = $1 LIMIT 1`,
+    const { rows } = await pool.query<{
+      name: string | null
+      phone: string | null
+      is_active: boolean | null
+    }>(
+      `SELECT name, phone, is_active FROM "user" WHERE id = $1 LIMIT 1`,
       [u.id],
     )
     const row = rows[0]
     if (row) {
+      if (row.is_active === false) return null
       return { id: u.id, name: row.name ?? u.name, email: u.email, phone: row.phone ?? null }
     }
   } catch {

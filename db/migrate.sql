@@ -815,3 +815,12 @@ BEGIN
   END LOOP;
 END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_product_groups_slug ON public.product_groups (slug);
+
+-- ---------- Заказы: гостевой токен доступа (3.4.107, fix 5) ----------
+-- Кука pf_last_order хранила голый номер заказа: любой, кто знал номер,
+-- читал заказ целиком (ФИО, телефон, email, адрес) на /order/[n] и
+-- /checkout/pay/[n]. Теперь кука хранит только случайный токен, а в БД
+-- лежит только его SHA-256 (как с паролями: утечка БД сама по себе
+-- доступа к заказам не даёт). NULL для заказов, созданных до релиза, —
+-- они недоступны гостю по куке, только через phone-verified lookup.
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "guest_access_token_hash" varchar(64);

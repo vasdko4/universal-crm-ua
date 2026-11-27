@@ -30,6 +30,12 @@ import { applyOrderFulfillment, finalizePaidOrder, InsufficientStockError } from
 import { notifyNewOrder } from '@/lib/notifications'
 import { reportError } from '@/lib/server-errors'
 import { generateUniqueOrderNumber } from '@/lib/orders/order-number'
+import {
+  createGuestAccessToken,
+  hashGuestAccessToken,
+  isGuestAccessTokenFormat,
+  verifyGuestAccessToken,
+} from '@/lib/orders/guest-token'
 import { clientIpFromHeaders, isRateLimited } from '@/lib/api/rate-limit'
 import { mergeCheckoutItems, validateCheckoutInput } from '@/lib/shop/checkout-validation'
 import { resolveOneClickLine, validateOneClickInput } from '@/lib/shop/one-click'
@@ -43,13 +49,19 @@ import { formatPrice } from '@/lib/shop/format'
 import { computeOrderTotals } from '@/lib/shop/order-totals'
 import { composeCheckoutNote, formatRequisitesNote } from '@/lib/payments/public-requisites'
 
+// Guest access token cookie (3.4.107, fix 5). The cookie holds ONLY the
+// random token — never the order number. The previous behaviour (plain
+// order number in the cookie) is gone: anyone who knew an order number
+// could read the whole order. The DB stores only the token's SHA-256 hash
+// (orders.guest_access_token_hash); a legacy plain-number cookie verifies
+// against nothing and grants nothing.
 const LAST_ORDER_COOKIE = 'pf_last_order'
 
-async function rememberLastOrder(orderNumber: string) {
+async function setGuestAccessCookie(token: string) {
   try {
     const jar = await cookies()
     const secure = process.env.NODE_ENV === 'production'
-    jar.set(LAST_ORDER_COOKIE, orderNumber, {
+    jar.set(LAST_ORDER_COOKIE, token, {
       path: '/',
       maxAge: 60 * 60 * 2, // 2 hours
       httpOnly: true,
@@ -61,7 +73,7 @@ async function rememberLastOrder(orderNumber: string) {
   }
 }
 
-async function lastOrderFromCookie(): Promise<string | undefined> {
+async function guestTokenFromCookie(): Promise<string | undefined> {
   try {
     return (await cookies()).get(LAST_ORDER_COOKIE)?.value
   } catch {
@@ -69,10 +81,27 @@ async function lastOrderFromCookie(): Promise<string | undefined> {
   }
 }
 
-async function canAccessGuestOrder(order: { orderNumber: string; userId: string | null }): Promise<boolean> {
+// Issues a fresh guest access token for an order: stores only its SHA-256
+// hash on the order row and puts the plaintext token in the cookie. Every
+// call rotates the token — a previous token (e.g. from an earlier browser
+// or an idempotency replay) stops working, so a leaked token has a short
+// lifetime and a replayed submit re-binds the order to this browser.
+async function issueGuestAccessToken(orderId: number): Promise<string> {
+  const { token, tokenHash } = createGuestAccessToken()
+  await db.update(orders).set({ guestAccessTokenHash: tokenHash }).where(eq(orders.id, orderId))
+  await setGuestAccessCookie(token)
+  return token
+}
+
+async function canAccessGuestOrder(order: {
+  userId: string | null
+  guestAccessTokenHash: string | null
+}): Promise<boolean> {
   const shopper = await getShopUser()
   if (shopper && order.userId && shopper.id === order.userId) return true
-  return (await lastOrderFromCookie()) === order.orderNumber
+  const token = await guestTokenFromCookie()
+  if (!token || !order.guestAccessTokenHash) return false
+  return verifyGuestAccessToken(token, order.guestAccessTokenHash)
 }
 
 /** Client IP for server actions (no Request object available — use headers). */
@@ -273,7 +302,7 @@ async function buildIdempotentCheckoutResult(
     if (!paymentUrl) {
       const waited = await waitForInvoicePaymentUrl(existing.orderNumber)
       if (!waited) {
-        await rememberLastOrder(existing.orderNumber)
+        await issueGuestAccessToken(existing.id)
         return { success: false, retryable: true, orderNumber: existing.orderNumber }
       }
       if ('cancelled' in waited) return null
@@ -292,7 +321,7 @@ async function buildIdempotentCheckoutResult(
       orderNumber: existing.orderNumber,
     })
   }
-  await rememberLastOrder(existing.orderNumber)
+  await issueGuestAccessToken(existing.id)
   return {
     success: true,
     orderId: existing.id,
@@ -848,11 +877,12 @@ export async function createStorefrontOrder(input: CheckoutInput): Promise<Check
       .catch(() => {})
   }
 
-  // Guest confirmation/pay pages treat the order number as a capability.
-  // Bind it to this browser so /order/[n] and /checkout/pay/[n] are not a
-  // public lookup of another customer's PII. SameSite=none in production so
-  // WayForPay's cross-site POST return still attaches the cookie.
-  await rememberLastOrder(orderNumber)
+  // Guest confirmation/pay pages are gated on the guest access token
+  // (3.4.107, fix 5): bind this browser to the order with a fresh token so
+  // /order/[n] and /checkout/pay/[n] are not a public lookup of another
+  // customer's PII. SameSite=none in production so WayForPay's cross-site
+  // POST return still attaches the cookie.
+  await issueGuestAccessToken(order.id)
 
   return {
     success: true,
@@ -925,7 +955,7 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
       .where(eq(orders.idempotencyKey, idempotencyKey))
       .limit(1)
     if (existing) {
-      await rememberLastOrder(existing.orderNumber)
+      await issueGuestAccessToken(existing.id)
       return {
         success: true,
         orderId: existing.id,
@@ -1137,7 +1167,7 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
         .where(eq(orders.idempotencyKey, idempotencyKey))
         .limit(1)
       if (winner) {
-        await rememberLastOrder(winner.orderNumber)
+        await issueGuestAccessToken(winner.id)
         return {
           success: true,
           orderId: winner.id,
@@ -1153,9 +1183,10 @@ export async function createOneClickOrder(input: OneClickOrderInput): Promise<On
 
   void notifyNewOrder(order.id)
 
-  // Guest confirmation page treats the order number as a capability — bind it
-  // to this browser so /order/[n] isn't a public lookup of PII.
-  await rememberLastOrder(orderNumber)
+  // Guest confirmation page is gated on the guest access token
+  // (3.4.107, fix 5) — bind this browser to the order so /order/[n]
+  // isn't a public lookup of PII.
+  await issueGuestAccessToken(order.id)
 
   return {
     success: true,
@@ -1191,15 +1222,32 @@ export async function markOrderPaid(_orderNumber: string) {
 }
 
 // Guest order-confirmation / pay-page lookup. The 12-digit order number is
-// still a high-entropy capability (see lib/orders/order-number.ts), but the
-// page also leaks PII (phone, email, address). Require the shopper who just
-// checked out (pf_last_order cookie) or the logged-in owner. Rate-limit
+// only an identifier now (see lib/orders/order-number.ts), never a
+// credential — the page leaks PII (phone, email, address), so it requires
+// the guest access token from the pf_last_order cookie (3.4.107, fix 5)
+// or the logged-in owner. A legacy plain-number cookie grants nothing;
+// shoppers without a token use the phone-verified lookup instead. Rate-limit
 // leftover guesses with the shared limiter (audit: lookup limiter, 3.4.96):
 // the previous in-process Map was keyed by a spoofable header value, grew
 // without bound, and ran a full-map sweep on every insert past 10k entries.
 // The shared limiter is Postgres-backed on prod, so buckets live in the
 // rate_limits table (pruned daily by analytics-retention) and expired keys
 // are reused by the upsert instead of accumulating.
+
+// Resolves a guest access token (the pf_last_order cookie value) to its
+// order number via the stored SHA-256 hash. Used by the gateway return
+// route, which no longer receives an order number from the cookie
+// (3.4.107, fix 5). A legacy plain-number cookie is not a token and
+// resolves to nothing — it must never be treated as an order number.
+export async function getOrderNumberByGuestToken(token: string): Promise<string | null> {
+  if (!isGuestAccessTokenFormat(token)) return null
+  const [order] = await db
+    .select({ orderNumber: orders.orderNumber })
+    .from(orders)
+    .where(eq(orders.guestAccessTokenHash, hashGuestAccessToken(token)))
+    .limit(1)
+  return order?.orderNumber ?? null
+}
 
 export async function getOrderByNumber(orderNumber: string) {
   if (await isRateLimited('order-lookup', await actionClientIp(), 20)) return null
