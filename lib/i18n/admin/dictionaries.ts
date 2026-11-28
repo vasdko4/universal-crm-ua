@@ -1478,6 +1478,8 @@ export type AdminDictionary = {
     skuLabel: string
     outOfStock: string
     remainingPrefix: string
+    backupKeyWarningTitle: string
+    backupKeyWarningBody: string
     queueNew: string
     queueUnpaid: string
     queueMissingTtn: string
@@ -3515,6 +3517,8 @@ const uk: AdminDictionary = {
     skuLabel: 'Артикул',
     outOfStock: 'Немає в наявності',
     remainingPrefix: 'Залишилось',
+    backupKeyWarningTitle: 'Немає ключа шифрування резервних копій',
+    backupKeyWarningBody: 'Змінна BACKUP_ENCRYPTION_KEY не задана — нічні резервні копії бази не створюються. Згенеруйте ключ командою openssl rand -base64 32, задайте його в оточенні застосунку та перезапустіть застосунок. Докладніше — docs/db-backup.md.',
     queueNew: 'Нові',
     queueUnpaid: 'Не оплачені',
     queueMissingTtn: 'Без ТТН',
@@ -5558,6 +5562,8 @@ const ru: AdminDictionary = {
     skuLabel: 'Артикул',
     outOfStock: 'Нет в наличии',
     remainingPrefix: 'Осталось',
+    backupKeyWarningTitle: 'Нет ключа шифрования резервных копий',
+    backupKeyWarningBody: 'Переменная BACKUP_ENCRYPTION_KEY не задана — ночные резервные копии базы не создаются. Сгенерируйте ключ командой openssl rand -base64 32, задайте его в окружении приложения и перезапустите приложение. Подробнее — docs/db-backup.md.',
     queueNew: 'Новые',
     queueUnpaid: 'Не оплачены',
     queueMissingTtn: 'Без ТТН',

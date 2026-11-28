@@ -15,6 +15,7 @@ import { StatusBadge } from '@/components/orders/status-badge'
 import { getAdminDictionary } from '@/lib/i18n/admin/dictionaries'
 import { pickLocalized } from '@/lib/i18n/config'
 import { getStaffTwoFactorState } from '@/app/actions/staff-2fa'
+import { hasBackupEncryptionKey } from '@/lib/shop/backup-crypto'
 import { StaffTwoFactorCard } from '@/components/staff-2fa-card'
 import { Button } from '@/components/ui/button'
 
@@ -88,6 +89,8 @@ export default async function DashboardPage() {
 
   const loadFailed = statsFailed || analyticsFailed || recentFailed || queueFailed || lowStockFailed
 
+  const backupKeyMissing = !hasBackupEncryptionKey()
+
   const cards = [
     { label: t.statOrdersTotal, value: dash(statsFailed, stats.total), icon: ShoppingCart, tone: 'text-primary' },
     { label: t.statOrdersActive, value: dash(statsFailed, stats.active), icon: Package, tone: 'text-warning' },
@@ -119,6 +122,16 @@ export default async function DashboardPage() {
       )}
 
       <StaffTwoFactorCard enabled={twoFa.enabled} />
+
+      {backupKeyMissing && (
+        <div className="rounded-xl border border-warning/40 bg-card p-4">
+          <h2 className="mb-2 flex items-center gap-2 font-semibold text-foreground">
+            <AlertTriangle className="size-4 text-warning" />
+            {t.backupKeyWarningTitle}
+          </h2>
+          <p className="text-sm text-muted-foreground">{t.backupKeyWarningBody}</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[

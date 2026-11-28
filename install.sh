@@ -413,6 +413,12 @@ services:
     environment:
       DATABASE_URL: postgres://techno:\${POSTGRES_PASSWORD}@db:5432/magazine
       BETTER_AUTH_SECRET: \${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+      # Dedicated key for backup encryption (3.4.109). Passthrough only —
+      # backups fail closed when unset, but the container must receive the
+      # key install.sh generates, or every backup fails. Retained rotation
+      # keys travel the same way (BACKUP_ENCRYPTION_KEY_<keyId>).
+      BACKUP_ENCRYPTION_KEY: \${BACKUP_ENCRYPTION_KEY:-}
+      BACKUP_ENCRYPTION_KEY_ID: \${BACKUP_ENCRYPTION_KEY_ID:-}
       BETTER_AUTH_URL: \${BETTER_AUTH_URL:-http://localhost:3000}
       CRON_SECRET: \${CRON_SECRET:?set CRON_SECRET in .env (openssl rand -base64 32)}
       NEXT_PUBLIC_SITE_URL: \${NEXT_PUBLIC_SITE_URL:-}

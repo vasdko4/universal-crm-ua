@@ -124,6 +124,19 @@ export function currentBackupKey(env: NodeJS.ProcessEnv = process.env): { key: B
   return { key: decodeBackupKey(raw, BACKUP_ENCRYPTION_KEY_ENV), keyId }
 }
 
+/**
+ * True when a backup encryption key is configured (3.4.111). Presence
+ * only — never throws and never touches the key value: an invalid key
+ * still fails closed in currentBackupKey() at backup time, but a missing
+ * key is the failure the admin dashboard warns about. Used by the admin
+ * dashboard to surface the missing-key state right after a redeploy
+ * instead of at the 02:30 backup run.
+ */
+export function hasBackupEncryptionKey(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env[BACKUP_ENCRYPTION_KEY_ENV]
+  return Boolean(raw && raw.trim())
+}
+
 /** Serialize a header to its on-disk form (magic + 2-byte length + JSON). */
 export function encodeBackupHeader(header: BackupHeader): Buffer {
   const json = Buffer.from(JSON.stringify(header), 'utf8')
